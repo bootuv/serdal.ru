@@ -49,7 +49,7 @@
                 <div class="param-item-label p18">Цена</div>
                 <div class="param-item-data">
                   <div class="price">
-                    <div class="p24">6000 ₽</div>
+                    <div class="p24-medium">6000 ₽</div>
                     <div class="p18">/ в месяц</div>
                   </div>
                 </div>
@@ -81,7 +81,7 @@
                 <div class="param-item-label p18">Цена</div>
                 <div class="param-item-data">
                   <div class="price">
-                    <div class="p24">1200 ₽</div>
+                    <div class="p24-medium">1200 ₽</div>
                     <div class="p18">/ за урок</div>
                   </div>
                 </div>
