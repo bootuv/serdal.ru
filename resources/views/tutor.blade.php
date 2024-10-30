@@ -1,9 +1,16 @@
 @extends('layout')
 
 @section('content')
-  <section class="header tutor-page">
+  <section class="header">
     <a href="/" class="logo-wrapper w-inline-block"><img src="images/Logo.svg" loading="lazy" width="Auto" height="32" alt="" class="logo"></a>
-    <a href="https://room.serdal.ru/signin" target="_blank" class="p24 login">Войти</a>
+    <div class="menu-wrapper">
+      <div class="main-menu">
+        <a href="#" target="_blank" class="p24">О нас</a>
+        <a href="reviews.html" class="p24">Отзывы</a>
+        <a href="https://room.serdal.ru/signin" target="_blank" class="p24">Войти</a>
+      </div>
+      <div data-w-id="a8ac7203-c22a-a2cb-1d14-2d129698914f" class="burger-menu-wrapper"><img src="images/burger.svg" loading="lazy" width="32" height="32" alt="" class="burger-menu"></div>
+    </div>
   </section>
   <section class="profile">
     <div class="profile-pic-wrapper"><img src="images/Rectangle-4_1.png" loading="lazy" width="280" height="280" alt="" srcset="images/Rectangle-4_1-p-500.png 500w, images/Rectangle-4_1.png 560w" sizes="280px" class="profile-pic"></div>
@@ -12,7 +19,7 @@
       <div class="p24">{{ $user->status }}</div>
       <div class="status-arrow"></div>
     </div>
-    <div class="tutor-subjects">{{ $user->subjects_list }}</div>
+    <div class="tutor-subjects p24">{{ $user->subjects_list }}</div>
     <div class="direction-tags-list tutor-page">
       @foreach($user->directs as $direct)
         <div class="direction-tag tutor-page">

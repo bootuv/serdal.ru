@@ -1,14 +1,16 @@
 @extends('layout')
 
 @section('content')
-  <section class="header">
-    <a href="index.html" aria-current="page" class="logo-wrapper w-inline-block w--current"><img src="images/Logo.svg" loading="lazy" width="Auto" height="32" alt="" class="logo"></a>
-    <div class="main-menu">
-      <a href="#specialists" target="_blank" class="p24">Все специалисты</a>
-      <a href="#" target="_blank" class="p24">О нас</a>
-      <a href="#" target="_blank" class="p24">Отзывы</a>
+  <section class="header home">
+    <a href="/" aria-current="page" class="logo-wrapper w-inline-block w--current"><img src="images/Logo.svg" loading="lazy" width="Auto" height="32" alt="" class="logo"></a>
+    <div class="menu-wrapper">
+      <div class="main-menu">
+        <a href="#" target="_blank" class="p24">О нас</a>
+        <a href="reviews.html" class="p24">Отзывы</a>
+        <a href="https://room.serdal.ru/signin" target="_blank" class="p24">Войти</a>
+      </div>
+      <div data-w-id="a8ac7203-c22a-a2cb-1d14-2d129698914f" class="burger-menu-wrapper"><img src="images/burger.svg" loading="lazy" width="32" height="32" alt="" class="burger-menu"></div>
     </div>
-    <a href="https://room.serdal.ru/signin" target="_blank" class="p24 login">Войти</a>
   </section>
   <section class="intro-wrapper">
     <div class="intro">
@@ -68,7 +70,6 @@
     </div>
   </section>
   <section class="specialists">
-    <h2 class="h2">Найти специалиста</h2>
     <h2 id="specialists" class="h2">Найти специалиста</h2>
     <div class="filters-wrapper">
       <div class="filters">
@@ -143,12 +144,5 @@
         </a>
       @endforeach
     </div>
-  </section> 
-  <div class="popup-wrapper auto-stopper">
-    <div class="popup">
-      <div style="padding-top:56.27659574468085%" class="video w-video w-embed"><iframe class="embedly-embed" src="https://cdn.embedly.com/widgets/media.html?src=https%3A%2F%2Fplayer.vimeo.com%2Fvideo%2F1007718657%3Fapp_id%3D122963&dntp=1&display_name=Vimeo&url=https%3A%2F%2Fvimeo.com%2F1007718657&image=https%3A%2F%2Fi.vimeocdn.com%2Fvideo%2F1924634575-d0cb03e50ef9708d7c52b0af022f099fa4593fc366fe3db58eadc9ac85e2ff8d-d_1280&key=c4e54deccf4d4ec997a64902e9a30300&type=text%2Fhtml&schema=vimeo" width="940" height="529" scrolling="no" allowfullscreen="" title="The Game"></iframe></div>
-    </div>
-    <div class="close-button">Закрыть</div>
-    <div data-w-id="43e43230-fe7b-3950-1162-acc7201c2860" class="close-click-zone"></div>
-  </div>
+  </section>
 @endsection
