@@ -73,7 +73,7 @@
     <h2 id="specialists" class="h2">Найти специалиста</h2>
     <div class="filters-wrapper">
       <div class="filters">
-        <div data-hover="false" data-delay="0" class="filter w-dropdown">
+        <div id="format" data-hover="false" data-delay="0" class="filter w-dropdown">
           <div class="filter-select w-dropdown-toggle">
             <div class="p24">Формат</div>
             <div class="filter-icon w-icon-dropdown-toggle"></div>
@@ -84,9 +84,9 @@
             <a href="#" class="p24 dropdown-list-item w-dropdown-link">Link 1</a>
           </nav>
         </div>
-        <div data-hover="false" data-delay="0" class="filter w-dropdown">
+        <div id="directs" data-hover="false" data-delay="0" class="filter w-dropdown">
           <div class="filter-select w-dropdown-toggle">
-            <div class="p24">Цель</div>
+            <div class="p24">Направления</div>
             <div class="filter-icon w-icon-dropdown-toggle"></div>
           </div>
           <nav class="dropdown-list w-dropdown-list">
@@ -95,7 +95,7 @@
             <a href="#" class="p24 dropdown-list-item w-dropdown-link">Link 3</a>
           </nav>
         </div>
-        <div data-hover="false" data-delay="0" class="filter selected w-dropdown">
+        <div id="subjects" data-hover="false" data-delay="0" class="filter selected w-dropdown">
           <div class="filter-select w-dropdown-toggle">
             <div class="filter-conter">2</div>
             <div class="p24 white-text">Предметы</div>
@@ -107,7 +107,7 @@
             <a href="#" class="p24 dropdown-list-item w-dropdown-link">Link 1</a>
           </nav>
         </div>
-        <div data-hover="false" data-delay="0" class="filter w-dropdown">
+        <div id="grades" data-hover="false" data-delay="0" class="filter w-dropdown">
           <div class="filter-select w-dropdown-toggle">
             <div class="p24">Классы</div>
             <div class="filter-icon w-icon-dropdown-toggle"></div>
