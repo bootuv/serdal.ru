@@ -10,9 +10,16 @@ use App\Models\Subject;
 use App\Models\Direct;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Str;
+use Illuminate\Database\Eloquent\Builder;
 
 class User extends Authenticatable
 {
+    const ROLE_MENTOR = 'mentor';
+    
+    const ROLE_TUTOR = 'tutor';
+
+    const ROLE_STUDENT = 'student';
+
     use HasFactory, Notifiable;
 
     /**
@@ -24,6 +31,7 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'role',
     ];
 
     /**
@@ -46,6 +54,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'grade' => 'json',
         ];
     }
 
@@ -62,6 +71,11 @@ class User extends Authenticatable
     public function subjects()
     {
         return $this->belongsToMany(Subject::class);
+    }
+
+    public function lessonTypes()
+    {
+        return $this->hasMany(LessonType::class);
     }
 
     public function subjectsList(): Attribute
@@ -82,4 +96,46 @@ class User extends Authenticatable
             },
         );
     }
+
+    public function displayGrade(): Attribute
+    {
+        return Attribute::make(
+            get: function () {
+                $result = [];
+
+                if ($this->grade['preschool']) {
+                    $result[] = 'дошкольники';
+                }
+
+                if ($this->grade['school']) {
+                    $result[] = format_grade_range($this->grade['school']);
+                }
+
+                if ($this->grade['adults']) {
+                    $result[] = 'взрослые';
+                }
+
+                return Str::ucfirst(implode(', ', $result));
+            },
+        );
+    }
+
+    public function displayRole(): Attribute
+    {
+        return Attribute::make(
+            get: function () {
+                return match($this->role) {
+                    User::ROLE_MENTOR => 'Ментор',
+                    User::ROLE_TUTOR => 'Преподаватель',
+                    User::ROLE_STUDENT => 'Ученик',
+                };
+            },
+        );
+    }
+
+    public function scopeIsSpecialist(Builder $query): Builder
+    {
+        return $query->where('role', '!=', User::ROLE_STUDENT);
+    }
+
 }

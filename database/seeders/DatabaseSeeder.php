@@ -3,7 +3,6 @@
 namespace Database\Seeders;
 
 use App\Models\User;
-// use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Schema;
 
@@ -20,6 +19,8 @@ class DatabaseSeeder extends Seeder
             SubjectSeeder::class,
             DirectSeeder::class,
             UsersTableSeeder::class,
+            LessonTypeSeeder::class,
+            ReviewSeeder::class,
         ]);
 
         Schema::enableForeignKeyConstraints();

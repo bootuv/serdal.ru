@@ -21,9 +21,11 @@ return new class extends Migration
             $table->rememberToken();
 
             $table->string('status')->nullable();
-            $table->string('grade')->nullable();
+            $table->string('role');
+            $table->json('grade')->nullable();
             $table->text('about')->nullable();
             $table->text('extra_info')->nullable();
+            $table->string('avatar')->nullable();
             $table->string('phone')->nullable();
             $table->string('whatsup')->nullable();
             $table->string('instagram')->nullable();

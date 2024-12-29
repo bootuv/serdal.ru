@@ -27,8 +27,9 @@
         </div>
       @endforeach
     </div>
-    <div class="grades p24">{{ $user->grade }}</div>
-    <a href="#" class="main-button share-button w-inline-block"><img src="images/share-01.svg" loading="lazy" width="32" height="32" alt="">
+    <div class="grades p24">{{ $user->displayGrade }}</div>
+    <a href="#" class="main-button share-button w-inline-block">
+      <img src="images/share-01.svg" loading="lazy" width="32" height="32" alt="">
       <div class="p24">Поделиться страницей</div>
     </a>
   </section>
@@ -36,11 +37,11 @@
     <div class="col-50 vertical">
       <div class="content-card">
         <h4 class="h4">Обо мне</h4>
-        <p class="p24">Опыт работы:<br>Преподавательский опыт- 37 лет.<br>Репетиторский опыт- 17 лет.<br>Образование высшее.<br>Почётный работник общего образования, высшая квалификационный категория.<br>Финалист Всероссийского конкурса «Учитель года» -2010 от московской школы 712, где преподавала русский язык и литературу 5 лет.<br>2013 г.- исполняла обязанности директора РЦОИ при министерстве образования РИ.<br><br>Основные принципы работы с детьми:<br>Заинтересовать, помочь поверить в себя.<br>Комфортные и доверительные взаимоотношения с ребёнком.<br>Сотрудничество с ребенком, а не подавление.<br>Связь теории с практикой</p>
+        <p class="p24">{{ $user->about }}</p>
       </div>
       <div class="content-card">
         <h4 class="h4">Дополнительная информация</h4>
-        <p class="p24">Основные принципы работы с детьми:<br>Заинтересовать, помочь поверить в себя.<br>Комфортные и доверительные взаимоотношения с ребёнком.<br>Сотрудничество с ребенком, а не подавление.<br>Связь теории с практикой</p>
+        <p class="p24">{{ $user->extra_info }}</p>
       </div>
     </div>
     <div class="col-50 horizontal">
@@ -56,7 +57,7 @@
                 <div class="param-item-label p18">Цена</div>
                 <div class="param-item-data">
                   <div class="price">
-                    <div class="p24-medium">6000 ₽</div>
+                    <div class="p24-medium">{{ $lessonTypeGroup->price }} ₽</div>
                     <div class="p18">/ в месяц</div>
                   </div>
                 </div>
@@ -65,7 +66,7 @@
                 <div class="param-item-label p18">Занятий в неделю</div>
                 <div class="param-item-data">
                   <div class="param-list-item-text">
-                    <div class="p18-medium">2</div>
+                    <div class="p18-medium">{{ $lessonTypeGroup->count_per_week }}</div>
                   </div>
                 </div>
               </div>
@@ -73,7 +74,7 @@
                 <div class="param-item-label p18">Длина занятия</div>
                 <div class="param-item-data">
                   <div class="param-list-item-text">
-                    <div class="p18-medium">90 минут</div>
+                    <div class="p18-medium">{{ $lessonTypeGroup->duration }} минут</div>
                   </div>
                 </div>
               </div>
@@ -88,7 +89,7 @@
                 <div class="param-item-label p18">Цена</div>
                 <div class="param-item-data">
                   <div class="price">
-                    <div class="p24-medium">1200 ₽</div>
+                    <div class="p24-medium">{{ $lessonTypeIndividual->price }} ₽</div>
                     <div class="p18">/ за урок</div>
                   </div>
                 </div>
@@ -97,7 +98,7 @@
                 <div class="param-item-label p18">Занятий в неделю</div>
                 <div class="param-item-data">
                   <div class="param-list-item-text">
-                    <div class="p18-medium">2</div>
+                    <div class="p18-medium">{{ $lessonTypeIndividual->count_per_week }}</div>
                   </div>
                 </div>
               </div>
@@ -105,7 +106,7 @@
                 <div class="param-item-label p18">Длина занятия</div>
                 <div class="param-item-data">
                   <div class="param-list-item-text">
-                    <div class="p18-medium">90 минут</div>
+                    <div class="p18-medium">{{ $lessonTypeIndividual->duration }} минут</div>
                   </div>
                 </div>
               </div>
@@ -122,7 +123,9 @@
                 <div class="param-item-label p18">Телефон</div>
                 <div class="param-item-data">
                   <div class="price">
-                    <div class="p18-medium">+7(920) 323-23-23</div>
+                    <a href="tel:{{ $user->phone }}" class="text-link w-inline-block">
+                      <div class="p18-medium">{{ $user->phone }}</div>
+                    </a>
                   </div>
                 </div>
                 <div class="w-layout-blockcontainer contact-icon w-container"><img src="images/Phone.svg" loading="lazy" alt="" class="icon-svg"></div>
@@ -131,8 +134,8 @@
                 <div class="param-item-label p18">WhatsApp</div>
                 <div class="param-item-data">
                   <div class="param-list-item-text">
-                    <a href="#" class="text-link w-inline-block">
-                      <div class="p18-medium">+7(920) 323-23-23</div>
+                    <a href="https://wa.me/{{ $user->whatsup }}" class="text-link w-inline-block">
+                      <div class="p18-medium">{{ $user->whatsup }}</div>
                     </a>
                   </div>
                 </div>
@@ -142,8 +145,8 @@
                 <div class="param-item-label p18">Telegram</div>
                 <div class="param-item-data">
                   <div class="param-list-item-text">
-                    <a href="#" class="text-link w-inline-block">
-                      <div class="p18-medium">@beksolt</div>
+                    <a href="https://t.me/{{ $user->telegram }}" class="text-link w-inline-block">
+                      <div class="p18-medium">{{ "@" . $user->telegram }}</div>
                     </a>
                   </div>
                 </div>
@@ -153,8 +156,8 @@
                 <div class="param-item-label p18">Instagram</div>
                 <div class="param-item-data">
                   <div class="param-list-item-text">
-                    <a href="#" class="text-link w-inline-block">
-                      <div class="p18-medium">@beksolt_006</div>
+                    <a href="https://www.instagram.com/{{ $user->instagram }}" class="text-link w-inline-block">
+                      <div class="p18-medium">{{ "@" . $user->instagram }}</div>
                     </a>
                   </div>
                 </div>
@@ -164,7 +167,9 @@
                 <div class="param-item-label p18">Email</div>
                 <div class="param-item-data">
                   <div class="param-list-item-text">
-                    <div class="p18-medium">beksolt_cahamajiev@gmail.com</div>
+                    <a href="mailto:{{ $user->email }}" class="text-link w-inline-block">
+                      <div class="p18-medium">{{ $user->email }}</div>
+                    </a>
                   </div>
                 </div>
                 <div class="w-layout-blockcontainer contact-icon w-container"><img src="images/Email.svg" loading="lazy" alt="" class="icon-svg"></div>

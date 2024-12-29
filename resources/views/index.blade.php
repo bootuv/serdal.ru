@@ -79,9 +79,8 @@
             <div class="filter-icon w-icon-dropdown-toggle"></div>
           </div>
           <nav class="dropdown-list w-dropdown-list">
-            <a href="#" class="p24 dropdown-list-item w-dropdown-link">Link 1</a>
-            <a href="#" class="p24 dropdown-list-item w-dropdown-link">Link 1</a>
-            <a href="#" class="p24 dropdown-list-item w-dropdown-link">Link 1</a>
+            <a href="{{ url('/?user_type=mentor') }}" class="p24 dropdown-list-item w-dropdown-link">Ментор</a>
+            <a href="{{ url('/?user_type=tutor') }}" class="p24 dropdown-list-item w-dropdown-link">Репетитор</a>
           </nav>
         </div>
         <div id="directs" data-hover="false" data-delay="0" class="filter w-dropdown">
@@ -102,9 +101,9 @@
             <div class="filter-icon white-text w-icon-dropdown-toggle"></div>
           </div>
           <nav class="dropdown-list w-dropdown-list">
-            <a href="#" class="p24 dropdown-list-item w-dropdown-link">Link 1</a>
-            <a href="#" class="p24 dropdown-list-item w-dropdown-link">Link 1</a>
-            <a href="#" class="p24 dropdown-list-item w-dropdown-link">Link 1</a>
+            @foreach(App\Models\Subject::all() as $subject)
+              <a href="#" class="p24 dropdown-list-item w-dropdown-link">{{ $subject->name }}</a>
+            @endforeach
           </nav>
         </div>
         <div id="grades" data-hover="false" data-delay="0" class="filter w-dropdown">
@@ -113,22 +112,22 @@
             <div class="filter-icon w-icon-dropdown-toggle"></div>
           </div>
           <nav class="dropdown-list w-dropdown-list">
-            <a href="#" class="p24 dropdown-list-item w-dropdown-link">Link 1</a>
-            <a href="#" class="p24 dropdown-list-item w-dropdown-link">Link 1</a>
-            <a href="#" class="p24 dropdown-list-item w-dropdown-link">Link 1</a>
+            @foreach(['Дошкольники', 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 'Взрослые'] as $grade)
+              <a href="{{ url('/?grade=' . $grade) }}" class="p24 dropdown-list-item w-dropdown-link">{{ is_string($grade) ? $grade : $grade . ' класс' }}</a>
+            @endforeach
           </nav>
         </div>
       </div>
     </div>
     <div class="specialists-list">
-      @foreach(App\Models\User::all() as $user) 
-        <a href="{{ route('tutors.show', $user) }}" class="specialist-list-item w-inline-block">
+      @foreach($specialists as $specialist) 
+        <a href="{{ route('tutors.show', $specialist) }}" class="specialist-list-item w-inline-block">
           <div class="specialist-list-item-group"><img src="images/Rectangle-9.png" loading="lazy" width="112" height="112" alt="" class="list-item-userpic">
             <div class="specialist-list-item-details">
               <div class="list-item-name-tags">
-                <div class="p30">{{ $user->name }}</div>
+                <div class="p30">{{ $specialist->name }}</div>
                 <div class="direction-tags-list">
-                  @foreach($user->directs as $direct)
+                  @foreach($specialist->directs as $direct)
                     <div class="direction-tag">
                       <div class="p18">{{ $direct->name }}</div>
                     </div> 
@@ -136,8 +135,8 @@
                 </div>
               </div>
               <div class="list-item-subject-grade">
-                <div class="p24">{{ $user->subjectsList }}</div>
-                <div class="p18">{{ $user->grade }}</div>
+                <div class="p24">{{ $specialist->subjectsList }}</div>
+                <div class="p18">{{ $specialist->displayGrade }}</div>
               </div>
             </div>
           </div>
