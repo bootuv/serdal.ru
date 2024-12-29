@@ -22,6 +22,14 @@ class UsersTableSeeder extends Seeder
 
         $data = [];
 
+        User::create([
+            'name' => 'Berd',
+            'email' => 'elberd06@gmail.com',
+            'username' => 'elberd06',
+            'password' => bcrypt('123123'),
+            'role' => User::ROLE_ADMIN,
+        ]);
+
         for ($i = 0; $i < self::COUNT_USERS; $i++) {
             $user = User::create([
                 'name' => fake()->name,

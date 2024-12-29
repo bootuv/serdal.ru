@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use DB;
+use App\Models\Subject;
 
 class SubjectSeeder extends Seeder
 {
@@ -13,10 +14,16 @@ class SubjectSeeder extends Seeder
      */
     public function run(): void
     {
-        DB::table('subjects')->insert([
-            ['name' => 'Русский язык'],
-            ['name' => 'Литература'],
-            ['name' => 'Математика'],
+        Subject::create([
+            'name' => 'Русский язык',
+        ]);
+
+        Subject::create([
+            'name' => 'Литература',
+        ]);
+
+        Subject::create([
+            'name' => 'Математика',
         ]);
     }
 }

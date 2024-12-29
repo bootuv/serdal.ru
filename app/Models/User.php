@@ -20,6 +20,8 @@ class User extends Authenticatable
 
     const ROLE_STUDENT = 'student';
 
+    const ROLE_ADMIN = 'admin';
+
     use HasFactory, Notifiable;
 
     /**
@@ -101,6 +103,10 @@ class User extends Authenticatable
     {
         return Attribute::make(
             get: function () {
+                if (empty($this->grade)) {
+                    return '';
+                }
+
                 $result = [];
 
                 if ($this->grade['preschool']) {
@@ -128,6 +134,7 @@ class User extends Authenticatable
                     User::ROLE_MENTOR => 'Ментор',
                     User::ROLE_TUTOR => 'Преподаватель',
                     User::ROLE_STUDENT => 'Ученик',
+                    User::ROLE_ADMIN => 'Администратор',
                 };
             },
         );
@@ -135,7 +142,7 @@ class User extends Authenticatable
 
     public function scopeIsSpecialist(Builder $query): Builder
     {
-        return $query->where('role', '!=', User::ROLE_STUDENT);
+        return $query->whereIn('role', [User::ROLE_MENTOR, User::ROLE_TUTOR]);
     }
 
 }

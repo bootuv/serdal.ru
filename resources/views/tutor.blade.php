@@ -48,7 +48,9 @@
       <div class="col-25">
         <div class="content-card">
           <h4 class="h4">Занятия</h4>
+      
           <div class="group-classes">
+            @if($lessonTypeGroup)
             <div class="class-info-title">
               <div class="p24">Групповые</div>
             </div>
@@ -80,6 +82,8 @@
               </div>
             </div>
           </div>
+          @endif
+          @if($lessonTypeIndividual)
           <div class="individual-classes">
             <div class="class-info-title">
               <div class="p24">Индивидуальные</div>
@@ -112,6 +116,7 @@
               </div>
             </div>
           </div>
+          @endif
         </div>
       </div>
       <div class="col-25">
