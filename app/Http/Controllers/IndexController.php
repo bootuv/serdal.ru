@@ -12,21 +12,24 @@ class IndexController extends Controller
     {
         $queryBuilder = User::isSpecialist();
 
-        if ($request->has('user_type')) {
+        if ($request->has('user_type')) {   
             $queryBuilder->where('role', $request['user_type']);
         }
 
         if ($request->has('grade')) {
-            switch (Str::lower($request['grade'])) {
-                case 'дошкольники':
-                    $queryBuilder->where('grade->preschool', true);
-                    break;
-                case 'взрослые':
-                    $queryBuilder->where('grade->adults', true);
-                    break;
-                default:
-                    $queryBuilder->where('grade->school', 'LIKE', "%" . $request['grade'] . "%");
-            }
+            $queryBuilder->where('grade', 'LIKE', "%" . $request['grade'] . "%");
+        }
+
+        if ($request->has('direct')) {
+            $queryBuilder->whereHas('directs', function ($query) use ($request) {
+                $query->where('directs.id', $request['direct']);
+            });
+        }
+
+        if ($request->has('subject')) {
+            $queryBuilder->whereHas('subjects', function ($query) use ($request) {
+                $query->where('subjects.id', $request['subject']);
+            });
         }
 
         $specialists = $queryBuilder->get();

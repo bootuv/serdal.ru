@@ -17,7 +17,11 @@ if (!function_exists('format_grade_range')) {
                 if ($start == $prev) {
                     $ranges[] = $start;
                 } else {
-                    $ranges[] = "$start-$prev";
+                    if ($prev - $start === 1) {
+                        $ranges[] = "$start, $prev";
+                    } else {
+                        $ranges[] = "$start-$prev";
+                    }
                 }
                 if ($i < count($grades)) {
                     $start = $grades[$i];

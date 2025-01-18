@@ -89,9 +89,10 @@
             <div class="filter-icon w-icon-dropdown-toggle"></div>
           </div>
           <nav class="dropdown-list w-dropdown-list">
-            <a href="#" class="p24 dropdown-list-item w-dropdown-link">Link 1</a>
-            <a href="#" class="p24 dropdown-list-item w-dropdown-link">Link 2</a>
-            <a href="#" class="p24 dropdown-list-item w-dropdown-link">Link 3</a>
+            @foreach(App\Models\Direct::all() as $direct)
+              <a href="{{ url('/?direct=' . $direct->id) }}"
+              class="p24 dropdown-list-item w-dropdown-link">{{ $direct->name }}</a>
+            @endforeach
           </nav>
         </div>
         <div id="subjects" data-hover="false" data-delay="0" class="filter selected w-dropdown">
@@ -102,7 +103,7 @@
           </div>
           <nav class="dropdown-list w-dropdown-list">
             @foreach(App\Models\Subject::all() as $subject)
-              <a href="#" class="p24 dropdown-list-item w-dropdown-link">{{ $subject->name }}</a>
+              <a href="{{ url('/?subject=' . $subject->id) }}" class="p24 dropdown-list-item w-dropdown-link">{{ $subject->name }}</a>
             @endforeach
           </nav>
         </div>
@@ -113,16 +114,17 @@
           </div>
           <nav class="dropdown-list w-dropdown-list">
             @foreach(['Дошкольники', 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 'Взрослые'] as $grade)
-              <a href="{{ url('/?grade=' . $grade) }}" class="p24 dropdown-list-item w-dropdown-link">{{ is_string($grade) ? $grade : $grade . ' класс' }}</a>
+              <a href="#" class="p24 dropdown-list-item w-dropdown-link" data-grade="{{ $grade }}">{{ is_string($grade) ? $grade : $grade . ' класс' }}</a>
             @endforeach
           </nav>
         </div>
       </div>
     </div>
-    <div class="specialists-list">
+    <div class="specialists-list" id="specialists-list">
       @foreach($specialists as $specialist) 
         <a href="{{ route('tutors.show', $specialist) }}" class="specialist-list-item w-inline-block">
-          <div class="specialist-list-item-group"><img src="images/Rectangle-9.png" loading="lazy" width="112" height="112" alt="" class="list-item-userpic">
+          <div class="specialist-list-item-group">
+            <img src="{{ $specialist->avatarUrl }}" loading="lazy" width="112" height="112" alt="" class="list-item-userpic">
             <div class="specialist-list-item-details">
               <div class="list-item-name-tags">
                 <div class="p30">{{ $specialist->name }}</div>
@@ -144,4 +146,34 @@
       @endforeach
     </div>
   </section>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const filters = document.querySelectorAll('.dropdown-list-item');
+
+      filters.forEach(filter => {
+        filter.addEventListener('click', function(e) {
+          e.preventDefault();
+          const userType = this.getAttribute('data-user-type');
+          const grade = this.getAttribute('data-grade');
+          const url = new URL(window.location.href);
+
+          if (userType) {
+            url.searchParams.set('user_type', userType);
+          }
+          if (grade) {
+            url.searchParams.set('grade', grade);
+          }
+
+          fetch(url)
+            .then(response => response.text())
+            .then(data => {
+              const parser = new DOMParser();
+              const doc = parser.parseFromString(data, 'text/html');
+              const newSpecialistsList = doc.getElementById('specialists-list');
+              document.getElementById('specialists-list').innerHTML = newSpecialistsList.innerHTML;
+            });
+        });
+      });
+    });
+  </script>
 @endsection

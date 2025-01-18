@@ -11,8 +11,10 @@ use App\Models\Direct;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Str;
 use Illuminate\Database\Eloquent\Builder;
-
-class User extends Authenticatable
+use Filament\Models\Contracts\FilamentUser;
+use Filament\Panel;
+use Illuminate\Support\Facades\Storage;
+class User extends Authenticatable implements FilamentUser
 {
     const ROLE_MENTOR = 'mentor';
     
@@ -34,6 +36,15 @@ class User extends Authenticatable
         'email',
         'password',
         'role',
+        'grade',
+        'avatar',
+        'status',
+        'about',
+        'extra_info',
+        'phone',
+        'whatsup',
+        'instagram',
+        'telegram',
     ];
 
     /**
@@ -109,15 +120,19 @@ class User extends Authenticatable
 
                 $result = [];
 
-                if ($this->grade['preschool']) {
+                $school = array_filter($this->grade, function($item) {
+                    return $item !== 'preschool' && $item !== 'adults';
+                });
+
+                if (in_array('preschool', $this->grade)) {
                     $result[] = 'дошкольники';
                 }
 
-                if ($this->grade['school']) {
-                    $result[] = format_grade_range($this->grade['school']);
+                if ($school) {
+                    $result[] = format_grade_range($school);
                 }
 
-                if ($this->grade['adults']) {
+                if (in_array('adults', $this->grade)) {
                     $result[] = 'взрослые';
                 }
 
@@ -140,9 +155,20 @@ class User extends Authenticatable
         );
     }
 
+    public function avatarUrl(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => $this->avatar ? Storage::url($this->avatar) : asset('images/default-avatar.png'),
+        );
+    }
+
     public function scopeIsSpecialist(Builder $query): Builder
     {
         return $query->whereIn('role', [User::ROLE_MENTOR, User::ROLE_TUTOR]);
     }
 
+    public function canAccessPanel(Panel $panel): bool
+    {
+        return $this->role === self::ROLE_ADMIN;
+    }
 }

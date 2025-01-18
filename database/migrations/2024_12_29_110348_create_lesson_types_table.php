@@ -13,9 +13,9 @@ return new class extends Migration
     {
         Schema::create('lesson_types', function (Blueprint $table) {
             $table->id();
-            $table->unsignedInteger('price');
-            $table->unsignedInteger('count_per_week');
-            $table->unsignedInteger('duration');
+            $table->unsignedInteger('price')->nullable();
+            $table->unsignedInteger('count_per_week')->nullable();
+            $table->unsignedInteger('duration')->nullable();
             $table->string('type');
             $table->unsignedBigInteger('user_id');
             $table->timestamps();

@@ -13,12 +13,16 @@
     </div>
   </section>
   <section class="profile">
-    <div class="profile-pic-wrapper"><img src="images/Rectangle-4_1.png" loading="lazy" width="280" height="280" alt="" srcset="images/Rectangle-4_1-p-500.png 500w, images/Rectangle-4_1.png 560w" sizes="280px" class="profile-pic"></div>
-    <h2 class="h3 tutor-name">{{ $user->name }}</h2>
-    <div class="status">
-      <div class="p24">{{ $user->status }}</div>
-      <div class="status-arrow"></div>
+    <div class="profile-pic-wrapper">
+        <img src="{{ $user->avatarUrl }}" loading="lazy" width="280" height="280" alt="" sizes="280px" class="profile-pic">
     </div>
+    <h2 class="h3 tutor-name">{{ $user->name }}</h2>
+    @if($user->status)
+      <div class="status">
+        <div class="p24">{{ $user->status }}</div>
+      </div>
+    @endif
+    <div class="status-arrow"></div>
     <div class="tutor-subjects p24">{{ $user->subjects_list }}</div>
     <div class="direction-tags-list tutor-page">
       @foreach($user->directs as $direct)
@@ -35,14 +39,18 @@
   </section>
   <section class="content">
     <div class="col-50 vertical">
+      @if($user->about)
       <div class="content-card">
         <h4 class="h4">Обо мне</h4>
-        <p class="p24">{{ $user->about }}</p>
-      </div>
-      <div class="content-card">
-        <h4 class="h4">Дополнительная информация</h4>
-        <p class="p24">{{ $user->extra_info }}</p>
-      </div>
+          <p class="p24">{!! $user->about !!}</p>
+        </div>
+      @endif
+      @if($user->extra_info)
+        <div class="content-card">
+          <h4 class="h4">Дополнительная информация</h4>
+          <p class="p24">{!! $user->extra_info !!}</p>
+        </div>
+      @endif
     </div>
     <div class="col-50 horizontal">
       <div class="col-25">

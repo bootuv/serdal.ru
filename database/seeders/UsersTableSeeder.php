@@ -35,17 +35,13 @@ class UsersTableSeeder extends Seeder
                 'name' => fake()->name,
                 'email' => fake()->email,
                 'username' => "user-" . Str::random(6),
-                'grade' => [
-                    'preschool' => rand(0, 1) === 1 ? true : false,
-                    'school' => collect(range(1, 11))
-                        ->random(random_int(1, 11))
-                        ->sort()
-                        ->values()
-                        ->all(),
-                    'adults' => rand(0, 1) === 1 ? true : false,
-                ],
+                'grade' => collect([...range(1, 11), 'preschool', 'adults'])
+                    ->random(random_int(1, 11))
+                    ->sort()
+                    ->values()
+                    ->all(),
                 'password' => Hash::make('password'),
-                'avatar' => 'images/Rectangle-4.png',
+                'avatar' => null,
                 'status' => 'Продолжаю прием в группы и индивидуальников',
                 'role' => match(rand(0, 2)) {
                     0 => User::ROLE_STUDENT,
