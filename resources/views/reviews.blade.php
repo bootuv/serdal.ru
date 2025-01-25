@@ -18,7 +18,7 @@
   </section>
   <div class="content reviews-content">
     <div class="tabs-wrapper">
-      <div class="tabs">
+      <!-- <div class="tabs">
         <a href="#" class="tab active w-inline-block">
           <div class="p24">Все отзывы</div>
         </a>
@@ -31,13 +31,13 @@
         <a href="#" class="tab w-inline-block">
           <div class="p24">Менторы</div>
         </a>
-      </div>
+      </div> -->
     </div>
     <div r-masonry-gap="16" r-masonry-layout="1" r-masonry-column-min="500" class="reviews">
       @foreach($reviews as $review)
       <div class="review-item">
         <div class="review-item-user">
-          <img src="{{ $review->user->avatar }}"
+          <img src="{{ $review->user->avatarUrl }}"
               loading="lazy"
               alt=""
               class="list-item-userpic">

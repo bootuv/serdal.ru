@@ -79,8 +79,8 @@
             <div class="filter-icon w-icon-dropdown-toggle"></div>
           </div>
           <nav class="dropdown-list w-dropdown-list">
-            <a href="{{ url('/?user_type=mentor') }}" class="p24 dropdown-list-item w-dropdown-link">Ментор</a>
-            <a href="{{ url('/?user_type=tutor') }}" class="p24 dropdown-list-item w-dropdown-link">Репетитор</a>
+            <a href="{{ url('/?user_type=mentor') }}" class="p24 dropdown-list-item w-dropdown-link" data-user-type="mentor">Ментор</a>
+            <a href="{{ url('/?user_type=tutor') }}" class="p24 dropdown-list-item w-dropdown-link" data-user-type="tutor">Репетитор</a>
           </nav>
         </div>
         <div id="directs" data-hover="false" data-delay="0" class="filter w-dropdown">
@@ -91,7 +91,7 @@
           <nav class="dropdown-list w-dropdown-list">
             @foreach(App\Models\Direct::all() as $direct)
               <a href="{{ url('/?direct=' . $direct->id) }}"
-              class="p24 dropdown-list-item w-dropdown-link">{{ $direct->name }}</a>
+              class="p24 dropdown-list-item w-dropdown-link" data-direct="{{ $direct->id }}">{{ $direct->name }}</a>
             @endforeach
           </nav>
         </div>
@@ -103,7 +103,7 @@
           </div>
           <nav class="dropdown-list w-dropdown-list">
             @foreach(App\Models\Subject::all() as $subject)
-              <a href="{{ url('/?subject=' . $subject->id) }}" class="p24 dropdown-list-item w-dropdown-link">{{ $subject->name }}</a>
+              <a href="{{ url('/?subject=' . $subject->id) }}" class="p24 dropdown-list-item w-dropdown-link" data-subject="{{ $subject->id }}">{{ $subject->name }}</a>
             @endforeach
           </nav>
         </div>
@@ -149,20 +149,83 @@
   <script>
     document.addEventListener('DOMContentLoaded', function() {
       const filters = document.querySelectorAll('.dropdown-list-item');
+      const url = new URL(window.location.href);
+      const urlParams = new URLSearchParams(url.search);
+
+      // Function to update filters' UI based on URL parameters
+      function updateActiveFilters() {
+        filters.forEach(filter => {
+          const userType = filter.getAttribute('data-user-type');
+          const grade = filter.getAttribute('data-grade');
+          const subject = filter.getAttribute('data-subject');
+          const direct = filter.getAttribute('data-direct');
+          let isActive = false;
+
+          if (userType && urlParams.get('user_type') === userType) {
+            isActive = true;
+          }
+          if (grade && urlParams.get('grade') === grade) {
+            isActive = true;
+          }
+          if (subject && urlParams.get('subject') === subject) {
+            isActive = true;
+          }
+          if (direct && urlParams.get('direct') === direct) {
+            isActive = true;
+          }
+
+          if (isActive) {
+            filter.classList.add('active-filter');
+          } else {
+            filter.classList.remove('active-filter');
+          }
+        });
+      }
+
+      updateActiveFilters();
 
       filters.forEach(filter => {
         filter.addEventListener('click', function(e) {
           e.preventDefault();
           const userType = this.getAttribute('data-user-type');
           const grade = this.getAttribute('data-grade');
-          const url = new URL(window.location.href);
+          const subject = this.getAttribute('data-subject');
+          const direct = this.getAttribute('data-direct');
 
           if (userType) {
-            url.searchParams.set('user_type', userType);
+            if (urlParams.get('user_type') === userType) {
+              urlParams.delete('user_type');
+            } else {
+              urlParams.set('user_type', userType);
+            }
           }
+
           if (grade) {
-            url.searchParams.set('grade', grade);
+            if (urlParams.get('grade') === grade) {
+              urlParams.delete('grade');
+            } else {
+              urlParams.set('grade', grade);
+            }
           }
+
+          if (subject) {
+            if (urlParams.get('subject') === subject) {
+              urlParams.delete('subject');
+            } else {
+              urlParams.set('subject', subject);
+            }
+          }
+
+          if (direct) {
+            if (urlParams.get('direct') === direct) {
+              urlParams.delete('direct');
+            } else {
+              urlParams.set('direct', direct);
+            }
+          }
+
+          url.search = urlParams.toString();
+          window.history.pushState({}, '', url);
 
           fetch(url)
             .then(response => response.text())
@@ -171,6 +234,7 @@
               const doc = parser.parseFromString(data, 'text/html');
               const newSpecialistsList = doc.getElementById('specialists-list');
               document.getElementById('specialists-list').innerHTML = newSpecialistsList.innerHTML;
+              updateActiveFilters();
             });
         });
       });
