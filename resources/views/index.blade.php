@@ -44,6 +44,12 @@
         <div class="p30">{{ $direct->name }}</div>
       </li>
       @endforeach 
+      {{-- Дублирование вывода записей --}}
+      @foreach(App\Models\Direct::all() as $direct)
+      <li class="direction">
+        <div class="p30">{{ $direct->name }}</div>
+      </li>
+      @endforeach 
     </ul>
   </section>
   <section class="steps_wrapper">
