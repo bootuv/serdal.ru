@@ -14,6 +14,8 @@ use Illuminate\Database\Eloquent\Builder;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Database\Eloquent\Model;
+
 class User extends Authenticatable implements FilamentUser
 {
     const ROLE_MENTOR = 'mentor';
@@ -170,5 +172,17 @@ class User extends Authenticatable implements FilamentUser
     public function canAccessPanel(Panel $panel): bool
     {
         return $this->role === self::ROLE_ADMIN;
+    }
+
+    public function reviews()
+    {
+        return $this->hasMany(Review::class);
+    }
+
+    protected static function booted()
+    {
+        static::deleting(function ($user) {
+            $user->reviews()->delete();
+        });
     }
 }
