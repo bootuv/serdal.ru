@@ -23,6 +23,7 @@ use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\Group;
 use App\Filament\Resources\UserResource\RelationManagers\LessonTypesRelationManager;
+use Filament\Tables\Filters\SelectFilter;
 
 class UserResource extends Resource
 {
@@ -120,7 +121,27 @@ class UserResource extends Resource
                 TextColumn::make('updated_at'),
             ])
             ->filters([
-                //
+                SelectFilter::make('user_type')
+                    ->multiple()
+                    ->options([
+                        'mentor' => 'Ментор',
+                        'tutor' => 'Репетитор',
+                    ]),
+                SelectFilter::make('direct')
+                    ->multiple()
+                    ->relationship('directs', 'name'),
+                SelectFilter::make('subject')
+                    ->multiple()
+                    ->relationship('subjects', 'name'),
+                SelectFilter::make('grade')
+                    ->multiple()
+                    ->options([
+                        'Дошкольники' => 'Дошкольники',
+                        '1' => '1 класс',
+                        '2' => '2 класс',
+                        // Добавьте остальные классы...
+                        'Взрослые' => 'Взрослые',
+                    ]),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),

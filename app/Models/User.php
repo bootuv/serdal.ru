@@ -185,4 +185,48 @@ class User extends Authenticatable implements FilamentUser
             $user->reviews()->delete();
         });
     }
+
+    /**
+     * Скоуп для фильтрации по типу пользователя.
+     */
+    public function scopeFilterUserType($query, $types)
+    {
+        if (!empty($types)) {
+            $query->whereIn('user_type', $types);
+        }
+    }
+
+    /**
+     * Скоуп для фильтрации по направлениям.
+     */
+    public function scopeFilterDirects($query, $directs)
+    {
+        if (!empty($directs)) {
+            $query->whereHas('directs', function($q) use ($directs) {
+                $q->whereIn('directs.id', $directs);
+            });
+        }
+    }
+
+    /**
+     * Скоуп для фильтрации по предметам.
+     */
+    public function scopeFilterSubjects($query, $subjects)
+    {
+        if (!empty($subjects)) {
+            $query->whereHas('subjects', function($q) use ($subjects) {
+                $q->whereIn('subjects.id', $subjects);
+            });
+        }
+    }
+
+    /**
+     * Скоуп для фильтрации по классам.
+     */
+    public function scopeFilterGrades($query, $grades)
+    {
+        if (!empty($grades)) {
+            $query->whereIn('grade', $grades);
+        }
+    }
 }
