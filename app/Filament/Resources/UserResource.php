@@ -56,11 +56,14 @@ class UserResource extends Resource
                     ->dehydrated(fn ($state) => filled($state))
                     ->dehydrateStateUsing(fn ($state) => bcrypt($state)),
                 Select::make('role')
+                    ->label('Роль')
                     ->options([
                         User::ROLE_ADMIN => 'Администратор',
                         User::ROLE_MENTOR => 'Ментор',
-                        User::ROLE_TUTOR => 'Тьютор',
-                    ]),
+                        User::ROLE_TUTOR => 'Репетитор',
+                        User::ROLE_STUDENT => 'Студент',
+                    ])
+                    ->required(),
                 Select::make('subjects')
                     ->multiple()
                     ->relationship('subjects', 'name'),
