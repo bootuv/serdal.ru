@@ -192,7 +192,7 @@ class User extends Authenticatable implements FilamentUser
     public function scopeFilterUserType($query, $types)
     {
         if (!empty($types)) {
-            $query->whereIn('user_type', $types);
+            $query->whereIn('role', $types);
         }
     }
 
@@ -226,7 +226,9 @@ class User extends Authenticatable implements FilamentUser
     public function scopeFilterGrades($query, $grades)
     {
         if (!empty($grades)) {
-            $query->whereIn('grade', $grades);
+            foreach ($grades as $grade) {
+                $query->whereJsonContains('grade', $grade);
+            }
         }
     }
 }

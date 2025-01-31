@@ -126,9 +126,9 @@
             <div class="filter-icon w-icon-dropdown-toggle"></div>
           </div>
           <nav class="dropdown-list w-dropdown-list">
-            @foreach(['Дошкольники', 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 'Взрослые'] as $grade)
+            @foreach(['preschool' => 'Дошкольники', 1 => '1 класс', 2 => '2 класс', 3 => '3 класс', 4 => '4 класс', 5 => '5 класс', 6 => '6 класс', 7 => '7 класс', 8 => '8 класс', 9 => '9 класс', 10 => '10 класс', 11 => '11 класс', 'adults' => 'Взрослые'] as $value => $label)
               <label class="dropdown-list-item w-dropdown-link">
-                <input type="checkbox" class="filter-checkbox" data-grade="{{ $grade }}"> {{ is_string($grade) ? $grade : $grade . ' класс' }}
+                <input type="checkbox" class="filter-checkbox" data-grade="{{ $value }}" {{ request()->input('grade') && in_array($value, (array) request()->input('grade')) ? 'checked' : '' }}> {{ $label }}
               </label>
             @endforeach
           </nav>
