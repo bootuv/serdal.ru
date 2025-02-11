@@ -424,8 +424,11 @@ a {
 
 .filter.selected {
   background-color: var(--black);
-  color: var(--white);
   border-width: 0;
+}
+
+.filter.selected .p24, .filter.selected .w-icon-dropdown-toggle {
+  color: var(--white);
 }
 
 .filter-select {

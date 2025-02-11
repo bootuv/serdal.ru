@@ -85,6 +85,7 @@ class SpecialistsFilter {
         const filterSize = this.filters[filterType].size;
         
         filterCounter.textContent = filterSize;
+        filterCounter.style.display = filterSize > 0 ? 'block' : 'none';
         
         if (filterSize > 0) {
             filter.classList.add('active-filter', 'selected');
