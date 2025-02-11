@@ -464,7 +464,7 @@ a {
   box-shadow: 0 10px 11px #00000014;
 }
 
-.filter-conter {
+.filter-counter {
   background-color: var(--brand-main);
   color: var(--black);
   border-radius: 50px;

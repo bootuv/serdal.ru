@@ -81,54 +81,57 @@
       <div class="filters">
         <div id="format" data-hover="false" data-delay="0" class="filter w-dropdown">
           <div class="filter-select w-dropdown-toggle">
+            <div class="filter-counter">0</div>
             <div class="p24">Формат</div>
             <div class="filter-icon w-icon-dropdown-toggle"></div>
           </div>
           <nav class="dropdown-list w-dropdown-list">
             <label class="dropdown-list-item w-dropdown-link">
-              <input type="checkbox" class="filter-checkbox" data-user-type="mentor"> Ментор
+              <input type="checkbox" class="filter-checkbox" data-filter-type="user_type" data-value="mentor"> Ментор
             </label>
             <label class="dropdown-list-item w-dropdown-link">
-              <input type="checkbox" class="filter-checkbox" data-user-type="tutor"> Репетитор
+              <input type="checkbox" class="filter-checkbox" data-filter-type="user_type" data-value="tutor"> Репетитор
             </label>
           </nav>
         </div>
         <div id="directs" data-hover="false" data-delay="0" class="filter w-dropdown">
           <div class="filter-select w-dropdown-toggle">
+            <div class="filter-counter">0</div>
             <div class="p24">Направления</div>
             <div class="filter-icon w-icon-dropdown-toggle"></div>
           </div>
           <nav class="dropdown-list w-dropdown-list">
             @foreach(App\Models\Direct::all() as $direct)
               <label class="dropdown-list-item w-dropdown-link">
-                <input type="checkbox" class="filter-checkbox" data-direct="{{ $direct->id }}"> {{ $direct->name }}
+                <input type="checkbox" class="filter-checkbox" data-filter-type="direct" data-value="{{ $direct->id }}"> {{ $direct->name }}
               </label>
             @endforeach
           </nav>
         </div>
-        <div id="subjects" data-hover="false" data-delay="0" class="filter selected w-dropdown">
+        <div id="subjects" data-hover="false" data-delay="0" class="filter w-dropdown">
           <div class="filter-select w-dropdown-toggle">
-            <div class="filter-conter">2</div>
-            <div class="p24 white-text">Предметы</div>
-            <div class="filter-icon white-text w-icon-dropdown-toggle"></div>
+            <div class="filter-counter">0</div>
+            <div class="p24">Предметы</div>
+            <div class="filter-icon w-icon-dropdown-toggle"></div>
           </div>
           <nav class="dropdown-list w-dropdown-list">
             @foreach(App\Models\Subject::all() as $subject)
               <label class="dropdown-list-item w-dropdown-link">
-                <input type="checkbox" class="filter-checkbox" data-subject="{{ $subject->id }}"> {{ $subject->name }}
+                <input type="checkbox" class="filter-checkbox" data-filter-type="subject" data-value="{{ $subject->id }}"> {{ $subject->name }}
               </label>
             @endforeach
           </nav>
         </div>
         <div id="grades" data-hover="false" data-delay="0" class="filter w-dropdown">
           <div class="filter-select w-dropdown-toggle">
+            <div class="filter-counter">0</div>
             <div class="p24">Классы</div>
             <div class="filter-icon w-icon-dropdown-toggle"></div>
           </div>
           <nav class="dropdown-list w-dropdown-list">
             @foreach(['preschool' => 'Дошкольники', 1 => '1 класс', 2 => '2 класс', 3 => '3 класс', 4 => '4 класс', 5 => '5 класс', 6 => '6 класс', 7 => '7 класс', 8 => '8 класс', 9 => '9 класс', 10 => '10 класс', 11 => '11 класс', 'adults' => 'Взрослые'] as $value => $label)
               <label class="dropdown-list-item w-dropdown-link">
-                <input type="checkbox" class="filter-checkbox" data-grade="{{ $value }}" {{ request()->input('grade') && in_array($value, (array) request()->input('grade')) ? 'checked' : '' }}> {{ $label }}
+                <input type="checkbox" class="filter-checkbox" data-filter-type="grade" data-value="{{ $value }}"> {{ $label }}
               </label>
             @endforeach
           </nav>
@@ -161,71 +164,4 @@
       @endforeach
     </div>
   </section>
-  <script>
-    document.addEventListener('DOMContentLoaded', function() {
-      const checkboxes = document.querySelectorAll('.filter-checkbox');
-      const url = new URL(window.location.href);
-      const urlParams = new URLSearchParams(url.search);
-
-      // Функция для обновления фильтров на основе URL параметров
-      function updateActiveFilters() {
-        checkboxes.forEach(checkbox => {
-          const paramType = checkbox.dataset.userType ? 'user_type' :
-                            checkbox.dataset.direct ? 'direct' :
-                            checkbox.dataset.subject ? 'subject' :
-                            checkbox.dataset.grade ? 'grade' : null;
-          if (paramType) {
-            const values = urlParams.getAll(paramType);
-            if (values.includes(checkbox.dataset.userType || checkbox.dataset.direct || checkbox.dataset.subject || checkbox.dataset.grade)) {
-              checkbox.checked = true;
-              checkbox.closest('.filter').classList.add('active-filter');
-            } else {
-              checkbox.checked = false;
-              // Проверка, есть ли другие активные чекбоксы в этом фильтре
-              const filter = checkbox.closest('.filter');
-              const anyChecked = filter.querySelectorAll('.filter-checkbox:checked').length > 0;
-              if (!anyChecked) {
-                filter.classList.remove('active-filter');
-              }
-            }
-          }
-        });
-      }
-
-      updateActiveFilters();
-
-      checkboxes.forEach(checkbox => {
-        checkbox.addEventListener('change', function(e) {
-          const paramType = this.dataset.userType ? 'user_type' :
-                            this.dataset.direct ? 'direct' :
-                            this.dataset.subject ? 'subject' :
-                            this.dataset.grade ? 'grade' : null;
-          if (paramType) {
-            const values = urlParams.getAll(paramType);
-            if (this.checked) {
-              urlParams.append(paramType, this.dataset.userType || this.dataset.direct || this.dataset.subject || this.dataset.grade);
-            } else {
-              // Удаление конкретного значения из параметров
-              const newValues = values.filter(value => value !== (this.dataset.userType || this.dataset.direct || this.dataset.subject || this.dataset.grade));
-              urlParams.delete(paramType);
-              newValues.forEach(value => urlParams.append(paramType, value));
-            }
-          }
-
-          url.search = urlParams.toString();
-          window.history.pushState({}, '', url);
-
-          fetch(url)
-            .then(response => response.text())
-            .then(data => {
-              const parser = new DOMParser();
-              const doc = parser.parseFromString(data, 'text/html');
-              const newSpecialistsList = doc.getElementById('specialists-list');
-              document.getElementById('specialists-list').innerHTML = newSpecialistsList.innerHTML;
-              updateActiveFilters();
-            });
-        });
-      });
-    });
-  </script>
 @endsection
