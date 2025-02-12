@@ -465,7 +465,9 @@ a {
   border-radius: 16px;
   padding-top: 8px;
   padding-bottom: 8px;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
+  max-height: 500px;
   box-shadow: 0 10px 11px #00000014;
 }
 
