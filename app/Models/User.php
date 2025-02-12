@@ -160,7 +160,7 @@ class User extends Authenticatable implements FilamentUser
     public function avatarUrl(): Attribute
     {
         return Attribute::make(
-            get: fn () => $this->avatar ? Storage::url($this->avatar) : asset('images/default-avatar.png'),
+            get: fn () => $this->avatar ? Storage::disk('public')->url($this->avatar) : asset('images/default-avatar.png'),
         );
     }
 
