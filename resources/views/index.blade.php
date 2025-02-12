@@ -86,12 +86,14 @@
             <div class="filter-icon w-icon-dropdown-toggle"></div>
           </div>
           <nav class="dropdown-list w-dropdown-list">
-            <label class="p24 dropdown-list-item w-dropdown-link">
-              <input type="checkbox" class="filter-checkbox" data-filter-type="user_type" data-value="mentor"> Ментор
-            </label>
-            <label class="p24 dropdown-list-item w-dropdown-link">
-              <input type="checkbox" class="filter-checkbox" data-filter-type="user_type" data-value="tutor"> Репетитор
-            </label>
+            <div class="dropdown-list-wrapper">
+              <label class="p24 dropdown-list-item w-dropdown-link">
+                <input type="checkbox" class="filter-checkbox" data-filter-type="user_type" data-value="mentor"> Ментор
+              </label>
+              <label class="p24 dropdown-list-item w-dropdown-link">
+                <input type="checkbox" class="filter-checkbox" data-filter-type="user_type" data-value="tutor"> Репетитор
+              </label>
+            </div>
           </nav>
         </div>
         <div id="directs" data-hover="false" data-delay="0" class="filter w-dropdown">
@@ -101,11 +103,13 @@
             <div class="filter-icon w-icon-dropdown-toggle"></div>
           </div>
           <nav class="dropdown-list w-dropdown-list">
-            @foreach(App\Models\Direct::all() as $direct)
-              <label class="p24 dropdown-list-item w-dropdown-link">
-                <input type="checkbox" class="filter-checkbox" data-filter-type="direct" data-value="{{ $direct->id }}"> {{ $direct->name }}
-              </label>
-            @endforeach
+            <div class="dropdown-list-wrapper">
+              @foreach(App\Models\Direct::all() as $direct)
+                <label class="p24 dropdown-list-item w-dropdown-link">
+                  <input type="checkbox" class="filter-checkbox" data-filter-type="direct" data-value="{{ $direct->id }}"> {{ $direct->name }}
+                </label>
+              @endforeach
+            </div>
           </nav>
         </div>
         <div id="subjects" data-hover="false" data-delay="0" class="filter w-dropdown">
@@ -115,11 +119,13 @@
             <div class="filter-icon w-icon-dropdown-toggle"></div>
           </div>
           <nav class="dropdown-list w-dropdown-list">
-            @foreach(App\Models\Subject::all() as $subject)
-              <label class="p24 dropdown-list-item w-dropdown-link">
-                <input type="checkbox" class="filter-checkbox" data-filter-type="subject" data-value="{{ $subject->id }}"> {{ $subject->name }}
-              </label>
-            @endforeach
+            <div class="dropdown-list-wrapper">
+              @foreach(App\Models\Subject::all() as $subject)
+                <label class="p24 dropdown-list-item w-dropdown-link">
+                  <input type="checkbox" class="filter-checkbox" data-filter-type="subject" data-value="{{ $subject->id }}"> {{ $subject->name }}
+                </label>
+              @endforeach
+            </div>
           </nav>
         </div>
         <div id="grades" data-hover="false" data-delay="0" class="filter w-dropdown">
@@ -128,13 +134,15 @@
             <div class="p24 filter-name">Классы</div>
             <div class="filter-icon w-icon-dropdown-toggle"></div>
           </div>
-          <nav class="dropdown-list w-dropdown-list">
-            @foreach(['preschool' => 'Дошкольники', 1 => '1 класс', 2 => '2 класс', 3 => '3 класс', 4 => '4 класс', 5 => '5 класс', 6 => '6 класс', 7 => '7 класс', 8 => '8 класс', 9 => '9 класс', 10 => '10 класс', 11 => '11 класс', 'adults' => 'Взрослые'] as $value => $label)
-              <label class="p24 dropdown-list-item w-dropdown-link">
-                <input type="checkbox" class="filter-checkbox" data-filter-type="grade" data-value="{{ $value }}"> {{ $label }}
-              </label>
-            @endforeach
-          </nav>
+            <nav class="dropdown-list w-dropdown-list">
+              <div class="dropdown-list-wrapper">
+              @foreach(['preschool' => 'Дошкольники', 1 => '1 класс', 2 => '2 класс', 3 => '3 класс', 4 => '4 класс', 5 => '5 класс', 6 => '6 класс', 7 => '7 класс', 8 => '8 класс', 9 => '9 класс', 10 => '10 класс', 11 => '11 класс', 'adults' => 'Взрослые'] as $value => $label)
+                <label class="p24 dropdown-list-item w-dropdown-link">
+                  <input type="checkbox" class="filter-checkbox" data-filter-type="grade" data-value="{{ $value }}"> {{ $label }}
+                </label>
+              @endforeach
+              </div>
+            </nav>
         </div>
       </div>
     </div>

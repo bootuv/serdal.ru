@@ -15,32 +15,6 @@
   <script type="text/javascript">!function(o,c){var n=c.documentElement,t=" w-mod-";n.className+=t+"js",("ontouchstart"in o||o.DocumentTouch&&c instanceof DocumentTouch)&&(n.className+=t+"touch")}(window,document);</script>
   <link href="images/favicon.png" rel="shortcut icon" type="image/x-icon">
   <link href="images/webclip.png" rel="apple-touch-icon">
-  <style>
-    .filters-wrapper, .tabs {
-      -ms-overflow-style: none;
-      scrollbar-width: none;
-      overflow-x: scroll;
-    }
-    .filters-wrapper::-webkit-scrollbar, .tabs::-webkit-scrollbar {
-      display: none;
-    }
-    @keyframes ticker {
-      0% { transform: translateX(0); }
-      100% { transform: translateX(-50%); }
-    }
-    .directions-row {
-      overflow: hidden;
-    }
-    .directions {
-      display: flex;
-      width: fit-content;
-      animation: ticker 20s linear infinite;
-      -webkit-transform-style: preserve-3d;
-    }
-    .direction {
-      -webkit-backface-visibility: hidden;
-    }
-  </style>
 </head>
 <body class="body">
   @yield('content')

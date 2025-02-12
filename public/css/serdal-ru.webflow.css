@@ -464,11 +464,53 @@ a {
   background-color: var(--bg1);
   border-radius: 16px;
   padding-top: 8px;
-  padding-bottom: 8px;
+  padding-bottom: 8px; 
+  box-shadow: 0 10px 11px #00000014;
+}
+
+.dropdown-list-wrapper {
   overflow-y: auto;
   overflow-x: hidden;
-  max-height: 500px;
-  box-shadow: 0 10px 11px #00000014;
+  max-height: 460px;
+}
+
+.filters-wrapper, .tabs {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  overflow-x: scroll;
+}
+.filters-wrapper::-webkit-scrollbar, .tabs::-webkit-scrollbar {
+  display: none;
+}
+.dropdown-list-wrapper::-webkit-scrollbar {
+  width: 8px;
+}
+.dropdown-list-wrapper::-webkit-scrollbar-track {
+  background: none;
+  border-radius: 4px;
+}
+.dropdown-list-wrapper::-webkit-scrollbar-thumb {
+  background: var(--gray);
+  border-radius: 4px;
+}
+.dropdown-list-wrapper::-webkit-scrollbar-thumb:hover {
+  background: var(--black);
+}
+@keyframes ticker {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.directions-row {
+  overflow: hidden;
+}
+.directions {
+  display: flex;
+  width: fit-content;
+  animation: ticker 20s linear infinite;
+  -webkit-transform-style: preserve-3d;
+}
+.direction {
+  -webkit-backface-visibility: hidden;
 }
 
 .filter-checkbox {
