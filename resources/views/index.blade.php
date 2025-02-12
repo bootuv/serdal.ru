@@ -82,14 +82,14 @@
         <div id="format" data-hover="false" data-delay="0" class="filter w-dropdown">
           <div class="filter-select w-dropdown-toggle">
             <div class="filter-counter">0</div>
-            <div class="p24">Формат</div>
+            <div class="p24 filter-name">Формат</div>
             <div class="filter-icon w-icon-dropdown-toggle"></div>
           </div>
           <nav class="dropdown-list w-dropdown-list">
-            <label class="dropdown-list-item w-dropdown-link">
+            <label class="p24 dropdown-list-item w-dropdown-link">
               <input type="checkbox" class="filter-checkbox" data-filter-type="user_type" data-value="mentor"> Ментор
             </label>
-            <label class="dropdown-list-item w-dropdown-link">
+            <label class="p24 dropdown-list-item w-dropdown-link">
               <input type="checkbox" class="filter-checkbox" data-filter-type="user_type" data-value="tutor"> Репетитор
             </label>
           </nav>
@@ -97,12 +97,12 @@
         <div id="directs" data-hover="false" data-delay="0" class="filter w-dropdown">
           <div class="filter-select w-dropdown-toggle">
             <div class="filter-counter">0</div>
-            <div class="p24">Направления</div>
+            <div class="p24 filter-name">Направления</div>
             <div class="filter-icon w-icon-dropdown-toggle"></div>
           </div>
           <nav class="dropdown-list w-dropdown-list">
             @foreach(App\Models\Direct::all() as $direct)
-              <label class="dropdown-list-item w-dropdown-link">
+              <label class="p24 dropdown-list-item w-dropdown-link">
                 <input type="checkbox" class="filter-checkbox" data-filter-type="direct" data-value="{{ $direct->id }}"> {{ $direct->name }}
               </label>
             @endforeach
@@ -111,12 +111,12 @@
         <div id="subjects" data-hover="false" data-delay="0" class="filter w-dropdown">
           <div class="filter-select w-dropdown-toggle">
             <div class="filter-counter">0</div>
-            <div class="p24">Предметы</div>
+            <div class="p24 filter-name">Предметы</div>
             <div class="filter-icon w-icon-dropdown-toggle"></div>
           </div>
           <nav class="dropdown-list w-dropdown-list">
             @foreach(App\Models\Subject::all() as $subject)
-              <label class="dropdown-list-item w-dropdown-link">
+              <label class="p24 dropdown-list-item w-dropdown-link">
                 <input type="checkbox" class="filter-checkbox" data-filter-type="subject" data-value="{{ $subject->id }}"> {{ $subject->name }}
               </label>
             @endforeach
@@ -125,12 +125,12 @@
         <div id="grades" data-hover="false" data-delay="0" class="filter w-dropdown">
           <div class="filter-select w-dropdown-toggle">
             <div class="filter-counter">0</div>
-            <div class="p24">Классы</div>
+            <div class="p24 filter-name">Классы</div>
             <div class="filter-icon w-icon-dropdown-toggle"></div>
           </div>
           <nav class="dropdown-list w-dropdown-list">
             @foreach(['preschool' => 'Дошкольники', 1 => '1 класс', 2 => '2 класс', 3 => '3 класс', 4 => '4 класс', 5 => '5 класс', 6 => '6 класс', 7 => '7 класс', 8 => '8 класс', 9 => '9 класс', 10 => '10 класс', 11 => '11 класс', 'adults' => 'Взрослые'] as $value => $label)
-              <label class="dropdown-list-item w-dropdown-link">
+              <label class="p24 dropdown-list-item w-dropdown-link">
                 <input type="checkbox" class="filter-checkbox" data-filter-type="grade" data-value="{{ $value }}"> {{ $label }}
               </label>
             @endforeach

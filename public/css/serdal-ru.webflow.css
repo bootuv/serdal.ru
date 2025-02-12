@@ -73,6 +73,7 @@ a {
 
 .p24.dropdown-list-item {
   transition: background-color .3s;
+  font-weight: 400;
 }
 
 .p24.dropdown-list-item:hover {
@@ -427,8 +428,9 @@ a {
   border-width: 1px;
 }
 
-.filter.selected .p24, .filter.selected .w-icon-dropdown-toggle {
+.filter.selected .filter-name, .filter.selected .w-icon-dropdown-toggle {
   color: var(--white);
+  font-weight: 400;
 }
 
 .filter-select {
@@ -503,8 +505,7 @@ a {
 }
 
 .filter-checkbox:focus {
-  outline: none;
-  box-shadow: 0 0 0 2px var(--brand-main-light);
+  outline: none; 
 }
 
 .dropdown-list-item {
@@ -518,8 +519,10 @@ a {
 .filter-counter {
   background-color: var(--brand-main);
   color: var(--black);
+  width: 30px;
   border-radius: 50px;
   justify-content: center;
+  text-align: center;
   align-items: center;
   padding: 3px 10px;
   font-size: 16px;
