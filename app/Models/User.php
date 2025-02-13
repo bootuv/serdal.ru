@@ -47,6 +47,7 @@ class User extends Authenticatable implements FilamentUser
         'whatsup',
         'instagram',
         'telegram',
+        'username',
     ];
 
     /**
