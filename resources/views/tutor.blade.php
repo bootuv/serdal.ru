@@ -51,7 +51,6 @@
     function shareProfile() {
       const shareData = {
         title: '{{ $user->name }} - Преподаватель Serdal',
-        text: '{{ $user->subjects_list }} - {{ $user->status }}',
         url: window.location.href
       };
 
