@@ -37,7 +37,11 @@
       @foreach($reviews as $review)
       @if($review->user->role !== App\Models\User::ROLE_ADMIN)
       <div class="review-item">
+        @if($review->user->role === App\Models\User::ROLE_TUTOR || $review->user->role === App\Models\User::ROLE_MENTOR)
+        <a href="{{ route('tutors.show', ['username' => $review->user->username]) }}" class="review-item-user">
+        @else
         <div class="review-item-user">
+        @endif
           <img src="{{ $review->user->avatarUrl }}"
               loading="lazy"
               alt=""
@@ -49,7 +53,11 @@
               <div class="p18">{{ $review->user->subjectsList }}</div>
             @endif
           </div>
+        @if($review->user->role === App\Models\User::ROLE_TUTOR || $review->user->role === App\Models\User::ROLE_MENTOR)
+        </a>
+        @else
         </div>
+        @endif
         <p class="p24">{{ $review->text }}</p>
       </div>
       @endif

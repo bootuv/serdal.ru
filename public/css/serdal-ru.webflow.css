@@ -1158,6 +1158,7 @@ a {
   margin-bottom: 24px;
   padding-bottom: 24px;
   display: flex;
+  text-decoration: none;
 }
 
 .list-item-name-bio {
