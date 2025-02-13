@@ -2,9 +2,12 @@
 <html data-wf-page="668d4be20ae6c2fa4bba8346" data-wf-site="668d4be20ae6c2fa4bba833d" lang="ru">
 <head>
   <meta charset="utf-8">
-  <title>Serdal</title>
+  <title>@yield('title', 'Serdal')</title>
   <meta content="width=device-width, initial-scale=1" name="viewport">
   <meta content="Webflow" name="generator">
+  @yield('meta')
+  <meta property="og:site_name" content="Serdal">
+  <meta property="og:locale" content="ru_RU">
   <link href="css/normalize.css" rel="stylesheet" type="text/css">
   <link href="css/webflow.css" rel="stylesheet" type="text/css">
   <link href="css/serdal-ru.webflow.css" rel="stylesheet" type="text/css">

@@ -1,5 +1,16 @@
 @extends('layout')
 
+@section('title')
+{{ $user->name }} - Преподаватель Serdal
+@endsection
+
+@section('meta')
+<meta property="og:title" content="{{ $user->name }} - Репетитор Serdal">
+<meta property="og:description" content="{{ $user->subjects_list }} - {{ $user->status }}">
+<meta property="og:image" content="{{ $user->avatarUrl }}">
+<meta property="og:type" content="profile">
+@endsection
+
 @section('content')
   <section class="header">
     <a href="/" class="logo-wrapper w-inline-block"><img src="images/Logo.svg" loading="lazy" width="Auto" height="32" alt="" class="logo"></a>
