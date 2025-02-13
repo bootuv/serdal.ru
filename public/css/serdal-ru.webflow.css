@@ -60,7 +60,7 @@ a {
   border-bottom: 1px solid var(--line-light);
 }
 
-.p24 {
+.p24, .content-card p, .content-card ul {
   margin-bottom: 0;
   font-size: 24px;
   line-height: 32px;
@@ -1190,7 +1190,7 @@ a {
     padding-right: 24px;
   }
 
-  .p24 {
+  .p24, .content-card p, .content-card ul {
     font-size: 20px;
     line-height: 26px;
   }
@@ -1592,7 +1592,7 @@ a {
     padding-right: 16px;
   }
 
-  .p24 {
+  .p24, .content-card p, .content-card ul {
     z-index: 1;
     font-size: 18px;
     line-height: 24px;
