@@ -43,10 +43,28 @@
       @endforeach
     </div>
     <div class="grades p24">{{ $user->displayGrade }}</div>
-    <a href="#" class="main-button share-button w-inline-block">
+    <a href="javascript:void(0)" onclick="shareProfile()" class="main-button share-button w-inline-block">
       <img src="images/share-01.svg" loading="lazy" width="32" height="32" alt="">
       <div class="p24">Поделиться страницей</div>
     </a>
+    <script>
+    function shareProfile() {
+      const shareData = {
+        title: '{{ $user->name }} - Преподаватель Serdal',
+        text: '{{ $user->subjects_list }} - {{ $user->status }}',
+        url: window.location.href
+      };
+
+      if (navigator.share) {
+        navigator.share(shareData)
+          .catch((error) => console.log('Error sharing:', error));
+      } else {
+        navigator.clipboard.writeText(window.location.href)
+          .then(() => alert('Ссылка скопирована в буфер обмена'))
+          .catch(() => alert('Не удалось скопировать ссылку'));
+      }
+    }
+    </script>
   </section>
   <section class="content">
     <div class="col-50 vertical">
