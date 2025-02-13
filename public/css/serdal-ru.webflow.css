@@ -60,11 +60,15 @@ a {
   border-bottom: 1px solid var(--line-light);
 }
 
-.p24, .content-card p, .content-card ul {
+.p24 {
   margin-bottom: 0;
   font-size: 24px;
   line-height: 32px;
   text-decoration: none;
+}
+
+.content-card p, .content-card ul {
+  font-size: 24px;
 }
 
 .p24.white-text {
@@ -1190,9 +1194,13 @@ a {
     padding-right: 24px;
   }
 
-  .p24, .content-card p, .content-card ul {
+  .p24 {
     font-size: 20px;
     line-height: 26px;
+  }
+
+  .content-card p, .content-card ul {
+    font-size: 20px;
   }
 
   .main-menu {
@@ -1592,11 +1600,15 @@ a {
     padding-right: 16px;
   }
 
-  .p24, .content-card p, .content-card ul {
+  .p24 {
     z-index: 1;
     font-size: 18px;
     line-height: 24px;
     position: relative;
+  }
+
+  .content-card p, .content-card ul {
+    font-size: 18px;
   }
 
   .title-block {
