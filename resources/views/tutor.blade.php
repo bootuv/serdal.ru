@@ -143,6 +143,7 @@
           <h4 class="h4">Способы связи</h4>
           <div class="contacts">
             <div class="param-list">
+              @if($user->phone)
               <div class="param-list-item icon">
                 <div class="param-item-label p18">Телефон</div>
                 <div class="param-item-data">
@@ -154,6 +155,8 @@
                 </div>
                 <div class="w-layout-blockcontainer contact-icon w-container"><img src="images/Phone.svg" loading="lazy" alt="" class="icon-svg"></div>
               </div>
+              @endif
+              @if($user->whatsup)
               <div class="param-list-item icon">
                 <div class="param-item-label p18">WhatsApp</div>
                 <div class="param-item-data">
@@ -165,6 +168,8 @@
                 </div>
                 <div class="w-layout-blockcontainer contact-icon w-container"><img src="images/WhatsApp.svg" loading="lazy" alt="" class="icon-svg"></div>
               </div>
+              @endif
+              @if($user->telegram)
               <div class="param-list-item icon">
                 <div class="param-item-label p18">Telegram</div>
                 <div class="param-item-data">
@@ -176,6 +181,8 @@
                 </div>
                 <div class="w-layout-blockcontainer contact-icon w-container"><img src="images/Telegram.svg" loading="lazy" alt="" class="icon-svg"></div>
               </div>
+              @endif
+              @if($user->instagram)
               <div class="param-list-item icon">
                 <div class="param-item-label p18">Instagram</div>
                 <div class="param-item-data">
@@ -187,6 +194,8 @@
                 </div>
                 <div class="w-layout-blockcontainer contact-icon w-container"><img src="images/Instagram.svg" loading="lazy" alt="" class="icon-svg"></div>
               </div>
+              @endif
+              @if($user->email)
               <div class="param-list-item icon last">
                 <div class="param-item-label p18">Email</div>
                 <div class="param-item-data">
@@ -198,6 +207,7 @@
                 </div>
                 <div class="w-layout-blockcontainer contact-icon w-container"><img src="images/Email.svg" loading="lazy" alt="" class="icon-svg"></div>
               </div>
+              @endif
             </div>
           </div>
         </div>
