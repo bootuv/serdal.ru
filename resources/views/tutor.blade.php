@@ -70,13 +70,13 @@
       @if($user->about)
       <div class="content-card">
         <h4 class="h4">Обо мне</h4>
-          <p class="p24">{!! $user->about !!}</p>
+          <p>{!! $user->about !!}</p>
         </div>
       @endif
       @if($user->extra_info)
         <div class="content-card">
           <h4 class="h4">Дополнительная информация</h4>
-          <p class="p24">{!! $user->extra_info !!}</p>
+          <p>{!! $user->extra_info !!}</p>
         </div>
       @endif
     </div>
