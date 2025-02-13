@@ -35,6 +35,7 @@
     </div>
     <div r-masonry-gap="16" r-masonry-layout="1" r-masonry-column-min="500" class="reviews">
       @foreach($reviews as $review)
+      @if($review->user->role !== App\Models\User::ROLE_ADMIN)
       <div class="review-item">
         <div class="review-item-user">
           <img src="{{ $review->user->avatarUrl }}"
@@ -51,6 +52,7 @@
         </div>
         <p class="p24">{{ $review->text }}</p>
       </div>
+      @endif
       @endforeach
     </div>
   </div> 

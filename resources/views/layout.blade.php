@@ -22,7 +22,7 @@
 <body class="body">
   @yield('content')
   <section class="footer">
-    <div class="p18 copyright">© 2024 Serdal</div>
+    <div class="p18 copyright">© {{ date('Y') }} Serdal</div>
     <div class="footer-menu">
       <a href="#" class="white-text p18">О нас</a>
       <a href="{{ route('reviews') }}" class="white-text p18">Отзывы</a>
