@@ -29,7 +29,7 @@
       <div class="main-actions">
         <a href="#specialists" class="main-button search-tutor w-button">Найти специалиста</a>
         <a data-w-id="79cbc6fb-829e-0080-5bfd-8999f35ce137" href="#" class="trailer-button w-inline-block">
-          <div class="button-play"><img src="images/Frame-2.png" loading="lazy" width="76" height="76" alt="" class="trailer-button-thumb"><img src="images/play.svg" loading="lazy" alt="" class="play-icon">
+          <div class="button-play"><img src="images/thumb.png" loading="lazy" width="76" height="76" alt="" class="trailer-button-thumb"><img src="images/play.svg" loading="lazy" alt="" class="play-icon">
             <div class="dark-opacity"></div>
           </div>
           <div class="trailet-button-text">Трейлер</div>

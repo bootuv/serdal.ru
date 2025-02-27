@@ -31,7 +31,7 @@
   </section>
   <div class="popup-wrapper auto-stopper">
     <div class="popup">
-      <div style="padding-top:56.27659574468085%" class="video w-video w-embed"><iframe class="embedly-embed" src="https://cdn.embedly.com/widgets/media.html?src=https%3A%2F%2Fplayer.vimeo.com%2Fvideo%2F1007718657%3Fapp_id%3D122963&dntp=1&display_name=Vimeo&url=https%3A%2F%2Fvimeo.com%2F1007718657&image=https%3A%2F%2Fi.vimeocdn.com%2Fvideo%2F1924634575-d0cb03e50ef9708d7c52b0af022f099fa4593fc366fe3db58eadc9ac85e2ff8d-d_1280&key=c4e54deccf4d4ec997a64902e9a30300&type=text%2Fhtml&schema=vimeo" width="940" height="529" scrolling="no" allowfullscreen="" title="The Game"></iframe></div>
+      <div style="position: relative; padding-top: 56.25%; width: 100%"><iframe src="https://kinescope.io/embed/wYafVzJKj2XZqfUvmAeM7H" allow="autoplay; fullscreen; picture-in-picture; encrypted-media; gyroscope; accelerometer; clipboard-write; screen-wake-lock;" frameborder="0" allowfullscreen style="position: absolute; width: 100%; height: 100%; top: 0; left: 0;"></iframe></div>
     </div>
     <div class="close-button">Закрыть</div>
     <div data-w-id="43e43230-fe7b-3950-1162-acc7201c2860" class="close-click-zone"></div>
