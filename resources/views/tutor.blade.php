@@ -30,10 +30,10 @@
     <h2 class="h3 tutor-name">{{ $user->name }}</h2>
     @if($user->status)
       <div class="status">
+        <div class="status-arrow"></div>
         <div class="p24">{{ $user->status }}</div>
       </div>
     @endif
-    <div class="status-arrow"></div>
     <div class="tutor-subjects p24">{{ $user->subjects_list }}</div>
     <div class="direction-tags-list tutor-page">
       @foreach($user->directs as $direct)

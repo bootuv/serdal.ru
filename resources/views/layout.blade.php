@@ -48,23 +48,40 @@
     </div>
     <div style="opacity:0" class="mobile-menu-bg"></div>
   </div>
-    <script src="https://d3e54v103j8qbb.cloudfront.net/js/jquery-3.5.1.min.dc5e7f18c8.js?site=668d4be20ae6c2fa4bba833d" type="text/javascript" integrity="sha256-9/aliU8dGd2tb6OSsuzixeV4y/faTqgFtohetphbbj0=" crossorigin="anonymous"></script>
-    <script src="js/webflow.js" type="text/javascript"></script>
-    <script src="js/specialists-filter.js" type="text/javascript"></script>
-    <script src="js/bundle.v1.0.0.js" type="text/javascript"></script>
-    <script>
-        var autoStopperBtn      =   document.querySelectorAll('.auto-stopper');
-        for (var i = 0; i < autoStopperBtn.length; i++) {
-            (function(i) {
-                autoStopperBtn[i].onclick = function () {
-                var autoStopperModule   =   autoStopperBtn[i].closest('.auto-stopper');
-                var autoStopperFrame    =   autoStopperModule.querySelector('iframe');
-                var autoStopperSrc      =   autoStopperFrame.src;
-                autoStopperFrame.src = '';
-                autoStopperFrame.src = autoStopperSrc;
-                }
-            }(i));
-        }
-    </script>
+  <script src="https://d3e54v103j8qbb.cloudfront.net/js/jquery-3.5.1.min.dc5e7f18c8.js?site=668d4be20ae6c2fa4bba833d" type="text/javascript" integrity="sha256-9/aliU8dGd2tb6OSsuzixeV4y/faTqgFtohetphbbj0=" crossorigin="anonymous"></script>
+  <script src="js/webflow.js" type="text/javascript"></script>
+  <script src="js/specialists-filter.js" type="text/javascript"></script>
+  <script src="js/bundle.v1.0.0.js" type="text/javascript"></script>
+  <script>
+      var autoStopperBtn      =   document.querySelectorAll('.auto-stopper');
+      for (var i = 0; i < autoStopperBtn.length; i++) {
+          (function(i) {
+              autoStopperBtn[i].onclick = function () {
+              var autoStopperModule   =   autoStopperBtn[i].closest('.auto-stopper');
+              var autoStopperFrame    =   autoStopperModule.querySelector('iframe');
+              var autoStopperSrc      =   autoStopperFrame.src;
+              autoStopperFrame.src = '';
+              autoStopperFrame.src = autoStopperSrc;
+              }
+          }(i));
+      }
+  </script>
+  <!-- Yandex.Metrika counter -->
+  <script type="text/javascript" >
+    (function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
+    m[i].l=1*new Date();
+    for (var j = 0; j < document.scripts.length; j++) {if (document.scripts[j].src === r) { return; }}
+    k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)})
+    (window, document, "script", "https://mc.yandex.ru/metrika/tag.js", "ym");
+
+    ym(94765186, "init", {
+          clickmap:true,
+          trackLinks:true,
+          accurateTrackBounce:true,
+          webvisor:true
+    });
+  </script> 
+  <noscript><div><img src="https://mc.yandex.ru/watch/94765186" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
+  <!-- /Yandex.Metrika counter -->
 </body>
 </html>
