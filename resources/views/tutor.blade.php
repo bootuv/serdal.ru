@@ -124,6 +124,7 @@
               <div class="p24">Индивидуальные</div>
             </div>
             <div class="param-list">
+            @if($lessonTypeIndividual->price)
               <div class="param-list-item">
                 <div class="param-item-label p18">Цена</div>
                 <div class="param-item-data">
@@ -133,6 +134,8 @@
                   </div>
                 </div>
               </div>
+              @endif
+              @if($lessonTypeIndividual->count_per_week)
               <div class="param-list-item">
                 <div class="param-item-label p18">Занятий в неделю</div>
                 <div class="param-item-data">
@@ -141,6 +144,8 @@
                   </div>
                 </div>
               </div>
+              @endif
+              @if($lessonTypeIndividual->duration)
               <div class="param-list-item last">
                 <div class="param-item-label p18">Длина занятия</div>
                 <div class="param-item-data">
@@ -149,10 +154,11 @@
                   </div>
                 </div>
               </div>
+              @endif
             </div>
           </div> 
+          @endif
         </div>
-        @endif
       </div>
       <div class="col-25">
         <div class="content-card">
