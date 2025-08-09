@@ -26,7 +26,7 @@
     <div class="footer-menu">
       <a href="#" class="white-text p18">О нас</a>
       <a href="{{ route('reviews') }}" class="white-text p18">Отзывы</a>
-      <a href="#" class="white-text p18">Контакты</a>
+      <a href="mailto:info@serdal.ru" class="white-text p18">info@serdal.ru</a>
     </div>
   </section>
   <div class="popup-wrapper auto-stopper">
