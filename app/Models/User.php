@@ -19,7 +19,7 @@ use Illuminate\Database\Eloquent\Model;
 class User extends Authenticatable implements FilamentUser
 {
     const ROLE_MENTOR = 'mentor';
-    
+
     const ROLE_TUTOR = 'tutor';
 
     const ROLE_STUDENT = 'student';
@@ -123,7 +123,7 @@ class User extends Authenticatable implements FilamentUser
 
                 $result = [];
 
-                $school = array_filter($this->grade, function($item) {
+                $school = array_filter($this->grade, function ($item) {
                     return $item !== 'preschool' && $item !== 'adults';
                 });
 
@@ -148,7 +148,7 @@ class User extends Authenticatable implements FilamentUser
     {
         return Attribute::make(
             get: function () {
-                return match($this->role) {
+                return match ($this->role) {
                     User::ROLE_MENTOR => 'Ментор',
                     User::ROLE_TUTOR => 'Преподаватель',
                     User::ROLE_STUDENT => 'Ученик',
@@ -161,7 +161,7 @@ class User extends Authenticatable implements FilamentUser
     public function avatarUrl(): Attribute
     {
         return Attribute::make(
-            get: fn () => $this->avatar ? Storage::disk('public')->url($this->avatar) : asset('images/default-avatar.png'),
+            get: fn() => $this->avatar ? Storage::disk('public')->url($this->avatar) : asset('images/default-avatar.png'),
         );
     }
 
@@ -172,7 +172,15 @@ class User extends Authenticatable implements FilamentUser
 
     public function canAccessPanel(Panel $panel): bool
     {
-        return $this->role === self::ROLE_ADMIN;
+        if ($panel->getId() === 'admin') {
+            return $this->role === self::ROLE_ADMIN;
+        }
+
+        if ($panel->getId() === 'app') {
+            return in_array($this->role, [self::ROLE_ADMIN, self::ROLE_MENTOR, self::ROLE_TUTOR]);
+        }
+
+        return false;
     }
 
     public function reviews()
@@ -203,7 +211,7 @@ class User extends Authenticatable implements FilamentUser
     public function scopeFilterDirects($query, $directs)
     {
         if (!empty($directs)) {
-            $query->whereHas('directs', function($q) use ($directs) {
+            $query->whereHas('directs', function ($q) use ($directs) {
                 $q->whereIn('directs.id', $directs);
             });
         }
@@ -215,7 +223,7 @@ class User extends Authenticatable implements FilamentUser
     public function scopeFilterSubjects($query, $subjects)
     {
         if (!empty($subjects)) {
-            $query->whereHas('subjects', function($q) use ($subjects) {
+            $query->whereHas('subjects', function ($q) use ($subjects) {
                 $q->whereIn('subjects.id', $subjects);
             });
         }
