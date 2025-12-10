@@ -48,4 +48,9 @@ class Room extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    public function schedules()
+    {
+        return $this->hasMany(RoomSchedule::class);
+    }
 }

@@ -1,15 +1,14 @@
 <?php
 
-namespace App\Filament\App\Resources;
+namespace App\Filament\Resources;
 
-use App\Filament\App\Resources\MeetingSessionResource\Pages;
+use App\Filament\Resources\MeetingSessionResource\Pages;
 use App\Models\MeetingSession;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
 
 class MeetingSessionResource extends Resource
 {
@@ -17,13 +16,13 @@ class MeetingSessionResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-clock';
 
+    protected static ?int $navigationSort = 10;
+
     protected static ?string $navigationLabel = 'История сессий';
 
     protected static ?string $modelLabel = 'Сессия';
 
     protected static ?string $pluralModelLabel = 'История сессий';
-
-    protected static ?int $navigationSort = 3;
 
     public static function form(Form $form): Form
     {
@@ -118,10 +117,5 @@ class MeetingSessionResource extends Resource
             'index' => Pages\ListMeetingSessions::route('/'),
             'view' => Pages\ViewMeetingSession::route('/{record}'),
         ];
-    }
-
-    public static function getEloquentQuery(): Builder
-    {
-        return parent::getEloquentQuery()->where('user_id', auth()->id());
     }
 }

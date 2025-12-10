@@ -36,26 +36,32 @@ class UserResource extends Resource
         return $form
             ->schema([
                 FileUpload::make('avatar')
+                    ->label('Фото профиля')
                     ->image()
                     ->avatar()
                     ->directory('avatars'),
                 TextInput::make('name')
+                    ->label('Имя')
                     ->required()
                     ->maxLength(255),
                 TextInput::make('status')
+                    ->label('Статус')
                     ->maxLength(255),
                 TextInput::make('email')
+                    ->label('Электронная почта')
                     ->required()
                     ->maxLength(255),
                 TextInput::make('username')
+                    ->label('Имя пользователя')
                     ->required()
                     ->maxLength(255),
                 TextInput::make('password')
+                    ->label('Пароль')
                     ->password()
                     ->revealable()
                     ->maxLength(255)
-                    ->dehydrated(fn ($state) => filled($state))
-                    ->dehydrateStateUsing(fn ($state) => bcrypt($state)),
+                    ->dehydrated(fn($state) => filled($state))
+                    ->dehydrateStateUsing(fn($state) => bcrypt($state)),
                 Select::make('role')
                     ->label('Роль')
                     ->options([
@@ -66,12 +72,15 @@ class UserResource extends Resource
                     ])
                     ->required(),
                 Select::make('subjects')
+                    ->label('Предметы')
                     ->multiple()
                     ->relationship('subjects', 'name'),
                 Select::make('directs')
+                    ->label('Направления')
                     ->multiple()
                     ->relationship('directs', 'name'),
                 Select::make('grade')
+                    ->label('Классы')
                     ->multiple()
                     ->options([
                         'preschool' => 'Дошкольники',
@@ -89,15 +98,17 @@ class UserResource extends Resource
                         'adults' => 'Взрослые',
                     ]),
                 RichEditor::make('about')
+                    ->label('О себе')
                     ->columnSpan(2),
                 RichEditor::make('extra_info')
+                    ->label('Дополнительная информация')
                     ->columnSpan(2),
 
-                Group::make([   
-                    TextInput::make('phone')->tel() ,
-                    TextInput::make('whatsup')->tel(),
-                    TextInput::make('instagram'),
-                    TextInput::make('telegram'),
+                Group::make([
+                    TextInput::make('phone')->tel()->label('Телефон'),
+                    TextInput::make('whatsup')->tel()->label('WhatsApp'),
+                    TextInput::make('instagram')->label('Instagram'),
+                    TextInput::make('telegram')->label('Telegram'),
                 ])->columns(2)->columnSpanFull(),
 
             ]);
@@ -107,18 +118,18 @@ class UserResource extends Resource
     {
         return $table
             ->columns([
-                TextColumn::make('name'),
-                TextColumn::make('email'),
-                TextColumn::make('username'),
-                TextColumn::make('role'),
+                TextColumn::make('name')->label('Имя'),
+                TextColumn::make('email')->label('Email'),
+                TextColumn::make('username')->label('Имя пользователя'),
+                TextColumn::make('role')->label('Роль'),
                 // SelectColumn::make('role')
                 //     ->options([
                 //         User::ROLE_ADMIN => 'Администратор',
                 //         User::ROLE_MENTOR => 'Ментор',
                 //         User::ROLE_TUTOR => 'Тьютор',
                 //     ]),
-                TextColumn::make('created_at'),
-                TextColumn::make('updated_at'),
+                TextColumn::make('created_at')->label('Создан'),
+                TextColumn::make('updated_at')->label('Обновлен'),
             ])
             ->filters([
                 SelectFilter::make('user_type')

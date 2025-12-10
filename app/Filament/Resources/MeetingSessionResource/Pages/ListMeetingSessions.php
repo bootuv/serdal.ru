@@ -1,9 +1,8 @@
 <?php
 
-namespace App\Filament\App\Resources\MeetingSessionResource\Pages;
+namespace App\Filament\Resources\MeetingSessionResource\Pages;
 
-use App\Filament\App\Resources\MeetingSessionResource;
-use Filament\Actions;
+use App\Filament\Resources\MeetingSessionResource;
 use Filament\Resources\Pages\ListRecords;
 
 class ListMeetingSessions extends ListRecords
@@ -16,22 +15,13 @@ class ListMeetingSessions extends ListRecords
         $this->syncRunningSessions();
     }
 
-    protected function getHeaderActions(): array
-    {
-        return [
-            // Sessions are auto-created, no manual creation
-        ];
-    }
-
     protected function syncRunningSessions(): void
     {
-        $runningSessions = \App\Models\MeetingSession::where('status', 'running')
-            ->where('user_id', auth()->id())
-            ->get();
+        $runningSessions = \App\Models\MeetingSession::where('status', 'running')->get();
 
         foreach ($runningSessions as $session) {
             try {
-                // Apply BBB config from room owner (current user)
+                // Apply BBB config from room owner
                 $this->applyBBBConfig($session->room);
 
                 // Check if meeting is still running

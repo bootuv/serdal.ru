@@ -8,6 +8,7 @@
         "php": "^8.2",
         "filament/filament": "^3.0-stable",
         "joisarjignesh/bigbluebutton": "*",
+        "laravel-lang/common": "^6.7",
         "laravel/framework": "^11.9",
         "laravel/tinker": "^2.9",
         "symfony/http-kernel": "^7.2"

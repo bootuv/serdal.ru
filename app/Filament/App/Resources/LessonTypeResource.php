@@ -25,6 +25,11 @@ class LessonTypeResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Типы уроков';
 
+    public static function shouldRegisterNavigation(): bool
+    {
+        return false;
+    }
+
     public static function form(Form $form): Form
     {
         return $form
@@ -44,10 +49,7 @@ class LessonTypeResource extends Resource
                 Forms\Components\TextInput::make('duration')
                     ->label('Длительность (мин)')
                     ->numeric()
-                    ->required(),
-                Forms\Components\Textarea::make('description')
-                    ->label('Описание')
-                    ->rows(3),
+                    ->required()
             ]);
     }
 

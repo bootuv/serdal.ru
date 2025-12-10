@@ -23,7 +23,12 @@ class Integrations extends Page implements HasForms
 
     public static function canAccess(): bool
     {
-        return auth()->user()->role === \App\Models\User::ROLE_ADMIN;
+        return false; // Disabled for all users
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return false; // Hidden from navigation for all users
     }
 
     public ?array $data = [];

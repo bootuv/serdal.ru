@@ -19,7 +19,16 @@ class EditProfile extends Page implements HasForms
 
     protected static string $view = 'filament.app.pages.edit-profile';
 
+    protected static ?int $navigationSort = 5;
+
     public ?array $data = [];
+
+    protected function getFooterWidgets(): array
+    {
+        return [
+            \App\Filament\App\Widgets\LessonTypesTableWidget::class,
+        ];
+    }
 
     public function mount(): void
     {
@@ -36,19 +45,24 @@ class EditProfile extends Page implements HasForms
         return $form
             ->schema([
                 Forms\Components\FileUpload::make('avatar')
+                    ->label('Фото профиля')
                     ->image()
                     ->avatar()
                     ->directory('avatars'),
                 Forms\Components\TextInput::make('name')
+                    ->label('Имя')
                     ->required()
                     ->maxLength(255),
                 Forms\Components\TextInput::make('status')
+                    ->label('Статус')
                     ->maxLength(255),
                 Forms\Components\TextInput::make('email')
+                    ->label('Электронная почта')
                     ->required()
                     ->maxLength(255)
                     ->disabled(),
                 Forms\Components\TextInput::make('username')
+                    ->label('Имя пользователя')
                     ->required()
                     ->maxLength(255)
                     ->unique('users', 'username', ignoreRecord: true),
