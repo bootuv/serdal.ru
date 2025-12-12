@@ -73,118 +73,125 @@ class RoomResource extends Resource
                             ->hiddenLabel()
                             ->relationship('schedules')
                             ->schema([
-                                Forms\Components\Select::make('type')
-                                    ->label('Тип расписания')
-                                    ->options([
-                                        'once' => 'Одноразовое',
-                                        'recurring' => 'Повторяющееся',
-                                    ])
-                                    ->required()
-                                    ->live()
-                                    ->default('once'),
+                                Forms\Components\Grid::make(1) // Single column layout for the item content
+                                    ->schema([
+                                        Forms\Components\Select::make('type')
+                                            ->label('Тип расписания')
+                                            ->options([
+                                                'once' => 'Одноразовое (конкретная дата)',
+                                                'recurring' => 'Повторяющееся (регулярное)',
+                                            ])
+                                            ->required()
+                                            ->live()
+                                            ->default('once')
+                                            ->native(false),
 
-                                // One-time schedule
-                                Forms\Components\DateTimePicker::make('scheduled_at')
-                                    ->label('Дата и время')
-                                    ->visible(fn(Forms\Get $get) => $get('type') === 'once')
-                                    ->required(fn(Forms\Get $get) => $get('type') === 'once')
-                                    ->native(false),
+                                        // One-time schedule
+                                        Forms\Components\DateTimePicker::make('scheduled_at')
+                                            ->label('Дата и время занятия')
+                                            ->visible(fn(Forms\Get $get) => $get('type') === 'once')
+                                            ->required(fn(Forms\Get $get) => $get('type') === 'once')
+                                            ->native(false)
+                                            ->seconds(false),
 
-                                // Recurring schedule
-                                Forms\Components\Select::make('recurrence_type')
-                                    ->label('Повторение')
-                                    ->options([
-                                        'daily' => 'Ежедневно',
-                                        'weekly' => 'Еженедельно',
-                                        'monthly' => 'Ежемесячно',
-                                    ])
-                                    ->visible(fn(Forms\Get $get) => $get('type') === 'recurring')
-                                    ->required(fn(Forms\Get $get) => $get('type') === 'recurring')
-                                    ->live(),
+                                        // Recurring schedule Group
+                                        Forms\Components\Fieldset::make('Настройки повторения')
+                                            ->visible(fn(Forms\Get $get) => $get('type') === 'recurring')
+                                            ->schema([
+                                                Forms\Components\Select::make('recurrence_type')
+                                                    ->label('Периодичность')
+                                                    ->options([
+                                                        'daily' => 'Ежедневно',
+                                                        'weekly' => 'Еженедельно',
+                                                        'monthly' => 'Ежемесячно',
+                                                    ])
+                                                    ->required()
+                                                    ->live()
+                                                    ->native(false),
 
-                                Forms\Components\CheckboxList::make('recurrence_days')
-                                    ->label('Дни недели')
-                                    ->options([
-                                        1 => 'Понедельник',
-                                        2 => 'Вторник',
-                                        3 => 'Среда',
-                                        4 => 'Четверг',
-                                        5 => 'Пятница',
-                                        6 => 'Суббота',
-                                        0 => 'Воскресенье',
-                                    ])
-                                    ->columns(3)
-                                    ->visible(
-                                        fn(Forms\Get $get) =>
-                                        $get('type') === 'recurring' &&
-                                        $get('recurrence_type') === 'weekly'
-                                    )
-                                    ->required(
-                                        fn(Forms\Get $get) =>
-                                        $get('type') === 'recurring' &&
-                                        $get('recurrence_type') === 'weekly'
-                                    ),
+                                                Forms\Components\CheckboxList::make('recurrence_days')
+                                                    ->label('Выберите дни недели')
+                                                    ->options([
+                                                        1 => 'Понедельник',
+                                                        2 => 'Вторник',
+                                                        3 => 'Среда',
+                                                        4 => 'Четверг',
+                                                        5 => 'Пятница',
+                                                        6 => 'Суббота',
+                                                        0 => 'Воскресенье',
+                                                    ])
+                                                    ->columns(3)
+                                                    ->gridDirection('row')
+                                                    ->visible(fn(Forms\Get $get) => $get('recurrence_type') === 'weekly')
+                                                    ->required(fn(Forms\Get $get) => $get('recurrence_type') === 'weekly'),
 
-                                Forms\Components\Select::make('recurrence_day_of_month')
-                                    ->label('День месяца')
-                                    ->options(array_combine(range(1, 31), range(1, 31)))
-                                    ->visible(
-                                        fn(Forms\Get $get) =>
-                                        $get('type') === 'recurring' &&
-                                        $get('recurrence_type') === 'monthly'
-                                    )
-                                    ->required(
-                                        fn(Forms\Get $get) =>
-                                        $get('type') === 'recurring' &&
-                                        $get('recurrence_type') === 'monthly'
-                                    ),
+                                                Forms\Components\Select::make('recurrence_day_of_month')
+                                                    ->label('День месяца')
+                                                    ->options(array_combine(range(1, 31), range(1, 31)))
+                                                    ->visible(fn(Forms\Get $get) => $get('recurrence_type') === 'monthly')
+                                                    ->required(fn(Forms\Get $get) => $get('recurrence_type') === 'monthly')
+                                                    ->native(false),
 
-                                Forms\Components\TimePicker::make('recurrence_time')
-                                    ->label('Время')
-                                    ->visible(fn(Forms\Get $get) => $get('type') === 'recurring')
-                                    ->required(fn(Forms\Get $get) => $get('type') === 'recurring')
-                                    ->native(false),
+                                                Forms\Components\TimePicker::make('recurrence_time')
+                                                    ->label('Время начала')
+                                                    ->required()
+                                                    ->native(false)
+                                                    ->seconds(false),
 
-                                Forms\Components\DatePicker::make('start_date')
-                                    ->label('Начало')
-                                    ->required()
-                                    ->default(now())
-                                    ->native(false),
+                                                Forms\Components\DatePicker::make('end_date')
+                                                    ->label('Дата окончания (необязательно)')
+                                                    ->native(false)
+                                                    ->helperText('Если не указано, расписание будет действовать бессрочно'),
+                                            ])
+                                            ->columns(1), // Fieldset content in 1 column
 
-                                Forms\Components\DatePicker::make('end_date')
-                                    ->label('Окончание')
-                                    ->visible(fn(Forms\Get $get) => $get('type') === 'recurring')
-                                    ->native(false)
-                                    ->helperText('Оставьте пустым для бессрочного расписания'),
+                                        // Hidden Start Date for database compatibility (required column)
+                                        // We default it to now() or scheduled_at roughly to satisfy the DB constraint
+                                        Forms\Components\DatePicker::make('start_date')
+                                            ->label('Дата начала расписания')
+                                            ->required()
+                                            ->default(now())
+                                            ->native(false)
+                                            // Only show for recurring, but ALWAYS save it. 
+                                            // For 'once', it will save the default or the hidden value.
+                                            ->visible(fn(Forms\Get $get) => $get('type') === 'recurring')
+                                            ->dehydratedWhenHidden(true),
 
-                                Forms\Components\TextInput::make('duration_minutes')
-                                    ->label('Длительность (минуты)')
-                                    ->numeric()
-                                    ->default(60)
-                                    ->required()
-                                    ->minValue(1)
-                                    ->maxValue(1440),
+                                        Forms\Components\TextInput::make('duration_minutes')
+                                            ->label('Длительность занятия (минуты)')
+                                            ->numeric()
+                                            ->default(60)
+                                            ->required()
+                                            ->minValue(1)
+                                            ->maxValue(1440)
+                                            ->step(5),
 
-                                Forms\Components\Toggle::make('is_active')
-                                    ->label('Активно')
-                                    ->default(true)
-                                    ->inline(false),
+                                        Forms\Components\Toggle::make('is_active')
+                                            ->label('Расписание активно')
+                                            ->default(true)
+                                            ->inline(false)
+                                            ->onColor('success')
+                                            ->offColor('danger'),
+                                    ]),
                             ])
-                            ->columns(2)
+                            ->columns(1) // Repeater items are full width (although inside Grid(1) effectively does the same, this ensures the container is 1 col)
                             ->collapsible()
                             ->itemLabel(
                                 fn(array $state): ?string =>
                                 $state['type'] === 'once'
-                                ? 'Одноразовое: ' . ($state['scheduled_at'] ?? 'не указано')
-                                : 'Повторяющееся: ' . match ($state['recurrence_type'] ?? '') {
+                                ? '📅 Одноразовое: ' . (\Carbon\Carbon::parse($state['scheduled_at'] ?? now())->format('d.m.Y H:i'))
+                                : '🔄 ' . match ($state['recurrence_type'] ?? '') {
                                     'daily' => 'Ежедневно',
                                     'weekly' => 'Еженедельно',
                                     'monthly' => 'Ежемесячно',
-                                    default => 'не указано'
-                                }
+                                    default => 'Повторяющееся'
+                                } . ' в ' . ($state['recurrence_time'] ?? '')
                             )
                             ->defaultItems(0)
-                            ->addActionLabel('Добавить расписание'),
+                            ->addActionLabel('Добавить время занятия')
+                            ->reorderableWithButtons()
+                            ->cloneable()
+                            ->collapsed(),
                     ]),
             ]);
     }
