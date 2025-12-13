@@ -38,20 +38,25 @@
                         <th scope="col" class="px-6 py-3">Пользователь</th>
                         <th scope="col" class="px-6 py-3">Роль</th>
                         <th scope="col" class="px-6 py-3">Время в сети</th>
+                        <th scope="col" class="px-6 py-3">Микрофон</th>
+                        <th scope="col" class="px-6 py-3">Вебкамера</th>
+                        <th scope="col" class="px-6 py-3">Сообщения</th>
+                        <th scope="col" class="px-6 py-3">Реакции</th>
+                        <th scope="col" class="px-6 py-3">Рука</th>
                         <th scope="col" class="px-6 py-3">Оценка активности (0-10)</th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse($participants as $p)
                         @php
-                             // Calculate Activity Score
-                             // Logic: (Talk Time (m) * 2) + (Messages * 1) + (Emoji * 1) + (Raise Hand * 2)
-                             // Normalized to 0-10 range roughly? Or just raw score.
-                             // Let's assume max reasonable score is 20 for normalization, or just show raw.
-                             // User asked for "Activity Score", likely 0-10 or similar.
-                             $talkMinutes = ($p['talking_time'] ?? 0) / 60;
-                             $rawScore = ($talkMinutes * 2) + ($p['message_count'] ?? 0) + ($p['emoji_count'] ?? 0) + (($p['raise_hand_count'] ?? 0) * 2);
-                             $score = min(10, round($rawScore)); 
+                            // Calculate Activity Score
+                            // Logic: (Talk Time (m) * 2) + (Messages * 1) + (Emoji * 1) + (Raise Hand * 2)
+                            // Normalized to 0-10 range roughly? Or just raw score.
+                            // Let's assume max reasonable score is 20 for normalization, or just show raw.
+                            // User asked for "Activity Score", likely 0-10 or similar.
+                            $talkMinutes = ($p['talking_time'] ?? 0) / 60;
+                            $rawScore = ($talkMinutes * 2) + ($p['message_count'] ?? 0) + ($p['emoji_count'] ?? 0) + (($p['raise_hand_count'] ?? 0) * 2);
+                            $score = min(10, round($rawScore)); 
                         @endphp
                         <tr class="bg-white border-b dark:bg-gray-800 dark:border-gray-700">
                             <td class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">
@@ -69,7 +74,8 @@
                                     $duration = $joined ? $left->diffInSeconds($joined) : 0;
                                 @endphp
                                 <div class="flex items-center">
-                                    <div class="h-2.5 w-2.5 rounded-full bg-green-500 me-2"></div> {{ gmdate("H:i:s", abs($duration)) }}
+                                    <div class="h-2.5 w-2.5 rounded-full bg-green-500 me-2"></div>
+                                    {{ gmdate("H:i:s", abs($duration)) }}
                                 </div>
                                 <div class="text-xs text-gray-400">
                                     {{ $joined ? $joined->format('H:i') : '-' }} - {{ $left ? $left->format('H:i') : '-' }}
@@ -105,19 +111,19 @@
     </x-filament::section>
 
     @if(!empty($analytics['timeline']))
-    <x-filament::section heading="Шкала времени (События)">
-        <div class="space-y-4">
-             @foreach($analytics['timeline'] as $event)
-                <div class="flex items-center p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                    <div class="text-sm text-gray-500 w-24">
-                        {{ \Carbon\Carbon::parse($event['timestamp'])->format('H:i:s') }}
+        <x-filament::section heading="Шкала времени (События)">
+            <div class="space-y-4">
+                @foreach($analytics['timeline'] as $event)
+                    <div class="flex items-center p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                        <div class="text-sm text-gray-500 w-24">
+                            {{ \Carbon\Carbon::parse($event['timestamp'])->format('H:i:s') }}
+                        </div>
+                        <div class="font-medium">
+                            {{ $event['description'] ?? $event['type'] }}
+                        </div>
                     </div>
-                    <div class="font-medium">
-                        {{ $event['description'] ?? $event['type'] }}
-                    </div>
-                </div>
-             @endforeach
-        </div>
-    </x-filament::section>
+                @endforeach
+            </div>
+        </x-filament::section>
     @endif
 </x-filament::page>
