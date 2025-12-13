@@ -12,6 +12,12 @@ class BigBlueButtonWebhookController extends Controller
 {
     public function __invoke(Request $request)
     {
+        Log::info('BBB Webhook: Incoming Request', [
+            'ip' => $request->ip(),
+            'headers' => $request->headers->all(),
+            'content' => $request->getContent()
+        ]);
+
         $payload = $request->input('event');
 
         // Some BBB versions send a single object, some an array wrapped in 'event' or just the array.
