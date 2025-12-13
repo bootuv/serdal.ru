@@ -22,7 +22,12 @@ return new class extends Migration {
     public function down(): void
     {
         Schema::table('users', function (Blueprint $table) {
-            $table->dropColumn(['bbb_url', 'bbb_secret']);
+            if (Schema::hasColumn('users', 'bbb_url')) {
+                $table->dropColumn('bbb_url');
+            }
+            if (Schema::hasColumn('users', 'bbb_secret')) {
+                $table->dropColumn('bbb_secret');
+            }
         });
     }
 };
