@@ -33,4 +33,9 @@ class RoomStatusUpdated implements ShouldBroadcastNow
             new Channel('rooms'),
         ];
     }
+
+    public function broadcastAs(): string
+    {
+        return 'room.status.updated';
+    }
 }

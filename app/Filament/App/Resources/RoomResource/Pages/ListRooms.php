@@ -20,7 +20,7 @@ class ListRooms extends ListRecords
     public function getListeners(): array
     {
         return [
-            "echo:rooms,RoomStatusUpdated" => '$refresh',
+            "echo:rooms,.room.status.updated" => '$refresh',
         ];
     }
 
