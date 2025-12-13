@@ -328,6 +328,7 @@ class BigBlueButtonWebhookController extends Controller
         });
     }
 
+
     protected function handlePoll(array $data, string $type)
     {
         $meetingId = $this->getMeetingId($data);
@@ -341,8 +342,30 @@ class BigBlueButtonWebhookController extends Controller
 
         if ($type === 'poll-started') {
             $analytics['poll_count'] = ($analytics['poll_count'] ?? 0) + 1;
+            // Log timeline
+            $analytics['timeline'] = array_merge($analytics['timeline'] ?? [], [
+                [
+                    'timestamp' => now()->toIso8601String(),
+                    'type' => 'poll',
+                    'description' => 'Golosovanie nachalos'
+                ]
+            ]);
         }
 
+        $session->update(['analytics_data' => $analytics]);
+    }
+
+    protected function logTimeline($session, $type, $userId, $description)
+    {
+        $analytics = $session->analytics_data ?? [];
+        $timeline = $analytics['timeline'] ?? [];
+        $timeline[] = [
+            'timestamp' => now()->toIso8601String(),
+            'type' => $type,
+            'user_id' => $userId,
+            'description' => $description
+        ];
+        $analytics['timeline'] = $timeline;
         $session->update(['analytics_data' => $analytics]);
     }
 
