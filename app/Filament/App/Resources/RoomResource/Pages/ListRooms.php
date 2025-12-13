@@ -17,6 +17,13 @@ class ListRooms extends ListRecords
         ];
     }
 
+    public function getListeners(): array
+    {
+        return [
+            "echo:rooms,RoomStatusUpdated" => '$refresh',
+        ];
+    }
+
     public function mount(): void
     {
         // 1. Configure BBB

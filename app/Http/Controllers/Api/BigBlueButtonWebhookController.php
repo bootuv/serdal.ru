@@ -159,6 +159,7 @@ class BigBlueButtonWebhookController extends Controller
         $analytics['participants'] = $participants;
         $session->update(['analytics_data' => $analytics]);
         Log::info("BBB Webhook: User $name joined meeting $meetingId");
+        \App\Events\RoomStatusUpdated::dispatch();
     }
 
     protected function handleUserLeft(array $data)
@@ -214,6 +215,7 @@ class BigBlueButtonWebhookController extends Controller
         if ($room) {
             $room->update(['is_running' => false]);
             Log::info("BBB Webhook: Room {$room->id} marked as not running.");
+            \App\Events\RoomStatusUpdated::dispatch();
         }
 
         // Find and close the session

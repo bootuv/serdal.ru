@@ -137,6 +137,7 @@ class RoomController extends Controller
             ]);
 
             $room->update(['is_running' => true]);
+            \App\Events\RoomStatusUpdated::dispatch();
 
             // Register Webhook for Analytics
             try {
@@ -311,6 +312,7 @@ class RoomController extends Controller
         ]);
 
         $room->update(['is_running' => false]);
+        \App\Events\RoomStatusUpdated::dispatch();
 
         \App\Models\MeetingSession::where('room_id', $room->id)
             ->where('meeting_id', $room->meeting_id)

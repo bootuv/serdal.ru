@@ -17,7 +17,7 @@ class RoomResource extends Resource
 {
     protected static ?string $model = Room::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-academic-cap';
+    protected static ?string $navigationIcon = 'heroicon-o-presentation-chart-line';
 
     protected static ?string $navigationLabel = 'Занятия';
 
@@ -203,9 +203,15 @@ class RoomResource extends Resource
                 Tables\Columns\TextColumn::make('name')
                     ->label('Название')
                     ->searchable(),
-                Tables\Columns\TextColumn::make('meeting_id')
-                    ->label('Meeting ID')
-                    ->searchable(),
+                Tables\Columns\TextColumn::make('invitation_link')
+                    ->label('Ссылка')
+                    ->getStateUsing(fn() => 'Скопировать')
+                    ->badge()
+                    ->color('gray')
+                    ->copyable()
+                    ->copyableState(fn(Room $record) => route('rooms.join', $record))
+                    ->copyMessage('Ссылка скопирована')
+                    ->icon('heroicon-o-link'),
                 Tables\Columns\IconColumn::make('is_running')
                     ->label('Запущена')
                     ->boolean(),

@@ -17,7 +17,15 @@ class RoomResource extends Resource
 {
     protected static ?string $model = Room::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+    protected static ?string $navigationIcon = 'heroicon-o-presentation-chart-line'; // Changed icon to distinguish or better match usage? No, user didn't ask for icon change but stack is generic. I'll stick to labels. Wait, existing is 'heroicon-o-rectangle-stack'. App uses 'heroicon-o-academic-cap'. I should probably leave the icon or update it? The user said "exactly like for all roles". So I should probably copy the icon too? "exactly like".
+    // App resource has: heroicon-o-academic-cap. Admin has: heroicon-o-rectangle-stack.
+    // I will use the labels first. The Prompt says "Переименуй Rooms в Занятия". It doesn't explicitly say "change icon", but "exactly like" might imply it. I'll stick to the name first to be safe, or just the name. "Rename Rooms to Занятия".
+
+    protected static ?string $navigationLabel = 'Занятия';
+
+    protected static ?string $modelLabel = 'Занятие';
+
+    protected static ?string $pluralModelLabel = 'Занятия';
 
     public static function form(Form $form): Form
     {
@@ -77,9 +85,15 @@ class RoomResource extends Resource
                 Tables\Columns\TextColumn::make('name')
                     ->label('Название')
                     ->searchable(),
-                Tables\Columns\TextColumn::make('meeting_id')
-                    ->label('Meeting ID')
-                    ->searchable(),
+                Tables\Columns\TextColumn::make('invitation_link')
+                    ->label('Ссылка')
+                    ->getStateUsing(fn() => 'Скопировать')
+                    ->badge()
+                    ->color('gray')
+                    ->copyable()
+                    ->copyableState(fn(Room $record) => route('rooms.join', $record))
+                    ->copyMessage('Ссылка скопирована')
+                    ->icon('heroicon-o-link'),
                 Tables\Columns\IconColumn::make('is_running')
                     ->label('Запущена')
                     ->boolean(),

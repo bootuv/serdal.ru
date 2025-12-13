@@ -37,6 +37,10 @@ class AppPanelProvider extends PanelProvider
             ->path('app')
             ->login()
             ->passwordReset()
+            ->renderHook(
+                'panels::body.end',
+                fn() => \Illuminate\Support\Facades\Blade::render("@vite('resources/js/app.js')")
+            )
             ->colors([
                 'primary' => Color::Amber,
             ])

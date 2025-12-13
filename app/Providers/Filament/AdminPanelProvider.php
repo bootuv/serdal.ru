@@ -28,6 +28,10 @@ class AdminPanelProvider extends PanelProvider
             ->path('admin')
             ->login()
             ->passwordReset()
+            ->renderHook(
+                'panels::body.end',
+                fn() => \Illuminate\Support\Facades\Blade::render("@vite('resources/js/app.js')")
+            )
             ->colors([
                 'primary' => Color::Amber,
             ])
