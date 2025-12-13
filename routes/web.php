@@ -10,6 +10,8 @@ Route::get('/', [IndexController::class, 'index']);
 
 Route::get('/reviews', [PageController::class, 'reviewsPage'])->name('reviews');
 
+Route::redirect('/login', '/app/login')->name('login');
+
 Route::middleware(['auth'])->group(function () {
     Route::get('/rooms/{room}/start', [RoomController::class, 'start'])->name('rooms.start');
     Route::get('/rooms/{room}/join', [RoomController::class, 'join'])->name('rooms.join');

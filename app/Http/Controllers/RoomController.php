@@ -137,6 +137,26 @@ class RoomController extends Controller
             ]);
 
             $room->update(['is_running' => true]);
+
+            // Register Webhook for Analytics
+            try {
+                $webhookUrl = route('api.bbb.webhook');
+
+                // If localhost, we might need a tunnel URL or just log a warning
+                $appUrl = config('app.url');
+                if (str_contains($appUrl, '127.0.0.1') || str_contains($appUrl, 'localhost')) {
+                    \Illuminate\Support\Facades\Log::warning('BBB Webhook: Skipping registration on localhost.', ['url' => $webhookUrl]);
+                } else {
+                    Bigbluebutton::hooksCreate([
+                        'meetingID' => $room->meeting_id,
+                        'callbackURL' => $webhookUrl,
+                        'getRaw' => true, // We want all events
+                    ]);
+                    \Illuminate\Support\Facades\Log::info('BBB Webhook: Registered successfully.', ['url' => $webhookUrl]);
+                }
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error('BBB Webhook: Failed to register.', ['error' => $e->getMessage()]);
+            }
         }
 
         return redirect()->to(

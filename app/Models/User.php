@@ -177,7 +177,7 @@ class User extends Authenticatable implements FilamentUser
         }
 
         if ($panel->getId() === 'app') {
-            return in_array($this->role, [self::ROLE_ADMIN, self::ROLE_MENTOR, self::ROLE_TUTOR]);
+            return in_array($this->role, [self::ROLE_ADMIN, self::ROLE_MENTOR, self::ROLE_TUTOR, self::ROLE_STUDENT]);
         }
 
         return false;
