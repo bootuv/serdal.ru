@@ -96,34 +96,9 @@ class MeetingSessionResource extends Resource
                 //
             ])
             ->actions([
-                Tables\Actions\Action::make('analytics')
+                Tables\Actions\ViewAction::make()
                     ->label('Отчет')
-                    ->icon('heroicon-o-chart-bar')
-                    ->url(function (MeetingSession $record) {
-                        if (!$record->internal_meeting_id) {
-                            return null;
-                        }
-
-                        // Get BBB Host from Settings or Config
-                        $bbbUrl = config('bigbluebutton.BBB_SERVER_BASE_URL');
-                        $user = auth()->user();
-                        if ($user && $user->bbb_url) {
-                            $bbbUrl = $user->bbb_url;
-                        } else {
-                            $globalUrl = \App\Models\Setting::where('key', 'bbb_url')->value('value');
-                            if ($globalUrl) {
-                                $bbbUrl = $globalUrl;
-                            }
-                        }
-
-                        // Parse Host
-                        $host = parse_url($bbbUrl, PHP_URL_HOST);
-                        $scheme = parse_url($bbbUrl, PHP_URL_SCHEME) ?? 'https';
-
-                        return "{$scheme}://{$host}/learning-analytics-dashboard/?meeting={$record->internal_meeting_id}&lang=ru";
-                    })
-                    ->openUrlInNewTab()
-                    ->visible(fn(MeetingSession $record) => !empty($record->internal_meeting_id)),
+                    ->icon('heroicon-o-chart-bar'),
             ])
             ->bulkActions([
                 //

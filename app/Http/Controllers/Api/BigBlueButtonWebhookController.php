@@ -65,6 +65,19 @@ class BigBlueButtonWebhookController extends Controller
                 $this->handleUserJoined($data);
             } elseif ($type === 'user-left') {
                 $this->handleUserLeft($data);
+            } elseif ($type === 'user-audio-voice-enabled' || $type === 'user-audio-voice-disabled') {
+                $this->handleUserAudio($data, $type);
+            } elseif ($type === 'user-cam-broadcast-started' || $type === 'user-cam-broadcast-stopped') {
+                $this->handleUserCam($data, $type);
+            } elseif ($type === 'chat-group-message-sent') {
+                $this->handleChatMessage($data);
+            } elseif ($type === 'user-emoji-changed') { // or user-reaction-emoji-changed depending on version, generic catch?
+                // Note: 'user-emoji-changed' is standard.
+                $this->handleUserEmoji($data);
+            } elseif ($type === 'user-raise-hand-changed') {
+                $this->handleUserRaiseHand($data);
+            } elseif ($type === 'poll-started' || $type === 'poll-stopped') {
+                $this->handlePoll($data, $type);
             }
         }
 
@@ -245,6 +258,132 @@ class BigBlueButtonWebhookController extends Controller
             Log::info("BBB Webhook: Session {$session->id} marked as completed with $participantCount participants.");
         } else {
             Log::info("BBB Webhook: No running session found for meeting $meetingId");
+        }
+    }
+
+    protected function handleUserAudio(array $data, string $type)
+    {
+        $this->updateParticipantStat($data, function (&$participant) use ($type, $data) {
+            $isEnabled = $type === 'user-audio-voice-enabled';
+
+            if ($isEnabled) {
+                $participant['audio_started_at'] = now()->toIso8601String();
+                $participant['has_joined_voice'] = true;
+            } else {
+                if (!empty($participant['audio_started_at'])) {
+                    $start = \Carbon\Carbon::parse($participant['audio_started_at']);
+                    $duration = now()->diffInSeconds($start);
+                    $participant['talking_time'] = ($participant['talking_time'] ?? 0) + $duration;
+                    unset($participant['audio_started_at']);
+                }
+            }
+        });
+    }
+
+    protected function handleUserCam(array $data, string $type)
+    {
+        $this->updateParticipantStat($data, function (&$participant) use ($type) {
+            $isStarted = $type === 'user-cam-broadcast-started';
+            if ($isStarted) {
+                $participant['cam_started_at'] = now()->toIso8601String();
+                $participant['has_video'] = true;
+            } else {
+                if (!empty($participant['cam_started_at'])) {
+                    $start = \Carbon\Carbon::parse($participant['cam_started_at']);
+                    $duration = now()->diffInSeconds($start);
+                    $participant['webcam_time'] = ($participant['webcam_time'] ?? 0) + $duration;
+                    unset($participant['cam_started_at']);
+                }
+            }
+        });
+    }
+
+    protected function handleChatMessage(array $data)
+    {
+        $this->updateParticipantStat($data, function (&$participant) {
+            $participant['message_count'] = ($participant['message_count'] ?? 0) + 1;
+        });
+    }
+
+    protected function handleUserEmoji(array $data)
+    {
+        $this->updateParticipantStat($data, function (&$participant) {
+            $participant['emoji_count'] = ($participant['emoji_count'] ?? 0) + 1;
+        });
+    }
+
+    protected function handleUserRaiseHand(array $data)
+    {
+        $this->updateParticipantStat($data, function (&$participant) {
+            $isRaised = false;
+            if (isset($data['data']['attributes']['user']['raise-hand'])) {
+                $isRaised = $data['data']['attributes']['user']['raise-hand'];
+            } elseif (isset($data['core']['body']['raiseHand'])) {
+                $isRaised = $data['core']['body']['raiseHand'];
+            }
+
+            if ($isRaised) {
+                $participant['raise_hand_count'] = ($participant['raise_hand_count'] ?? 0) + 1;
+            }
+        });
+    }
+
+    protected function handlePoll(array $data, string $type)
+    {
+        $meetingId = $this->getMeetingId($data);
+        if (!$meetingId)
+            return;
+        $session = $this->getSession($meetingId);
+        if (!$session)
+            return;
+
+        $analytics = $session->analytics_data ?? [];
+
+        if ($type === 'poll-started') {
+            $analytics['poll_count'] = ($analytics['poll_count'] ?? 0) + 1;
+        }
+
+        $session->update(['analytics_data' => $analytics]);
+    }
+
+    protected function updateParticipantStat(array $data, callable $callback)
+    {
+        $meetingId = $this->getMeetingId($data);
+        if (!$meetingId)
+            return;
+
+        $session = $this->getSession($meetingId);
+        if (!$session)
+            return;
+
+        // Extract User ID
+        $userId = null;
+        if (isset($data['data']['attributes']['user']['internal-user-id'])) {
+            $userId = $data['data']['attributes']['user']['internal-user-id'];
+        } elseif (isset($data['data']['attributes']['chat-message']['sender']['internal-user-id'])) {
+            $userId = $data['data']['attributes']['chat-message']['sender']['internal-user-id'];
+        } else {
+            $userId = $data['core']['body']['userId'] ?? ($data['core']['body']['sender']['userId'] ?? null);
+        }
+
+        if (!$userId)
+            return;
+
+        $analytics = $session->analytics_data ?? [];
+        $participants = $analytics['participants'] ?? [];
+
+        $found = false;
+        foreach ($participants as &$p) {
+            if (($p['user_id'] ?? '') === $userId) {
+                $callback($p);
+                $found = true;
+                break;
+            }
+        }
+
+        if ($found) {
+            $analytics['participants'] = $participants;
+            $session->update(['analytics_data' => $analytics]);
         }
     }
 }
