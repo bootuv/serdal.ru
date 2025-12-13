@@ -12,16 +12,28 @@ function debug_print($title, $content)
     echo "<pre>" . htmlspecialchars(print_r($content, true)) . "</pre>";
 }
 
-// 1. Find User Config
-$user = \App\Models\User::whereNotNull('bbb_url')->first();
-if (!$user) {
-    die("No user found with BBB settings.");
+// 1. Find User Config or Global Config
+$user = \App\Models\User::whereNotNull('bbb_url')->where('bbb_url', '!=', '')->first();
+$bbbUrl = null;
+$bbbSecret = null;
+
+if ($user) {
+    echo "Found Config for User: {$user->id}<br>";
+    $bbbUrl = rtrim($user->bbb_url, '/') . '/';
+    $bbbSecret = $user->bbb_secret;
+} else {
+    echo "No user specific settings found. Checking Global Settings...<br>";
+    $bbbUrl = \App\Models\Setting::where('key', 'bbb_url')->value('value');
+    $bbbSecret = \App\Models\Setting::where('key', 'bbb_secret')->value('value');
+
+    if ($bbbUrl && $bbbSecret) {
+        echo "Found Global Config.<br>";
+        $bbbUrl = rtrim($bbbUrl, '/') . '/';
+    } else {
+        die("No BBB settings found (User or Global).");
+    }
 }
 
-$bbbUrl = rtrim($user->bbb_url, '/') . '/';
-$bbbSecret = $user->bbb_secret;
-
-echo "Found Config for User: {$user->id}<br>";
 echo "BBB URL: " . htmlspecialchars($bbbUrl) . "<br>";
 // Hide secret for security in screenshot output, show length
 echo "Secret Length: " . strlen($bbbSecret) . "<br>";
