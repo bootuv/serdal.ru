@@ -20,8 +20,6 @@ class BigBlueButtonWebhookController extends Controller
 
         $payload = $request->input('event');
 
-        // Some BBB versions send a single object, some an array wrapped in 'event' or just the array.
-        // We'll try to normalize it.
         if (is_string($payload)) {
             $payload = json_decode($payload, true);
         }
@@ -47,8 +45,19 @@ class BigBlueButtonWebhookController extends Controller
         }
 
         foreach ($events as $event) {
-            $data = $event['event'] ?? $event; // Sometimes event details are nested in 'event' key again
-            $type = $data['type'] ?? ($data['header']['name'] ?? null); // 'type' or header.name
+            $data = $event['event'] ?? $event;
+
+            // Determine Event Type
+            $type = null;
+            if (isset($data['data']['id'])) {
+                $type = $data['data']['id']; // New format: data.id
+            } elseif (isset($data['type'])) {
+                $type = $data['type'];
+            } elseif (isset($data['header']['name'])) {
+                $type = $data['header']['name'];
+            }
+
+            Log::info("BBB Webhook: Detected event type: " . ($type ?? 'unknown'), ['data' => $data]);
 
             if ($type === 'meeting-ended') {
                 $this->handleMeetingEnded($data);
@@ -62,6 +71,17 @@ class BigBlueButtonWebhookController extends Controller
         return response()->json(['status' => 'ok']);
     }
 
+    protected function getMeetingId(array $data)
+    {
+        // Try new format first (data.attributes.meeting.external-meeting-id)
+        if (isset($data['data']['attributes']['meeting']['external-meeting-id'])) {
+            return $data['data']['attributes']['meeting']['external-meeting-id'];
+        }
+
+        // Fallbacks
+        return $data['meetingId'] ?? ($data['core']['body']['meetingId'] ?? null);
+    }
+
     protected function getSession($meetingId)
     {
         return MeetingSession::where('meeting_id', $meetingId)
@@ -72,17 +92,38 @@ class BigBlueButtonWebhookController extends Controller
 
     protected function handleUserJoined(array $data)
     {
-        $meetingId = $data['meetingId'] ?? ($data['core']['body']['meetingId'] ?? null);
-        if (!$meetingId)
+        $meetingId = $this->getMeetingId($data);
+        if (!$meetingId) {
+            Log::warning("BBB Webhook (user-joined): Could not extract meeting ID");
             return;
+        }
 
         $session = $this->getSession($meetingId);
-        if (!$session)
+        if (!$session) {
+            Log::info("BBB Webhook (user-joined): No running session found for $meetingId");
             return;
+        }
 
-        $userId = $data['core']['body']['userId'] ?? null;
-        $name = $data['core']['body']['name'] ?? 'Unknown';
-        $role = $data['core']['body']['role'] ?? 'VIEWER';
+        // Extract User Info
+        $userId = null;
+        $name = 'Unknown';
+        $role = 'VIEWER';
+
+        // New Format
+        if (isset($data['data']['attributes']['user'])) {
+            $userAttr = $data['data']['attributes']['user'];
+            $userId = $userAttr['internal-user-id'] ?? $userAttr['external-user-id'] ?? null; // Use internal if available as it is unique per join? No, analytics usually tracks unique people. Let's use internal-user-id as it matches user-left.
+            $name = $userAttr['name'] ?? 'Unknown';
+            $role = $userAttr['role'] ?? 'VIEWER';
+        } else {
+            // Old Format
+            $userId = $data['core']['body']['userId'] ?? null;
+            $name = $data['core']['body']['name'] ?? 'Unknown';
+            $role = $data['core']['body']['role'] ?? 'VIEWER';
+        }
+
+        if (!$userId)
+            return;
 
         $analytics = $session->analytics_data ?? [];
         $participants = $analytics['participants'] ?? [];
@@ -97,18 +138,19 @@ class BigBlueButtonWebhookController extends Controller
         }
 
         if ($existingIndex !== null) {
-            // Update existing entry
             $participants[$existingIndex]['join_count'] = ($participants[$existingIndex]['join_count'] ?? 0) + 1;
             $participants[$existingIndex]['last_joined_at'] = now()->toIso8601String();
+            // Update role if changed
+            $participants[$existingIndex]['role'] = $role;
+            $participants[$existingIndex]['full_name'] = $name;
         } else {
-            // Add new entry
             $participants[] = [
                 'user_id' => $userId,
                 'full_name' => $name,
                 'role' => $role,
                 'joined_at' => now()->toIso8601String(),
                 'join_count' => 1,
-                'is_presenter' => false, // Default, updated if we get presenter events
+                'is_presenter' => false,
                 'has_video' => false,
                 'has_joined_voice' => false,
             ];
@@ -116,13 +158,12 @@ class BigBlueButtonWebhookController extends Controller
 
         $analytics['participants'] = $participants;
         $session->update(['analytics_data' => $analytics]);
-
         Log::info("BBB Webhook: User $name joined meeting $meetingId");
     }
 
     protected function handleUserLeft(array $data)
     {
-        $meetingId = $data['meetingId'] ?? ($data['core']['body']['meetingId'] ?? null);
+        $meetingId = $this->getMeetingId($data);
         if (!$meetingId)
             return;
 
@@ -130,7 +171,16 @@ class BigBlueButtonWebhookController extends Controller
         if (!$session)
             return;
 
-        $userId = $data['core']['body']['userId'] ?? null;
+        // Extract User ID
+        $userId = null;
+        if (isset($data['data']['attributes']['user'])) {
+            $userId = $data['data']['attributes']['user']['internal-user-id'] ?? null;
+        } else {
+            $userId = $data['core']['body']['userId'] ?? null;
+        }
+
+        if (!$userId)
+            return;
 
         $analytics = $session->analytics_data ?? [];
         $participants = $analytics['participants'] ?? [];
@@ -144,13 +194,12 @@ class BigBlueButtonWebhookController extends Controller
 
         $analytics['participants'] = $participants;
         $session->update(['analytics_data' => $analytics]);
-
         Log::info("BBB Webhook: User left meeting $meetingId");
     }
 
     protected function handleMeetingEnded(array $data)
     {
-        $meetingId = $data['meetingId'] ?? ($data['core']['body']['meetingId'] ?? null);
+        $meetingId = $this->getMeetingId($data);
 
         if (!$meetingId) {
             Log::warning('BBB Webhook: meeting-ended event missing meetingId', ['data' => $data]);
