@@ -31,6 +31,12 @@ class UserResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
 
+    protected static ?string $navigationLabel = 'Пользователи';
+
+    protected static ?string $modelLabel = 'Пользователь';
+
+    protected static ?string $pluralModelLabel = 'Пользователи';
+
     public static function form(Form $form): Form
     {
         return $form
@@ -133,25 +139,37 @@ class UserResource extends Resource
             ])
             ->filters([
                 SelectFilter::make('user_type')
+                    ->label('Тип пользователя')
                     ->multiple()
                     ->options([
                         'mentor' => 'Ментор',
                         'tutor' => 'Репетитор',
                     ]),
                 SelectFilter::make('direct')
+                    ->label('Направление')
                     ->multiple()
                     ->relationship('directs', 'name'),
                 SelectFilter::make('subject')
+                    ->label('Предмет')
                     ->multiple()
                     ->relationship('subjects', 'name'),
                 SelectFilter::make('grade')
+                    ->label('Класс')
                     ->multiple()
                     ->options([
-                        'Дошкольники' => 'Дошкольники',
+                        'preschool' => 'Дошкольники',
                         '1' => '1 класс',
                         '2' => '2 класс',
-                        // Добавьте остальные классы...
-                        'Взрослые' => 'Взрослые',
+                        '3' => '3 класс',
+                        '4' => '4 класс',
+                        '5' => '5 класс',
+                        '6' => '6 класс',
+                        '7' => '7 класс',
+                        '8' => '8 класс',
+                        '9' => '9 класс',
+                        '10' => '10 класс',
+                        '11' => '11 класс',
+                        'adults' => 'Взрослые',
                     ]),
             ])
             ->actions([

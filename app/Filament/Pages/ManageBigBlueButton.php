@@ -45,7 +45,7 @@ class ManageBigBlueButton extends Page implements HasForms
     {
         return $form
             ->schema([
-                Section::make('Global Configuration')
+                Section::make('Глобальные настройки')
                     ->description('Эти настройки будут использоваться по умолчанию, если у пользователя не указаны собственные.')
                     ->schema([
                         TextInput::make('bbb_url')
@@ -60,39 +60,39 @@ class ManageBigBlueButton extends Page implements HasForms
                             ->revealable()
                             ->maxLength(255),
                     ]),
-                Section::make('Advanced Settings')
+                Section::make('Расширенные настройки')
                     ->description('Настройки по умолчанию для всех вебинаров.')
                     ->schema([
                         \Filament\Forms\Components\Toggle::make('record')
-                            ->label('Record Meeting')
+                            ->label('Запись встреч')
                             ->default(true)
                             ->helperText('Записывать встречи по умолчанию'),
                         \Filament\Forms\Components\Toggle::make('auto_start_recording')
-                            ->label('Auto-start Recording')
+                            ->label('Автостарт записи')
                             ->default(true)
                             ->helperText('Автоматически начинать запись'),
                         \Filament\Forms\Components\Toggle::make('allow_start_stop_recording')
-                            ->label('Allow Start/Stop Recording')
+                            ->label('Разрешить старт/стоп записи')
                             ->default(true)
                             ->helperText('Разрешить участникам управлять записью'),
                         \Filament\Forms\Components\Toggle::make('mute_on_start')
-                            ->label('Mute Users on Start')
+                            ->label('Выключить микрофоны при входе')
                             ->helperText('Отключить микрофоны при входе'),
                         \Filament\Forms\Components\Toggle::make('webcams_only_for_moderator')
-                            ->label('Webcams Only for Moderator')
+                            ->label('Вебкамеры только у модератора')
                             ->helperText('Только модератор может включать камеру'),
                         TextInput::make('max_participants')
-                            ->label('Max Participants')
+                            ->label('Макс. участников')
                             ->numeric()
                             ->default(0)
                             ->helperText('0 = неограничено'),
                         TextInput::make('duration')
-                            ->label('Duration (minutes)')
+                            ->label('Длительность (мин)')
                             ->numeric()
                             ->default(0)
                             ->helperText('0 = неограничено'),
                         TextInput::make('logout_url')
-                            ->label('Logout URL')
+                            ->label('URL выхода')
                             ->url()
                             ->helperText('URL для перенаправления после выхода'),
                     ]),

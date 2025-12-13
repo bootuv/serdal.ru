@@ -78,7 +78,7 @@ class MeetingSessionResource extends Resource
                     ->label('Длительность')
                     ->state(function (MeetingSession $record) {
                         if (!$record->ended_at) {
-                            return $record->started_at->diffForHumans(now(), true) . ' (Active)';
+                            return $record->started_at->diffForHumans(now(), true) . ' (Активна)';
                         }
                         return $record->started_at->diffForHumans($record->ended_at, true);
                     }),

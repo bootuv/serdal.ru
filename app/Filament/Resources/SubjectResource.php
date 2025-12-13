@@ -20,11 +20,18 @@ class SubjectResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
 
+    protected static ?string $navigationLabel = 'Предметы';
+
+    protected static ?string $modelLabel = 'Предмет';
+
+    protected static ?string $pluralModelLabel = 'Предметы';
+
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
                 TextInput::make('name')
+                    ->label('Название')
                     ->required()
                     ->maxLength(255),
             ]);
@@ -34,9 +41,9 @@ class SubjectResource extends Resource
     {
         return $table
             ->columns([
-                'name' => TextColumn::make('name'),
-                'created_at' => TextColumn::make('created_at'),
-                'updated_at' => TextColumn::make('updated_at'),
+                'name' => TextColumn::make('name')->label('Название'),
+                'created_at' => TextColumn::make('created_at')->label('Создан'),
+                'updated_at' => TextColumn::make('updated_at')->label('Обновлен'),
             ])
             ->filters([
                 //

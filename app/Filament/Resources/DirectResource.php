@@ -19,11 +19,18 @@ class DirectResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
 
+    protected static ?string $navigationLabel = 'Направления';
+
+    protected static ?string $modelLabel = 'Направление';
+
+    protected static ?string $pluralModelLabel = 'Направления';
+
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
                 Forms\Components\TextInput::make('name')
+                    ->label('Название')
                     ->required(),
             ]);
     }
@@ -32,7 +39,8 @@ class DirectResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('name'),
+                Tables\Columns\TextColumn::make('name')
+                    ->label('Название'),
             ])
             ->filters([
                 //

@@ -65,7 +65,7 @@ class RecordingResource extends Resource
             ])
             ->headerActions([
                 Tables\Actions\Action::make('sync')
-                    ->label('Сихронизировать (Global)')
+                    ->label('Синхронизировать')
                     ->icon('heroicon-o-arrow-path')
                     ->action(function () {
                         try {

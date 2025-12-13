@@ -19,17 +19,25 @@ class ReviewResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
 
+    protected static ?string $navigationLabel = 'Отзывы';
+
+    protected static ?string $modelLabel = 'Отзыв';
+
+    protected static ?string $pluralModelLabel = 'Отзывы';
+
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
                 Forms\Components\Textarea::make('text')
+                    ->label('Текст отзыва')
                     ->required()
                     ->maxLength(65535),
                 Forms\Components\Select::make('user_id')
+                    ->label('Пользователь')
                     ->relationship('user', 'name')
                     ->required(),
-            
+
             ]);
     }
 
@@ -37,10 +45,10 @@ class ReviewResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('user.name'),
-                Tables\Columns\TextColumn::make('user.role'),
-                Tables\Columns\TextColumn::make('text')->limit(70),
-                Tables\Columns\TextColumn::make('created_at'),
+                Tables\Columns\TextColumn::make('user.name')->label('Пользователь'),
+                Tables\Columns\TextColumn::make('user.role')->label('Роль'),
+                Tables\Columns\TextColumn::make('text')->label('Текст')->limit(70),
+                Tables\Columns\TextColumn::make('created_at')->label('Дата'),
             ])
             ->filters([
                 //
