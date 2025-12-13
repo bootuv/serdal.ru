@@ -3,5 +3,6 @@
 use Illuminate\Support\Facades\Broadcast;
 
 Broadcast::channel('rooms', function ($user) {
-    return true; // Public channel effectively, or strictly for auth users
+    \Illuminate\Support\Facades\Log::info('Channel auth requested', ['user' => $user->id ?? 'null']);
+    return true;
 });
