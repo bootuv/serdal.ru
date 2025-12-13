@@ -30,7 +30,7 @@ class RoomStatusUpdated implements ShouldBroadcastNow
     public function broadcastOn(): array
     {
         return [
-            new PrivateChannel('rooms'),
+            new Channel('rooms'),
         ];
     }
 
