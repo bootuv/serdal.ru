@@ -58,30 +58,11 @@ if ($outputList) {
     // Attempt to parse XML
     $xml = simplexml_load_string($outputList);
     if ($xml && isset($xml->hooks->hook)) {
-        debug_print("Found Hooks", $xml);
-
-        // Destroy Logic
-        foreach ($xml->hooks->hook as $hook) {
-            $hookID = (string) $hook->hookID;
-            echo "Attempting to destroy hook: $hookID ... ";
-
-            $actionDestroy = "hooks/destroy";
-            $paramsDestroy = "hookID=" . $hookID;
-            $checksumDestroy = sha1($actionDestroy . $paramsDestroy . $bbbSecret);
-            $destroyUrl = $bbbUrl . "api/" . $actionDestroy . "?" . $paramsDestroy . "&checksum=" . $checksumDestroy;
-
-            $chD = curl_init();
-            curl_setopt($chD, CURLOPT_URL, $destroyUrl);
-            curl_setopt($chD, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($chD, CURLOPT_SSL_VERIFYPEER, false);
-            $outputD = curl_exec($chD);
-            curl_close($chD);
-            echo "Result: " . htmlspecialchars($outputD) . "<br>";
-        }
-        echo "<b>All hooks destroyed. Please restart a meeting to register a fresh one.</b><br>";
-
+        debug_print("Found Hooks (Active)", $xml);
     } else {
-        debug_print("Hooks List (Raw - No hooks found or parse error)", $outputList);
+        echo "<b>No active hooks found.</b> (Server returned success but empty list)<br>";
+        if ($outputList)
+            debug_print("Raw Response", $outputList);
     }
 } else {
     echo "Failed to fetch hooks list.<br>";
