@@ -111,7 +111,8 @@ class RoomResource extends Resource
                     ->icon('heroicon-o-play')
                     ->color('success')
                     ->url(fn(Room $record) => route('rooms.start', $record))
-                    ->openUrlInNewTab(),
+                    ->openUrlInNewTab()
+                    ->visible(fn(Room $record) => !$record->is_running),
                 Tables\Actions\Action::make('stop')
                     ->label('Остановить')
                     ->icon('heroicon-o-stop')
