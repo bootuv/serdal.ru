@@ -240,6 +240,7 @@ class BigBlueButtonWebhookController extends Controller
                 'status' => 'completed',
                 'participant_count' => $participantCount,
                 'analytics_data' => $analytics,
+                'internal_meeting_id' => $session->internal_meeting_id ?? ($data['data']['attributes']['meeting']['internal-meeting-id'] ?? null),
             ]);
             Log::info("BBB Webhook: Session {$session->id} marked as completed with $participantCount participants.");
         } else {

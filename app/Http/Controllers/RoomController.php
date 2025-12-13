@@ -125,12 +125,14 @@ class RoomController extends Controller
                 ]);
             }
 
-            Bigbluebutton::create($createParams);
+            $response = Bigbluebutton::create($createParams);
+            $internalMeetingId = $response['internalMeetingID'] ?? null;
 
             \App\Models\MeetingSession::create([
                 'user_id' => auth()->id(),
                 'room_id' => $room->id,
                 'meeting_id' => $room->meeting_id,
+                'internal_meeting_id' => $internalMeetingId,
                 'started_at' => now(),
                 'status' => 'running',
                 'settings_snapshot' => $createParams,

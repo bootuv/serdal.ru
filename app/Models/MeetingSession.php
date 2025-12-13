@@ -13,6 +13,7 @@ class MeetingSession extends Model
         'user_id',
         'room_id',
         'meeting_id',
+        'internal_meeting_id',
         'started_at',
         'ended_at',
         'status',
