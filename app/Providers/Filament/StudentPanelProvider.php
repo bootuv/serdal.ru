@@ -18,25 +18,13 @@ use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 
-class AdminPanelProvider extends PanelProvider
+class StudentPanelProvider extends PanelProvider
 {
-    public function register(): void
-    {
-        parent::register();
-
-        $this->app->bind(
-            \Filament\Http\Responses\Auth\Contracts\LoginResponse::class,
-            \App\Http\Responses\LoginResponse::class
-        );
-    }
-
     public function panel(Panel $panel): Panel
     {
         return $panel
-            ->default()
-            ->id('admin')
-            ->path('admin')
-            ->login()
+            ->id('student')
+            ->path('student')
             ->passwordReset()
             ->renderHook(
                 'panels::body.end',
@@ -47,15 +35,14 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->brandLogo(fn() => asset('images/Logo.svg'))
             ->brandLogoHeight('2rem')
-            ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
-            ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
+            ->discoverResources(in: app_path('Filament/Student/Resources'), for: 'App\\Filament\\Student\\Resources')
+            ->discoverPages(in: app_path('Filament/Student/Pages'), for: 'App\\Filament\\Student\\Pages')
             ->pages([
                 Pages\Dashboard::class,
             ])
-            ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
+            ->discoverWidgets(in: app_path('Filament/Student/Widgets'), for: 'App\\Filament\\Student\\Widgets')
             ->widgets([
                 Widgets\AccountWidget::class,
-                Widgets\FilamentInfoWidget::class,
             ])
             ->middleware([
                 EncryptCookies::class,
@@ -67,7 +54,6 @@ class AdminPanelProvider extends PanelProvider
                 SubstituteBindings::class,
                 DisableBladeIconComponents::class,
                 DispatchServingFilamentEvent::class,
-                \App\Http\Middleware\RedirectIfNotAdmin::class,
             ])
             ->authMiddleware([
                 Authenticate::class,

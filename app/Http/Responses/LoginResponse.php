@@ -13,7 +13,11 @@ class LoginResponse implements LoginResponseContract
     {
         $user = auth()->user();
 
-        $defaultUrl = ($user->role === User::ROLE_ADMIN) ? '/admin' : '/app';
+        $defaultUrl = match ($user->role) {
+            User::ROLE_ADMIN => '/admin',
+            User::ROLE_STUDENT => '/student',
+            default => '/tutor',
+        };
 
         return redirect()->intended($defaultUrl);
     }

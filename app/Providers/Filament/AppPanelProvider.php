@@ -20,26 +20,15 @@ use Illuminate\View\Middleware\ShareErrorsFromSession;
 
 class AppPanelProvider extends PanelProvider
 {
-    public function register(): void
-    {
-        parent::register();
-
-        $this->app->bind(
-            \Filament\Http\Responses\Auth\Contracts\LoginResponse::class,
-            \App\Http\Responses\LoginResponse::class
-        );
-    }
-
     public function panel(Panel $panel): Panel
     {
         return $panel
             ->id('app')
-            ->path('app')
-            ->login()
+            ->path('tutor')
             ->passwordReset()
             ->renderHook(
                 'panels::body.end',
-                fn() => \Illuminate\Support\Facades\Blade::render("@vite('resources/js/app.js')")
+                fn() => \Illuminate\Support\Facades\Blade::render("@vite(['resources/css/app.css', 'resources/js/app.js'])")
             )
             ->colors([
                 'primary' => Color::Amber,

@@ -151,7 +151,7 @@ class User extends Authenticatable implements FilamentUser
                 return match ($this->role) {
                     User::ROLE_MENTOR => 'Ментор',
                     User::ROLE_TUTOR => 'Преподаватель',
-                    User::ROLE_STUDENT => 'Ученик',
+                    User::ROLE_STUDENT => 'Учащийся',
                     User::ROLE_ADMIN => 'Администратор',
                 };
             },
@@ -173,11 +173,17 @@ class User extends Authenticatable implements FilamentUser
     public function canAccessPanel(Panel $panel): bool
     {
         if ($panel->getId() === 'admin') {
-            return $this->role === self::ROLE_ADMIN;
+            // Allow all authenticated users to access admin panel login
+            // The LoginResponse will redirect them to the correct panel
+            return true;
         }
 
         if ($panel->getId() === 'app') {
-            return in_array($this->role, [self::ROLE_ADMIN, self::ROLE_MENTOR, self::ROLE_TUTOR, self::ROLE_STUDENT]);
+            return in_array($this->role, [self::ROLE_ADMIN, self::ROLE_MENTOR, self::ROLE_TUTOR]);
+        }
+
+        if ($panel->getId() === 'student') {
+            return in_array($this->role, [self::ROLE_ADMIN, self::ROLE_STUDENT]);
         }
 
         return false;

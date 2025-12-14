@@ -74,7 +74,7 @@ class UserResource extends Resource
                         User::ROLE_ADMIN => 'Администратор',
                         User::ROLE_MENTOR => 'Ментор',
                         User::ROLE_TUTOR => 'Репетитор',
-                        User::ROLE_STUDENT => 'Студент',
+                        User::ROLE_STUDENT => 'Учащийся',
                     ])
                     ->required(),
                 Select::make('subjects')

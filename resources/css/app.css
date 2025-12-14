@@ -1,0 +1,15 @@
+/* Hide Collapse All and Expand All buttons in Filament Repeater */
+[data-collapse-all-action],
+[data-expand-all-action] {
+    display: none !important;
+}
+
+/* Invert brand logo in dark mode using mask */
+.dark .fi-logo {
+    filter: brightness(0) invert(1) !important;
+}
+
+.dark .fi-sidebar-header img[src*="Logo.svg"],
+.dark img[src*="Logo.svg"] {
+    filter: brightness(0) invert(1) !important;
+}
