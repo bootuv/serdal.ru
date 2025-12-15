@@ -194,10 +194,46 @@ class StudentResource extends Resource
             ->persistFiltersInSession()
             ->filtersFormColumns(4)
             ->headerActions([
+                Tables\Actions\Action::make('add_student')
+                    ->label('Добавить ученика')
+                    ->icon('heroicon-o-plus')
+                    ->color('gray')
+                    ->modalSubmitActionLabel('Добавить')
+                    ->form([
+                        Forms\Components\Select::make('student_id')
+                            ->label('Выберите ученика')
+                            ->options(function () {
+                                // Get all students NOT already associated with this teacher
+                                return User::where('role', 'student')
+                                    ->whereDoesntHave('teachers', function ($q) {
+                                    $q->where('users.id', auth()->id());
+                                })
+                                    ->pluck('name', 'id');
+                            })
+                            ->searchable()
+                            ->required(),
+                    ])
+                    ->action(function (array $data) {
+                        $student = User::find($data['student_id']);
+                        if ($student) {
+                            $changes = auth()->user()->students()->syncWithoutDetaching([$student->id]);
+
+                            if (count($changes['attached']) > 0) {
+                                Notification::make()
+                                    ->title('Ученик добавлен')
+                                    ->success()
+                                    ->send();
+                            } else {
+                                Notification::make()
+                                    ->title('Ученик уже в вашем списке')
+                                    ->warning()
+                                    ->send();
+                            }
+                        }
+                    }),
                 Tables\Actions\Action::make('invite_student')
                     ->label('Пригласить ученика')
                     ->icon('heroicon-o-paper-airplane')
-                    ->color('gray')
                     ->form([
                         Forms\Components\Section::make('Ссылка для приглашения')
                             ->description('Отправьте эту ссылку ученику, чтобы он мог зарегистрироваться и автоматически добавиться в ваш список.')
@@ -236,42 +272,6 @@ class StudentResource extends Resource
                                 ->body("Письмо отправлено на {$data['email']}")
                                 ->success()
                                 ->send();
-                        }
-                    }),
-                Tables\Actions\Action::make('add_student')
-                    ->label('Добавить ученика')
-                    ->icon('heroicon-o-plus')
-                    ->modalSubmitActionLabel('Добавить')
-                    ->form([
-                        Forms\Components\Select::make('student_id')
-                            ->label('Выберите ученика')
-                            ->options(function () {
-                                // Get all students NOT already associated with this teacher
-                                return User::where('role', 'student')
-                                    ->whereDoesntHave('teachers', function ($q) {
-                                    $q->where('users.id', auth()->id());
-                                })
-                                    ->pluck('name', 'id');
-                            })
-                            ->searchable()
-                            ->required(),
-                    ])
-                    ->action(function (array $data) {
-                        $student = User::find($data['student_id']);
-                        if ($student) {
-                            $changes = auth()->user()->students()->syncWithoutDetaching([$student->id]);
-
-                            if (count($changes['attached']) > 0) {
-                                Notification::make()
-                                    ->title('Ученик добавлен')
-                                    ->success()
-                                    ->send();
-                            } else {
-                                Notification::make()
-                                    ->title('Ученик уже в вашем списке')
-                                    ->warning()
-                                    ->send();
-                            }
                         }
                     }),
             ])

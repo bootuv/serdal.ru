@@ -1,91 +1,97 @@
-<div class="flex min-h-screen flex-col justify-center px-6 py-12 lg:px-8 bg-gray-50 dark:bg-gray-900">
-    <div class="sm:mx-auto sm:w-full sm:max-w-sm">
-        <h2 class="mt-10 text-center text-2xl font-bold leading-9 tracking-tight text-gray-900 dark:text-white">
-            Регистрация ученика
-        </h2>
-        <p class="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
-            Создайте аккаунт для доступа к платформе
-        </p>
-    </div>
+<div class="flex min-h-screen items-center justify-center px-4 py-12 sm:px-6 lg:px-8">
+    <div class="w-full max-w-md space-y-8">
+        <div class="text-center">
+            <img src="{{ asset('images/Logo.svg') }}" alt="Logo" class="mx-auto h-12 w-auto dark:invert">
+            <h2 class="mt-6 text-3xl font-bold tracking-tight text-gray-900 dark:text-white">
+                Регистрация ученика
+            </h2>
+            <p class="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
+                Заполните форму для создания аккаунта
+            </p>
+        </div>
 
-    <div class="mt-10 sm:mx-auto sm:w-full sm:max-w-sm">
-        <form class="space-y-6" wire:submit="register">
-            <div class="grid grid-cols-1 gap-x-6 gap-y-6 sm:grid-cols-2">
-                <div class="sm:col-span-2">
-                    <label for="last_name"
-                        class="block text-sm font-medium leading-6 text-gray-900 dark:text-white">Фамилия</label>
-                    <div class="mt-2">
-                        <input wire:model="last_name" id="last_name" name="last_name" type="text" required
-                            class="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 dark:bg-white/5 dark:text-white dark:ring-white/10">
-                    </div>
-                    @error('last_name') <span class="text-sm text-red-600">{{ $message }}</span> @enderror
+        <form class="mt-8 space-y-6" wire:submit="register">
+            <div class="space-y-4">
+
+                <!-- Фамилия -->
+                <div>
+                    <label for="last_name" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Фамилия
+                    </label>
+                    <input wire:model="last_name" id="last_name" type="text" required
+                        class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-400 focus:border-amber-500 focus:outline-none focus:ring-amber-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white sm:text-sm">
+                    @error('last_name') <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                    @enderror
                 </div>
 
-                <div class="sm:col-span-1">
-                    <label for="first_name"
-                        class="block text-sm font-medium leading-6 text-gray-900 dark:text-white">Имя</label>
-                    <div class="mt-2">
-                        <input wire:model="first_name" id="first_name" name="first_name" type="text" required
-                            class="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 dark:bg-white/5 dark:text-white dark:ring-white/10">
-                    </div>
-                    @error('first_name') <span class="text-sm text-red-600">{{ $message }}</span> @enderror
+                <!-- Имя -->
+                <div>
+                    <label for="first_name" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Имя
+                    </label>
+                    <input wire:model="first_name" id="first_name" type="text" required
+                        class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-400 focus:border-amber-500 focus:outline-none focus:ring-amber-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white sm:text-sm">
+                    @error('first_name') <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                    @enderror
                 </div>
 
-                <div class="sm:col-span-1">
-                    <label for="middle_name"
-                        class="block text-sm font-medium leading-6 text-gray-900 dark:text-white">Отчество</label>
-                    <div class="mt-2">
-                        <input wire:model="middle_name" id="middle_name" name="middle_name" type="text" required
-                            class="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 dark:bg-white/5 dark:text-white dark:ring-white/10">
-                    </div>
-                    @error('middle_name') <span class="text-sm text-red-600">{{ $message }}</span> @enderror
+                <!-- Отчество -->
+                <div>
+                    <label for="middle_name" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Отчество
+                    </label>
+                    <input wire:model="middle_name" id="middle_name" type="text" required
+                        class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-400 focus:border-amber-500 focus:outline-none focus:ring-amber-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white sm:text-sm">
+                    @error('middle_name') <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                    @enderror
                 </div>
-            </div>
 
-            <div>
-                <label for="email"
-                    class="block text-sm font-medium leading-6 text-gray-900 dark:text-white">Email</label>
-                <div class="mt-2">
-                    <input wire:model="email" id="email" name="email" type="email" autocomplete="email" required
-                        class="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 dark:bg-white/5 dark:text-white dark:ring-white/10">
+                <!-- Email -->
+                <div>
+                    <label for="email" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Email
+                    </label>
+                    <input wire:model="email" id="email" type="email" autocomplete="email" required
+                        class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-400 focus:border-amber-500 focus:outline-none focus:ring-amber-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white sm:text-sm"
+                        placeholder="your@email.com">
+                    @error('email') <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p> @enderror
                 </div>
-                @error('email') <span class="text-sm text-red-600">{{ $message }}</span> @enderror
-            </div>
 
-            <div>
-                <label for="phone" class="block text-sm font-medium leading-6 text-gray-900 dark:text-white">Телефон
-                    (необязательно)</label>
-                <div class="mt-2">
-                    <input wire:model="phone" id="phone" name="phone" type="text"
-                        class="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 dark:bg-white/5 dark:text-white dark:ring-white/10">
+                <!-- Телефон -->
+                <div>
+                    <label for="phone" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Телефон (необязательно)
+                    </label>
+                    <input wire:model="phone" id="phone" type="text"
+                        class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-400 focus:border-amber-500 focus:outline-none focus:ring-amber-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white sm:text-sm">
+                    @error('phone') <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p> @enderror
                 </div>
-                @error('phone') <span class="text-sm text-red-600">{{ $message }}</span> @enderror
-            </div>
 
-            <div>
-                <label for="password"
-                    class="block text-sm font-medium leading-6 text-gray-900 dark:text-white">Пароль</label>
-                <div class="mt-2">
-                    <input wire:model="password" id="password" name="password" type="password" required
-                        class="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 dark:bg-white/5 dark:text-white dark:ring-white/10">
+                <!-- Пароль -->
+                <div>
+                    <label for="password" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Пароль
+                    </label>
+                    <input wire:model="password" id="password" type="password" required
+                        class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-400 focus:border-amber-500 focus:outline-none focus:ring-amber-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white sm:text-sm">
+                    @error('password') <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                    @enderror
                 </div>
-                @error('password') <span class="text-sm text-red-600">{{ $message }}</span> @enderror
-            </div>
 
-            <div>
-                <label for="password_confirmation"
-                    class="block text-sm font-medium leading-6 text-gray-900 dark:text-white">Подтверждение
-                    пароля</label>
-                <div class="mt-2">
-                    <input wire:model="password_confirmation" id="password_confirmation" name="password_confirmation"
-                        type="password" required
-                        class="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 dark:bg-white/5 dark:text-white dark:ring-white/10">
+                <!-- Подтверждение пароля -->
+                <div>
+                    <label for="password_confirmation"
+                        class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Подтверждение пароля
+                    </label>
+                    <input wire:model="password_confirmation" id="password_confirmation" type="password" required
+                        class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-400 focus:border-amber-500 focus:outline-none focus:ring-amber-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white sm:text-sm">
                 </div>
             </div>
 
             <div>
                 <button type="submit"
-                    class="flex w-full justify-center rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-semibold leading-6 text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">
+                    class="group relative flex w-full justify-center rounded-md bg-amber-600 px-3 py-2 text-sm font-semibold text-white hover:bg-amber-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-600">
                     Зарегистрироваться
                 </button>
             </div>
