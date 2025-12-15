@@ -49,33 +49,42 @@ class EditProfile extends Page implements HasForms
                     ->image()
                     ->avatar()
                     ->directory('avatars'),
-                Forms\Components\TextInput::make('name')
-                    ->label('Имя')
-                    ->required()
-                    ->maxLength(255),
+                Forms\Components\Group::make([
+                    Forms\Components\TextInput::make('last_name')
+                        ->label('Фамилия')
+                        ->required()
+                        ->maxLength(255),
+                    Forms\Components\TextInput::make('first_name')
+                        ->label('Имя')
+                        ->required()
+                        ->maxLength(255),
+                    Forms\Components\TextInput::make('middle_name')
+                        ->label('Отчество')
+                        ->maxLength(255),
+                ])->columns(3)->columnSpanFull(),
                 Forms\Components\TextInput::make('status')
                     ->label('Статус')
-                    ->maxLength(255),
+                    ->maxLength(255)
+                    ->columnSpanFull(),
                 Forms\Components\TextInput::make('email')
                     ->label('Электронная почта')
                     ->required()
                     ->maxLength(255)
-                    ->disabled(),
-                Forms\Components\TextInput::make('username')
-                    ->label('Имя пользователя')
-                    ->required()
-                    ->maxLength(255)
-                    ->unique('users', 'username', ignoreRecord: true),
+                    ->disabled()
+                    ->columnSpanFull(),
+
 
                 Forms\Components\Select::make('subjects')
                     ->label('Предметы')
                     ->multiple()
-                    ->options(\App\Models\Subject::all()->pluck('name', 'id')),
+                    ->options(\App\Models\Subject::all()->pluck('name', 'id'))
+                    ->columnSpanFull(),
 
                 Forms\Components\Select::make('directs')
                     ->label('Направления')
                     ->multiple()
-                    ->options(\App\Models\Direct::all()->pluck('name', 'id')),
+                    ->options(\App\Models\Direct::all()->pluck('name', 'id'))
+                    ->columnSpanFull(),
 
                 Forms\Components\Select::make('grade')
                     ->label('Классы')
@@ -84,7 +93,8 @@ class EditProfile extends Page implements HasForms
                         'preschool' => 'Дошкольники',
                         ...array_combine(range(1, 11), array_map(fn($i) => "$i класс", range(1, 11))),
                         'adults' => 'Взрослые',
-                    ]),
+                    ])
+                    ->columnSpanFull(),
 
                 Forms\Components\RichEditor::make('about')
                     ->label('О себе')

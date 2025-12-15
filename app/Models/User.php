@@ -9,7 +9,7 @@ use Illuminate\Notifications\Notifiable;
 use App\Models\Subject;
 use App\Models\Direct;
 use Illuminate\Database\Eloquent\Casts\Attribute;
-use Str;
+use Illuminate\Support\Str;
 use Illuminate\Database\Eloquent\Builder;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
@@ -35,6 +35,9 @@ class User extends Authenticatable implements FilamentUser
      */
     protected $fillable = [
         'name',
+        'first_name',
+        'last_name',
+        'middle_name',
         'email',
         'password',
         'role',
@@ -151,7 +154,7 @@ class User extends Authenticatable implements FilamentUser
                 return match ($this->role) {
                     User::ROLE_MENTOR => 'Ментор',
                     User::ROLE_TUTOR => 'Преподаватель',
-                    User::ROLE_STUDENT => 'Учащийся',
+                    User::ROLE_STUDENT => 'Ученик',
                     User::ROLE_ADMIN => 'Администратор',
                 };
             },
@@ -173,8 +176,6 @@ class User extends Authenticatable implements FilamentUser
     public function canAccessPanel(Panel $panel): bool
     {
         if ($panel->getId() === 'admin') {
-            // Allow all authenticated users to access admin panel login
-            // The LoginResponse will redirect them to the correct panel
             return true;
         }
 
@@ -194,8 +195,48 @@ class User extends Authenticatable implements FilamentUser
         return $this->hasMany(Review::class);
     }
 
+    public function assignedRooms()
+    {
+        return $this->belongsToMany(Room::class, 'room_user', 'user_id', 'room_id');
+    }
+
+    public function students()
+    {
+        return $this->belongsToMany(User::class, 'teacher_student', 'teacher_id', 'student_id');
+    }
+
+    public function teachers()
+    {
+        return $this->belongsToMany(User::class, 'teacher_student', 'student_id', 'teacher_id');
+    }
+
     protected static function booted()
     {
+        static::saving(function ($user) {
+            // Формируем полное имя для совместимости
+            $parts = array_filter([$user->last_name, $user->first_name, $user->middle_name]);
+            if (!empty($parts)) {
+                $user->name = implode(' ', $parts);
+            }
+
+            // Генерация username (транслитерация имени и фамилии)
+            if (empty($user->username) && $user->first_name && $user->last_name) {
+                // Если записи создаются, то username должен быть уникальным. 
+                // Для обновлений проверяем, изменились ли имя/фамилия, но лучше генерировать только при создании, если пусто.
+                if (!$user->exists || $user->isDirty(['first_name', 'last_name'])) {
+                    $base = Str::slug(Str::transliterate($user->first_name . '-' . $user->last_name));
+                    $username = $base;
+                    $count = 1;
+                    // Проверка уникальности (исключая текущего пользователя)
+                    while (User::where('username', $username)->where('id', '!=', $user->id)->exists()) {
+                        $username = $base . '-' . $count;
+                        $count++;
+                    }
+                    $user->username = $username;
+                }
+            }
+        });
+
         static::deleting(function ($user) {
             $user->reviews()->delete();
         });

@@ -13,6 +13,7 @@ class Room extends Model
     protected $fillable = [
         'user_id',
         'name',
+        'type',
         'meeting_id',
         'moderator_pw',
         'attendee_pw',
@@ -52,5 +53,9 @@ class Room extends Model
     public function schedules()
     {
         return $this->hasMany(RoomSchedule::class);
+    }
+    public function participants()
+    {
+        return $this->belongsToMany(User::class);
     }
 }

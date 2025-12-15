@@ -45,6 +45,7 @@ class ScheduleCalendar extends Page
                         'start' => $schedule->scheduled_at,
                         'owner' => $schedule->room->user->name,
                         'type' => 'once',
+                        'room_type' => $schedule->room->type,
                         'duration' => $schedule->duration_minutes,
                     ];
                 }
@@ -60,6 +61,7 @@ class ScheduleCalendar extends Page
                             'start' => $current->copy()->setTimeFromTimeString($schedule->recurrence_time),
                             'owner' => $schedule->room->user->name,
                             'type' => $schedule->recurrence_type,
+                            'room_type' => $schedule->room->type,
                             'duration' => $schedule->duration_minutes,
                         ];
                     }

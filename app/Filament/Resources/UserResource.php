@@ -46,21 +46,36 @@ class UserResource extends Resource
                     ->image()
                     ->avatar()
                     ->directory('avatars'),
-                TextInput::make('name')
-                    ->label('Имя')
-                    ->required()
-                    ->maxLength(255),
+                Forms\Components\Group::make([
+                    TextInput::make('last_name')
+                        ->label('Фамилия')
+                        ->required()
+                        ->maxLength(255),
+                    TextInput::make('first_name')
+                        ->label('Имя')
+                        ->required()
+                        ->maxLength(255),
+                    TextInput::make('middle_name')
+                        ->label('Отчество')
+                        ->maxLength(255),
+                ])->columns(3)->columnSpanFull(),
                 TextInput::make('status')
                     ->label('Статус')
-                    ->maxLength(255),
+                    ->maxLength(255)
+                    ->columnSpanFull(),
                 TextInput::make('email')
                     ->label('Электронная почта')
                     ->required()
-                    ->maxLength(255),
+                    ->maxLength(255)
+                    ->unique(ignoreRecord: true)
+                    ->columnSpanFull(),
                 TextInput::make('username')
                     ->label('Имя пользователя')
                     ->required()
-                    ->maxLength(255),
+                    ->maxLength(255)
+                    ->unique(ignoreRecord: true)
+                    ->columnSpanFull(),
+
                 TextInput::make('password')
                     ->label('Пароль')
                     ->password()
@@ -74,17 +89,19 @@ class UserResource extends Resource
                         User::ROLE_ADMIN => 'Администратор',
                         User::ROLE_MENTOR => 'Ментор',
                         User::ROLE_TUTOR => 'Репетитор',
-                        User::ROLE_STUDENT => 'Учащийся',
+                        User::ROLE_STUDENT => 'Ученик',
                     ])
                     ->required(),
                 Select::make('subjects')
                     ->label('Предметы')
                     ->multiple()
-                    ->relationship('subjects', 'name'),
+                    ->relationship('subjects', 'name')
+                    ->columnSpanFull(),
                 Select::make('directs')
                     ->label('Направления')
                     ->multiple()
-                    ->relationship('directs', 'name'),
+                    ->relationship('directs', 'name')
+                    ->columnSpanFull(),
                 Select::make('grade')
                     ->label('Классы')
                     ->multiple()
@@ -102,7 +119,8 @@ class UserResource extends Resource
                         10 => 10,
                         11 => 11,
                         'adults' => 'Взрослые',
-                    ]),
+                    ])
+                    ->columnSpanFull(),
                 RichEditor::make('about')
                     ->label('О себе')
                     ->columnSpan(2),

@@ -13,3 +13,22 @@
 .dark img[src*="Logo.svg"] {
     filter: brightness(0) invert(1) !important;
 }
+
+/* Custom styles for Student Select Tags (Chips) */
+.student-select [style*="background-color"] {
+    /* This targets the chip background container if inline styles are used, or generally the chip */
+    padding-top: 0.25rem !important;
+    padding-bottom: 0.25rem !important;
+}
+
+/* Increase delete icon size */
+.student-select button svg.h-4,
+.student-select button svg.h-5 {
+    width: 1rem !important;
+    height: 1rem !important;
+}
+
+/* Ensure the chip container aligns items center */
+.student-select .flex.gap-x-1 {
+    align-items: center !important;
+}

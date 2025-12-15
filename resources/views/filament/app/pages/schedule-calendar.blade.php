@@ -11,7 +11,7 @@
         // Group events by date and filter by type
         $filteredEvents = $filterType === 'all'
             ? $events
-            : $events->filter(fn($e) => $e['type'] === $filterType);
+            : $events->filter(fn($e) => $e['room_type'] === $filterType); // Filter by room_type
         $eventsByDate = $filteredEvents->groupBy(fn($event) => $event['start']->format('Y-m-d'));
     @endphp
 
@@ -19,40 +19,30 @@
     <div
         class="mb-3 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 px-4 py-3">
         <div class="flex items-center gap-3">
-            <span class="text-sm font-semibold text-gray-700 dark:text-gray-300">Фильтр:</span>
+            <span class="text-sm font-semibold text-gray-700 dark:text-gray-300">Тип занятия:</span>
             <div class="flex items-center gap-2">
                 <a href="?month={{ $currentMonth }}&type=all"
                     class="px-3 py-1.5 text-xs font-medium rounded-lg transition"
                     style="background-color: {{ $filterType === 'all' ? '#111827' : '#f3f4f6' }}; color: {{ $filterType === 'all' ? '#ffffff' : '#374151' }};">
                     Все
                 </a>
-                <a href="?month={{ $currentMonth }}&type=once"
+                <a href="?month={{ $currentMonth }}&type=individual"
                     class="px-3 py-1.5 text-xs font-medium rounded-lg transition"
-                    style="background-color: {{ $filterType === 'once' ? '#2563eb' : '#eff6ff' }}; color: {{ $filterType === 'once' ? '#ffffff' : '#1d4ed8' }};">
-                    Одноразовое
+                    style="background-color: {{ $filterType === 'individual' ? '#2563eb' : '#eff6ff' }}; color: {{ $filterType === 'individual' ? '#ffffff' : '#1d4ed8' }};">
+                    Индивидуальное
                 </a>
-                <a href="?month={{ $currentMonth }}&type=daily"
+                <a href="?month={{ $currentMonth }}&type=group"
                     class="px-3 py-1.5 text-xs font-medium rounded-lg transition"
-                    style="background-color: {{ $filterType === 'daily' ? '#16a34a' : '#f0fdf4' }}; color: {{ $filterType === 'daily' ? '#ffffff' : '#15803d' }};">
-                    Ежедневно
-                </a>
-                <a href="?month={{ $currentMonth }}&type=weekly"
-                    class="px-3 py-1.5 text-xs font-medium rounded-lg transition"
-                    style="background-color: {{ $filterType === 'weekly' ? '#ea580c' : '#fff7ed' }}; color: {{ $filterType === 'weekly' ? '#ffffff' : '#c2410c' }};">
-                    Еженедельно
-                </a>
-                <a href="?month={{ $currentMonth }}&type=monthly"
-                    class="px-3 py-1.5 text-xs font-medium rounded-lg transition"
-                    style="background-color: {{ $filterType === 'monthly' ? '#9333ea' : '#faf5ff' }}; color: {{ $filterType === 'monthly' ? '#ffffff' : '#7e22ce' }};">
-                    Ежемесячно
+                    style="background-color: {{ $filterType === 'group' ? '#16a34a' : '#f0fdf4' }}; color: {{ $filterType === 'group' ? '#ffffff' : '#15803d' }};">
+                    Групповое
                 </a>
             </div>
         </div>
     </div>
 
     {{-- Calendar --}}
-    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col"
-        style="height: calc(100vh - 200px);">
+    <div
+        class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col">
         <div
             class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 flex-shrink-0">
             <div class="flex items-center justify-between">
@@ -82,9 +72,8 @@
             </div>
         </div>
 
-        <div class="p-6 flex-1 overflow-auto">
-            <div
-                class="grid grid-cols-7 gap-0 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden h-full">
+        <div class="p-6">
+            <div class="grid grid-cols-7 gap-0 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
                 @foreach(['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'] as $day)
                     <div
                         class="bg-gray-100 dark:bg-gray-900 px-3 py-3 text-center border-b border-r border-gray-200 dark:border-gray-700 last:border-r-0">
@@ -116,17 +105,23 @@
                             @foreach($dayEvents->take(3) as $event)
                                 @php
                                     $colors = [
-                                        'once' => ['bg' => '#3b82f6', 'hover' => '#2563eb'],
-                                        'daily' => ['bg' => '#22c55e', 'hover' => '#16a34a'],
-                                        'weekly' => ['bg' => '#f97316', 'hover' => '#ea580c'],
-                                        'monthly' => ['bg' => '#a855f7', 'hover' => '#9333ea'],
+                                        'individual' => [
+                                            'bg' => '#eff6ff',
+                                            'text' => '#1d4ed8',
+                                            'hover_bg' => '#dbeafe',
+                                        ],
+                                        'group' => [
+                                            'bg' => '#f0fdf4',
+                                            'text' => '#15803d',
+                                            'hover_bg' => '#dcfce7',
+                                        ],
                                     ];
-                                    $color = $colors[$event['type']] ?? $colors['once'];
+                                    $color = $colors[$event['room_type']] ?? $colors['individual'];
                                 @endphp
                                 <a href="{{ \App\Filament\App\Resources\RoomResource::getUrl('edit', ['record' => $event['room_id']]) }}"
-                                    class="group relative block text-xs px-2 py-1.5 rounded-md cursor-pointer transition-all shadow-sm text-white hover:opacity-90"
-                                    style="background-color: {{ $color['bg'] }};"
-                                    onmouseover="this.style.backgroundColor='{{ $color['hover'] }}'"
+                                    class="group relative block text-xs px-2 py-1.5 rounded-md cursor-pointer transition-all shadow-sm hover:opacity-90"
+                                    style="background-color: {{ $color['bg'] }}; color: {{ $color['text'] }};"
+                                    onmouseover="this.style.backgroundColor='{{ $color['hover_bg'] }}'"
                                     onmouseout="this.style.backgroundColor='{{ $color['bg'] }}'"
                                     title="{{ $event['title'] }} - {{ $event['start']->format('H:i') }} ({{ $event['duration'] }} мин)">
                                     <div class="font-bold text-[11px] leading-tight">{{ $event['start']->format('H:i') }}</div>

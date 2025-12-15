@@ -25,6 +25,9 @@ Route::post('/forgot-password', [AuthController::class, 'sendResetLinkEmail'])->
 Route::get('/reset-password/{token}', [AuthController::class, 'showResetPasswordForm'])->name('password.reset');
 Route::post('/reset-password', [AuthController::class, 'resetPassword'])->name('password.update');
 
+// Invitation Registration
+Route::get('/register/invite', \App\Livewire\RegisterInvitedStudent::class)->name('student.invitation');
+
 Route::middleware(['auth'])->group(function () {
     Route::get('/rooms/{room}/start', [RoomController::class, 'start'])->name('rooms.start');
     Route::get('/rooms/{room}/join', [RoomController::class, 'join'])->name('rooms.join');

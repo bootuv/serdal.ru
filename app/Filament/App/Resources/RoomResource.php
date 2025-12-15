@@ -10,6 +10,7 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use JoisarJignesh\Bigbluebutton\Facades\Bigbluebutton;
 use Filament\Notifications\Notification;
 
@@ -35,9 +36,37 @@ class RoomResource extends Resource
                     ->label('Название комнаты')
                     ->required()
                     ->maxLength(255),
+                Forms\Components\Select::make('type')
+                    ->label('Тип занятия')
+                    ->options([
+                        'individual' => 'Индивидуальное',
+                        'group' => 'Групповое',
+                    ])
+                    ->required()
+                    ->default('individual'),
                 Forms\Components\Textarea::make('welcome_msg')
                     ->label('Приветственное сообщение')
                     ->maxLength(65535)
+                    ->columnSpanFull(),
+                Forms\Components\Select::make('participants')
+                    ->label('Ученики')
+                    ->relationship('participants', 'name', function (Builder $query) {
+                        return $query->where('role', 'student')
+                            ->whereHas('teachers', function ($q) {
+                                $q->where('teacher_student.teacher_id', auth()->id());
+                            });
+                    })
+                    ->multiple()
+                    ->searchable(['name', 'email', 'username'])
+                    ->preload(true)
+                    ->allowHtml()
+                    ->getOptionLabelFromRecordUsing(fn(Model $record) => "
+                        <div class=\"flex items-center gap-2 py-1\">
+                            <img src=\"{$record->avatar_url}\" class=\"w-6 h-6 rounded-full object-cover\" style=\"flex-shrink: 0;\">
+                            <span class=\"text-sm\">{$record->name}</span>
+                        </div>
+                    ")
+                    ->extraAttributes(['class' => 'student-select'])
                     ->columnSpanFull(),
                 Forms\Components\FileUpload::make('presentations')
                     ->label('Презентации')
@@ -202,7 +231,22 @@ class RoomResource extends Resource
             ->columns([
                 Tables\Columns\TextColumn::make('name')
                     ->label('Название')
-                    ->searchable(),
+                    ->searchable()
+                    ->formatStateUsing(function (string $state, Room $record) {
+                        $isGroup = $record->type === 'group';
+                        $icon = $isGroup
+                            ? '<svg class="w-5 h-5 text-gray-400 dark:text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" data-tooltip-target="tooltip-type-' . $record->id . '"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" /></svg>'
+                            : '<svg class="w-5 h-5 text-gray-400 dark:text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" data-tooltip-target="tooltip-type-' . $record->id . '"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" /></svg>';
+
+                        $tooltipText = $isGroup ? 'Групповое занятие' : 'Индивидуальное занятие';
+
+                        return new \Illuminate\Support\HtmlString(
+                            '<div class="flex items-center gap-2" title="' . $tooltipText . '">
+                                ' . $icon . '
+                                <span>' . e($state) . '</span>
+                            </div>'
+                        );
+                    }),
                 Tables\Columns\TextColumn::make('invitation_link')
                     ->label('Ссылка')
                     ->getStateUsing(fn() => 'Скопировать')
