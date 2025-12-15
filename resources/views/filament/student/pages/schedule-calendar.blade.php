@@ -108,29 +108,26 @@
                                     $colors = [
                                         'individual' => [
                                             'bg' => '#2563eb', // blue-600
-                                            'text' => '#ffffff', // white
+                                            'text' => '#ffffff',
                                             'hover_bg' => '#1d4ed8', // blue-700
                                         ],
                                         'group' => [
                                             'bg' => '#16a34a', // green-600
-                                            'text' => '#ffffff', // white
+                                            'text' => '#ffffff',
                                             'hover_bg' => '#15803d', // green-700
                                         ],
                                     ];
                                     $color = $colors[$event['room_type']] ?? $colors['individual'];
                                     $isPast = $event['end']->isPast();
                                 @endphp
-                                <a href="{{ \App\Filament\App\Resources\RoomResource::getUrl('edit', ['record' => $event['room_id']]) }}"
-                                    class="group relative block text-xs px-2 py-1.5 rounded-md cursor-pointer transition-all shadow-sm hover:opacity-90"
+                                <div class="group relative block text-xs px-2 py-1.5 rounded-md cursor-default transition-all shadow-sm"
                                     style="background-color: {{ $color['bg'] }}; color: {{ $color['text'] }}; {{ $isPast ? 'opacity: 0.35; filter: grayscale(100%);' : '' }}"
-                                    onmouseover="this.style.backgroundColor='{{ $color['hover_bg'] }}'"
-                                    onmouseout="this.style.backgroundColor='{{ $color['bg'] }}'"
                                     title="{{ $event['title'] }} - {{ $event['start']->format('H:i') }} ({{ $event['duration'] }} мин)">
                                     <div class="font-bold text-[11px] leading-tight">{{ $event['start']->format('H:i') }}</div>
                                     <div class="truncate font-medium text-[10px] leading-tight mt-0.5 opacity-95">
                                         {{ $event['title'] }}
                                     </div>
-                                </a>
+                                </div>
                             @endforeach
                         </div>
                     </div>

@@ -1,8 +1,10 @@
 <?php
 
-namespace App\Filament\Pages;
+namespace App\Filament\Student\Pages;
 
 use Filament\Pages\Page;
+use App\Models\RoomSchedule;
+use Illuminate\Support\Carbon;
 
 class ScheduleCalendar extends Page
 {
@@ -10,16 +12,23 @@ class ScheduleCalendar extends Page
 
     protected static ?string $navigationLabel = 'Расписание занятий';
 
-    protected static ?string $title = '';
+    protected static ?string $title = 'Календарь';
 
-    protected static string $view = 'filament.pages.schedule-calendar';
+    protected static string $view = 'filament.student.pages.schedule-calendar';
 
-    protected static ?int $navigationSort = 1;
+    protected static ?int $navigationSort = 2;
 
     public function getViewData(): array
     {
-        // Get all schedules for admin
-        $schedules = \App\Models\RoomSchedule::with(['room.user'])
+        $user = auth()->user();
+
+        // Fetch schedules for rooms the student is assigned to
+        $schedules = RoomSchedule::with(['room.user'])
+            ->whereHas('room', function ($query) use ($user) {
+                $query->whereHas('participants', function ($q) use ($user) {
+                    $q->where('users.id', $user->id);
+                });
+            })
             ->where('is_active', true)
             ->get();
 
@@ -32,12 +41,12 @@ class ScheduleCalendar extends Page
     protected function generateCalendarEvents($schedules)
     {
         $events = [];
-        $now = now();
-        $endDate = $now->copy()->addMonths(3);
+        $start = now()->subMonth()->startOfMonth();
+        $end = now()->addMonths(2)->endOfMonth();
 
         foreach ($schedules as $schedule) {
             if ($schedule->type === 'once') {
-                if ($schedule->scheduled_at && $schedule->scheduled_at->gte($now)) {
+                if ($schedule->scheduled_at && $schedule->scheduled_at->between($start, $end)) {
                     $events[] = [
                         'id' => $schedule->id,
                         'room_id' => $schedule->room_id,
@@ -51,17 +60,16 @@ class ScheduleCalendar extends Page
                     ];
                 }
             } else {
-                // Generate recurring events for next 3 months
-                $current = $now->copy()->startOfDay();
-                while ($current->lte($endDate)) {
+                $current = $start->copy();
+                while ($current->lte($end)) {
                     if ($schedule->isActiveAt($current->copy()->setTimeFromTimeString($schedule->recurrence_time ?? '00:00'))) {
-                        $startDt = $current->copy()->setTimeFromTimeString($schedule->recurrence_time);
+                        $dt = $current->copy()->setTimeFromTimeString($schedule->recurrence_time);
                         $events[] = [
                             'id' => $schedule->id,
                             'room_id' => $schedule->room_id,
                             'title' => $schedule->room->name,
-                            'start' => $startDt,
-                            'end' => $startDt->copy()->addMinutes($schedule->duration_minutes),
+                            'start' => $dt,
+                            'end' => $dt->copy()->addMinutes($schedule->duration_minutes),
                             'owner' => $schedule->room->user->name,
                             'type' => $schedule->recurrence_type,
                             'room_type' => $schedule->room->type,
@@ -72,7 +80,6 @@ class ScheduleCalendar extends Page
                 }
             }
         }
-
         return collect($events)->sortBy('start');
     }
 }

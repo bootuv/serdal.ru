@@ -73,12 +73,13 @@
         </div>
 
         <div class="p-6">
-            <div class="grid grid-cols-7 gap-0 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-                @foreach(['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'] as $day)
-                    <div
-                        class="bg-gray-100 dark:bg-gray-900 px-3 py-3 text-center border-b border-r border-gray-200 dark:border-gray-700 last:border-r-0">
-                        <span class="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                            {{ mb_substr($day, 0, 2) }}
+            <div style="border-left-width: 1px;"
+                class="grid grid-cols-7 gap-0 border-t border-l border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+                @foreach(['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'] as $day)
+                    <div style="border-right-width: 1px;"
+                        class="bg-gray-100 dark:bg-gray-900 px-3 py-3 text-center border-b border-r border-gray-200 dark:border-gray-700">
+                        <span class="text-sm font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                            {{ $day }}
                         </span>
                     </div>
                 @endforeach
@@ -92,50 +93,45 @@
                         $dayEvents = $eventsByDate->get($dateKey, collect());
                     @endphp
 
-                    <div
-                        class="relative bg-white dark:bg-gray-800 p-2 border-b border-r border-gray-200 dark:border-gray-700 last:border-r-0 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition {{ !$isCurrentMonth ? 'bg-gray-50/50 dark:bg-gray-900/50' : '' }}">
-                        <div class="flex items-center justify-between mb-1">
+                    <div style="border-right-width: 1px;"
+                        class="relative bg-white dark:bg-gray-800 p-2 border-b border-r border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition {{ !$isCurrentMonth ? 'bg-gray-50/50 dark:bg-gray-900/50' : '' }}">
+                        <div class="flex items-center justify-center mb-1">
                             <span
-                                class="inline-flex items-center justify-center w-7 h-7 text-sm font-semibold rounded-full {{ $isToday ? 'bg-primary-600 text-white' : ($isCurrentMonth ? 'text-gray-900 dark:text-white' : 'text-gray-400 dark:text-gray-600') }}">
+                                class="inline-flex items-center justify-center w-6 h-6 text-xs font-normal rounded-full {{ $isToday ? 'bg-primary-600 text-white' : ($isCurrentMonth ? 'text-gray-900 dark:text-white' : 'text-gray-400 dark:text-gray-600') }}">
                                 {{ $current->format('d') }}
                             </span>
                         </div>
 
                         <div class="space-y-1">
-                            @foreach($dayEvents->take(3) as $event)
+                            @foreach($dayEvents as $event)
                                 @php
                                     $colors = [
                                         'individual' => [
-                                            'bg' => '#eff6ff',
-                                            'text' => '#1d4ed8',
-                                            'hover_bg' => '#dbeafe',
+                                            'bg' => '#2563eb', // blue-600
+                                            'text' => '#ffffff',
+                                            'hover_bg' => '#1d4ed8', // blue-700
                                         ],
                                         'group' => [
-                                            'bg' => '#f0fdf4',
-                                            'text' => '#15803d',
-                                            'hover_bg' => '#dcfce7',
+                                            'bg' => '#16a34a', // green-600
+                                            'text' => '#ffffff',
+                                            'hover_bg' => '#15803d', // green-700
                                         ],
                                     ];
                                     $color = $colors[$event['room_type']] ?? $colors['individual'];
+                                    $isPast = $event['end']->isPast();
                                 @endphp
                                 <a href="{{ \App\Filament\Resources\RoomResource::getUrl('edit', ['record' => $event['room_id']]) }}"
                                     class="group relative block text-xs px-2 py-1.5 rounded-md cursor-pointer transition-all shadow-sm hover:opacity-90"
-                                    style="background-color: {{ $color['bg'] }}; color: {{ $color['text'] }};"
+                                    style="background-color: {{ $color['bg'] }}; color: {{ $color['text'] }}; {{ $isPast ? 'opacity: 0.35; filter: grayscale(100%);' : '' }}"
                                     onmouseover="this.style.backgroundColor='{{ $color['hover_bg'] }}'"
                                     onmouseout="this.style.backgroundColor='{{ $color['bg'] }}'"
-                                    title="{{ $event['title'] }} - {{ $event['start']->format('H:i') }} ({{ $event['duration'] }} мин) - {{ $event['owner'] }}">
+                                    title="{{ $event['title'] }} - {{ $event['start']->format('H:i') }} ({{ $event['duration'] }} мин)">
                                     <div class="font-bold text-[11px] leading-tight">{{ $event['start']->format('H:i') }}</div>
                                     <div class="truncate font-medium text-[10px] leading-tight mt-0.5 opacity-95">
                                         {{ $event['title'] }}
                                     </div>
                                 </a>
                             @endforeach
-
-                            @if($dayEvents->count() > 3)
-                                <div class="text-[10px] text-gray-600 dark:text-gray-400 font-medium px-1 text-center">
-                                    +{{ $dayEvents->count() - 3 }}
-                                </div>
-                            @endif
                         </div>
                     </div>
 
