@@ -247,6 +247,49 @@ class RoomResource extends Resource
                             </div>'
                         );
                     }),
+                Tables\Columns\TextColumn::make('participants_custom')
+                    ->label('Ученики')
+                    ->getStateUsing(function (Room $record) {
+                        $query = $record->participants()->whereHas('teachers', function ($q) {
+                            $q->where('teacher_student.teacher_id', auth()->id());
+                        });
+
+                        $count = $query->count();
+
+                        if ($count === 0) {
+                            return new \Illuminate\Support\HtmlString('<span class="text-gray-400 dark:text-gray-500 text-xs text-left block w-full">Нет учеников</span>');
+                        }
+
+                        $avatars = $query->limit(4)->get();
+
+                        $avatarsHtml = '<div class="flex -space-x-2 overflow-hidden">';
+                        foreach ($avatars as $participant) {
+                            $url = $participant->avatar_url;
+                            $name = e($participant->name);
+                            $avatarsHtml .= "<img class='inline-block h-6 w-6 rounded-full ring-2 ring-white dark:ring-gray-900 object-cover' src='{$url}' alt='{$name}' title='{$name}' />";
+                        }
+                        $avatarsHtml .= '</div>';
+
+                        // Russian pluralization
+                        $n = abs($count) % 100;
+                        $n1 = $n % 10;
+                        if ($n > 10 && $n < 20) {
+                            $text = $count . ' учеников';
+                        } elseif ($n1 > 1 && $n1 < 5) {
+                            $text = $count . ' ученика';
+                        } elseif ($n1 == 1) {
+                            $text = $count . ' ученик';
+                        } else {
+                            $text = $count . ' учеников';
+                        }
+
+                        return new \Illuminate\Support\HtmlString("
+                            <div class='flex items-center gap-3'>
+                                {$avatarsHtml}
+                                <span class='font-medium text-gray-700 dark:text-gray-300 text-sm'>{$text}</span>
+                            </div>
+                        ");
+                    }),
                 Tables\Columns\IconColumn::make('is_running')
                     ->label('Запущена')
                     ->boolean(),
