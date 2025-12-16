@@ -8,6 +8,10 @@
             <p class="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
                 Заполните форму для создания аккаунта
             </p>
+            <p class="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
+                Уже есть аккаунт? <a href="{{ route('login') }}"
+                    class="font-medium text-amber-600 hover:text-amber-500">Войдите</a>
+            </p>
         </div>
 
         <form class="mt-8 space-y-6" wire:submit="register">
@@ -54,7 +58,8 @@
                     <input wire:model="email" id="email" type="email" autocomplete="email" required
                         class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-400 focus:border-amber-500 focus:outline-none focus:ring-amber-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white sm:text-sm"
                         placeholder="your@email.com">
-                    @error('email') <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p> @enderror
+                    @error('email') <p class="mt-1 text-sm text-red-600 dark:text-red-400">{!! $message !!}</p>
+                    @enderror
                 </div>
 
                 <!-- Телефон -->
@@ -74,6 +79,7 @@
                     </label>
                     <input wire:model="password" id="password" type="password" required
                         class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-400 focus:border-amber-500 focus:outline-none focus:ring-amber-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white sm:text-sm">
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Минимум 8 символов</p>
                     @error('password') <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
                     @enderror
                 </div>

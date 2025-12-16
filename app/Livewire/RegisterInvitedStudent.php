@@ -58,11 +58,17 @@ class RegisterInvitedStudent extends Component
 
     public function register()
     {
+        if (User::where('email', $this->email)->exists()) {
+            $loginUrl = route('login');
+            $this->addError('email', "Этот Email уже используется. <a href='{$loginUrl}' class='font-bold underline hover:text-amber-800'>Войти в аккаунт?</a>");
+            return;
+        }
+
         $this->validate([
             'first_name' => ['required', 'string', 'max:255'],
             'last_name' => ['required', 'string', 'max:255'],
             'middle_name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
+            'email' => ['required', 'string', 'email', 'max:255'],
             'phone' => ['nullable', 'string', 'max:20'],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
         ]);

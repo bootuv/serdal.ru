@@ -126,15 +126,6 @@ class RoomResource extends Resource
                             </div>'
                         );
                     }),
-                Tables\Columns\TextColumn::make('invitation_link')
-                    ->label('Ссылка')
-                    ->getStateUsing(fn() => 'Скопировать')
-                    ->badge()
-                    ->color('gray')
-                    ->copyable()
-                    ->copyableState(fn(Room $record) => route('rooms.join', $record))
-                    ->copyMessage('Ссылка скопирована')
-                    ->icon('heroicon-o-link'),
                 Tables\Columns\IconColumn::make('is_running')
                     ->label('Запущена')
                     ->boolean(),
@@ -150,7 +141,8 @@ class RoomResource extends Resource
                 Tables\Actions\Action::make('start')
                     ->label('Начать')
                     ->icon('heroicon-o-play')
-                    ->color('success')
+                    ->color('gray')
+                    ->button()
                     ->url(fn(Room $record) => route('rooms.start', $record))
                     ->openUrlInNewTab()
                     ->visible(fn(Room $record) => !$record->is_running),
@@ -158,11 +150,10 @@ class RoomResource extends Resource
                     ->label('Остановить')
                     ->icon('heroicon-o-stop')
                     ->color('danger')
+                    ->button()
                     ->requiresConfirmation()
                     ->action(fn(Room $record) => redirect()->route('rooms.stop', $record))
                     ->visible(fn(Room $record) => $record->is_running),
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([

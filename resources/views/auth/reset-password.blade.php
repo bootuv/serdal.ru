@@ -47,6 +47,7 @@
                     </label>
                     <input id="password" name="password" type="password" autocomplete="new-password" required
                         class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-400 focus:border-amber-500 focus:outline-none focus:ring-amber-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white sm:text-sm">
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Минимум 8 символов</p>
                 </div>
 
                 <div>
