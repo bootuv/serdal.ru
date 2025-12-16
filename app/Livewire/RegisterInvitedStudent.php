@@ -28,6 +28,32 @@ class RegisterInvitedStudent extends Component
         }
 
         $this->teacher_id = request()->query('teacher');
+
+        if (Auth::check()) {
+            $user = Auth::user();
+
+            if ($this->teacher_id) {
+                $teacher = User::find($this->teacher_id);
+                if ($teacher) {
+                    // Attach the student to the teacher
+                    $changes = $teacher->students()->syncWithoutDetaching([$user->id]);
+
+                    if (count($changes['attached']) > 0) {
+                        Notification::make()
+                            ->title('Вы добавлены в список учеников')
+                            ->success()
+                            ->send();
+                    } else {
+                        Notification::make()
+                            ->title('Вы уже находитесь в списке учеников')
+                            ->info()
+                            ->send();
+                    }
+                }
+            }
+
+            return redirect()->to('/student');
+        }
     }
 
     public function register()
