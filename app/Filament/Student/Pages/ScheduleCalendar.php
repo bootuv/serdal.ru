@@ -18,6 +18,15 @@ class ScheduleCalendar extends Page
 
     protected static ?int $navigationSort = 2;
 
+    protected function getListeners(): array
+    {
+        return [
+            "echo:rooms,.room.status.updated" => '$refresh',
+            "echo:rooms,room.status.updated" => '$refresh',
+            "echo:rooms,RoomStatusUpdated" => '$refresh',
+        ];
+    }
+
     public function getViewData(): array
     {
         $user = auth()->user();
@@ -43,6 +52,8 @@ class ScheduleCalendar extends Page
         $events = [];
         $start = now()->subMonth()->startOfMonth();
         $end = now()->addMonths(2)->endOfMonth();
+        $user = auth()->user();
+        $now = now();
 
         foreach ($schedules as $schedule) {
             if ($schedule->type === 'once') {
@@ -57,6 +68,7 @@ class ScheduleCalendar extends Page
                         'type' => 'once',
                         'room_type' => $schedule->room->type,
                         'duration' => $schedule->duration_minutes,
+                        'is_running' => $schedule->room->is_running,
                     ];
                 }
             } else {
@@ -74,12 +86,46 @@ class ScheduleCalendar extends Page
                             'type' => $schedule->recurrence_type,
                             'room_type' => $schedule->room->type,
                             'duration' => $schedule->duration_minutes,
+                            'is_running' => $schedule->room->is_running,
                         ];
                     }
                     $current->addDay();
                 }
             }
         }
+
+        // Add running rooms that the student is assigned to but might not have a schedule for today
+        $runningRooms = \App\Models\Room::where('is_running', true)
+            ->whereHas('participants', function ($q) use ($user) {
+                $q->where('users.id', $user->id);
+            })
+            ->with('user')
+            ->get();
+
+        foreach ($runningRooms as $room) {
+            // Check if this room is already in events for today
+            $alreadyInEvents = collect($events)->contains(function ($event) use ($room, $now) {
+                return $event['room_id'] === $room->id &&
+                    $event['start']->isSameDay($now);
+            });
+
+            if (!$alreadyInEvents) {
+                // Add as a running event for today
+                $events[] = [
+                    'id' => 'running-' . $room->id,
+                    'room_id' => $room->id,
+                    'title' => $room->name,
+                    'start' => $now->copy()->startOfHour(),
+                    'end' => $now->copy()->addHour(),
+                    'owner' => $room->user->name,
+                    'type' => 'running',
+                    'room_type' => $room->type,
+                    'duration' => 60,
+                    'is_running' => true,
+                ];
+            }
+        }
+
         return collect($events)->sortBy('start');
     }
 }

@@ -317,7 +317,25 @@ class RoomResource extends Resource
                     ->button()
                     ->url(fn(Room $record) => route('rooms.start', $record))
                     ->openUrlInNewTab()
-                    ->visible(fn(Room $record) => !$record->is_running && $record->user_id === auth()->id()),
+                    ->visible(function (Room $record) {
+                        // Hide if this room is already running
+                        if ($record->is_running) {
+                            return false;
+                        }
+
+                        // Hide if not owner
+                        if ($record->user_id !== auth()->id()) {
+                            return false;
+                        }
+
+                        // Hide if user has another running meeting
+                        $hasOtherRunningMeeting = Room::where('user_id', auth()->id())
+                            ->where('is_running', true)
+                            ->where('id', '!=', $record->id)
+                            ->exists();
+
+                        return !$hasOtherRunningMeeting;
+                    }),
                 Tables\Actions\Action::make('stop')
                     ->label('Остановить')
                     ->icon('heroicon-o-stop')

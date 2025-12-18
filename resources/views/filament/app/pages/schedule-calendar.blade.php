@@ -119,18 +119,35 @@
                                     ];
                                     $color = $colors[$event['room_type']] ?? $colors['individual'];
                                     $isPast = $event['end']->isPast();
+                                    // Show join button if: lesson started and not ended, OR it's a manually started room (type='running')
+                                    $isOngoing = ($event['start']->isPast() && !$event['end']->isPast()) || ($event['type'] === 'running');
                                 @endphp
-                                <a href="{{ \App\Filament\App\Resources\RoomResource::getUrl('edit', ['record' => $event['room_id']]) }}"
-                                    class="group relative block text-xs px-2 py-1.5 rounded-md cursor-pointer transition-all shadow-sm hover:opacity-90"
-                                    style="background-color: {{ $color['bg'] }}; color: {{ $color['text'] }}; {{ $isPast ? 'opacity: 0.35; filter: grayscale(100%);' : '' }}"
-                                    onmouseover="this.style.backgroundColor='{{ $color['hover_bg'] }}'"
-                                    onmouseout="this.style.backgroundColor='{{ $color['bg'] }}'"
-                                    title="{{ $event['title'] }} - {{ $event['start']->format('H:i') }} ({{ $event['duration'] }} мин)">
-                                    <div class="font-bold text-[11px] leading-tight">{{ $event['start']->format('H:i') }}</div>
-                                    <div class="truncate font-medium text-[10px] leading-tight mt-0.5 opacity-95">
-                                        {{ $event['title'] }}
-                                    </div>
-                                </a>
+                                
+                                @if($isOngoing)
+                                    {{-- Show Join button for ongoing lessons --}}
+                                    <x-filament::button
+                                        tag="a"
+                                        :href="route('rooms.join', $event['room_id'])"
+                                        color="warning"
+                                        size="xs"
+                                        icon="heroicon-m-arrow-right-on-rectangle"
+                                        class="w-full justify-center">
+                                        Присоединиться
+                                    </x-filament::button>
+                                @else
+                                    {{-- Show event card for future or past lessons --}}
+                                    <a href="{{ \App\Filament\App\Resources\RoomResource::getUrl('edit', ['record' => $event['room_id']]) }}"
+                                        class="group relative block text-xs px-2 py-1.5 rounded-md cursor-pointer transition-all shadow-sm hover:opacity-90"
+                                        style="background-color: {{ $color['bg'] }}; color: {{ $color['text'] }}; {{ $isPast ? 'opacity: 0.35; filter: grayscale(100%);' : '' }}"
+                                        onmouseover="this.style.backgroundColor='{{ $color['hover_bg'] }}'"
+                                        onmouseout="this.style.backgroundColor='{{ $color['bg'] }}'"
+                                        title="{{ $event['title'] }} - {{ $event['start']->format('H:i') }} ({{ $event['duration'] }} мин)">
+                                        <div class="font-bold text-[11px] leading-tight">{{ $event['start']->format('H:i') }}</div>
+                                        <div class="truncate font-medium text-[10px] leading-tight mt-0.5 opacity-95">
+                                            {{ $event['title'] }}
+                                        </div>
+                                    </a>
+                                @endif
                             @endforeach
                         </div>
                     </div>
