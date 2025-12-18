@@ -36,26 +36,36 @@ class RoomResource extends Resource
                     ->label('Название комнаты')
                     ->required()
                     ->maxLength(255),
-                Forms\Components\Select::make('type')
-                    ->label('Тип занятия')
-                    ->options([
-                        'individual' => 'Индивидуальное',
-                        'group' => 'Групповое',
-                    ])
-                    ->required()
-                    ->default('individual'),
+                Forms\Components\Hidden::make('type')
+                    ->default('individual')
+                    ->dehydrated(),
                 Forms\Components\Textarea::make('welcome_msg')
                     ->label('Приветственное сообщение')
                     ->maxLength(65535)
                     ->columnSpanFull(),
                 Forms\Components\Select::make('participants')
                     ->label('Ученики')
-                    ->relationship('participants', 'name', function (Builder $query) {
-                        return $query->where('role', 'student')
-                            ->whereHas('teachers', function ($q) {
+                    ->relationship(
+                        'participants',
+                        'name',
+                        function (Builder $query, $livewire) {
+                            // Show only teacher's students in dropdown
+                            $query->where('role', 'student')
+                                ->whereHas('teachers', function ($q) {
                                 $q->where('teacher_student.teacher_id', auth()->id());
                             });
-                    })
+
+                            // But also include already selected students (even if not teacher's students)
+                            if ($livewire instanceof \Filament\Resources\Pages\EditRecord && $livewire->record) {
+                                $existingIds = $livewire->record->participants()->pluck('users.id')->toArray();
+                                if (!empty($existingIds)) {
+                                    $query->orWhereIn('users.id', $existingIds);
+                                }
+                            }
+
+                            return $query;
+                        }
+                    )
                     ->multiple()
                     ->searchable(['name', 'email', 'username'])
                     ->preload(true)
@@ -107,36 +117,71 @@ class RoomResource extends Resource
                                         Forms\Components\Select::make('type')
                                             ->label('Тип расписания')
                                             ->options([
-                                                'once' => 'Одноразовое (конкретная дата)',
                                                 'recurring' => 'Повторяющееся (регулярное)',
+                                                'once' => 'Одноразовое (конкретная дата)',
                                             ])
                                             ->required()
                                             ->live()
-                                            ->default('once')
+                                            ->default('recurring')
                                             ->native(false),
 
+
                                         // One-time schedule
-                                        Forms\Components\DateTimePicker::make('scheduled_at')
-                                            ->label('Дата и время занятия')
+                                        Forms\Components\Grid::make(2)
                                             ->visible(fn(Forms\Get $get) => $get('type') === 'once')
-                                            ->required(fn(Forms\Get $get) => $get('type') === 'once')
-                                            ->native(false)
-                                            ->seconds(false),
+                                            ->schema([
+                                                Forms\Components\DatePicker::make('scheduled_date')
+                                                    ->label('Дата занятия')
+                                                    ->required(fn(Forms\Get $get) => $get('type') === 'once')
+                                                    ->native(false)
+                                                    ->afterStateUpdated(function ($state, callable $set, callable $get) {
+                                                        // Combine date and time into scheduled_at
+                                                        if ($state && $get('scheduled_time')) {
+                                                            $date = \Carbon\Carbon::parse($state)->format('Y-m-d');
+                                                            $time = $get('scheduled_time');
+                                                            $set('scheduled_at', $date . ' ' . $time . ':00');
+                                                            // Also set start_date for database requirement
+                                                            $set('start_date', $date);
+                                                        }
+                                                    })
+                                                    ->live(),
+
+                                                Forms\Components\TimePicker::make('scheduled_time')
+                                                    ->label('Время занятия')
+                                                    ->required(fn(Forms\Get $get) => $get('type') === 'once')
+                                                    ->native(true)
+                                                    ->seconds(false)
+                                                    ->afterStateUpdated(function ($state, callable $set, callable $get) {
+                                                        // Combine date and time into scheduled_at
+                                                        if ($state && $get('scheduled_date')) {
+                                                            $date = \Carbon\Carbon::parse($get('scheduled_date'))->format('Y-m-d');
+                                                            $set('scheduled_at', $date . ' ' . $state . ':00');
+                                                            // Also set start_date for database requirement
+                                                            $set('start_date', $date);
+                                                        }
+                                                    })
+                                                    ->live(),
+                                            ]),
+
+                                        // Hidden field to store combined datetime
+                                        Forms\Components\Hidden::make('scheduled_at')
+                                            ->dehydrated()
+                                            ->afterStateUpdated(function ($state, callable $set, callable $get) {
+                                                // For one-time schedules, also set start_date to the scheduled date
+                                                if ($get('type') === 'once' && $state) {
+                                                    $date = \Carbon\Carbon::parse($state)->format('Y-m-d');
+                                                    $set('start_date', $date);
+                                                }
+                                            })
+                                            ->live(),
 
                                         // Recurring schedule Group
                                         Forms\Components\Fieldset::make('Настройки повторения')
                                             ->visible(fn(Forms\Get $get) => $get('type') === 'recurring')
                                             ->schema([
-                                                Forms\Components\Select::make('recurrence_type')
-                                                    ->label('Периодичность')
-                                                    ->options([
-                                                        'daily' => 'Ежедневно',
-                                                        'weekly' => 'Еженедельно',
-                                                        'monthly' => 'Ежемесячно',
-                                                    ])
-                                                    ->required()
-                                                    ->live()
-                                                    ->native(false),
+                                                Forms\Components\Hidden::make('recurrence_type')
+                                                    ->default('weekly')
+                                                    ->dehydrated(),
 
                                                 Forms\Components\CheckboxList::make('recurrence_days')
                                                     ->label('Выберите дни недели')
@@ -151,45 +196,45 @@ class RoomResource extends Resource
                                                     ])
                                                     ->columns(3)
                                                     ->gridDirection('row')
-                                                    ->visible(fn(Forms\Get $get) => $get('recurrence_type') === 'weekly')
-                                                    ->required(fn(Forms\Get $get) => $get('recurrence_type') === 'weekly'),
-
-                                                Forms\Components\Select::make('recurrence_day_of_month')
-                                                    ->label('День месяца')
-                                                    ->options(array_combine(range(1, 31), range(1, 31)))
-                                                    ->visible(fn(Forms\Get $get) => $get('recurrence_type') === 'monthly')
-                                                    ->required(fn(Forms\Get $get) => $get('recurrence_type') === 'monthly')
-                                                    ->native(false),
+                                                    ->required(),
 
                                                 Forms\Components\TimePicker::make('recurrence_time')
                                                     ->label('Время начала')
                                                     ->required()
-                                                    ->native(false)
+                                                    ->native(true)
                                                     ->seconds(false),
 
-                                                Forms\Components\DatePicker::make('end_date')
-                                                    ->label('Дата окончания (необязательно)')
-                                                    ->native(false)
-                                                    ->helperText('Если не указано, расписание будет действовать бессрочно'),
+                                                Forms\Components\Grid::make(2)
+                                                    ->schema([
+                                                        Forms\Components\DatePicker::make('start_date')
+                                                            ->label('Дата начала расписания')
+                                                            ->required()
+                                                            ->default(now())
+                                                            ->native(false)
+                                                            ->hidden(fn(Forms\Get $get) => $get('type') === 'once')
+                                                            ->dehydrated()
+                                                            ->dehydrateStateUsing(function ($state, callable $get) {
+                                                                // For one-time schedules, extract date from scheduled_at
+                                                                if ($get('type') === 'once' && $get('scheduled_at')) {
+                                                                    return \Carbon\Carbon::parse($get('scheduled_at'))->format('Y-m-d');
+                                                                }
+                                                                // For recurring or if no scheduled_at, use state or now
+                                                                return $state ?? now()->format('Y-m-d');
+                                                            }),
+
+                                                        Forms\Components\DatePicker::make('end_date')
+                                                            ->label('Дата окончания (необязательно)')
+                                                            ->native(false)
+                                                            ->helperText('Если не указано, расписание будет действовать бессрочно')
+                                                            ->hidden(fn(Forms\Get $get) => $get('type') === 'once'),
+                                                    ]),
                                             ])
                                             ->columns(1), // Fieldset content in 1 column
-
-                                        // Hidden Start Date for database compatibility (required column)
-                                        // We default it to now() or scheduled_at roughly to satisfy the DB constraint
-                                        Forms\Components\DatePicker::make('start_date')
-                                            ->label('Дата начала расписания')
-                                            ->required()
-                                            ->default(now())
-                                            ->native(false)
-                                            // Only show for recurring, but ALWAYS save it. 
-                                            // For 'once', it will save the default or the hidden value.
-                                            ->visible(fn(Forms\Get $get) => $get('type') === 'recurring')
-                                            ->dehydratedWhenHidden(true),
 
                                         Forms\Components\TextInput::make('duration_minutes')
                                             ->label('Длительность занятия (минуты)')
                                             ->numeric()
-                                            ->default(60)
+                                            ->default(90)
                                             ->required()
                                             ->minValue(1)
                                             ->maxValue(1440)
@@ -250,20 +295,16 @@ class RoomResource extends Resource
                 Tables\Columns\TextColumn::make('participants_custom')
                     ->label('Ученики')
                     ->getStateUsing(function (Room $record) {
-                        $query = $record->participants()->whereHas('teachers', function ($q) {
-                            $q->where('teacher_student.teacher_id', auth()->id());
-                        });
-
-                        $count = $query->count();
+                        // Get only participants assigned to THIS room
+                        $participants = $record->participants;
+                        $count = $participants->count();
 
                         if ($count === 0) {
                             return new \Illuminate\Support\HtmlString('<span class="text-gray-400 dark:text-gray-500 text-xs text-left block w-full">Нет учеников</span>');
                         }
 
-                        $avatars = $query->limit(4)->get();
-
                         $avatarsHtml = '<div class="flex -space-x-2 overflow-hidden">';
-                        foreach ($avatars as $participant) {
+                        foreach ($participants->take(4) as $participant) {
                             $url = $participant->avatar_url;
                             $name = e($participant->name);
                             $avatarsHtml .= "<img class='inline-block h-6 w-6 rounded-full ring-2 ring-white dark:ring-gray-900 object-cover' src='{$url}' alt='{$name}' title='{$name}' />";

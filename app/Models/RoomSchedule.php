@@ -32,6 +32,18 @@ class RoomSchedule extends Model
         'is_active' => 'boolean',
     ];
 
+    protected static function boot()
+    {
+        parent::boot();
+
+        // Auto-fill start_date for one-time schedules
+        static::creating(function ($schedule) {
+            if ($schedule->type === 'once' && !$schedule->start_date && $schedule->scheduled_at) {
+                $schedule->start_date = Carbon::parse($schedule->scheduled_at)->format('Y-m-d');
+            }
+        });
+    }
+
     public function room()
     {
         return $this->belongsTo(Room::class);

@@ -16,6 +16,15 @@ class CreateRoom extends CreateRecord
         $data['moderator_pw'] = \Illuminate\Support\Str::random(8);
         $data['attendee_pw'] = \Illuminate\Support\Str::random(8);
 
+        // Fix start_date for one-time schedules
+        if (isset($data['schedules'])) {
+            foreach ($data['schedules'] as &$schedule) {
+                if ($schedule['type'] === 'once' && isset($schedule['scheduled_at'])) {
+                    $schedule['start_date'] = \Carbon\Carbon::parse($schedule['scheduled_at'])->format('Y-m-d');
+                }
+            }
+        }
+
         return $data;
     }
 }

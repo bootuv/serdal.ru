@@ -17,6 +17,22 @@ class EditRoom extends EditRecord
         ];
     }
 
+    protected function mutateFormDataBeforeFill(array $data): array
+    {
+        // Split scheduled_at into date and time for schedules
+        if (isset($data['schedules'])) {
+            foreach ($data['schedules'] as &$schedule) {
+                if (isset($schedule['scheduled_at'])) {
+                    $datetime = \Carbon\Carbon::parse($schedule['scheduled_at']);
+                    $schedule['scheduled_date'] = $datetime->format('Y-m-d');
+                    $schedule['scheduled_time'] = $datetime->format('H:i');
+                }
+            }
+        }
+
+        return $data;
+    }
+
     protected function getRedirectUrl(): string
     {
         return $this->getResource()::getUrl('index');
