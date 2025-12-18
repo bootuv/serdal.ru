@@ -15,62 +15,62 @@
         $eventsByDate = $filteredEvents->groupBy(fn($event) => $event['start']->format('Y-m-d'));
     @endphp
 
-    {{-- Type Filter --}}
-    <div
-        class="mb-3 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 px-4 py-3">
-        <div class="flex items-center gap-3">
-            <span class="text-sm font-semibold text-gray-700 dark:text-gray-300">Тип занятия:</span>
-            <div class="flex items-center gap-2">
-                <a href="?month={{ $currentMonth }}&type=all"
-                    class="px-3 py-1.5 text-xs font-medium rounded-lg transition"
-                    style="background-color: {{ $filterType === 'all' ? '#111827' : '#f3f4f6' }}; color: {{ $filterType === 'all' ? '#ffffff' : '#374151' }};">
-                    Все
-                </a>
-                <a href="?month={{ $currentMonth }}&type=individual"
-                    class="px-3 py-1.5 text-xs font-medium rounded-lg transition"
-                    style="background-color: {{ $filterType === 'individual' ? '#2563eb' : '#eff6ff' }}; color: {{ $filterType === 'individual' ? '#ffffff' : '#1d4ed8' }};">
-                    Индивидуальное
-                </a>
-                <a href="?month={{ $currentMonth }}&type=group"
-                    class="px-3 py-1.5 text-xs font-medium rounded-lg transition"
-                    style="background-color: {{ $filterType === 'group' ? '#16a34a' : '#f0fdf4' }}; color: {{ $filterType === 'group' ? '#ffffff' : '#15803d' }};">
-                    Групповое
-                </a>
-            </div>
-        </div>
+    {{-- Type Filter using Filament Tabs --}}
+    <div class="mb-1">
+        <x-filament::tabs>
+            <x-filament::tabs.item :active="$filterType === 'all'" :href="'?month=' . $currentMonth . '&type=all'"
+                tag="a">
+                Все
+            </x-filament::tabs.item>
+
+            <x-filament::tabs.item :active="$filterType === 'individual'" :href="'?month=' . $currentMonth . '&type=individual'" tag="a">
+                Индивидуальное
+            </x-filament::tabs.item>
+
+            <x-filament::tabs.item :active="$filterType === 'group'" :href="'?month=' . $currentMonth . '&type=group'"
+                tag="a">
+                Групповое
+            </x-filament::tabs.item>
+        </x-filament::tabs>
     </div>
 
     {{-- Calendar --}}
-    <div
-        class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col">
-        <div
-            class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 flex-shrink-0">
-            <div class="flex items-center justify-between">
-                <h2 class="text-xl font-bold text-gray-900 dark:text-white capitalize">
+    <x-filament::section>
+        <x-slot name="heading">
+            <div class="flex items-center justify-between w-full">
+                <h2 class="text-xl font-bold capitalize">
                     {{ $date->locale('ru')->isoFormat('MMMM YYYY') }}
                 </h2>
                 <div class="flex items-center gap-2">
-                    <a href="?month={{ $date->copy()->subMonth()->format('Y-m') }}&type={{ $filterType }}"
-                        class="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition">
-                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-                        </svg>
+                    <x-filament::button
+                        tag="a"
+                        :href="'?month=' . $date->copy()->subMonth()->format('Y-m') . '&type=' . $filterType"
+                        color="gray"
+                        size="sm"
+                        icon="heroicon-m-chevron-left"
+                        icon-position="before">
                         Предыдущий
-                    </a>
-                    <a href="?month={{ now()->format('Y-m') }}&type={{ $filterType }}"
-                        class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition">
+                    </x-filament::button>
+                    
+                    <x-filament::button
+                        tag="a"
+                        :href="'?month=' . now()->format('Y-m') . '&type=' . $filterType"
+                        size="sm">
                         Сегодня
-                    </a>
-                    <a href="?month={{ $date->copy()->addMonth()->format('Y-m') }}&type={{ $filterType }}"
-                        class="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                    </x-filament::button>
+                    
+                    <x-filament::button
+                        tag="a"
+                        :href="'?month=' . $date->copy()->addMonth()->format('Y-m') . '&type=' . $filterType"
+                        color="gray"
+                        size="sm"
+                        icon="heroicon-m-chevron-right"
+                        icon-position="after">
                         Следующий
-                        <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                        </svg>
-                    </a>
+                    </x-filament::button>
                 </div>
             </div>
-        </div>
+        </x-slot>
 
         <div class="p-6">
             <div style="border-left-width: 1px;"
@@ -139,5 +139,5 @@
                 @endwhile
             </div>
         </div>
-    </div>
+    </x-filament::section>
 </x-filament-panels::page>
