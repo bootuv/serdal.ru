@@ -95,20 +95,20 @@ class RoomController extends Controller
                 $appUrl = config('app.url');
                 $isLocalhost = str_contains($appUrl, '127.0.0.1') || str_contains($appUrl, 'localhost');
 
+                // Prepare presentation URLs
+                $presentationUrls = [];
+
+                // ALWAYS add whiteboard as the first presentation (works on both localhost and production)
+                $whiteboardPath = public_path('defaults/whiteboard.pdf');
+                if (file_exists($whiteboardPath)) {
+                    $presentationUrls[] = [
+                        'link' => url('defaults/whiteboard.pdf'),
+                        'fileName' => 'whiteboard.pdf',
+                    ];
+                }
+
                 if (!$isLocalhost) {
-                    // Use URL method for production servers
-                    $presentationUrls = [];
-
-                    // Always add default welcome presentation first
-                    $defaultPresentation = storage_path('app/public/defaults/welcome.png');
-                    if (file_exists($defaultPresentation)) {
-                        $presentationUrls[] = [
-                            'link' => url('storage/defaults/welcome.png'),
-                            'fileName' => 'welcome.png',
-                        ];
-                    }
-
-                    // Add user-uploaded presentations
+                    // Add user-uploaded presentations (only on production)
                     if (!empty($presentationFiles)) {
                         foreach ($room->presentations as $path) {
                             $fullPath = storage_path('app/public/' . $path);
@@ -121,19 +121,24 @@ class RoomController extends Controller
                         }
                     }
 
-                    if (!empty($presentationUrls)) {
+                    // Add presentations to create params if any exist
+                    if (!empty($presentationUrls) && !$isLocalhost) {
+                        // Only send presentations on production (BBB can't access localhost URLs)
                         $createParams['presentation'] = $presentationUrls;
-                    }
 
-                    \Illuminate\Support\Facades\Log::info('Creating BBB meeting with presentations', [
-                        'meetingID' => $room->meeting_id,
-                        'presentation_count' => count($presentationUrls),
-                    ]);
-                } elseif ($isLocalhost) {
-                    \Illuminate\Support\Facades\Log::info('Skipping presentation upload on localhost', [
-                        'meetingID' => $room->meeting_id,
-                        'message' => 'Presentations will be uploaded automatically on production server',
-                    ]);
+                        \Illuminate\Support\Facades\Log::info('Creating BBB meeting with presentations', [
+                            'meetingID' => $room->meeting_id,
+                            'presentation_count' => count($presentationUrls),
+                            'presentations' => array_column($presentationUrls, 'fileName'),
+                        ]);
+                    } else if ($isLocalhost) {
+                        \Illuminate\Support\Facades\Log::info('Skipping presentations on localhost', [
+                            'meetingID' => $room->meeting_id,
+                            'reason' => 'BBB server cannot access localhost URLs',
+                            'note' => 'Presentations will work automatically on production with public domain',
+                            'prepared_files' => array_column($presentationUrls, 'fileName'),
+                        ]);
+                    }
                 }
 
                 $response = Bigbluebutton::create($createParams);

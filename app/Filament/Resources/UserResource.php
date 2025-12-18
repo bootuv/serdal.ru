@@ -156,12 +156,14 @@ class UserResource extends Resource
                 TextColumn::make('updated_at')->label('Обновлен'),
             ])
             ->filters([
-                SelectFilter::make('user_type')
-                    ->label('Тип пользователя')
+                SelectFilter::make('role')
+                    ->label('Роль')
                     ->multiple()
                     ->options([
-                        'mentor' => 'Ментор',
-                        'tutor' => 'Репетитор',
+                        User::ROLE_ADMIN => 'Администратор',
+                        User::ROLE_MENTOR => 'Ментор',
+                        User::ROLE_TUTOR => 'Репетитор',
+                        User::ROLE_STUDENT => 'Ученик',
                     ]),
                 SelectFilter::make('direct')
                     ->label('Направление')
