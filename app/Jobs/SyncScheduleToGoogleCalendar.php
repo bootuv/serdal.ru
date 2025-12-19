@@ -226,7 +226,14 @@ class SyncScheduleToGoogleCalendar implements ShouldQueue
 
     private function buildRecurrenceRule($schedule): ?string
     {
-        if ($schedule->recurrence_type === 'none') {
+        Log::info('Building recurrence rule', [
+            'schedule_id' => $schedule->id,
+            'recurrence_type' => $schedule->recurrence_type,
+            'recurrence_days' => $schedule->recurrence_days,
+            'end_date' => $schedule->end_date,
+        ]);
+
+        if ($schedule->recurrence_type === 'none' || !$schedule->recurrence_type) {
             return null;
         }
 
