@@ -47,7 +47,7 @@ php artisan config:clear
 php artisan route:clear
 php artisan view:clear
 php artisan cache:clear
-composer dump-autoload -o
+composer dump-autoload --optimize
 echo -e "${GREEN}✓ Caches cleared${NC}"
 
 # Step 5: Optimize for production
