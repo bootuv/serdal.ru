@@ -36,18 +36,6 @@ class ScheduleCalendar extends Page
 
         // Google Calendar Integration for Students
         if ($isGoogleConnected) {
-            $actions[] = \Filament\Actions\Action::make('syncGoogleCalendar')
-                ->label('Синхронизировать мои занятия')
-                ->icon('heroicon-o-arrow-path')
-                ->color('success')
-                ->requiresConfirmation()
-                ->modalHeading('Синхронизировать расписание?')
-                ->modalDescription('Ваши занятия будут добавлены в Google Calendar.')
-                ->modalSubmitActionLabel('Синхронизировать')
-                ->action(function () {
-                    return redirect()->to(route('google.calendar.sync'));
-                });
-
             $actions[] = \Filament\Actions\Action::make('disconnectGoogle')
                 ->label('Отключить Google Calendar')
                 ->icon('heroicon-o-x-circle')
