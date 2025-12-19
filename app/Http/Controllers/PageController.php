@@ -24,4 +24,14 @@ class PageController extends Controller
 
         return view('tutor', compact('user', 'lessonTypeIndividual', 'lessonTypeGroup'));
     }
+
+    public function privacyPage()
+    {
+        return view('privacy');
+    }
+
+    public function termsPage()
+    {
+        return view('terms');
+    }
 }

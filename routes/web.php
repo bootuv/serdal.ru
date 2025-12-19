@@ -9,6 +9,8 @@ use App\Http\Controllers\RoomController;
 Route::get('/', [IndexController::class, 'index']);
 
 Route::get('/reviews', [PageController::class, 'reviewsPage'])->name('reviews');
+Route::get('/privacy', [PageController::class, 'privacyPage'])->name('privacy');
+Route::get('/terms', [PageController::class, 'termsPage'])->name('terms');
 
 use App\Http\Controllers\AuthController;
 
