@@ -29,7 +29,7 @@ class StudentInvitation extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Приглашение для ученика',
+            subject: 'Приглашение ученика',
         );
     }
 
