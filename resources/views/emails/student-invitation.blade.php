@@ -1,12 +1,12 @@
-<x-mail::message>
-    # Приглашение
+@component('mail::message')
+# Приглашение
 
-    Вас пригласили зарегистрироваться в системе.
+Преподаватель **{{ $teacherName }}** пригласил Вас присоединиться к платформе.
 
-    <x-mail::button :url="$link">
-        Принять приглашение
-    </x-mail::button>
+@component('mail::button', ['url' => $link])
+Принять приглашение
+@endcomponent
 
-    Спасибо,<br>
-    {{ config('app.name') }}
-</x-mail::message>
+Спасибо,<br>
+{{ config('app.name') }}
+@endcomponent

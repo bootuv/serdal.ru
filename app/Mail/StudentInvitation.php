@@ -18,6 +18,7 @@ class StudentInvitation extends Mailable
      */
     public function __construct(
         public string $link,
+        public string $teacherName,
     ) {
         //
     }
@@ -28,7 +29,7 @@ class StudentInvitation extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Student Invitation',
+            subject: 'Приглашение для ученика',
         );
     }
 

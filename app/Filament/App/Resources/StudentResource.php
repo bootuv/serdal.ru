@@ -264,7 +264,7 @@ class StudentResource extends Resource
                     ->modalSubmitActionLabel('Отправить')
                     ->action(function (array $data) {
                         if (!empty($data['email'])) {
-                            \Illuminate\Support\Facades\Mail::to($data['email'])->send(new \App\Mail\StudentInvitation($data['invitation_link']));
+                            \Illuminate\Support\Facades\Mail::to($data['email'])->send(new \App\Mail\StudentInvitation($data['invitation_link'], auth()->user()->name));
 
                             Notification::make()
                                 ->title('Приглашение отправлено')
