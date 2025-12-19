@@ -21,6 +21,14 @@ class RoomScheduleObserver
      */
     public function updated(RoomSchedule $roomSchedule): void
     {
+        // Prevent infinite loop: don't sync if only google_event_id changed
+        if ($roomSchedule->isDirty('google_event_id') && count($roomSchedule->getDirty()) === 1) {
+            Log::info('Skipping sync - only google_event_id changed', [
+                'schedule_id' => $roomSchedule->id,
+            ]);
+            return;
+        }
+
         $this->syncToGoogleCalendar($roomSchedule);
     }
 
