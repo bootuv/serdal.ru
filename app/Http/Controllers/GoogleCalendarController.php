@@ -41,17 +41,28 @@ class GoogleCalendarController extends Controller
 
     public function handleGoogleCallback(Request $request)
     {
+        \Log::info('Google Calendar Callback received', ['has_code' => $request->has('code'), 'has_error' => $request->has('error')]);
+
         if ($request->has('error')) {
-            return redirect()
-                ->route('filament.app.resources.rooms.index')
-                ->with('error', 'Авторизация Google Calendar отменена.');
+            \Log::warning('Google Calendar authorization cancelled', ['error' => $request->error]);
+
+            Notification::make()
+                ->title('Авторизация отменена')
+                ->body('Вы отменили авторизацию Google Calendar.')
+                ->warning()
+                ->send();
+
+            return redirect()->route('filament.app.pages.schedule-calendar');
         }
 
         $client = $this->getClient();
 
         try {
             // Exchange authorization code for access token
+            \Log::info('Fetching access token with auth code');
             $token = $client->fetchAccessTokenWithAuthCode($request->code);
+
+            \Log::info('Token response received', ['has_access_token' => isset($token['access_token']), 'has_error' => isset($token['error'])]);
 
             if (isset($token['error'])) {
                 throw new \Exception($token['error_description'] ?? 'Unknown error');
@@ -59,26 +70,37 @@ class GoogleCalendarController extends Controller
 
             // Save tokens to user
             $user = Auth::user();
+            \Log::info('Saving tokens for user', ['user_id' => $user->id]);
+
             $user->update([
                 'google_access_token' => $token['access_token'],
                 'google_refresh_token' => $token['refresh_token'] ?? null,
                 'google_token_expires_at' => now()->addSeconds($token['expires_in']),
             ]);
 
+            \Log::info('Tokens saved successfully', ['user_id' => $user->id]);
+
             Notification::make()
                 ->title('Google Calendar подключен!')
-                ->body('Теперь ваши занятия будут автоматически синхронизироваться с Google Calendar.')
+                ->body('Теперь вы можете синхронизировать ваше расписание с Google Calendar.')
                 ->success()
                 ->send();
 
-            return redirect()->route('filament.app.resources.rooms.index');
+            return redirect()->route('filament.app.pages.schedule-calendar');
 
         } catch (\Exception $e) {
-            \Log::error('Google Calendar OAuth Error: ' . $e->getMessage());
+            \Log::error('Google Calendar OAuth Error', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
 
-            return redirect()
-                ->route('filament.app.resources.rooms.index')
-                ->with('error', 'Ошибка подключения Google Calendar: ' . $e->getMessage());
+            Notification::make()
+                ->title('Ошибка подключения')
+                ->body('Не удалось подключить Google Calendar: ' . $e->getMessage())
+                ->danger()
+                ->send();
+
+            return redirect()->route('filament.app.pages.schedule-calendar');
         }
     }
 
