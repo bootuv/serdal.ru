@@ -32,6 +32,12 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/rooms/{room}/start', [RoomController::class, 'start'])->name('rooms.start');
     Route::get('/rooms/{room}/join', [RoomController::class, 'join'])->name('rooms.join');
     Route::get('/rooms/{room}/stop', [RoomController::class, 'stop'])->name('rooms.stop');
+
+    // Google Calendar Integration
+    Route::get('/google/calendar/connect', [\App\Http\Controllers\GoogleCalendarController::class, 'redirectToGoogle'])->name('google.calendar.connect');
+    Route::get('/google/calendar/callback', [\App\Http\Controllers\GoogleCalendarController::class, 'handleGoogleCallback'])->name('google.calendar.callback');
+    Route::post('/google/calendar/disconnect', [\App\Http\Controllers\GoogleCalendarController::class, 'disconnect'])->name('google.calendar.disconnect');
+    Route::post('/google/calendar/sync', [\App\Http\Controllers\GoogleCalendarController::class, 'syncSchedule'])->name('google.calendar.sync');
 });
 
 Route::get('/{username}', [PageController::class, 'tutorPage'])->name('tutors.show');

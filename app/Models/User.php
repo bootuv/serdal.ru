@@ -51,6 +51,10 @@ class User extends Authenticatable implements FilamentUser
         'instagram',
         'telegram',
         'username',
+        'google_access_token',
+        'google_refresh_token',
+        'google_token_expires_at',
+        'google_calendar_id',
     ];
 
     /**
@@ -74,6 +78,7 @@ class User extends Authenticatable implements FilamentUser
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'grade' => 'json',
+            'google_token_expires_at' => 'datetime',
         ];
     }
 

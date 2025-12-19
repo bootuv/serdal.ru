@@ -25,6 +25,50 @@ class ScheduleCalendar extends Page
         ];
     }
 
+    protected function getHeaderActions(): array
+    {
+        $user = auth()->user();
+        $isGoogleConnected = !empty($user->google_access_token);
+
+        $actions = [];
+
+        // Google Calendar Integration Buttons
+        if ($isGoogleConnected) {
+            $actions[] = \Filament\Actions\Action::make('syncGoogleCalendar')
+                ->label('Синхронизировать с Google Calendar')
+                ->icon('heroicon-o-arrow-path')
+                ->color('success')
+                ->requiresConfirmation()
+                ->modalHeading('Синхронизировать расписание?')
+                ->modalDescription('Все активные занятия будут добавлены в ваш Google Calendar.')
+                ->modalSubmitActionLabel('Синхронизировать')
+                ->action(function () {
+                    return redirect()->to(route('google.calendar.sync'));
+                });
+
+            $actions[] = \Filament\Actions\Action::make('disconnectGoogle')
+                ->label('Отключить Google Calendar')
+                ->icon('heroicon-o-x-circle')
+                ->color('danger')
+                ->requiresConfirmation()
+                ->modalHeading('Отключить Google Calendar?')
+                ->modalDescription('Синхронизация с Google Calendar будет отключена.')
+                ->modalSubmitActionLabel('Отключить')
+                ->action(function () {
+                    return redirect()->to(route('google.calendar.disconnect'));
+                });
+        } else {
+            $actions[] = \Filament\Actions\Action::make('connectGoogle')
+                ->label('Подключить Google Calendar')
+                ->icon('heroicon-o-calendar')
+                ->color('info')
+                ->url(route('google.calendar.connect'))
+                ->openUrlInNewTab(false);
+        }
+
+        return $actions;
+    }
+
     public function getViewData(): array
     {
         $schedules = \App\Models\RoomSchedule::with(['room.user'])
