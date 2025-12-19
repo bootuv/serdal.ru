@@ -7,6 +7,4 @@
 Принять приглашение
 @endcomponent
 
-Спасибо,<br>
-{{ config('app.name') }}
 @endcomponent
