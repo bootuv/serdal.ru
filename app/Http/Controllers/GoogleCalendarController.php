@@ -206,7 +206,9 @@ class GoogleCalendarController extends Controller
 
         } else {
             // Recurring event
-            $startTime = \Carbon\Carbon::parse($schedule->start_date . ' ' . $schedule->recurrence_time);
+            // Extract just the date part from start_date and combine with recurrence_time
+            $date = \Carbon\Carbon::parse($schedule->start_date)->format('Y-m-d');
+            $startTime = \Carbon\Carbon::parse($date . ' ' . $schedule->recurrence_time);
             $endTime = $startTime->copy()->addMinutes($schedule->duration_minutes);
 
             $eventData['start'] = ['dateTime' => $startTime->toRfc3339String(), 'timeZone' => config('app.timezone')];
