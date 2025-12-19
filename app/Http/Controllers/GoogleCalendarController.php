@@ -80,13 +80,21 @@ class GoogleCalendarController extends Controller
 
             \Log::info('Tokens saved successfully', ['user_id' => $user->id]);
 
+            // Trigger initial sync of all existing schedules
+            $this->triggerInitialSync($user);
+
             Notification::make()
                 ->title('Google Calendar подключен!')
-                ->body('Теперь вы можете синхронизировать ваше расписание с Google Calendar.')
+                ->body('Теперь ваше расписание будет автоматически синхронизироваться с Google Calendar.')
                 ->success()
                 ->send();
 
-            return redirect()->route('filament.app.pages.schedule-calendar');
+            // Redirect based on user role
+            if ($user->role === 'student') {
+                return redirect()->route('filament.student.pages.schedule-calendar');
+            } else {
+                return redirect()->route('filament.app.pages.schedule-calendar');
+            }
 
         } catch (\Exception $e) {
             \Log::error('Google Calendar OAuth Error', [
@@ -100,7 +108,13 @@ class GoogleCalendarController extends Controller
                 ->danger()
                 ->send();
 
-            return redirect()->route('filament.app.pages.schedule-calendar');
+            // Redirect based on user role
+            $user = Auth::user();
+            if ($user && $user->role === 'student') {
+                return redirect()->route('filament.student.pages.schedule-calendar');
+            } else {
+                return redirect()->route('filament.app.pages.schedule-calendar');
+            }
         }
     }
 
@@ -172,6 +186,42 @@ class GoogleCalendarController extends Controller
             \Log::error('Error creating calendar', ['error' => $e->getMessage()]);
             // Fallback to primary calendar
             return 'primary';
+        }
+    }
+
+    private function triggerInitialSync($user)
+    {
+        try {
+            \Log::info('Triggering initial sync for user', ['user_id' => $user->id]);
+
+            // Get user's schedules based on role
+            if ($user->role === 'student') {
+                // For students: get schedules for rooms they are assigned to
+                $schedules = \App\Models\RoomSchedule::whereHas('room', function ($query) use ($user) {
+                    $query->whereJsonContains('participants', (string) $user->id);
+                })->where('is_active', true)->get();
+            } else {
+                // For teachers/tutors: get their own room schedules
+                $schedules = \App\Models\RoomSchedule::whereHas('room', function ($query) use ($user) {
+                    $query->where('user_id', $user->id);
+                })->where('is_active', true)->get();
+            }
+
+            // Dispatch sync jobs for each schedule
+            foreach ($schedules as $schedule) {
+                \App\Jobs\SyncScheduleToGoogleCalendar::dispatch($schedule, $user->id);
+            }
+
+            \Log::info('Initial sync jobs dispatched', [
+                'user_id' => $user->id,
+                'schedules_count' => $schedules->count(),
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Failed to trigger initial sync', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+            ]);
         }
     }
 
