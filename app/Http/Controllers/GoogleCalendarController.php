@@ -245,11 +245,40 @@ class GoogleCalendarController extends Controller
 
         $event = new \Google\Service\Calendar\Event($eventData);
 
-        // Insert event into calendar
         $calendarId = 'primary'; // Use primary calendar
-        $createdEvent = $service->events->insert($calendarId, $event);
 
-        \Log::info('Google Calendar event created', [
+        // Check if this schedule already has a Google event
+        if ($schedule->google_event_id) {
+            try {
+                // Try to update existing event
+                \Log::info('Updating existing Google Calendar event', [
+                    'schedule_id' => $schedule->id,
+                    'event_id' => $schedule->google_event_id,
+                ]);
+
+                $createdEvent = $service->events->update($calendarId, $schedule->google_event_id, $event);
+
+            } catch (\Exception $e) {
+                // If event doesn't exist anymore, create a new one
+                \Log::warning('Event not found, creating new one', [
+                    'schedule_id' => $schedule->id,
+                    'old_event_id' => $schedule->google_event_id,
+                    'error' => $e->getMessage(),
+                ]);
+
+                $createdEvent = $service->events->insert($calendarId, $event);
+                $schedule->update(['google_event_id' => $createdEvent->getId()]);
+            }
+        } else {
+            // Create new event
+            \Log::info('Creating new Google Calendar event', ['schedule_id' => $schedule->id]);
+            $createdEvent = $service->events->insert($calendarId, $event);
+
+            // Save event ID to schedule
+            $schedule->update(['google_event_id' => $createdEvent->getId()]);
+        }
+
+        \Log::info('Google Calendar event synced', [
             'schedule_id' => $schedule->id,
             'event_id' => $createdEvent->getId(),
         ]);

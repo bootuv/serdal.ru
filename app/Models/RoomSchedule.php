@@ -22,6 +22,7 @@ class RoomSchedule extends Model
         'end_date',
         'duration_minutes',
         'is_active',
+        'google_event_id',
     ];
 
     protected $casts = [
