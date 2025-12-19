@@ -187,13 +187,6 @@ class RoomController extends Controller
                     'avatarURL' => auth()->user()->avatar ? asset('storage/' . auth()->user()->avatar) : null,
                 ])
             );
-        } catch (\JoisarJignesh\Bigbluebutton\Exceptions\NetworkException $e) {
-            \Illuminate\Support\Facades\Log::error('BBB Network Error in start()', [
-                'room_id' => $room->id,
-                'error' => $e->getMessage(),
-            ]);
-
-            return back()->with('error', 'Не удалось подключиться к серверу видеоконференций. Пожалуйста, попробуйте позже или обратитесь к администратору.');
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error('BBB Error in start()', [
                 'room_id' => $room->id,
