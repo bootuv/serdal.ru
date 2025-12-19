@@ -1,4 +1,4 @@
-@props(['url'])
+@props(['url', 'message' => null])
 <tr>
     <td class="header">
         <a href="{{ $url }}" style="display: inline-block;">
@@ -7,7 +7,9 @@
                     style="height: 48px; width: auto;">
             @else
                 <img src="https://serdal.ru/images/Logo.svg" class="logo" alt="Serdal Logo"
-                    style="height: 48px; width: auto;">
+                    style="height: 48px; width: auto;" 
+                         data-debug-message="{{ isset($message) ? 'yes' : 'no' }}" 
+                         data-debug-path="{{ file_exists(public_path('images/Logo.svg')) ? 'yes' : 'no' }}">
             @endif
         </a>
     </td>
