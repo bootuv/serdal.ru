@@ -123,6 +123,58 @@ class GoogleCalendarController extends Controller
         return redirect()->back();
     }
 
+    private function getOrCreateSerdalCalendar(Calendar $service, $user)
+    {
+        // Check if user already has a Serdal calendar ID
+        if ($user->google_calendar_id) {
+            try {
+                // Verify the calendar still exists
+                $calendar = $service->calendars->get($user->google_calendar_id);
+                \Log::info('Using existing Serdal calendar', ['calendar_id' => $user->google_calendar_id]);
+                return $user->google_calendar_id;
+            } catch (\Exception $e) {
+                \Log::warning('Saved calendar not found, creating new one', ['old_id' => $user->google_calendar_id]);
+            }
+        }
+
+        // Search for existing Serdal calendar
+        try {
+            $calendarList = $service->calendarList->listCalendarList();
+            foreach ($calendarList->getItems() as $calendarListEntry) {
+                if ($calendarListEntry->getSummary() === 'Serdal') {
+                    $calendarId = $calendarListEntry->getId();
+                    $user->update(['google_calendar_id' => $calendarId]);
+                    \Log::info('Found existing Serdal calendar', ['calendar_id' => $calendarId]);
+                    return $calendarId;
+                }
+            }
+        } catch (\Exception $e) {
+            \Log::error('Error searching for calendar', ['error' => $e->getMessage()]);
+        }
+
+        // Create new Serdal calendar
+        try {
+            $calendar = new \Google\Service\Calendar\Calendar();
+            $calendar->setSummary('Serdal');
+            $calendar->setDescription('Расписание занятий на платформе Serdal');
+            $calendar->setTimeZone(config('app.timezone'));
+
+            $createdCalendar = $service->calendars->insert($calendar);
+            $calendarId = $createdCalendar->getId();
+
+            // Save calendar ID to user
+            $user->update(['google_calendar_id' => $calendarId]);
+
+            \Log::info('Created new Serdal calendar', ['calendar_id' => $calendarId]);
+            return $calendarId;
+
+        } catch (\Exception $e) {
+            \Log::error('Error creating calendar', ['error' => $e->getMessage()]);
+            // Fallback to primary calendar
+            return 'primary';
+        }
+    }
+
     public function syncSchedule()
     {
         $user = Auth::user();
@@ -178,11 +230,14 @@ class GoogleCalendarController extends Controller
                 })->where('is_active', true)->get();
             }
 
+            // Get or create Serdal calendar
+            $calendarId = $this->getOrCreateSerdalCalendar($service, $user);
+
             $syncedCount = 0;
 
             foreach ($schedules as $schedule) {
                 // Create or update Google Calendar event
-                $this->syncScheduleToGoogle($service, $schedule);
+                $this->syncScheduleToGoogle($service, $schedule, $calendarId);
                 $syncedCount++;
             }
 
@@ -207,7 +262,7 @@ class GoogleCalendarController extends Controller
         }
     }
 
-    private function syncScheduleToGoogle(Calendar $service, $schedule)
+    private function syncScheduleToGoogle(Calendar $service, $schedule, $calendarId = 'primary')
     {
         $room = $schedule->room;
 
@@ -244,8 +299,6 @@ class GoogleCalendarController extends Controller
         }
 
         $event = new \Google\Service\Calendar\Event($eventData);
-
-        $calendarId = 'primary'; // Use primary calendar
 
         // Check if this schedule already has a Google event
         if ($schedule->google_event_id) {
