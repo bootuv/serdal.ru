@@ -24,6 +24,7 @@ class AppPanelProvider extends PanelProvider
     {
         return $panel
             ->id('app')
+            ->defaultThemeMode(\Filament\Enums\ThemeMode::Light)
             ->path('tutor')
             ->passwordReset()
             ->renderHook(

@@ -35,6 +35,7 @@ class AdminPanelProvider extends PanelProvider
         return $panel
             ->default()
             ->id('admin')
+            ->defaultThemeMode(\Filament\Enums\ThemeMode::Light)
             ->path('admin')
             ->login()
             ->passwordReset()

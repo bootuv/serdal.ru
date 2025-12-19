@@ -24,6 +24,7 @@ class StudentPanelProvider extends PanelProvider
     {
         return $panel
             ->id('student')
+            ->defaultThemeMode(\Filament\Enums\ThemeMode::Light)
             ->path('student')
             ->passwordReset()
             ->renderHook(
