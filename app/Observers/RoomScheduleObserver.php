@@ -65,9 +65,23 @@ class RoomScheduleObserver
         }
 
         // Sync for all students assigned to this room
+        Log::info('Checking room participants', [
+            'schedule_id' => $roomSchedule->id,
+            'room_id' => $room->id,
+            'participants' => $room->participants,
+            'is_array' => is_array($room->participants),
+        ]);
+
         if ($room->participants && is_array($room->participants)) {
             foreach ($room->participants as $studentId) {
                 $student = \App\Models\User::find($studentId);
+
+                Log::info('Checking student for sync', [
+                    'schedule_id' => $roomSchedule->id,
+                    'student_id' => $studentId,
+                    'student_found' => $student ? 'yes' : 'no',
+                    'has_google_token' => $student && $student->google_access_token ? 'yes' : 'no',
+                ]);
 
                 if ($student && $student->google_access_token) {
                     Log::info('Dispatching sync job for student', [
@@ -78,6 +92,11 @@ class RoomScheduleObserver
                     SyncScheduleToGoogleCalendar::dispatch($roomSchedule, $student->id);
                 }
             }
+        } else {
+            Log::warning('No participants or participants not an array', [
+                'schedule_id' => $roomSchedule->id,
+                'room_id' => $room->id,
+            ]);
         }
     }
 }
