@@ -254,9 +254,18 @@ class SyncScheduleToGoogleCalendar implements ShouldQueue
         }
 
         if ($schedule->end_date) {
-            $endDate = \Carbon\Carbon::parse($schedule->end_date)->format('Ymd');
-            $rrule .= ';UNTIL=' . $endDate;
+            // UNTIL must be in UTC format: YYYYMMDDTHHmmssZ
+            $endDateTime = \Carbon\Carbon::parse($schedule->end_date)
+                ->endOfDay()
+                ->setTimezone('UTC')
+                ->format('Ymd\THis\Z');
+            $rrule .= ';UNTIL=' . $endDateTime;
         }
+
+        Log::info('Built recurrence rule', [
+            'schedule_id' => $schedule->id,
+            'rrule' => $rrule,
+        ]);
 
         return $rrule;
     }
