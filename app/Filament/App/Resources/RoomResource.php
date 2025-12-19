@@ -369,6 +369,7 @@ class RoomResource extends Resource
                     ->label('Присоединиться')
                     ->icon('heroicon-o-user-plus')
                     ->button()
+                    ->color('warning')
                     ->url(fn(Room $record) => route('rooms.join', $record))
                     ->openUrlInNewTab()
                     ->visible(fn(Room $record) => $record->is_running),

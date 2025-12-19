@@ -56,7 +56,7 @@ class RoomResource extends Resource
                     ->badge()
                     ->state(fn(Room $record) => $record->is_running ? 'Идет урок' : 'Ожидание')
                     ->color(fn(string $state) => match ($state) {
-                        'Идет урок' => 'success',
+                        'Идет урок' => 'warning',
                         'Ожидание' => 'gray',
                     })
                     ->icon(fn(string $state) => match ($state) {
@@ -69,7 +69,7 @@ class RoomResource extends Resource
                     ->label('Присоединиться')
                     ->url(fn(Room $record) => route('rooms.join', $record))
                     ->button()
-                    ->color('success')
+                    ->color('warning')
                     ->icon('heroicon-m-arrow-right-end-on-rectangle')
                     ->visible(fn(Room $record) => $record->is_running)
                     ->openUrlInNewTab(),

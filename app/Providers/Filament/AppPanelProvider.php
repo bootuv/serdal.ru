@@ -34,6 +34,7 @@ class AppPanelProvider extends PanelProvider
                 'primary' => Color::Amber,
             ])
             ->brandLogo(fn() => asset('images/Logo.svg'))
+            ->darkModeBrandLogo(fn() => asset('images/Logo-white.svg'))
             ->brandLogoHeight('2rem')
             ->discoverResources(in: app_path('Filament/App/Resources'), for: 'App\\Filament\\App\\Resources')
             ->discoverPages(in: app_path('Filament/App/Pages'), for: 'App\\Filament\\App\\Pages')
