@@ -16,9 +16,10 @@ class GoogleCalendarController extends Controller
         $client->setApplicationName(config('app.name'));
         $client->setScopes([Calendar::CALENDAR]);
 
-        // Set OAuth credentials from environment
-        $client->setClientId(env('GOOGLE_CLIENT_ID'));
-        $client->setClientSecret(env('GOOGLE_CLIENT_SECRET'));
+
+        // Set OAuth credentials from config
+        $client->setClientId(config('services.google.client_id'));
+        $client->setClientSecret(config('services.google.client_secret'));
         $client->setRedirectUri(route('google.calendar.callback'));
 
         $client->setAccessType('offline');
