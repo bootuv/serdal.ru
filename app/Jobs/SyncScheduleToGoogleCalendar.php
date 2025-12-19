@@ -246,9 +246,22 @@ class SyncScheduleToGoogleCalendar implements ShouldQueue
             case 'weekly':
                 $rrule .= 'FREQ=WEEKLY';
                 if ($schedule->recurrence_days && is_array($schedule->recurrence_days)) {
-                    $days = array_map(function ($day) {
-                        return strtoupper(substr($day, 0, 2));
+                    // Convert numeric days (0-6 or 1-7) to RFC 5545 format (SU, MO, TU, WE, TH, FR, SA)
+                    $dayMap = [
+                        '0' => 'SU', // Sunday
+                        '1' => 'MO', // Monday
+                        '2' => 'TU', // Tuesday
+                        '3' => 'WE', // Wednesday
+                        '4' => 'TH', // Thursday
+                        '5' => 'FR', // Friday
+                        '6' => 'SA', // Saturday
+                        '7' => 'SU', // Sunday (alternative)
+                    ];
+
+                    $days = array_map(function ($day) use ($dayMap) {
+                        return $dayMap[$day] ?? 'MO';
                     }, $schedule->recurrence_days);
+
                     $rrule .= ';BYDAY=' . implode(',', $days);
                 }
                 break;
