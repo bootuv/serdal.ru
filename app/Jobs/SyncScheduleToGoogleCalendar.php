@@ -28,6 +28,14 @@ class SyncScheduleToGoogleCalendar implements ShouldQueue
 
     public function handle(): void
     {
+        // Reload schedule with room relationship
+        $schedule = RoomSchedule::with('room')->find($this->schedule->id);
+
+        if (!$schedule || !$schedule->room) {
+            Log::warning('Schedule or room not found', ['schedule_id' => $this->schedule->id]);
+            return;
+        }
+
         $user = User::find($this->userId);
 
         if (!$user || !$user->google_access_token) {
@@ -65,10 +73,10 @@ class SyncScheduleToGoogleCalendar implements ShouldQueue
             // Get or create Serdal calendar
             $calendarId = $this->getOrCreateSerdalCalendar($service, $user);
 
-            $this->syncSchedule($service, $this->schedule, $calendarId);
+            $this->syncSchedule($service, $schedule, $calendarId);
 
             Log::info('Schedule synced to Google Calendar', [
-                'schedule_id' => $this->schedule->id,
+                'schedule_id' => $schedule->id,
                 'user_id' => $user->id,
                 'calendar_id' => $calendarId,
             ]);
