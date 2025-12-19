@@ -68,13 +68,24 @@ class RoomScheduleObserver
         Log::info('Checking room participants', [
             'schedule_id' => $roomSchedule->id,
             'room_id' => $room->id,
-            'participants' => $room->participants,
-            'is_array' => is_array($room->participants),
+            'participants_type' => gettype($room->participants),
+            'participants_class' => is_object($room->participants) ? get_class($room->participants) : null,
         ]);
 
-        if ($room->participants && is_array($room->participants)) {
-            foreach ($room->participants as $studentId) {
-                $student = \App\Models\User::find($studentId);
+        // Handle both array and Collection
+        $participants = $room->participants;
+
+        if ($participants && (is_array($participants) || $participants instanceof \Illuminate\Support\Collection)) {
+            foreach ($participants as $participant) {
+                // If participant is already a User model (from relationship)
+                if ($participant instanceof \App\Models\User) {
+                    $student = $participant;
+                    $studentId = $student->id;
+                } else {
+                    // If participant is just an ID
+                    $studentId = $participant;
+                    $student = \App\Models\User::find($studentId);
+                }
 
                 Log::info('Checking student for sync', [
                     'schedule_id' => $roomSchedule->id,
@@ -93,7 +104,7 @@ class RoomScheduleObserver
                 }
             }
         } else {
-            Log::warning('No participants or participants not an array', [
+            Log::warning('No participants or invalid type', [
                 'schedule_id' => $roomSchedule->id,
                 'room_id' => $room->id,
             ]);
