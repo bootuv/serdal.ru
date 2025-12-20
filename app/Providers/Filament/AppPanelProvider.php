@@ -64,6 +64,7 @@ class AppPanelProvider extends PanelProvider
             ->authMiddleware([
                 Authenticate::class,
                 \App\Http\Middleware\CheckUserActive::class,
+                \App\Http\Middleware\CheckUserProfileCompleted::class,
             ]);
     }
 }

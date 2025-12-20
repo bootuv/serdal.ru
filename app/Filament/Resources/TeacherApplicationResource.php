@@ -45,10 +45,7 @@ class TeacherApplicationResource extends Resource
 
                         Forms\Components\Group::make([
                             Forms\Components\TextInput::make('phone')->label('Телефон'),
-                            Forms\Components\TextInput::make('whatsup')->label('WhatsApp'),
-                            Forms\Components\TextInput::make('instagram')->label('Instagram'),
-                            Forms\Components\TextInput::make('telegram')->label('Telegram'),
-                        ])->columns(2)->columnSpanFull(),
+                        ])->columns(1)->columnSpanFull(),
 
                         Forms\Components\Textarea::make('about')->label('О себе')->columnSpanFull(),
 
@@ -143,13 +140,11 @@ class TeacherApplicationResource extends Resource
                             'email' => $record->email,
                             'password' => Hash::make($password),
                             'phone' => $record->phone,
-                            'whatsup' => $record->whatsup,
-                            'instagram' => $record->instagram,
-                            'telegram' => $record->telegram,
                             'about' => $record->about,
                             'role' => User::ROLE_TUTOR,
                             'is_active' => true,
                             'grade' => $record->grade,
+                            'is_profile_completed' => false,
                         ]);
 
                         if (!empty($record->subjects)) {

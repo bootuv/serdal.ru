@@ -57,6 +57,7 @@ class User extends Authenticatable implements FilamentUser
         'google_refresh_token',
         'google_token_expires_at',
         'google_calendar_id',
+        'is_profile_completed',
     ];
 
     /**

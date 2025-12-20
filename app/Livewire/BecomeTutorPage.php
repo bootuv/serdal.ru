@@ -18,6 +18,7 @@ class BecomeTutorPage extends Component implements HasForms
     use InteractsWithForms;
 
     public ?array $data = [];
+    public bool $isSubmitted = false;
 
     public function mount(): void
     {
@@ -41,6 +42,7 @@ class BecomeTutorPage extends Component implements HasForms
                                 ->maxLength(255),
                             Forms\Components\TextInput::make('middle_name')
                                 ->label('Отчество')
+                                ->required() // Теперь обязательно
                                 ->maxLength(255),
                         ])->columns(3)->columnSpanFull(),
 
@@ -51,12 +53,11 @@ class BecomeTutorPage extends Component implements HasForms
                             ->maxLength(255)
                             ->columnSpanFull(),
 
-                        Forms\Components\Group::make([
-                            Forms\Components\TextInput::make('phone')->tel()->label('Телефон')->required(),
-                            Forms\Components\TextInput::make('whatsup')->tel()->label('WhatsApp'),
-                            Forms\Components\TextInput::make('instagram')->label('Instagram'),
-                            Forms\Components\TextInput::make('telegram')->label('Telegram'),
-                        ])->columns(2)->columnSpanFull(),
+                        Forms\Components\TextInput::make('phone')
+                            ->tel()
+                            ->label('Телефон')
+                            ->required()
+                            ->columnSpanFull(), // Выносим телефон из группы соцсетей
                     ]),
 
                 Forms\Components\Section::make('Профессиональные навыки')
@@ -146,6 +147,9 @@ class BecomeTutorPage extends Component implements HasForms
 
         // Создаем заявку
         TeacherApplication::create($data);
+
+        // Устанавливаем флаг успешной отправки
+        $this->isSubmitted = true;
 
         Notification::make()
             ->title('Заявка успешно отправлена!')
