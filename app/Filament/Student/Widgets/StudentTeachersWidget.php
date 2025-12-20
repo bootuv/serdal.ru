@@ -44,7 +44,7 @@ class StudentTeachersWidget extends BaseWidget
                         $studentId = (string) auth()->id();
                         $teacherId = (string) $record->id;
 
-                        // Find all sessions where this student participated
+                        // NEW LOGIC: Find all sessions where this student participated
                         $sessions = \App\Models\MeetingSession::query()
                             ->where(function ($q) use ($studentId) {
                             $q->whereJsonContains('analytics_data->participants', ['user_id' => $studentId])
@@ -52,14 +52,14 @@ class StudentTeachersWidget extends BaseWidget
                         })
                             ->get();
 
-                        // Count sessions where this specific teacher also participated
+                        \Illuminate\Support\Facades\Log::info("NEW LOGIC: Found {$sessions->count()} sessions for student {$studentId}. Checking against teacher {$teacherId} ({$record->email})");
+
                         return $sessions->filter(function ($session) use ($teacherId) {
                             $participants = $session->analytics_data['participants'] ?? [];
                             if (!is_array($participants))
                                 return false;
 
                             foreach ($participants as $p) {
-                                // Check if teacher is in participants
                                 if (isset($p['user_id']) && $p['user_id'] == $teacherId) {
                                     return true;
                                 }
