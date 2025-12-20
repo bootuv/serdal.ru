@@ -42,9 +42,6 @@ class LessonTypesTableWidget extends BaseWidget
                 Tables\Columns\TextColumn::make('duration')
                     ->label('Длительность')
                     ->suffix(' мин'),
-                Tables\Columns\TextColumn::make('description')
-                    ->label('Описание')
-                    ->limit(50),
             ])
             ->actions([
                 Tables\Actions\EditAction::make()
@@ -65,9 +62,6 @@ class LessonTypesTableWidget extends BaseWidget
                             ->label('Длительность (мин)')
                             ->numeric()
                             ->required(),
-                        \Filament\Forms\Components\Textarea::make('description')
-                            ->label('Описание')
-                            ->rows(3),
                     ]),
                 Tables\Actions\DeleteAction::make(),
             ])
@@ -90,9 +84,6 @@ class LessonTypesTableWidget extends BaseWidget
                             ->label('Длительность (мин)')
                             ->numeric()
                             ->required(),
-                        \Filament\Forms\Components\Textarea::make('description')
-                            ->label('Описание')
-                            ->rows(3),
                     ])
                     ->mutateFormDataUsing(function (array $data): array {
                         $data['user_id'] = auth()->id();
