@@ -10,6 +10,8 @@ return new class extends Migration {
      */
     public function up(): void
     {
+        \Illuminate\Support\Facades\DB::table('reviews')->delete();
+
         Schema::table('reviews', function (Blueprint $table) {
             $table->foreignId('teacher_id')->constrained('users')->cascadeOnDelete();
             $table->unsignedTinyInteger('rating')->default(5);
