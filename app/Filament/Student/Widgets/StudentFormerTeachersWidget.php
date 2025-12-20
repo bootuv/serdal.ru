@@ -57,12 +57,12 @@ class StudentFormerTeachersWidget extends BaseWidget
                 Tables\Columns\TextColumn::make('name')
                     ->label('Имя')
                     ->weight('bold')
-                    ->description(fn(User $record) => $record->email),
+                    ->description(fn(\App\Models\User $record) => $record->subjects->pluck('name')->join(', ')),
 
-                Tables\Columns\TextColumn::make('subjects.name')
-                    ->label('Предметы')
-                    ->badge()
-                    ->color('info'),
+                Tables\Columns\TextColumn::make('phone')
+                    ->label('Телефон')
+                    ->icon('heroicon-m-phone')
+                    ->copyable(),
 
                 Tables\Columns\TextColumn::make('sessions_count')
                     ->label('Занятий')
@@ -90,12 +90,84 @@ class StudentFormerTeachersWidget extends BaseWidget
                             ->count();
                     }),
 
-                Tables\Columns\TextColumn::make('phone')
-                    ->label('Телефон')
-                    ->icon('heroicon-m-phone')
-                    ->copyable(),
+
             ])
             ->paginated(false)
-            ->recordUrl(fn(User $record): string => route('tutors.show', ['username' => $record->username]));
+            ->recordUrl(fn(User $record): string => route('tutors.show', ['username' => $record->username]))
+            ->actions([
+                Tables\Actions\Action::make('leave_review')
+                    ->visible(function (\App\Models\User $record) {
+                        return \App\Models\MeetingSession::query()
+                            ->whereHas('room', function ($query) use ($record) {
+                                $query->where('user_id', $record->id);
+                            })
+                            ->get()
+                            ->filter(function ($session) {
+                                $participants = $session->analytics_data['participants'] ?? [];
+                                if (!is_array($participants))
+                                    return false;
+
+                                $myId = auth()->id();
+                                foreach ($participants as $p) {
+                                    if (isset($p['user_id']) && $p['user_id'] == $myId) {
+                                        return true;
+                                    }
+                                }
+                                return false;
+                            })
+                            ->count() > 0;
+                    })
+                    ->label(function (\App\Models\User $record) {
+                        $review = \App\Models\Review::where('user_id', auth()->id())->where('teacher_id', $record->id)->first();
+                        if ($review) {
+                            $stars = str_repeat('★', $review->rating) . str_repeat('☆', 5 - $review->rating);
+                            return new \Illuminate\Support\HtmlString('<span style="color: #F59E0B;">' . $stars . '</span>');
+                        }
+                        return 'Оставить отзыв';
+                    })
+                    ->color(fn($record) => \App\Models\Review::where('user_id', auth()->id())->where('teacher_id', $record->id)->exists() ? 'gray' : 'primary')
+                    ->button()
+                    ->slideOver()
+                    ->modalHeading('Отзыв')
+                    ->form([
+                        \Filament\Forms\Components\Grid::make()
+                            ->schema([
+                                \Filament\Forms\Components\ViewField::make('rating')
+                                    ->label('Оценка')
+                                    ->view('filament.forms.components.star-rating')
+                                    ->default(5)
+                                    ->required(),
+                                \Filament\Forms\Components\Textarea::make('text')
+                                    ->label('Текст отзыва')
+                                    ->rows(3)
+                                    ->required(),
+                            ])
+                            ->columns(1),
+                    ])
+                    ->mountUsing(function (\Filament\Forms\Form $form, \App\Models\User $record) {
+                        $data = [
+                            'rating' => 5,
+                            'text' => null,
+                        ];
+
+                        $review = \App\Models\Review::where('user_id', auth()->id())
+                            ->where('teacher_id', $record->id)
+                            ->first();
+
+                        if ($review) {
+                            $data['rating'] = $review->rating;
+                            $data['text'] = $review->text;
+                        }
+
+                        $form->fill($data);
+                    })
+                    ->action(function (array $data, \App\Models\User $record) {
+                        \App\Models\Review::updateOrCreate(
+                            ['user_id' => auth()->id(), 'teacher_id' => $record->id],
+                            ['rating' => $data['rating'], 'text' => $data['text']]
+                        );
+                    })
+                    ->successNotificationTitle('Отзыв сохранен'),
+            ]);
     }
 }
