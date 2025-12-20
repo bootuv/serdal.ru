@@ -37,7 +37,7 @@ class StudentTeachersWidget extends BaseWidget
                     ->color('info'),
 
                 Tables\Columns\TextColumn::make('sessions_count')
-                    ->label('Занятий.')
+                    ->label('Занятий')
                     ->badge()
                     ->color('success')
                     ->state(function (\App\Models\User $record) {
