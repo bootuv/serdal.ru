@@ -116,6 +116,7 @@ class RecordingResource extends Resource
                         }
                     }),
             ])
+            ->defaultSort('start_time', 'desc')
             ->actions([
                 Tables\Actions\Action::make('play')
                     ->label('Смотреть')

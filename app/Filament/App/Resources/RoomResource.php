@@ -342,6 +342,7 @@ class RoomResource extends Resource
             ->filters([
                 //
             ])
+            ->defaultSort('created_at', 'desc')
             ->actions([
                 Tables\Actions\Action::make('start')
                     ->label('Начать')

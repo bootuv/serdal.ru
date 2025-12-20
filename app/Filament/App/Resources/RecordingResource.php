@@ -99,6 +99,7 @@ class RecordingResource extends Resource
             ->headerActions([
                 // Sync happens in ListPages mount
             ])
+            ->defaultSort('start_time', 'desc')
             ->actions([
                 Tables\Actions\Action::make('play')
                     ->label('Смотреть')

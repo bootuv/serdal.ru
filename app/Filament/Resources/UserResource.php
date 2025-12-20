@@ -211,6 +211,7 @@ class UserResource extends Resource
                         'adults' => 'Взрослые',
                     ]),
             ])
+            ->defaultSort('created_at', 'desc')
             ->actions([
                 Tables\Actions\EditAction::make(),
             ])
