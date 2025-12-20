@@ -15,6 +15,7 @@ class LessonType extends Model
         'price',
         'count_per_week',
         'duration',
+        'user_id',
     ];
 
     use HasFactory;

@@ -1,5 +1,5 @@
 <x-filament-panels::page>
-    <div class="max-w-4xl mx-auto space-y-8">
+    <div class="max-w-4xl mx-auto space-y-12">
         <form wire:submit="submit" id="onboarding-form">
             {{ $this->form }}
         </form>
