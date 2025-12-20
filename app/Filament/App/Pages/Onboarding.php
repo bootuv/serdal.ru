@@ -31,13 +31,13 @@ class Onboarding extends Page implements HasForms, HasTable
 
     public ?array $data = [];
 
-    public function mount(): void
+    public function mount()
     {
         $user = Auth::user();
 
         // Safety check: redirect if already completed
         if ($user && $user->is_profile_completed) {
-            redirect('/app');
+            return redirect()->route('filament.app.pages.dashboard');
         }
 
         $this->form->fill([
@@ -121,7 +121,7 @@ class Onboarding extends Page implements HasForms, HasTable
             ]);
     }
 
-    public function submit(): void
+    public function submit()
     {
         $data = $this->form->getState();
         $user = Auth::user();
@@ -149,6 +149,6 @@ class Onboarding extends Page implements HasForms, HasTable
             ->success()
             ->send();
 
-        $this->redirect('/app');
+        return redirect()->route('filament.app.pages.dashboard');
     }
 }
