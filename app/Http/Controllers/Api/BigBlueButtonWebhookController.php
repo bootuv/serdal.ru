@@ -103,6 +103,26 @@ class BigBlueButtonWebhookController extends Controller
             ->first();
     }
 
+    protected function getParticipantId(array $data)
+    {
+        // Try new format first (data.attributes.user)
+        if (isset($data['data']['attributes']['user'])) {
+            $u = $data['data']['attributes']['user'];
+            return $u['external-user-id'] ?? $u['internal-user-id'] ?? null;
+        }
+
+        // Chat message sender
+        if (isset($data['data']['attributes']['chat-message']['sender'])) {
+            $u = $data['data']['attributes']['chat-message']['sender'];
+            return $u['external-user-id'] ?? $u['internal-user-id'] ?? null;
+        }
+
+        // Old Format / Fallbacks
+        $body = $data['core']['body'] ?? [];
+        // Legacy: userId is often internal, extId might be in another field or same
+        return $body['extId'] ?? $body['userId'] ?? ($body['sender']['userId'] ?? null);
+    }
+
     protected function handleUserJoined(array $data)
     {
         $meetingId = $this->getMeetingId($data);
@@ -118,19 +138,17 @@ class BigBlueButtonWebhookController extends Controller
         }
 
         // Extract User Info
-        $userId = null;
+        $userId = $this->getParticipantId($data);
         $name = 'Unknown';
         $role = 'VIEWER';
 
         // New Format
         if (isset($data['data']['attributes']['user'])) {
             $userAttr = $data['data']['attributes']['user'];
-            $userId = $userAttr['internal-user-id'] ?? $userAttr['external-user-id'] ?? null; // Use internal if available as it is unique per join? No, analytics usually tracks unique people. Let's use internal-user-id as it matches user-left.
             $name = $userAttr['name'] ?? 'Unknown';
             $role = $userAttr['role'] ?? 'VIEWER';
         } else {
             // Old Format
-            $userId = $data['core']['body']['userId'] ?? null;
             $name = $data['core']['body']['name'] ?? 'Unknown';
             $role = $data['core']['body']['role'] ?? 'VIEWER';
         }
@@ -186,12 +204,7 @@ class BigBlueButtonWebhookController extends Controller
             return;
 
         // Extract User ID
-        $userId = null;
-        if (isset($data['data']['attributes']['user'])) {
-            $userId = $data['data']['attributes']['user']['internal-user-id'] ?? null;
-        } else {
-            $userId = $data['core']['body']['userId'] ?? null;
-        }
+        $userId = $this->getParticipantId($data);
 
         if (!$userId)
             return;
@@ -380,14 +393,7 @@ class BigBlueButtonWebhookController extends Controller
             return;
 
         // Extract User ID
-        $userId = null;
-        if (isset($data['data']['attributes']['user']['internal-user-id'])) {
-            $userId = $data['data']['attributes']['user']['internal-user-id'];
-        } elseif (isset($data['data']['attributes']['chat-message']['sender']['internal-user-id'])) {
-            $userId = $data['data']['attributes']['chat-message']['sender']['internal-user-id'];
-        } else {
-            $userId = $data['core']['body']['userId'] ?? ($data['core']['body']['sender']['userId'] ?? null);
-        }
+        $userId = $this->getParticipantId($data);
 
         if (!$userId)
             return;
