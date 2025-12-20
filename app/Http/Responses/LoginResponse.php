@@ -13,6 +13,14 @@ class LoginResponse implements LoginResponseContract
     {
         $user = auth()->user();
 
+        // Проверяем, не заблокирован ли пользователь
+        if ($user->is_blocked) {
+            auth()->logout();
+
+            return redirect()->route('filament.admin.auth.login')
+                ->with('error', 'Ваш профиль деактивирован. Обратитесь к администратору.');
+        }
+
         $defaultUrl = match ($user->role) {
             User::ROLE_ADMIN => '/admin',
             User::ROLE_STUDENT => '/student',

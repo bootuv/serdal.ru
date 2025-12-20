@@ -12,20 +12,8 @@ Route::get('/reviews', [PageController::class, 'reviewsPage'])->name('reviews');
 Route::get('/privacy', [PageController::class, 'privacyPage'])->name('privacy');
 Route::get('/terms', [PageController::class, 'termsPage'])->name('terms');
 
-use App\Http\Controllers\AuthController;
-
-Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
-Route::post('/login', [AuthController::class, 'login'])->name('login.post');
-Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
-
-// Redirect old admin login to unified login
-Route::redirect('/admin/login', '/login');
-
-// Password Reset Routes
-Route::get('/forgot-password', [AuthController::class, 'showForgotPasswordForm'])->name('password.request');
-Route::post('/forgot-password', [AuthController::class, 'sendResetLinkEmail'])->name('password.email');
-Route::get('/reset-password/{token}', [AuthController::class, 'showResetPasswordForm'])->name('password.reset');
-Route::post('/reset-password', [AuthController::class, 'resetPassword'])->name('password.update');
+// Unified login - redirect to admin panel login
+Route::redirect('/login', '/admin/login');
 
 // Invitation Registration
 Route::get('/register/invite', \App\Livewire\RegisterInvitedStudent::class)->name('student.invitation');
