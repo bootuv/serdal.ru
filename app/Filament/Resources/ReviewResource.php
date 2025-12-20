@@ -29,14 +29,32 @@ class ReviewResource extends Resource
     {
         return $form
             ->schema([
+                Forms\Components\Select::make('user_id')
+                    ->label('Кто оставил')
+                    ->relationship('user', 'name')
+                    ->searchable()
+                    ->required(),
+                Forms\Components\Select::make('teacher_id')
+                    ->label('Кому оставили')
+                    ->relationship('teacher', 'name')
+                    ->searchable()
+                    ->required(),
+                Forms\Components\Select::make('rating')
+                    ->label('Оценка')
+                    ->options([
+                        1 => '1 звезда',
+                        2 => '2 звезды',
+                        3 => '3 звезды',
+                        4 => '4 звезды',
+                        5 => '5 звезд',
+                    ])
+                    ->default(5)
+                    ->required(),
                 Forms\Components\Textarea::make('text')
                     ->label('Текст отзыва')
                     ->required()
-                    ->maxLength(65535),
-                Forms\Components\Select::make('user_id')
-                    ->label('Пользователь')
-                    ->relationship('user', 'name')
-                    ->required(),
+                    ->maxLength(65535)
+                    ->columnSpanFull(),
 
             ]);
     }
@@ -45,10 +63,23 @@ class ReviewResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('user.name')->label('Пользователь'),
-                Tables\Columns\TextColumn::make('user.role')->label('Роль'),
-                Tables\Columns\TextColumn::make('text')->label('Текст')->limit(70),
-                Tables\Columns\TextColumn::make('created_at')->label('Дата'),
+                Tables\Columns\TextColumn::make('user.name')
+                    ->label('Кто оставил')
+                    ->searchable(),
+                Tables\Columns\TextColumn::make('teacher.name')
+                    ->label('Кому оставили')
+                    ->searchable(),
+                Tables\Columns\TextColumn::make('rating')
+                    ->label('Оценка')
+                    ->formatStateUsing(fn($state) => str_repeat('★', $state) . str_repeat('☆', 5 - $state))
+                    ->color('warning'),
+                Tables\Columns\TextColumn::make('text')
+                    ->label('Текст')
+                    ->limit(50)
+                    ->tooltip(fn($state) => $state),
+                Tables\Columns\TextColumn::make('created_at')
+                    ->label('Дата')
+                    ->dateTime('d.m.Y H:i'),
             ])
             ->filters([
                 //
