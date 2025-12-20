@@ -45,7 +45,7 @@ class StudentTeachersWidget extends BaseWidget
                             ->whereHas('room', function ($query) use ($record) {
                                 $query->where('user_id', $record->id);
                             })
-                            ->whereJsonContains('analytics_data->participants', [['user_id' => (string) auth()->id()]])
+                            ->whereJsonContains('analytics_data->participants', ['user_id' => (string) auth()->id()])
                             ->count();
                     }),
 
