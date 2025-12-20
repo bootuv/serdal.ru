@@ -4,7 +4,9 @@
             {{ $this->form }}
         </form>
 
-        {{ $this->table }}
+        <div class="mt-12">
+            {{ $this->table }}
+        </div>
 
         <div class="flex justify-end pt-4 border-t border-gray-200 dark:border-gray-700">
             <x-filament::button wire:click="submit" size="lg">

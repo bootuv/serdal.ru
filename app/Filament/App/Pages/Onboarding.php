@@ -80,6 +80,10 @@ class Onboarding extends Page implements HasForms, HasTable
             ->query(LessonType::query()->where('user_id', Auth::id()))
             ->heading('Типы уроков')
             ->description('Создайте хотя бы один тип урока для продолжения.')
+            ->modelLabel('Тип урока')
+            ->pluralModelLabel('Типы уроков')
+            ->emptyStateHeading('Типы уроков не добавлены')
+            ->emptyStateDescription('Создайте свой первый тип урока для старта.')
             ->headerActions([
                 Tables\Actions\CreateAction::make()
                     ->label('Создать')

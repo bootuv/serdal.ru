@@ -25,6 +25,8 @@ class LessonTypesTableWidget extends BaseWidget
             ->query(LessonType::query()->where('user_id', auth()->id()))
             ->modelLabel('Тип урока')
             ->pluralModelLabel('Типы уроков')
+            ->emptyStateHeading('Типы уроков не добавлены')
+            ->emptyStateDescription('Создайте свой первый тип урока для старта.')
             ->columns([
                 Tables\Columns\TextColumn::make('type')
                     ->label('Тип')
