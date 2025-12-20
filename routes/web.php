@@ -13,7 +13,8 @@ Route::get('/privacy', [PageController::class, 'privacyPage'])->name('privacy');
 Route::get('/terms', [PageController::class, 'termsPage'])->name('terms');
 
 // Unified login - redirect to admin panel login
-Route::redirect('/login', '/admin/login');
+Route::get('/login', fn() => redirect('/admin/login'))->name('login');
+Route::get('/application', \App\Livewire\BecomeTutorPage::class)->name('become-tutor');
 
 // Invitation Registration
 Route::get('/register/invite', \App\Livewire\RegisterInvitedStudent::class)->name('student.invitation');
