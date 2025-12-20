@@ -41,20 +41,16 @@ class StudentTeachersWidget extends BaseWidget
                     ->badge()
                     ->color('success')
                     ->state(function (\App\Models\User $record) {
-                        $count = \App\Models\MeetingSession::query()
+                        return \App\Models\MeetingSession::query()
                             ->whereHas('room', function ($query) use ($record) {
                                 $query->where('user_id', $record->id);
                             })
-                            ->whereJsonContains('analytics_data->participants', ['user_id' => (string) auth()->id()])
+                            ->where(function ($query) {
+                                $userId = auth()->id();
+                                $query->whereJsonContains('analytics_data->participants', ['user_id' => $userId])
+                                    ->orWhereJsonContains('analytics_data->participants', ['user_id' => (string) $userId]);
+                            })
                             ->count();
-
-                        \Illuminate\Support\Facades\Log::info('Debug Session Count', [
-                            'student_id' => auth()->id(),
-                            'teacher_id' => $record->id,
-                            'count' => $count
-                        ]);
-
-                        return $count;
                     }),
 
                 Tables\Columns\TextColumn::make('phone')

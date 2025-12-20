@@ -30,7 +30,10 @@ class StudentFormerTeachersWidget extends BaseWidget
                 $query->select('rooms.user_id')
                     ->from('rooms')
                     ->join('meeting_sessions', 'meeting_sessions.room_id', '=', 'rooms.id')
-                    ->whereJsonContains('meeting_sessions.analytics_data->participants', ['user_id' => $studentId]);
+                    ->where(function ($q) use ($studentId) {
+                        $q->whereJsonContains('meeting_sessions.analytics_data->participants', ['user_id' => $studentId])
+                            ->orWhereJsonContains('meeting_sessions.analytics_data->participants', ['user_id' => (int) $studentId]);
+                    });
             })
             ->whereNotIn('id', function (Builder $query) use ($studentId) {
                 $query->select('teacher_id')
@@ -70,7 +73,11 @@ class StudentFormerTeachersWidget extends BaseWidget
                             ->whereHas('room', function ($query) use ($record) {
                                 $query->where('user_id', $record->id);
                             })
-                            ->whereJsonContains('analytics_data->participants', ['user_id' => (string) auth()->id()])
+                            ->where(function ($q) {
+                                $uId = auth()->id();
+                                $q->whereJsonContains('analytics_data->participants', ['user_id' => $uId])
+                                    ->orWhereJsonContains('analytics_data->participants', ['user_id' => (string) $uId]);
+                            })
                             ->count();
                     }),
 
