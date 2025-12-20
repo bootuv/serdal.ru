@@ -31,6 +31,10 @@ class AppPanelProvider extends PanelProvider
                 'panels::body.end',
                 fn() => \Illuminate\Support\Facades\Blade::render("@vite(['resources/css/app.css', 'resources/js/app.js'])")
             )
+            ->renderHook(
+                'panels::user-menu.before',
+                fn() => view('filament.app.components.profile-link')
+            )
             ->colors([
                 'primary' => Color::Amber,
             ])
