@@ -26,6 +26,7 @@ class StudentPanelProvider extends PanelProvider
             ->id('student')
             ->defaultThemeMode(\Filament\Enums\ThemeMode::Light)
             ->path('student')
+            ->login(\App\Filament\Pages\Auth\Login::class)
             ->passwordReset()
             ->renderHook(
                 'panels::body.end',

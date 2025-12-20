@@ -9,6 +9,16 @@ use Illuminate\Validation\ValidationException;
 
 class Login extends BaseLogin
 {
+    public function form(\Filament\Forms\Form $form): \Filament\Forms\Form
+    {
+        return $form
+            ->schema([
+                $this->getEmailFormComponent(),
+                $this->getPasswordFormComponent(),
+            ])
+            ->statePath('data');
+    }
+
     public function authenticate(): ?\Filament\Http\Responses\Auth\Contracts\LoginResponse
     {
         try {
@@ -31,7 +41,7 @@ class Login extends BaseLogin
             !auth()->attempt([
                 'email' => $data['email'],
                 'password' => $data['password'],
-            ], $data['remember'] ?? false)
+            ], true)
         ) {
             $this->throwFailureValidationException();
         }
