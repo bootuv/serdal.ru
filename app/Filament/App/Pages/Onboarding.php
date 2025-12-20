@@ -2,18 +2,24 @@
 
 namespace App\Filament\App\Pages;
 
+use Filament\Tables\Table;
+use Filament\Tables\Concerns\InteractsWithTable;
+use Filament\Tables\Contracts\HasTable;
+use Filament\Tables;
+use App\Models\LessonType;
+use Filament\Pages\Page;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
-use Filament\Pages\Page;
 use Filament\Forms\Form;
 use Filament\Forms;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
 use App\Models\User;
 
-class Onboarding extends Page implements HasForms
+class Onboarding extends Page implements HasForms, HasTable
 {
     use InteractsWithForms;
+    use InteractsWithTable;
 
     protected static ?string $navigationIcon = 'heroicon-o-document-text';
 
@@ -47,7 +53,7 @@ class Onboarding extends Page implements HasForms
         return $form
             ->schema([
                 Forms\Components\Section::make('Заполните профиль')
-                    ->description('Для начала работы необходимо заполнить информацию о себе и указать стоимость занятий.')
+                    ->description('Для начала работы необходимо заполнить информацию о себе.')
                     ->schema([
                         Forms\Components\FileUpload::make('avatar')
                             ->label('Фото профиля')
@@ -64,32 +70,44 @@ class Onboarding extends Page implements HasForms
                                 Forms\Components\TextInput::make('instagram')->label('Instagram')->prefix('@'),
                                 Forms\Components\TextInput::make('telegram')->label('Telegram')->prefix('@'),
                             ]),
-
-                        Forms\Components\Repeater::make('lessonTypes')
-                            ->label('Типы и стоимость занятий')
-                            ->schema([
-                                Forms\Components\TextInput::make('type')
-                                    ->label('Название (например: Индивидуально)')
-                                    ->required(),
-                                Forms\Components\TextInput::make('price')
-                                    ->label('Цена')
-                                    ->numeric()
-                                    ->suffix('₽')
-                                    ->required(),
-                                Forms\Components\TextInput::make('duration')
-                                    ->label('Длительность')
-                                    ->numeric()
-                                    ->suffix('мин')
-                                    ->required(),
-                            ])
-                            ->required()
-                            ->minItems(1)
-                            ->defaultItems(1)
-                            ->columnSpanFull()
-                            ->grid(2),
                     ]),
             ])
             ->statePath('data');
+    }
+
+    public function table(Table $table): Table
+    {
+        return $table
+            ->query(LessonType::query()->where('user_id', Auth::id()))
+            ->heading('Типы уроков')
+            ->description('Создайте хотя бы один тип урока для продолжения.')
+            ->headerActions([
+                Tables\Actions\CreateAction::make()
+                    ->label('Создать')
+                    ->modalHeading('Добавить тип урока')
+                    ->form([
+                        Forms\Components\TextInput::make('type')->label('Название')->placeholder('Например: Индивидуальный урок')->required(),
+                        Forms\Components\TextInput::make('price')->label('Цена')->numeric()->suffix('₽')->required(),
+                        Forms\Components\TextInput::make('duration')->label('Длительность')->numeric()->suffix('мин')->required(),
+                    ])
+                    ->mutateFormDataUsing(function (array $data): array {
+                        $data['user_id'] = Auth::id();
+                        return $data;
+                    }),
+            ])
+            ->columns([
+                Tables\Columns\TextColumn::make('type')->label('Название'),
+                Tables\Columns\TextColumn::make('price')->label('Цена')->money('RUB'),
+                Tables\Columns\TextColumn::make('duration')->label('Длительность')->suffix(' мин'),
+            ])
+            ->actions([
+                Tables\Actions\EditAction::make()->form([
+                    Forms\Components\TextInput::make('type')->label('Название')->required(),
+                    Forms\Components\TextInput::make('price')->label('Цена')->numeric()->suffix('₽')->required(),
+                    Forms\Components\TextInput::make('duration')->label('Длительность')->numeric()->suffix('мин')->required(),
+                ]),
+                Tables\Actions\DeleteAction::make(),
+            ]);
     }
 
     public function submit(): void
@@ -98,6 +116,15 @@ class Onboarding extends Page implements HasForms
         $user = Auth::user();
 
         /** @var User $user */
+        if ($user->lessonTypes()->count() === 0) {
+            Notification::make()
+                ->title('Ошибка')
+                ->body('Пожалуйста, добавьте хотя бы один тип урока перед продолжением.')
+                ->danger()
+                ->send();
+            return;
+        }
+
         $user->update([
             'avatar' => $data['avatar'],
             'whatsup' => $data['whatsup'],
@@ -105,10 +132,6 @@ class Onboarding extends Page implements HasForms
             'telegram' => $data['telegram'],
             'is_profile_completed' => true,
         ]);
-
-        // Сохраняем типы уроков
-        $user->lessonTypes()->delete();
-        $user->lessonTypes()->createMany($data['lessonTypes']);
 
         Notification::make()
             ->title('Профиль успешно настроен!')
