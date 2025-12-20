@@ -10,7 +10,9 @@ class StudentTeachersWidget extends BaseWidget
 {
     protected int|string|array $columnSpan = 'full';
 
-    protected static ?string $heading = 'Мои преподаватели';
+    protected static ?string $heading = 'Мои учителя';
+
+    protected static ?int $sort = 1;
 
     public function table(Table $table): Table
     {
