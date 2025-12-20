@@ -10,9 +10,10 @@ class IndexController extends Controller
 {
     public function index(Request $request)
     {
-        $queryBuilder = User::isSpecialist();
+        $queryBuilder = User::isSpecialist()
+            ->where('is_active', true);
 
-        if ($request->has('user_type')) {   
+        if ($request->has('user_type')) {
             $queryBuilder->where('role', $request['user_type']);
         }
 

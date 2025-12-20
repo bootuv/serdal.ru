@@ -92,6 +92,17 @@ class UserResource extends Resource
                         User::ROLE_STUDENT => 'Ученик',
                     ])
                     ->required(),
+                Forms\Components\Toggle::make('is_active')
+                    ->label('Публичный профиль активен')
+                    ->default(true)
+                    ->helperText('Отключенные профили не отображаются на публичной странице')
+                    ->inline(false),
+                Forms\Components\Toggle::make('is_blocked')
+                    ->label('Профиль заблокирован')
+                    ->default(false)
+                    ->helperText('Заблокированные пользователи не могут авторизоваться')
+                    ->inline(false)
+                    ->columnSpanFull(),
                 Select::make('subjects')
                     ->label('Предметы')
                     ->multiple()
@@ -146,12 +157,20 @@ class UserResource extends Resource
                 TextColumn::make('email')->label('Email'),
                 TextColumn::make('username')->label('Имя пользователя'),
                 TextColumn::make('role')->label('Роль'),
-                // SelectColumn::make('role')
-                //     ->options([
-                //         User::ROLE_ADMIN => 'Администратор',
-                //         User::ROLE_MENTOR => 'Ментор',
-                //         User::ROLE_TUTOR => 'Тьютор',
-                //     ]),
+                Tables\Columns\IconColumn::make('is_active')
+                    ->label('Публичность')
+                    ->boolean()
+                    ->trueIcon('heroicon-o-check-circle')
+                    ->falseIcon('heroicon-o-x-circle')
+                    ->trueColor('success')
+                    ->falseColor('danger'),
+                Tables\Columns\IconColumn::make('is_blocked')
+                    ->label('Статус')
+                    ->boolean()
+                    ->trueIcon('heroicon-o-lock-closed')
+                    ->falseIcon('heroicon-o-lock-open')
+                    ->trueColor('danger')
+                    ->falseColor('success'),
                 TextColumn::make('created_at')->label('Создан'),
                 TextColumn::make('updated_at')->label('Обновлен'),
             ])

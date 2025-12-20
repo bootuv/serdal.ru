@@ -17,7 +17,10 @@ class PageController extends Controller
 
     public function tutorPage($username)
     {
-        $user = User::whereUsername($username)->with(['directs', 'subjects', 'lessonTypes'])->firstOrFail();
+        $user = User::whereUsername($username)
+            ->where('is_active', true)
+            ->with(['directs', 'subjects', 'lessonTypes'])
+            ->firstOrFail();
 
         $lessonTypeIndividual = $user->lessonTypes->where('type', LessonType::TYPE_INDIVIDUAL)->first();
         $lessonTypeGroup = $user->lessonTypes->where('type', LessonType::TYPE_GROUP)->first();

@@ -51,6 +51,8 @@ class User extends Authenticatable implements FilamentUser
         'instagram',
         'telegram',
         'username',
+        'is_active',
+        'is_blocked',
         'google_access_token',
         'google_refresh_token',
         'google_token_expires_at',
@@ -180,6 +182,11 @@ class User extends Authenticatable implements FilamentUser
 
     public function canAccessPanel(Panel $panel): bool
     {
+        // Заблокированные пользователи не могут получить доступ
+        if ($this->is_blocked) {
+            return false;
+        }
+
         if ($panel->getId() === 'admin') {
             return true;
         }
