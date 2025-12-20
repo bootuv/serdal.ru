@@ -36,6 +36,19 @@ class StudentTeachersWidget extends BaseWidget
                     ->badge()
                     ->color('info'),
 
+                Tables\Columns\TextColumn::make('sessions_count')
+                    ->label('Занятий')
+                    ->badge()
+                    ->color('success')
+                    ->state(function (\App\Models\User $record) {
+                        return \App\Models\MeetingSession::query()
+                            ->whereHas('room', function ($query) use ($record) {
+                                $query->where('user_id', $record->id);
+                            })
+                            ->whereJsonContains('analytics_data->participants', [['user_id' => (string) auth()->id()]])
+                            ->count();
+                    }),
+
                 Tables\Columns\TextColumn::make('phone')
                     ->label('Телефон')
                     ->icon('heroicon-m-phone')

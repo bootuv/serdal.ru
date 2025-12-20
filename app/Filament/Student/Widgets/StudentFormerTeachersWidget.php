@@ -23,21 +23,14 @@ class StudentFormerTeachersWidget extends BaseWidget
 
     protected static function getQuery()
     {
-        $studentId = auth()->id();
+        $studentId = (string) auth()->id();
 
         return User::query()
             ->whereIn('id', function (Builder $query) use ($studentId) {
-                $query->select('user_id')
+                $query->select('rooms.user_id')
                     ->from('rooms')
-                    ->whereIn('id', function (Builder $q) use ($studentId) {
-                        $q->select('room_id')
-                            ->from('room_user')
-                            ->where('user_id', $studentId);
-                    })
-                    ->whereIn('id', function (Builder $q) {
-                        $q->select('room_id')
-                            ->from('meeting_sessions');
-                    });
+                    ->join('meeting_sessions', 'meeting_sessions.room_id', '=', 'rooms.id')
+                    ->whereJsonContains('meeting_sessions.analytics_data->participants', [['user_id' => $studentId]]);
             })
             ->whereNotIn('id', function (Builder $query) use ($studentId) {
                 $query->select('teacher_id')
@@ -67,6 +60,19 @@ class StudentFormerTeachersWidget extends BaseWidget
                     ->label('Предметы')
                     ->badge()
                     ->color('info'),
+
+                Tables\Columns\TextColumn::make('sessions_count')
+                    ->label('Занятий')
+                    ->badge()
+                    ->color('success')
+                    ->state(function (User $record) {
+                        return \App\Models\MeetingSession::query()
+                            ->whereHas('room', function ($query) use ($record) {
+                                $query->where('user_id', $record->id);
+                            })
+                            ->whereJsonContains('analytics_data->participants', [['user_id' => (string) auth()->id()]])
+                            ->count();
+                    }),
 
                 Tables\Columns\TextColumn::make('phone')
                     ->label('Телефон')

@@ -17,7 +17,7 @@ class Profile extends Page
 
     protected static ?string $title = 'Мой профиль';
 
-    protected static ?int $navigationSort = 1;
+    protected static ?int $navigationSort = 999;
 
     public ?array $data = [];
 
