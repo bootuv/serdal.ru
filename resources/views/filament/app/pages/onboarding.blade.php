@@ -4,7 +4,7 @@
             {{ $this->form }}
         </form>
 
-        <div class="mt-12">
+        <div class="pt-4">
             {{ $this->table }}
         </div>
 
