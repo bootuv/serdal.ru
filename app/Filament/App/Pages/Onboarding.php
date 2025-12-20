@@ -42,7 +42,6 @@ class Onboarding extends Page implements HasForms, HasTable
 
         $this->form->fill([
             'avatar' => $user->avatar,
-            'phone' => $user->phone,
             'whatsup' => $user->whatsup,
             'instagram' => $user->instagram,
             'telegram' => $user->telegram,
@@ -63,11 +62,6 @@ class Onboarding extends Page implements HasForms, HasTable
                             ->imageEditor()
                             ->circleCropper()
                             ->directory('avatars'),
-
-                        Forms\Components\TextInput::make('phone')
-                            ->label('Номер телефона')
-                            ->tel()
-                            ->required(),
 
                         Forms\Components\Grid::make(3)
                             ->schema([
@@ -144,7 +138,6 @@ class Onboarding extends Page implements HasForms, HasTable
 
         $user->update([
             'avatar' => $data['avatar'],
-            'phone' => $data['phone'],
             'whatsup' => $data['whatsup'],
             'instagram' => $data['instagram'],
             'telegram' => $data['telegram'],
