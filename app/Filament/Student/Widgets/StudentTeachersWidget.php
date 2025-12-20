@@ -41,28 +41,31 @@ class StudentTeachersWidget extends BaseWidget
                     ->badge()
                     ->color('success')
                     ->state(function (\App\Models\User $record) {
+                        $studentId = (string) auth()->id();
+                        $teacherId = (string) $record->id;
+
+                        // Find all sessions where this student participated
                         $sessions = \App\Models\MeetingSession::query()
-                            ->whereHas('room', function ($query) use ($record) {
-                                $query->where('user_id', $record->id);
-                            })
+                            ->where(function ($q) use ($studentId) {
+                            $q->whereJsonContains('analytics_data->participants', ['user_id' => $studentId])
+                                ->orWhereJsonContains('analytics_data->participants', ['user_id' => (int) $studentId]);
+                        })
                             ->get();
 
-                        \Illuminate\Support\Facades\Log::info("Checking sessions for teacher {$record->id}", ['total_sessions' => $sessions->count()]);
-
-                        return $sessions->filter(function ($session) {
+                        // Count sessions where this specific teacher also participated
+                        return $sessions->filter(function ($session) use ($teacherId) {
                             $participants = $session->analytics_data['participants'] ?? [];
                             if (!is_array($participants))
                                 return false;
 
-                            $myId = auth()->id();
                             foreach ($participants as $p) {
-                                if (isset($p['user_id']) && $p['user_id'] == $myId) {
+                                // Check if teacher is in participants
+                                if (isset($p['user_id']) && $p['user_id'] == $teacherId) {
                                     return true;
                                 }
                             }
                             return false;
-                        })
-                            ->count();
+                        })->count();
                     }),
 
                 Tables\Columns\TextColumn::make('phone')
