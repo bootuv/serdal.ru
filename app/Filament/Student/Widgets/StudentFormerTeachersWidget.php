@@ -115,7 +115,7 @@ class StudentFormerTeachersWidget extends BaseWidget
                                 }
                                 return false;
                             })
-                            ->count() > 0;
+                            ->count() > 0 && !\App\Models\Review::where('user_id', auth()->id())->where('teacher_id', $record->id)->where('is_rejected', true)->exists();
                     })
                     ->label(function (\App\Models\User $record) {
                         $review = \App\Models\Review::where('user_id', auth()->id())->where('teacher_id', $record->id)->first();

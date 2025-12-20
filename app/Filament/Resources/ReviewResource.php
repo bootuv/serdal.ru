@@ -3,7 +3,6 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\ReviewResource\Pages;
-use App\Filament\Resources\ReviewResource\RelationManagers;
 use App\Models\Review;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -11,18 +10,14 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class ReviewResource extends Resource
 {
     protected static ?string $model = Review::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
-
+    protected static ?string $navigationIcon = 'heroicon-o-chat-bubble-left-right';
     protected static ?string $navigationLabel = 'Отзывы';
-
     protected static ?string $modelLabel = 'Отзыв';
-
     protected static ?string $pluralModelLabel = 'Отзывы';
 
     public static function form(Form $form): Form
@@ -55,7 +50,6 @@ class ReviewResource extends Resource
                     ->required()
                     ->maxLength(65535)
                     ->columnSpanFull(),
-
             ]);
     }
 
@@ -80,13 +74,28 @@ class ReviewResource extends Resource
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Дата')
                     ->dateTime('d.m.Y H:i'),
+                Tables\Columns\IconColumn::make('is_rejected')
+                    ->label('Отклонен')
+                    ->boolean()
+                    ->trueColor('danger')
+                    ->falseColor('gray'),
             ])
             ->filters([
-                //
+                Tables\Filters\Filter::make('reported')
+                    ->label('Жалобы')
+                    ->query(fn(Builder $query) => $query->where('is_reported', true)),
+                Tables\Filters\Filter::make('rejected')
+                    ->label('Отклоненные')
+                    ->query(fn(Builder $query) => $query->where('is_rejected', true)),
             ])
             ->defaultSort('created_at', 'desc')
             ->actions([
-                Tables\Actions\EditAction::make(),
+                Tables\Actions\Action::make('reported_badge')
+                    ->label('Поступила жалоба')
+                    ->icon('heroicon-o-exclamation-triangle')
+                    ->color('danger')
+                    ->url(fn(Review $record) => route('filament.admin.resources.reviews.edit', $record))
+                    ->visible(fn(Review $record) => $record->is_reported && !$record->is_rejected),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
@@ -97,9 +106,7 @@ class ReviewResource extends Resource
 
     public static function getRelations(): array
     {
-        return [
-            //
-        ];
+        return [];
     }
 
     public static function getPages(): array

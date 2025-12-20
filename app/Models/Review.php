@@ -9,7 +9,7 @@ class Review extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['text', 'user_id', 'teacher_id', 'rating'];
+    protected $fillable = ['text', 'user_id', 'teacher_id', 'rating', 'is_reported', 'is_rejected'];
 
     public function user(): BelongsTo
     {

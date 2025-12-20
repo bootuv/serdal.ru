@@ -98,7 +98,11 @@ class StudentTeachersWidget extends BaseWidget
                             return false;
                         })->count();
 
-                        return $count > 0;
+                        $hasRejected = \App\Models\Review::where('user_id', auth()->id())
+                            ->where('teacher_id', $record->id)
+                            ->where('is_rejected', true)
+                            ->exists();
+                        return $count > 0 && !$hasRejected;
                     })
                     ->label(function (\App\Models\User $record) {
                         $review = \App\Models\Review::where('user_id', auth()->id())->where('teacher_id', $record->id)->first();
