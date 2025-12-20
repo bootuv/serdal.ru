@@ -86,7 +86,13 @@ class Onboarding extends Page implements HasForms, HasTable
                     ->label('Создать')
                     ->modalHeading('Добавить тип урока')
                     ->form([
-                        Forms\Components\TextInput::make('type')->label('Название')->placeholder('Например: Индивидуальный урок')->required(),
+                        Forms\Components\Select::make('type')
+                            ->label('Тип')
+                            ->options([
+                                'Индивидуальный' => 'Индивидуальный',
+                                'Групповой' => 'Групповой',
+                            ])
+                            ->required(),
                         Forms\Components\TextInput::make('price')->label('Цена')->numeric()->suffix('₽')->required(),
                         Forms\Components\TextInput::make('duration')->label('Длительность')->numeric()->suffix('мин')->required(),
                     ])
@@ -102,7 +108,13 @@ class Onboarding extends Page implements HasForms, HasTable
             ])
             ->actions([
                 Tables\Actions\EditAction::make()->form([
-                    Forms\Components\TextInput::make('type')->label('Название')->required(),
+                    Forms\Components\Select::make('type')
+                        ->label('Тип')
+                        ->options([
+                            'Индивидуальный' => 'Индивидуальный',
+                            'Групповой' => 'Групповой',
+                        ])
+                        ->required(),
                     Forms\Components\TextInput::make('price')->label('Цена')->numeric()->suffix('₽')->required(),
                     Forms\Components\TextInput::make('duration')->label('Длительность')->numeric()->suffix('мин')->required(),
                 ]),
