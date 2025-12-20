@@ -10,7 +10,9 @@ class PageController extends Controller
 {
     public function reviewsPage()
     {
-        $reviews = Review::with('user')->get();
+        $reviews = Review::with('user')
+            ->where('is_rejected', false)
+            ->get();
 
         return view('reviews', compact('reviews'));
     }
