@@ -92,8 +92,8 @@ class Onboarding extends Page implements HasForms, HasTable
                         Forms\Components\Select::make('type')
                             ->label('Тип')
                             ->options([
-                                'Индивидуальный' => 'Индивидуальный',
-                                'Групповой' => 'Групповой',
+                                LessonType::TYPE_INDIVIDUAL => 'Индивидуальный',
+                                LessonType::TYPE_GROUP => 'Групповой',
                             ])
                             ->required(),
                         Forms\Components\TextInput::make('price')->label('Цена')->numeric()->suffix('₽')->required(),
@@ -105,7 +105,13 @@ class Onboarding extends Page implements HasForms, HasTable
                     }),
             ])
             ->columns([
-                Tables\Columns\TextColumn::make('type')->label('Название'),
+                Tables\Columns\TextColumn::make('type')
+                    ->label('Название')
+                    ->formatStateUsing(fn(string $state): string => match ($state) {
+                        LessonType::TYPE_INDIVIDUAL => 'Индивидуальный',
+                        LessonType::TYPE_GROUP => 'Групповой',
+                        default => $state,
+                    }),
                 Tables\Columns\TextColumn::make('price')->label('Цена')->money('RUB'),
                 Tables\Columns\TextColumn::make('duration')->label('Длительность')->suffix(' мин'),
             ])
@@ -114,8 +120,8 @@ class Onboarding extends Page implements HasForms, HasTable
                     Forms\Components\Select::make('type')
                         ->label('Тип')
                         ->options([
-                            'Индивидуальный' => 'Индивидуальный',
-                            'Групповой' => 'Групповой',
+                            LessonType::TYPE_INDIVIDUAL => 'Индивидуальный',
+                            LessonType::TYPE_GROUP => 'Групповой',
                         ])
                         ->required(),
                     Forms\Components\TextInput::make('price')->label('Цена')->numeric()->suffix('₽')->required(),

@@ -23,6 +23,7 @@ class LessonTypesTableWidget extends BaseWidget
     {
         return $table
             ->query(LessonType::query()->where('user_id', auth()->id()))
+            ->description('Создайте хотя бы один тип урока для продолжения.')
             ->modelLabel('Тип урока')
             ->pluralModelLabel('Типы уроков')
             ->emptyStateHeading('Типы уроков не добавлены')
