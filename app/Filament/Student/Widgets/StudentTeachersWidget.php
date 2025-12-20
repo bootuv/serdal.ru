@@ -37,28 +37,31 @@ class StudentTeachersWidget extends BaseWidget
                     ->color('info'),
 
                 Tables\Columns\TextColumn::make('sessions_count')
-                    ->label('Занятий')
+                    ->label('Занятий.')
                     ->badge()
                     ->color('success')
                     ->state(function (\App\Models\User $record) {
-                        return \App\Models\MeetingSession::query()
+                        $sessions = \App\Models\MeetingSession::query()
                             ->whereHas('room', function ($query) use ($record) {
                                 $query->where('user_id', $record->id);
                             })
-                            ->get()
-                            ->filter(function ($session) {
-                                $participants = $session->analytics_data['participants'] ?? [];
-                                if (!is_array($participants))
-                                    return false;
+                            ->get();
 
-                                $myId = auth()->id();
-                                foreach ($participants as $p) {
-                                    if (isset($p['user_id']) && $p['user_id'] == $myId) {
-                                        return true;
-                                    }
-                                }
+                        \Illuminate\Support\Facades\Log::info("Checking sessions for teacher {$record->id}", ['total_sessions' => $sessions->count()]);
+
+                        return $sessions->filter(function ($session) {
+                            $participants = $session->analytics_data['participants'] ?? [];
+                            if (!is_array($participants))
                                 return false;
-                            })
+
+                            $myId = auth()->id();
+                            foreach ($participants as $p) {
+                                if (isset($p['user_id']) && $p['user_id'] == $myId) {
+                                    return true;
+                                }
+                            }
+                            return false;
+                        })
                             ->count();
                     }),
 
