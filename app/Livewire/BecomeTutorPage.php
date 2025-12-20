@@ -129,7 +129,17 @@ class BecomeTutorPage extends Component implements HasForms
         $data = $this->form->getState();
 
         // Создаем заявку
-        TeacherApplication::create($data);
+        $application = TeacherApplication::create($data);
+
+        // Отправка уведомления администратору
+        try {
+            if ($adminEmail = config('mail.from.address')) {
+                \Illuminate\Support\Facades\Mail::to($adminEmail)
+                    ->send(new \App\Mail\NewTeacherApplicationMail($application));
+            }
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Ошибка отправки уведомления администратору: ' . $e->getMessage());
+        }
 
         // Устанавливаем флаг успешной отправки
         $this->isSubmitted = true;
