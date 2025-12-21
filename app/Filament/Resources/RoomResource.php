@@ -253,7 +253,30 @@ class RoomResource extends Resource
                             ->addActionLabel('Добавить время занятия')
                             ->reorderableWithButtons()
                             ->cloneable()
-                            ->collapsed(),
+                            ->collapsed()
+                            ->deleteAction(
+                                fn(Forms\Components\Actions\Action $action) => $action
+                                    ->requiresConfirmation()
+                                    ->action(function (array $arguments, Forms\Components\Repeater $component): void {
+                                        $items = $component->getState();
+                                        $itemKey = $arguments['item'];
+
+                                        // Get the record ID from the item
+                                        $itemData = $items[$itemKey] ?? null;
+
+                                        if ($itemData && isset($itemData['id'])) {
+                                            // Find and delete the model explicitly to trigger observers
+                                            $schedule = \App\Models\RoomSchedule::find($itemData['id']);
+                                            if ($schedule) {
+                                                $schedule->delete();
+                                            }
+                                        }
+
+                                        // Remove from state
+                                        unset($items[$itemKey]);
+                                        $component->state($items);
+                                    })
+                            ),
                     ]),
             ]);
     }
