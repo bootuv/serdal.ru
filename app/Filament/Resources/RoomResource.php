@@ -239,13 +239,6 @@ class RoomResource extends Resource
                                                     ->minValue(1)
                                                     ->maxValue(1440)
                                                     ->step(5),
-
-                                                Forms\Components\Toggle::make('is_active')
-                                                    ->label('Расписание активно')
-                                                    ->default(true)
-                                                    ->inline(false)
-                                                    ->onColor('success')
-                                                    ->offColor('danger'),
                                             ])
                                             ->columns(1), // Fieldset content in 1 column
                                     ]),

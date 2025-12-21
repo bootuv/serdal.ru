@@ -253,13 +253,6 @@ class RoomResource extends Resource
                                             ->minValue(1)
                                             ->maxValue(1440)
                                             ->step(5),
-
-                                        Forms\Components\Toggle::make('is_active')
-                                            ->label('Расписание активно')
-                                            ->default(true)
-                                            ->inline(false)
-                                            ->onColor('success')
-                                            ->offColor('danger'),
                                     ]),
                             ])
                             ->columns(1) // Repeater items are full width (although inside Grid(1) effectively does the same, this ensures the container is 1 col)
