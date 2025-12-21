@@ -270,18 +270,38 @@ class RoomResource extends Resource
                                 fn(Forms\Components\Actions\Action $action) => $action
                                     ->requiresConfirmation()
                                     ->action(function (array $arguments, Forms\Components\Repeater $component): void {
+                                        \Illuminate\Support\Facades\Log::info('DeleteAction triggered in Repeater', [
+                                            'arguments' => $arguments,
+                                        ]);
+
                                         $items = $component->getState();
                                         $itemKey = $arguments['item'];
+
+                                        \Illuminate\Support\Facades\Log::info('DeleteAction state', [
+                                            'itemKey' => $itemKey,
+                                            'itemData' => $items[$itemKey] ?? 'not found',
+                                        ]);
 
                                         // Get the record ID from the item
                                         $itemData = $items[$itemKey] ?? null;
 
                                         if ($itemData && isset($itemData['id'])) {
+                                            \Illuminate\Support\Facades\Log::info('Deleting schedule from Repeater', [
+                                                'schedule_id' => $itemData['id'],
+                                            ]);
+
                                             // Find and delete the model explicitly to trigger observers
                                             $schedule = \App\Models\RoomSchedule::find($itemData['id']);
                                             if ($schedule) {
                                                 $schedule->delete();
+                                                \Illuminate\Support\Facades\Log::info('Schedule deleted successfully', [
+                                                    'schedule_id' => $itemData['id'],
+                                                ]);
                                             }
+                                        } else {
+                                            \Illuminate\Support\Facades\Log::warning('No ID found in item data', [
+                                                'itemData' => $itemData,
+                                            ]);
                                         }
 
                                         // Remove from state
