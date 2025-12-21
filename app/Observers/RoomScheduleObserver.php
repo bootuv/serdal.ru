@@ -2,6 +2,7 @@
 
 namespace App\Observers;
 
+use App\Jobs\DeleteScheduleFromGoogleCalendar;
 use App\Jobs\SyncScheduleToGoogleCalendar;
 use App\Models\RoomSchedule;
 use Illuminate\Support\Facades\Log;
@@ -37,11 +38,76 @@ class RoomScheduleObserver
      */
     public function deleted(RoomSchedule $roomSchedule): void
     {
-        // TODO: Delete event from Google Calendar
-        Log::info('Schedule deleted, should remove from Google Calendar', [
+        // Only proceed if there's a Google event to delete
+        if (!$roomSchedule->google_event_id) {
+            Log::info('Schedule deleted, no Google event to remove', [
+                'schedule_id' => $roomSchedule->id,
+            ]);
+            return;
+        }
+
+        Log::info('Schedule deleted, removing from Google Calendar', [
             'schedule_id' => $roomSchedule->id,
             'google_event_id' => $roomSchedule->google_event_id,
         ]);
+
+        $this->deleteFromGoogleCalendar($roomSchedule);
+    }
+
+    /**
+     * Delete schedule from Google Calendar for all connected users
+     */
+    private function deleteFromGoogleCalendar(RoomSchedule $roomSchedule): void
+    {
+        $room = $roomSchedule->room;
+
+        if (!$room) {
+            Log::warning('Room not found for schedule', ['schedule_id' => $roomSchedule->id]);
+            return;
+        }
+
+        // Delete for room owner (teacher)
+        $teacher = $room->user;
+        if ($teacher && $teacher->google_access_token) {
+            Log::info('Dispatching delete job for teacher', [
+                'schedule_id' => $roomSchedule->id,
+                'user_id' => $teacher->id,
+            ]);
+
+            DeleteScheduleFromGoogleCalendar::dispatch(
+                $roomSchedule->google_event_id,
+                $teacher->id,
+                $roomSchedule->id
+            );
+        }
+
+        // Delete for all students assigned to this room
+        $participants = $room->participants;
+
+        if ($participants && (is_array($participants) || $participants instanceof \Illuminate\Support\Collection)) {
+            foreach ($participants as $participant) {
+                if ($participant instanceof \App\Models\User) {
+                    $student = $participant;
+                    $studentId = $student->id;
+                } else {
+                    $studentId = $participant;
+                    $student = \App\Models\User::find($studentId);
+                }
+
+                if ($student && $student->google_access_token) {
+                    Log::info('Dispatching delete job for student', [
+                        'schedule_id' => $roomSchedule->id,
+                        'user_id' => $student->id,
+                    ]);
+
+                    DeleteScheduleFromGoogleCalendar::dispatch(
+                        $roomSchedule->google_event_id,
+                        $student->id,
+                        $roomSchedule->id
+                    );
+                }
+            }
+        }
     }
 
     /**
