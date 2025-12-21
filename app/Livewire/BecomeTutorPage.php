@@ -135,6 +135,18 @@ class BecomeTutorPage extends Component implements HasForms
         $admins = \App\Models\User::where('role', \App\Models\User::ROLE_ADMIN)->get();
 
         foreach ($admins as $admin) {
+            // Database notification
+            $name = trim("{$application->last_name} {$application->first_name}");
+
+            \Filament\Notifications\Notification::make()
+                ->title('Новая заявка учителя')
+                ->body("Получена заявка на регистрацию от {$name}")
+                ->icon('heroicon-o-document-text')
+                ->iconColor('info')
+                ->sendToDatabase($admin)
+                ->broadcast($admin);
+
+            // Email notification
             try {
                 \Illuminate\Support\Facades\Mail::to($admin->email)
                     ->send(new \App\Mail\NewTeacherApplicationMail($application));

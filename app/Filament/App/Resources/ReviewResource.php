@@ -107,6 +107,22 @@ class ReviewResource extends Resource
                             ->visible(fn(Review $record) => !$record->is_reported)
                             ->action(function (Review $record) {
                                 $record->update(['is_reported' => true]);
+
+                                // Notify all admins
+                                $teacher = auth()->user();
+                                $admins = \App\Models\User::where('role', \App\Models\User::ROLE_ADMIN)->get();
+                                $studentName = $record->user?->name ?? 'Ученик';
+
+                                foreach ($admins as $admin) {
+                                    \Filament\Notifications\Notification::make()
+                                        ->title('Жалоба на отзыв')
+                                        ->body("Учитель {$teacher->name} пожаловался на отзыв ученика {$studentName}")
+                                        ->icon('heroicon-o-flag')
+                                        ->iconColor('danger')
+                                        ->sendToDatabase($admin)
+                                        ->broadcast($admin);
+                                }
+
                                 \Filament\Notifications\Notification::make()
                                     ->title('Жалоба отправлена')
                                     ->success()

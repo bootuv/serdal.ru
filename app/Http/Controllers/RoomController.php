@@ -157,6 +157,23 @@ class RoomController extends Controller
                 $room->update(['is_running' => true]);
                 \App\Events\RoomStatusUpdated::dispatch();
 
+                // Notify assigned students about lesson start
+                foreach ($room->participants as $student) {
+                    \Filament\Notifications\Notification::make()
+                        ->title('Занятие началось')
+                        ->body("Занятие \"{$room->name}\" началось")
+                        ->icon('heroicon-o-play-circle')
+                        ->iconColor('success')
+                        ->actions([
+                            \Filament\Notifications\Actions\Action::make('join')
+                                ->label('Присоединиться')
+                                ->button()
+                                ->url(route('rooms.join', $room))
+                        ])
+                        ->sendToDatabase($student)
+                        ->broadcast($student);
+                }
+
                 // Register Webhook for Analytics
                 try {
                     $webhookUrl = route('api.bbb.webhook');

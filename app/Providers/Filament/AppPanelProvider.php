@@ -33,9 +33,11 @@ class AppPanelProvider extends PanelProvider
                 fn() => \Illuminate\Support\Facades\Blade::render("@vite(['resources/css/app.css', 'resources/js/app.js'])")
             )
             ->renderHook(
-                'panels::user-menu.before',
+                'panels::global-search.after',
                 fn() => view('filament.app.components.profile-link')
             )
+            ->databaseNotifications()
+            ->databaseNotificationsPolling('30s')
             ->colors([
                 'primary' => Color::Amber,
             ])

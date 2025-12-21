@@ -39,6 +39,24 @@ class RegisterInvitedStudent extends Component
                     $changes = $teacher->students()->syncWithoutDetaching([$user->id]);
 
                     if (count($changes['attached']) > 0) {
+                        // Notify teacher about accepted invite
+                        \Filament\Notifications\Notification::make()
+                            ->title('Приглашение принято')
+                            ->body("Ученик {$user->name} принял ваше приглашение")
+                            ->icon('heroicon-o-check-circle')
+                            ->iconColor('success')
+                            ->sendToDatabase($teacher)
+                            ->broadcast($teacher);
+
+                        // Notify student about new teacher
+                        \Filament\Notifications\Notification::make()
+                            ->title('Новый учитель')
+                            ->body("У вас новый учитель: {$teacher->name}")
+                            ->icon('heroicon-o-user-plus')
+                            ->iconColor('success')
+                            ->sendToDatabase($user)
+                            ->broadcast($user);
+
                         Notification::make()
                             ->title('Вы добавлены в список учеников')
                             ->success()
@@ -89,8 +107,25 @@ class RegisterInvitedStudent extends Component
             $teacher = User::find($this->teacher_id);
             if ($teacher) {
                 // Используем syncWithoutDetaching чтобы случайно не удалить другие связи, если они есть
-                // Предполагаем, что есть отношение students() у учителя (belongsToMany)
                 $teacher->students()->syncWithoutDetaching([$user->id]);
+
+                // Notify teacher about new student
+                \Filament\Notifications\Notification::make()
+                    ->title('Приглашение принято')
+                    ->body("Ученик {$user->name} принял ваше приглашение")
+                    ->icon('heroicon-o-check-circle')
+                    ->iconColor('success')
+                    ->sendToDatabase($teacher)
+                    ->broadcast($teacher);
+
+                // Notify student about new teacher
+                \Filament\Notifications\Notification::make()
+                    ->title('Новый учитель')
+                    ->body("У вас новый учитель: {$teacher->name}")
+                    ->icon('heroicon-o-user-plus')
+                    ->iconColor('success')
+                    ->sendToDatabase($user)
+                    ->broadcast($user);
             }
         }
 

@@ -29,6 +29,27 @@ class CreateRoom extends CreateRecord
         return $data;
     }
 
+    protected function afterCreate(): void
+    {
+        $teacher = auth()->user();
+
+        // Notify all assigned participants about the new lesson
+        foreach ($this->record->participants as $student) {
+            \Filament\Notifications\Notification::make()
+                ->title('Новое занятие')
+                ->body("Учитель {$teacher->name} назначил вам занятие \"{$this->record->name}\"")
+                ->icon('heroicon-o-calendar')
+                ->iconColor('info')
+                ->actions([
+                    \Filament\Notifications\Actions\Action::make('view')
+                        ->label('Открыть')
+                        ->button()
+                ])
+                ->sendToDatabase($student)
+                ->broadcast($student);
+        }
+    }
+
     protected function getRedirectUrl(): string
     {
         return $this->getResource()::getUrl('index');

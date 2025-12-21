@@ -219,6 +219,15 @@ class StudentResource extends Resource
                             $changes = auth()->user()->students()->syncWithoutDetaching([$student->id]);
 
                             if (count($changes['attached']) > 0) {
+                                // Notify the student
+                                \Filament\Notifications\Notification::make()
+                                    ->title('Новый учитель')
+                                    ->body("У вас новый учитель: " . auth()->user()->name)
+                                    ->icon('heroicon-o-user-plus')
+                                    ->iconColor('success')
+                                    ->sendToDatabase($student)
+                                    ->broadcast($student);
+
                                 Notification::make()
                                     ->title('Ученик добавлен')
                                     ->success()
@@ -295,7 +304,18 @@ class StudentResource extends Resource
                             ->link()
                             ->requiresConfirmation()
                             ->action(function (User $record) {
+                                $teacher = auth()->user();
                                 auth()->user()->students()->detach($record);
+
+                                // Notify the student about being removed
+                                \Filament\Notifications\Notification::make()
+                                    ->title('Прощание с учителем')
+                                    ->body("Учитель {$teacher->name} убрал вас из своего списка учеников. Пожалуйста, оставьте отзыв.")
+                                    ->icon('heroicon-o-user-minus')
+                                    ->iconColor('warning')
+                                    ->sendToDatabase($record)
+                                    ->broadcast($record);
+
                                 Notification::make()
                                     ->title('Ученик удален из списка')
                                     ->success()

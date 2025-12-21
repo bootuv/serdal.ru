@@ -162,10 +162,42 @@ class StudentFormerTeachersWidget extends BaseWidget
                         $form->fill($data);
                     })
                     ->action(function (array $data, \App\Models\User $record) {
-                        \App\Models\Review::updateOrCreate(
+                        $existingReview = \App\Models\Review::where('user_id', auth()->id())
+                            ->where('teacher_id', $record->id)
+                            ->first();
+
+                        $isNew = !$existingReview;
+
+                        $review = \App\Models\Review::updateOrCreate(
                             ['user_id' => auth()->id(), 'teacher_id' => $record->id],
                             ['rating' => $data['rating'], 'text' => $data['text']]
                         );
+
+                        // Send notifications only for new reviews
+                        if ($isNew) {
+                            $student = auth()->user();
+
+                            // Notify teacher
+                            \Filament\Notifications\Notification::make()
+                                ->title('Новый отзыв')
+                                ->body("Ученик {$student->name} оставил вам отзыв")
+                                ->icon('heroicon-o-star')
+                                ->iconColor('warning')
+                                ->sendToDatabase($record)
+                                ->broadcast($record);
+
+                            // Notify all admins
+                            $admins = \App\Models\User::where('role', \App\Models\User::ROLE_ADMIN)->get();
+                            foreach ($admins as $admin) {
+                                \Filament\Notifications\Notification::make()
+                                    ->title('Новый отзыв')
+                                    ->body("Ученик {$student->name} оставил отзыв учителю {$record->name}")
+                                    ->icon('heroicon-o-star')
+                                    ->iconColor('warning')
+                                    ->sendToDatabase($admin)
+                                    ->broadcast($admin);
+                            }
+                        }
                     })
                     ->successNotificationTitle('Отзыв сохранен'),
             ]);

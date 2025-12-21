@@ -32,6 +32,8 @@ class StudentPanelProvider extends PanelProvider
                 'panels::body.end',
                 fn() => \Illuminate\Support\Facades\Blade::render("@vite(['resources/css/app.css', 'resources/js/app.js'])")
             )
+            ->databaseNotifications()
+            ->databaseNotificationsPolling('30s')
             ->colors([
                 'primary' => Color::Amber,
             ])

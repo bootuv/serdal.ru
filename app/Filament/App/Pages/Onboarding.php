@@ -154,6 +154,18 @@ class Onboarding extends Page implements HasForms, HasTable
             'is_profile_completed' => true,
         ]);
 
+        // Notify all admins about teacher completing onboarding
+        $admins = User::where('role', User::ROLE_ADMIN)->get();
+        foreach ($admins as $admin) {
+            \Filament\Notifications\Notification::make()
+                ->title('Онбординг пройден')
+                ->body("Учитель {$user->name} прошёл онбординг")
+                ->icon('heroicon-o-check-badge')
+                ->iconColor('success')
+                ->sendToDatabase($admin)
+                ->broadcast($admin);
+        }
+
         Notification::make()
             ->title('Профиль успешно настроен!')
             ->success()

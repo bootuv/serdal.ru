@@ -4,6 +4,7 @@ namespace App\Filament\App\Resources\RoomResource\Pages;
 
 use App\Filament\App\Resources\RoomResource;
 use App\Models\RoomSchedule;
+use App\Models\User;
 use Filament\Actions;
 use Filament\Resources\Pages\EditRecord;
 
@@ -11,12 +12,16 @@ class EditRoom extends EditRecord
 {
     protected static string $resource = RoomResource::class;
 
+    protected array $previousParticipantIds = [];
+
     protected function getHeaderActions(): array
     {
         return [
             Actions\DeleteAction::make(),
         ];
     }
+
+    protected string $originalSchedulesHash = '';
 
     protected function mutateFormDataBeforeFill(array $data): array
     {
@@ -34,8 +39,78 @@ class EditRoom extends EditRecord
         return $data;
     }
 
+    protected function getSchedulesHash(array $schedules): string
+    {
+        $simplified = array_map(function ($s) {
+            // Determine type
+            $type = $s['type'] ?? 'recurring'; // Default in DB usually
+
+            // --- One-time logic ---
+            // Form keys: scheduled_at, scheduled_date, scheduled_time
+            // DB keys: scheduled_at (or start_date + start_time if mapped)
+
+            $scheduledAt = $s['scheduled_at'] ?? null;
+            if (!$scheduledAt && isset($s['scheduled_date'], $s['scheduled_time'])) {
+                $scheduledAt = $s['scheduled_date'] . ' ' . $s['scheduled_time'];
+            }
+            if ($scheduledAt) {
+                try {
+                    $scheduledAt = \Carbon\Carbon::parse($scheduledAt)->format('Y-m-d H:i');
+                } catch (\Exception $e) {
+                }
+            }
+
+            // --- Recurring logic ---
+            // Form keys: recurrence_time, recurrence_days, start_date, end_date
+            // DB keys: start_time, day_of_week
+
+            // Time
+            $time = $s['start_time'] ?? $s['recurrence_time'] ?? null;
+            if ($time) {
+                // Formatting to HH:MM
+                $time = substr($time, 0, 5);
+            }
+
+            // Days check
+            $days = $s['day_of_week'] ?? $s['recurrence_days'] ?? [];
+            if (is_string($days))
+                $days = json_decode($days, true) ?? []; // DB stores as JSON sometimes or casted
+            if (is_array($days)) {
+                sort($days);
+                $days = json_encode($days);
+            }
+
+            // Start/End Dates for recurring
+            $startDate = $s['start_date'] ?? null;
+            $endDate = $s['end_date'] ?? null;
+
+            return [
+                'type' => $type,
+                'days' => $days,
+                'time' => $time,
+                'scheduled_at' => $scheduledAt,
+                'duration' => $s['duration'] ?? $s['duration_minutes'] ?? null,
+                'start_date' => $startDate,
+                'end_date' => $endDate,
+            ];
+        }, $schedules);
+
+        // Sort to ensure order doesn't affect hash
+        usort($simplified, fn($a, $b) => strcmp(json_encode($a), json_encode($b)));
+
+        return md5(json_encode($simplified));
+    }
+
     protected function beforeSave(): void
     {
+        // 1. Capture INITIAL state from the DB before any changes are applied
+        $this->previousParticipantIds = array_unique($this->record->participants()->pluck('users.id')->toArray());
+
+        // Load fresh schedules from DB for initial hash
+        $this->record->load('schedules');
+        $this->originalSchedulesHash = $this->getSchedulesHash($this->record->schedules->toArray());
+
+        // 2. Existing logic for cleaning up removed schedules
         // Get current schedule IDs from the form
         $formScheduleIds = collect($this->data['schedules'] ?? [])
             ->pluck('id')
@@ -53,6 +128,61 @@ class EditRoom extends EditRecord
             $schedule = RoomSchedule::find($scheduleId);
             if ($schedule) {
                 $schedule->delete();
+            }
+        }
+    }
+
+    protected function afterSave(): void
+    {
+        // Get the new participant IDs from form data
+        $newParticipantIds = array_unique($this->data['participants'] ?? []);
+
+        // Find newly added participants
+        $addedParticipantIds = array_diff($newParticipantIds, $this->previousParticipantIds);
+
+        $teacher = auth()->user();
+
+        // Notify new participants about lesson assignment
+        foreach ($addedParticipantIds as $participantId) {
+            $student = User::find($participantId);
+            if ($student) {
+
+                \Filament\Notifications\Notification::make()
+                    ->title('Новое занятие')
+                    ->body("Учитель {$teacher->name} назначил вам занятие \"{$this->record->name}\"")
+                    ->icon('heroicon-o-calendar')
+                    ->iconColor('info')
+                    ->actions([
+                        \Filament\Notifications\Actions\Action::make('view')
+                            ->label('Открыть')
+                            ->button()
+                        // ->url(route('filament.student.resources.rooms.index')) // Optional link
+                    ])
+                    ->sendToDatabase($student)
+                    ->broadcast($student);
+            }
+        }
+
+        // Check for schedule changes using FORM DATA (most current)
+        // We use $this->data['schedules'] because DB might not be updated yet or refresh() might return stale relations
+        $currentSchedulesHash = $this->getSchedulesHash($this->data['schedules'] ?? []);
+
+        if ($this->originalSchedulesHash !== $currentSchedulesHash) {
+            // Notify exisiting participants (exclude newly added ones to avoid double notification)
+            $existingParticipants = array_diff($newParticipantIds, $addedParticipantIds);
+            $existingParticipants = array_unique($existingParticipants); // Ensure uniqueness
+
+            foreach ($existingParticipants as $participantId) {
+                $student = User::find($participantId);
+                if ($student) {
+                    \Filament\Notifications\Notification::make()
+                        ->title('Расписание обновлено')
+                        ->body("Учитель {$teacher->name} обновил расписание занятия \"{$this->record->name}\"")
+                        ->icon('heroicon-o-clock')
+                        ->iconColor('primary')
+                        ->sendToDatabase($student)
+                        ->broadcast($student);
+                }
             }
         }
     }
