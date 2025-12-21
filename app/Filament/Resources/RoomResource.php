@@ -240,11 +240,13 @@ class RoomResource extends Resource
                                                     ->maxValue(1440)
                                                     ->step(5),
                                             ])
-                                            ->columns(1), // Fieldset content in 1 column
+                                            ->columns(1),
                                     ]),
                             ])
-                            ->columns(1) // Repeater items are full width (although inside Grid(1) effectively does the same, this ensures the container is 1 col)
+                            ->columns(1)
                             ->collapsible()
+                            ->collapseAllAction(fn(Forms\Components\Actions\Action $action) => $action->hidden())
+                            ->expandAllAction(fn(Forms\Components\Actions\Action $action) => $action->hidden())
                             ->itemLabel(
                                 fn(array $state): ?string =>
                                 $state['type'] === 'once'
