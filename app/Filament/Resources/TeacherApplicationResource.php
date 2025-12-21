@@ -110,10 +110,19 @@ class TeacherApplicationResource extends Resource
                                 Forms\Components\Section::make('Профессиональные данные')
                                     ->schema([
                                         Forms\Components\Textarea::make('about')->label('О себе')->columnSpanFull(),
-                                        // Можно добавить отображение предметов и направлений текстом через formatStateUsing с запросом к БД
                                     ]),
                             ])
-                    ),
+                    )
+                    ->modalFooterActions(fn(Tables\Actions\ViewAction $action, TeacherApplication $record) => [
+                        Tables\Actions\DeleteAction::make()
+                            ->record($record)
+                            ->label('Удалить заявку')
+                            ->icon('heroicon-o-trash')
+                            ->link()
+                            ->color('danger')
+                            ->modalHeading('Удалить заявку')
+                            ->successRedirectUrl(static::getUrl('index')),
+                    ]),
 
                 Tables\Actions\Action::make('approve')
                     ->label('Принять')
@@ -180,8 +189,6 @@ class TeacherApplicationResource extends Resource
                             ->success()
                             ->send();
                     }),
-
-                Tables\Actions\DeleteAction::make(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([

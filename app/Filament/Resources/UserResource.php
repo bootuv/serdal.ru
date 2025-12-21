@@ -155,7 +155,6 @@ class UserResource extends Resource
             ->columns([
                 TextColumn::make('name')->label('Имя'),
                 TextColumn::make('email')->label('Email'),
-                TextColumn::make('username')->label('Имя пользователя'),
                 TextColumn::make('role')->label('Роль'),
                 Tables\Columns\IconColumn::make('is_active')
                     ->label('Публичность')
@@ -171,8 +170,16 @@ class UserResource extends Resource
                     ->falseIcon('heroicon-o-lock-open')
                     ->trueColor('danger')
                     ->falseColor('success'),
-                TextColumn::make('created_at')->label('Создан'),
-                TextColumn::make('updated_at')->label('Обновлен'),
+                Tables\Columns\IconColumn::make('is_profile_completed')
+                    ->label('Онбординг')
+                    ->getStateUsing(fn($record) => in_array($record->role, [User::ROLE_TUTOR, User::ROLE_MENTOR]) ? $record->is_profile_completed : null)
+                    ->boolean()
+                    ->trueIcon('heroicon-o-check-circle')
+                    ->falseIcon('heroicon-o-x-circle')
+                    ->trueColor('success')
+                    ->falseColor('warning')
+                    ->placeholder('—'),
+                TextColumn::make('created_at')->label('Создан')->date('d.m.Y'),
             ])
             ->filters([
                 SelectFilter::make('role')
@@ -213,7 +220,7 @@ class UserResource extends Resource
             ])
             ->defaultSort('created_at', 'desc')
             ->actions([
-                Tables\Actions\EditAction::make(),
+                //
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
