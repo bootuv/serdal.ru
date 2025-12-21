@@ -134,6 +134,13 @@ class RoomResource extends Resource
                                                     ->label('Дата занятия')
                                                     ->required(fn(Forms\Get $get) => $get('type') === 'once')
                                                     ->native(false)
+                                                    ->afterStateHydrated(function ($state, callable $set, callable $get) {
+                                                        // Populate from scheduled_at when loading
+                                                        if (!$state && $get('scheduled_at')) {
+                                                            $datetime = \Carbon\Carbon::parse($get('scheduled_at'));
+                                                            $set('scheduled_date', $datetime->format('Y-m-d'));
+                                                        }
+                                                    })
                                                     ->afterStateUpdated(function ($state, callable $set, callable $get) {
                                                         // Combine date and time into scheduled_at
                                                         if ($state && $get('scheduled_time')) {
@@ -151,6 +158,13 @@ class RoomResource extends Resource
                                                     ->required(fn(Forms\Get $get) => $get('type') === 'once')
                                                     ->native(true)
                                                     ->seconds(false)
+                                                    ->afterStateHydrated(function ($state, callable $set, callable $get) {
+                                                        // Populate from scheduled_at when loading
+                                                        if (!$state && $get('scheduled_at')) {
+                                                            $datetime = \Carbon\Carbon::parse($get('scheduled_at'));
+                                                            $set('scheduled_time', $datetime->format('H:i'));
+                                                        }
+                                                    })
                                                     ->afterStateUpdated(function ($state, callable $set, callable $get) {
                                                         // Combine date and time into scheduled_at
                                                         if ($state && $get('scheduled_date')) {
