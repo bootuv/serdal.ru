@@ -5,10 +5,32 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Log;
 
 class Room extends Model
 {
     use HasFactory;
+
+    protected static function boot()
+    {
+        parent::boot();
+
+        // When room is deleted, delete schedules one by one to trigger observers
+        static::deleting(function (Room $room) {
+            Log::info('Room deleting - removing schedules from Google Calendar', [
+                'room_id' => $room->id,
+                'schedule_count' => $room->schedules()->count(),
+            ]);
+
+            foreach ($room->schedules as $schedule) {
+                Log::info('Deleting schedule as part of room deletion', [
+                    'schedule_id' => $schedule->id,
+                    'google_event_id' => $schedule->google_event_id,
+                ]);
+                $schedule->delete();
+            }
+        });
+    }
 
     protected $fillable = [
         'user_id',
