@@ -34,21 +34,26 @@ class RoomScheduleObserver
     }
 
     /**
-     * Handle the RoomSchedule "deleted" event.
+     * Handle the RoomSchedule "deleting" event (before delete).
+     * Must use deleting instead of deleted to access relationships.
      */
-    public function deleted(RoomSchedule $roomSchedule): void
+    public function deleting(RoomSchedule $roomSchedule): void
     {
         // Only proceed if there's a Google event to delete
         if (!$roomSchedule->google_event_id) {
-            Log::info('Schedule deleted, no Google event to remove', [
+            Log::info('Schedule deleting, no Google event to remove', [
                 'schedule_id' => $roomSchedule->id,
             ]);
             return;
         }
 
-        Log::info('Schedule deleted, removing from Google Calendar', [
+        // Load room with user and participants before deletion
+        $roomSchedule->load(['room.user', 'room.participants']);
+
+        Log::info('Schedule deleting, removing from Google Calendar', [
             'schedule_id' => $roomSchedule->id,
             'google_event_id' => $roomSchedule->google_event_id,
+            'room_loaded' => $roomSchedule->room ? 'yes' : 'no',
         ]);
 
         $this->deleteFromGoogleCalendar($roomSchedule);
