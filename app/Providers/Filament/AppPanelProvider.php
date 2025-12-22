@@ -36,6 +36,10 @@ class AppPanelProvider extends PanelProvider
                 'panels::global-search.after',
                 fn() => view('filament.app.components.profile-link')
             )
+            ->renderHook(
+                'panels::body.end',
+                fn() => view('filament.notifications.sound')
+            )
             ->databaseNotifications()
             ->databaseNotificationsPolling('30s')
             ->colors([
