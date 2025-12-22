@@ -337,7 +337,26 @@ class StudentResource extends Resource
                             ->searchable()
                             ->noSearchResultsMessage('Занятия не найдены')
                             ->bulkToggleable()
-                    ]),
+                    ])
+                    ->after(function (User $record, array $data) {
+                        $teacher = auth()->user();
+
+                        // Get assigned rooms from database after save
+                        $assignedRooms = $record->assignedRooms()
+                            ->where('rooms.user_id', auth()->id())
+                            ->get();
+
+                        // Send notification for each assigned lesson
+                        foreach ($assignedRooms as $room) {
+                            \Filament\Notifications\Notification::make()
+                                ->title('Новое занятие')
+                                ->body("Учитель {$teacher->name} назначил вам занятие \"{$room->name}\"")
+                                ->icon('heroicon-o-calendar')
+                                ->iconColor('info')
+                                ->sendToDatabase($record)
+                                ->broadcast($record);
+                        }
+                    }),
             ])
             ->bulkActions([
                 // Tables\Actions\BulkActionGroup::make([
