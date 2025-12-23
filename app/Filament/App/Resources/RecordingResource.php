@@ -53,14 +53,17 @@ class RecordingResource extends Resource
                     ->label('Начало')
                     ->dateTime()
                     ->timezone('Europe/Moscow')
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('participants')
                     ->label('Участники')
                     ->numeric()
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(),
                 Tables\Columns\IconColumn::make('published')
                     ->label('Опубликовано')
-                    ->boolean(),
+                    ->boolean()
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('download')
                     ->label('Скачать')
                     ->getStateUsing(function (Recording $record) {
@@ -91,11 +94,16 @@ class RecordingResource extends Resource
                             return '<span class="text-gray-500">Обработка...</span>';
                         }
                     })
-                    ->html(),
+                    ->html()
+                    ->toggleable(),
             ])
             ->filters([
-                //
+                Tables\Filters\TernaryFilter::make('published')
+                    ->label('Опубликовано'),
             ])
+            ->filtersLayout(Tables\Enums\FiltersLayout::Dropdown)
+            ->persistFiltersInSession()
+            ->searchable()
             ->headerActions([
                 // Sync happens in ListPages mount
             ])

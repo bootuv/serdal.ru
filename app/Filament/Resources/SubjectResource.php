@@ -41,13 +41,22 @@ class SubjectResource extends Resource
     {
         return $table
             ->columns([
-                'name' => TextColumn::make('name')->label('Название'),
-                'created_at' => TextColumn::make('created_at')->label('Создан'),
-                'updated_at' => TextColumn::make('updated_at')->label('Обновлен'),
+                TextColumn::make('name')
+                    ->label('Название')
+                    ->searchable(),
+                TextColumn::make('created_at')
+                    ->label('Создан')
+                    ->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('updated_at')
+                    ->label('Обновлен')
+                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
                 //
             ])
+            ->filtersLayout(Tables\Enums\FiltersLayout::Dropdown)
+            ->persistFiltersInSession()
+            ->searchable()
             ->actions([
                 Tables\Actions\EditAction::make(),
             ])

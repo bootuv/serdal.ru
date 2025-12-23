@@ -40,11 +40,15 @@ class DirectResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('name')
-                    ->label('Название'),
+                    ->label('Название')
+                    ->searchable(),
             ])
             ->filters([
                 //
             ])
+            ->filtersLayout(Tables\Enums\FiltersLayout::Dropdown)
+            ->persistFiltersInSession()
+            ->searchable()
             ->actions([
                 Tables\Actions\EditAction::make(),
             ])

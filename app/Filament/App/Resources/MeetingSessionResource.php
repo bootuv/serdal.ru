@@ -62,18 +62,21 @@ class MeetingSessionResource extends Resource
                 Tables\Columns\TextColumn::make('participant_count')
                     ->label('Участники')
                     ->numeric()
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('started_at')
                     ->label('Начало')
                     ->dateTime('d.m.Y H:i')
                     ->timezone('Europe/Moscow')
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('ended_at')
                     ->label('Конец')
                     ->dateTime('d.m.Y H:i')
                     ->timezone('Europe/Moscow')
                     ->sortable()
-                    ->placeholder('Запущена...'),
+                    ->placeholder('Запущена...')
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('duration')
                     ->label('Длительность')
                     ->state(function (MeetingSession $record) {
@@ -81,7 +84,8 @@ class MeetingSessionResource extends Resource
                             return $record->started_at->diffForHumans(now(), true) . ' (Активна)';
                         }
                         return $record->started_at->diffForHumans($record->ended_at, true);
-                    }),
+                    })
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('status')
                     ->label('Статус')
                     ->badge()
@@ -89,12 +93,26 @@ class MeetingSessionResource extends Resource
                         'running' => 'success',
                         'completed' => 'gray',
                         default => 'warning',
-                    }),
+                    })
+                    ->toggleable(),
             ])
             ->defaultSort('started_at', 'desc')
             ->filters([
-                //
+                Tables\Filters\SelectFilter::make('room')
+                    ->label('Занятие')
+                    ->relationship('room', 'name', fn(Builder $query) => $query->where('user_id', auth()->id()))
+                    ->searchable()
+                    ->preload(),
+                Tables\Filters\SelectFilter::make('status')
+                    ->label('Статус')
+                    ->options([
+                        'running' => 'Активна',
+                        'completed' => 'Завершена',
+                    ]),
             ])
+            ->filtersLayout(Tables\Enums\FiltersLayout::Dropdown)
+            ->persistFiltersInSession()
+            ->searchable()
             ->actions([
                 Tables\Actions\ViewAction::make()
                     ->label('Отчет')

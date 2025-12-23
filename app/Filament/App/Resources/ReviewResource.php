@@ -57,20 +57,27 @@ class ReviewResource extends Resource
                 Tables\Columns\TextColumn::make('rating')
                     ->label('Оценка')
                     ->formatStateUsing(fn($state) => str_repeat('★', $state) . str_repeat('☆', 5 - $state))
-                    ->color('warning'),
+                    ->color('warning')
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('text')
                     ->label('Текст')
                     ->limit(50)
-                    ->tooltip(fn($state) => $state),
+                    ->tooltip(fn($state) => $state)
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Дата')
-                    ->dateTime('d.m.Y H:i'),
+                    ->dateTime('d.m.Y H:i')
+                    ->toggleable(),
                 Tables\Columns\IconColumn::make('is_reported')
                     ->label('Жалоба отправлена')
                     ->boolean()
                     ->trueColor('warning')
-                    ->falseColor('gray'),
+                    ->falseColor('gray')
+                    ->toggleable(),
             ])
+            ->filtersLayout(Tables\Enums\FiltersLayout::Dropdown)
+            ->persistFiltersInSession()
+            ->searchable()
             ->recordAction('view')
             ->recordUrl(null)
             ->actions([

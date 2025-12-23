@@ -100,6 +100,7 @@ class StudentResource extends Resource
                 Tables\Columns\TextColumn::make('name')
                     ->label('Имя')
                     ->sortable()
+                    ->searchable(['name', 'email', 'phone'])
                     ->formatStateUsing(function (User $record) {
                         $avatarUrl = $record->avatar_url ?? url('/images/default-avatar.png');
                         return new \Illuminate\Support\HtmlString(
@@ -143,56 +144,17 @@ class StudentResource extends Resource
                     }),
             ])
             ->filters([
-                Tables\Filters\Filter::make('name')
-                    ->form([
-                        Forms\Components\TextInput::make('value')
-                            ->hiddenLabel()
-                            ->placeholder('Имя'),
-                    ])
-                    ->query(function (Builder $query, array $data): Builder {
-                        return $query->when(
-                            $data['value'],
-                            fn(Builder $query, $name): Builder => $query->where('name', 'like', "%{$name}%")
-                        );
-                    }),
-
-                Tables\Filters\Filter::make('email')
-                    ->form([
-                        Forms\Components\TextInput::make('value')
-                            ->hiddenLabel()
-                            ->placeholder('Email'),
-                    ])
-                    ->query(function (Builder $query, array $data): Builder {
-                        return $query->when(
-                            $data['value'],
-                            fn(Builder $query, $email): Builder => $query->where('email', 'like', "%{$email}%")
-                        );
-                    }),
-
-                Tables\Filters\Filter::make('phone')
-                    ->form([
-                        Forms\Components\TextInput::make('value')
-                            ->hiddenLabel()
-                            ->placeholder('Телефон'),
-                    ])
-                    ->query(function (Builder $query, array $data): Builder {
-                        return $query->when(
-                            $data['value'],
-                            fn(Builder $query, $phone): Builder => $query->where('phone', 'like', "%{$phone}%")
-                        );
-                    }),
-
                 Tables\Filters\SelectFilter::make('assignedRooms')
-                    ->label('')
-                    ->placeholder('Занятия')
+                    ->label('Занятие')
                     ->relationship('assignedRooms', 'name', modifyQueryUsing: fn(Builder $query) => $query->where('rooms.user_id', auth()->id()))
                     ->multiple()
                     ->searchable()
                     ->preload(),
             ])
-            ->filtersLayout(Tables\Enums\FiltersLayout::AboveContent)
+            ->filtersLayout(Tables\Enums\FiltersLayout::Dropdown)
             ->persistFiltersInSession()
-            ->filtersFormColumns(4)
+            ->searchable()
+            ->defaultSort('name', 'asc')
             ->headerActions([
                 Tables\Actions\Action::make('add_student')
                     ->label('Добавить ученика')

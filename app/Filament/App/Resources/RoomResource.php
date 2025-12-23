@@ -383,15 +383,26 @@ class RoomResource extends Resource
                     }),
                 Tables\Columns\IconColumn::make('is_running')
                     ->label('Запущена')
-                    ->boolean(),
+                    ->boolean()
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
-                //
+                Tables\Filters\SelectFilter::make('type')
+                    ->label('Тип')
+                    ->options([
+                        'individual' => 'Индивидуальное',
+                        'group' => 'Групповое',
+                    ]),
+                Tables\Filters\TernaryFilter::make('is_running')
+                    ->label('Запущено'),
             ])
+            ->filtersLayout(Tables\Enums\FiltersLayout::Dropdown)
+            ->persistFiltersInSession()
+            ->searchable()
             ->defaultSort('created_at', 'desc')
             ->actions([
                 Tables\Actions\Action::make('start')

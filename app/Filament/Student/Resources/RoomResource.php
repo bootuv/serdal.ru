@@ -50,7 +50,8 @@ class RoomResource extends Resource
                     ->sortable(),
                 Tables\Columns\TextColumn::make('user.name')
                     ->label('Преподаватель')
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('status')
                     ->label('Статус')
                     ->badge()
@@ -62,8 +63,10 @@ class RoomResource extends Resource
                     ->icon(fn(string $state) => match ($state) {
                         'Идет урок' => 'heroicon-m-video-camera',
                         'Ожидание' => 'heroicon-m-clock',
-                    }),
+                    })
+                    ->toggleable(),
             ])
+            ->searchable()
             ->actions([
                 Tables\Actions\Action::make('join')
                     ->label('Присоединиться')

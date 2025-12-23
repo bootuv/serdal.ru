@@ -51,18 +51,25 @@ class RecordingResource extends Resource
                 Tables\Columns\TextColumn::make('start_time')
                     ->label('Начало')
                     ->dateTime()
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('participants')
                     ->label('Участники')
                     ->numeric()
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(),
                 Tables\Columns\IconColumn::make('published')
                     ->label('Опубликовано')
-                    ->boolean(),
+                    ->boolean()
+                    ->toggleable(),
             ])
             ->filters([
-                //
+                Tables\Filters\TernaryFilter::make('published')
+                    ->label('Опубликовано'),
             ])
+            ->filtersLayout(Tables\Enums\FiltersLayout::Dropdown)
+            ->persistFiltersInSession()
+            ->searchable()
             ->headerActions([
                 Tables\Actions\Action::make('sync')
                     ->label('Синхронизировать')

@@ -68,7 +68,8 @@ class TeacherApplicationResource extends Resource
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Дата')
                     ->dateTime()
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('full_name') // Accessor from Model
                     ->label('ФИО')
                     ->searchable(['last_name', 'first_name', 'middle_name']),
@@ -89,8 +90,12 @@ class TeacherApplicationResource extends Resource
                         'approved' => 'Одобрено',
                         'rejected' => 'Отклонено',
                         default => $state,
-                    }),
+                    })
+                    ->toggleable(),
             ])
+            ->filtersLayout(Tables\Enums\FiltersLayout::Dropdown)
+            ->persistFiltersInSession()
+            ->searchable()
             ->defaultSort('created_at', 'desc')
             ->actions([
                 Tables\Actions\ViewAction::make()

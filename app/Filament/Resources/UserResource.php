@@ -153,23 +153,31 @@ class UserResource extends Resource
     {
         return $table
             ->columns([
-                TextColumn::make('name')->label('Имя'),
-                TextColumn::make('email')->label('Email'),
-                TextColumn::make('role')->label('Роль'),
+                TextColumn::make('name')
+                    ->label('Имя')
+                    ->searchable(),
+                TextColumn::make('email')
+                    ->label('Email')
+                    ->searchable(),
+                TextColumn::make('role')
+                    ->label('Роль')
+                    ->toggleable(),
                 Tables\Columns\IconColumn::make('is_active')
                     ->label('Публичность')
                     ->boolean()
                     ->trueIcon('heroicon-o-check-circle')
                     ->falseIcon('heroicon-o-x-circle')
                     ->trueColor('success')
-                    ->falseColor('danger'),
+                    ->falseColor('danger')
+                    ->toggleable(),
                 Tables\Columns\IconColumn::make('is_blocked')
                     ->label('Статус')
                     ->boolean()
                     ->trueIcon('heroicon-o-lock-closed')
                     ->falseIcon('heroicon-o-lock-open')
                     ->trueColor('danger')
-                    ->falseColor('success'),
+                    ->falseColor('success')
+                    ->toggleable(),
                 Tables\Columns\IconColumn::make('is_profile_completed')
                     ->label('Онбординг')
                     ->getStateUsing(fn($record) => in_array($record->role, [User::ROLE_TUTOR, User::ROLE_MENTOR]) ? $record->is_profile_completed : null)
@@ -178,8 +186,12 @@ class UserResource extends Resource
                     ->falseIcon('heroicon-o-x-circle')
                     ->trueColor('success')
                     ->falseColor('warning')
-                    ->placeholder('—'),
-                TextColumn::make('created_at')->label('Создан')->date('d.m.Y'),
+                    ->placeholder('—')
+                    ->toggleable(),
+                TextColumn::make('created_at')
+                    ->label('Создан')
+                    ->date('d.m.Y')
+                    ->toggleable(),
             ])
             ->filters([
                 SelectFilter::make('role')
@@ -218,6 +230,9 @@ class UserResource extends Resource
                         'adults' => 'Взрослые',
                     ]),
             ])
+            ->filtersLayout(Tables\Enums\FiltersLayout::Dropdown)
+            ->persistFiltersInSession()
+            ->searchable()
             ->defaultSort('created_at', 'desc')
             ->actions([
                 //
