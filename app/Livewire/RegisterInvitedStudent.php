@@ -45,6 +45,12 @@ class RegisterInvitedStudent extends Component
                             ->body("Ученик {$user->name} принял ваше приглашение")
                             ->icon('heroicon-o-check-circle')
                             ->iconColor('success')
+                            ->actions([
+                                \Filament\Notifications\Actions\Action::make('view')
+                                    ->label('Открыть')
+                                    ->button()
+                                    ->url(route('filament.app.resources.students.index'))
+                            ])
                             ->sendToDatabase($teacher)
                             ->broadcast($teacher);
 
@@ -54,6 +60,12 @@ class RegisterInvitedStudent extends Component
                             ->body("У вас новый учитель: {$teacher->name}")
                             ->icon('heroicon-o-user-plus')
                             ->iconColor('success')
+                            ->actions([
+                                \Filament\Notifications\Actions\Action::make('view')
+                                    ->label('Открыть')
+                                    ->button()
+                                    ->url(route('filament.student.pages.dashboard'))
+                            ])
                             ->sendToDatabase($user)
                             ->broadcast($user);
 
@@ -115,6 +127,12 @@ class RegisterInvitedStudent extends Component
                     ->body("Ученик {$user->name} принял ваше приглашение")
                     ->icon('heroicon-o-check-circle')
                     ->iconColor('success')
+                    ->actions([
+                        \Filament\Notifications\Actions\Action::make('view')
+                            ->label('Открыть')
+                            ->button()
+                            ->url(route('filament.app.resources.students.index'))
+                    ])
                     ->sendToDatabase($teacher)
                     ->broadcast($teacher);
 
@@ -124,6 +142,12 @@ class RegisterInvitedStudent extends Component
                     ->body("У вас новый учитель: {$teacher->name}")
                     ->icon('heroicon-o-user-plus')
                     ->iconColor('success')
+                    ->actions([
+                        \Filament\Notifications\Actions\Action::make('view')
+                            ->label('Открыть')
+                            ->button()
+                            ->url(route('filament.student.pages.dashboard'))
+                    ])
                     ->sendToDatabase($user)
                     ->broadcast($user);
             }

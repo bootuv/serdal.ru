@@ -183,6 +183,12 @@ class StudentFormerTeachersWidget extends BaseWidget
                                 ->body("Ученик {$student->name} оставил вам отзыв")
                                 ->icon('heroicon-o-star')
                                 ->iconColor('warning')
+                                ->actions([
+                                    \Filament\Notifications\Actions\Action::make('view')
+                                        ->label('Открыть')
+                                        ->button()
+                                        ->url(route('filament.app.resources.reviews.index'))
+                                ])
                                 ->sendToDatabase($record)
                                 ->broadcast($record);
 
@@ -194,6 +200,12 @@ class StudentFormerTeachersWidget extends BaseWidget
                                     ->body("Ученик {$student->name} оставил отзыв учителю {$record->name}")
                                     ->icon('heroicon-o-star')
                                     ->iconColor('warning')
+                                    ->actions([
+                                        \Filament\Notifications\Actions\Action::make('view')
+                                            ->label('Открыть')
+                                            ->button()
+                                            ->url(route('filament.admin.resources.reviews.index'))
+                                    ])
                                     ->sendToDatabase($admin)
                                     ->broadcast($admin);
                             }

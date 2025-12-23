@@ -225,6 +225,12 @@ class StudentResource extends Resource
                                     ->body("У вас новый учитель: " . auth()->user()->name)
                                     ->icon('heroicon-o-user-plus')
                                     ->iconColor('success')
+                                    ->actions([
+                                        \Filament\Notifications\Actions\Action::make('view')
+                                            ->label('Открыть')
+                                            ->button()
+                                            ->url(route('filament.student.pages.dashboard'))
+                                    ])
                                     ->sendToDatabase($student)
                                     ->broadcast($student);
 
@@ -307,12 +313,45 @@ class StudentResource extends Resource
                                 $teacher = auth()->user();
                                 auth()->user()->students()->detach($record);
 
+                                // Check if student can leave a review:
+                                // 1. Has at least one completed lesson with this teacher
+                                // 2. Hasn't already left a review for this teacher
+                                $studentId = (string) $record->id;
+                                $hasCompletedLesson = \App\Models\MeetingSession::whereHas('room', function ($q) use ($teacher) {
+                                    $q->where('user_id', $teacher->id);
+                                })
+                                    ->where(function ($q) use ($studentId) {
+                                        $q->whereJsonContains('analytics_data->participants', ['user_id' => $studentId])
+                                            ->orWhereJsonContains('analytics_data->participants', ['user_id' => (int) $studentId]);
+                                    })
+                                    ->exists();
+
+                                $hasExistingReview = \App\Models\Review::where('user_id', $record->id)
+                                    ->where('teacher_id', $teacher->id)
+                                    ->exists();
+
+                                $canLeaveReview = $hasCompletedLesson && !$hasExistingReview;
+
                                 // Notify the student about being removed
-                                \Filament\Notifications\Notification::make()
+                                $notification = \Filament\Notifications\Notification::make()
                                     ->title('Прощание с учителем')
-                                    ->body("Учитель {$teacher->name} убрал вас из своего списка учеников. Пожалуйста, оставьте отзыв.")
                                     ->icon('heroicon-o-user-minus')
-                                    ->iconColor('warning')
+                                    ->iconColor('warning');
+
+                                if ($canLeaveReview) {
+                                    $notification
+                                        ->body("Учитель {$teacher->name} убрал вас из своего списка учеников. Пожалуйста, оставьте отзыв.")
+                                        ->actions([
+                                            \Filament\Notifications\Actions\Action::make('review')
+                                                ->label('Оставить отзыв')
+                                                ->button()
+                                                ->url(route('filament.student.pages.dashboard'))
+                                        ]);
+                                } else {
+                                    $notification->body("Учитель {$teacher->name} убрал вас из своего списка учеников.");
+                                }
+
+                                $notification
                                     ->sendToDatabase($record)
                                     ->broadcast($record);
 
@@ -353,6 +392,12 @@ class StudentResource extends Resource
                                 ->body("Учитель {$teacher->name} назначил вам занятие \"{$room->name}\"")
                                 ->icon('heroicon-o-calendar')
                                 ->iconColor('info')
+                                ->actions([
+                                    \Filament\Notifications\Actions\Action::make('view')
+                                        ->label('Открыть')
+                                        ->button()
+                                        ->url(route('filament.student.resources.rooms.index'))
+                                ])
                                 ->sendToDatabase($record)
                                 ->broadcast($record);
                         }

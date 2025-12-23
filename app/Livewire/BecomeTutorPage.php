@@ -143,6 +143,12 @@ class BecomeTutorPage extends Component implements HasForms
                 ->body("Получена заявка на регистрацию от {$name}")
                 ->icon('heroicon-o-document-text')
                 ->iconColor('info')
+                ->actions([
+                    \Filament\Notifications\Actions\Action::make('view')
+                        ->label('Открыть')
+                        ->button()
+                        ->url(route('filament.admin.resources.teacher-applications.index'))
+                ])
                 ->sendToDatabase($admin)
                 ->broadcast($admin);
 

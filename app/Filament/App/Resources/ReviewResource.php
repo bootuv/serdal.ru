@@ -119,6 +119,12 @@ class ReviewResource extends Resource
                                         ->body("Учитель {$teacher->name} пожаловался на отзыв ученика {$studentName}")
                                         ->icon('heroicon-o-flag')
                                         ->iconColor('danger')
+                                        ->actions([
+                                            \Filament\Notifications\Actions\Action::make('view')
+                                                ->label('Открыть')
+                                                ->button()
+                                                ->url(route('filament.admin.resources.reviews.index'))
+                                        ])
                                         ->sendToDatabase($admin)
                                         ->broadcast($admin);
                                 }

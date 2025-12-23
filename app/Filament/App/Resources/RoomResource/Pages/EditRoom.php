@@ -156,7 +156,7 @@ class EditRoom extends EditRecord
                         \Filament\Notifications\Actions\Action::make('view')
                             ->label('Открыть')
                             ->button()
-                        // ->url(route('filament.student.resources.rooms.index')) // Optional link
+                            ->url(route('filament.student.resources.rooms.index'))
                     ])
                     ->sendToDatabase($student)
                     ->broadcast($student);
@@ -180,6 +180,12 @@ class EditRoom extends EditRecord
                         ->body("Учитель {$teacher->name} обновил расписание занятия \"{$this->record->name}\"")
                         ->icon('heroicon-o-clock')
                         ->iconColor('primary')
+                        ->actions([
+                            \Filament\Notifications\Actions\Action::make('view')
+                                ->label('Календарь')
+                                ->button()
+                                ->url(route('filament.student.pages.schedule-calendar'))
+                        ])
                         ->sendToDatabase($student)
                         ->broadcast($student);
                 }

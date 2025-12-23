@@ -162,6 +162,12 @@ class Onboarding extends Page implements HasForms, HasTable
                 ->body("Учитель {$user->name} прошёл онбординг")
                 ->icon('heroicon-o-check-badge')
                 ->iconColor('success')
+                ->actions([
+                    \Filament\Notifications\Actions\Action::make('view')
+                        ->label('Открыть')
+                        ->button()
+                        ->url(route('filament.admin.resources.users.index', ['tableFilters[role][value]' => 'tutor']))
+                ])
                 ->sendToDatabase($admin)
                 ->broadcast($admin);
         }

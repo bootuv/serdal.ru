@@ -44,6 +44,7 @@ class CreateRoom extends CreateRecord
                     \Filament\Notifications\Actions\Action::make('view')
                         ->label('Открыть')
                         ->button()
+                        ->url(route('filament.student.resources.rooms.index'))
                 ])
                 ->sendToDatabase($student)
                 ->broadcast($student);

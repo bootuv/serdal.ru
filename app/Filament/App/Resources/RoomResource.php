@@ -300,6 +300,12 @@ class RoomResource extends Resource
                                                         ->body("Учитель {$teacher->name} удалил одно из расписаний занятия \"{$room->name}\"")
                                                         ->icon('heroicon-o-clock')
                                                         ->iconColor('primary')
+                                                        ->actions([
+                                                            \Filament\Notifications\Actions\Action::make('view')
+                                                                ->label('Календарь')
+                                                                ->button()
+                                                                ->url(route('filament.student.pages.schedule-calendar'))
+                                                        ])
                                                         ->sendToDatabase($student)
                                                         ->broadcast($student);
                                                 }
