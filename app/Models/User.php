@@ -223,6 +223,34 @@ class User extends Authenticatable implements FilamentUser
         return $this->belongsToMany(User::class, 'teacher_student', 'student_id', 'teacher_id');
     }
 
+    public function messages()
+    {
+        return $this->hasMany(Message::class);
+    }
+
+    public function getAvatarTextColorAttribute(): string
+    {
+        $colors = [
+            '#ef4444', // red-500
+            '#f97316', // orange-500
+            '#f59e0b', // amber-500
+            '#22c55e', // green-500
+            '#10b981', // emerald-500
+            '#14b8a6', // teal-500
+            '#06b6d4', // cyan-500
+            '#0ea5e9', // sky-500
+            '#3b82f6', // blue-500
+            '#6366f1', // indigo-500
+            '#8b5cf6', // violet-500
+            '#a855f7', // purple-500
+            '#d946ef', // fuchsia-500
+            '#ec4899', // pink-500
+            '#f43f5e', // rose-500
+        ];
+
+        return $colors[$this->id % count($colors)];
+    }
+
     protected static function booted()
     {
         static::saving(function ($user) {

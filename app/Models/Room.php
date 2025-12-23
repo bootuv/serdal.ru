@@ -70,4 +70,56 @@ class Room extends Model
     {
         return $this->belongsToMany(User::class);
     }
+
+    public function messages()
+    {
+        return $this->hasMany(Message::class);
+    }
+
+    public function getAvatarBgColorAttribute(): string
+    {
+        $colors = [
+            '239, 68, 68',   // red-500
+            '249, 115, 22',  // orange-500
+            '245, 158, 11',  // amber-500
+            '34, 197, 94',   // green-500
+            '16, 185, 129',  // emerald-500
+            '20, 184, 166',  // teal-500
+            '6, 182, 212',   // cyan-500
+            '14, 165, 233',  // sky-500
+            '59, 130, 246',  // blue-500
+            '99, 102, 241',  // indigo-500
+            '139, 92, 246',  // violet-500
+            '168, 85, 247',  // purple-500
+            '217, 70, 239',  // fuchsia-500
+            '236, 72, 153',  // pink-500
+            '244, 63, 94',   // rose-500
+        ];
+
+        $rgb = $colors[$this->id % count($colors)];
+        return "rgba({$rgb}, 0.16)";
+    }
+
+    public function getAvatarTextColorAttribute(): string
+    {
+        $colors = [
+            '#ef4444', // red-500
+            '#f97316', // orange-500
+            '#f59e0b', // amber-500
+            '#22c55e', // green-500
+            '#10b981', // emerald-500
+            '#14b8a6', // teal-500
+            '#06b6d4', // cyan-500
+            '#0ea5e9', // sky-500
+            '#3b82f6', // blue-500
+            '#6366f1', // indigo-500
+            '#8b5cf6', // violet-500
+            '#a855f7', // purple-500
+            '#d946ef', // fuchsia-500
+            '#ec4899', // pink-500
+            '#f43f5e', // rose-500
+        ];
+
+        return $colors[$this->id % count($colors)];
+    }
 }
