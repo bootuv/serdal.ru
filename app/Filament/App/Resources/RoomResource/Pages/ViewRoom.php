@@ -30,6 +30,9 @@ class ViewRoom extends ViewRecord
 
     protected function getHeaderActions(): array
     {
+        // Refresh the record to get latest is_running state
+        $this->record->refresh();
+
         return [
             Actions\Action::make('chat')
                 ->label('')
@@ -63,25 +66,24 @@ class ViewRoom extends ViewRecord
                     return !$hasOtherRunningMeeting;
                 }),
 
-            Actions\Action::make('join')
-                ->label('Присоединиться')
-                ->icon('heroicon-o-user-plus')
-                ->color('warning')
-                ->url(fn() => route('rooms.join', $this->record))
-                ->openUrlInNewTab()
-                ->visible(fn() => $this->record->is_running),
-
             Actions\Action::make('stop')
-                ->label('Остановить')
+                ->label('Завершить занятие')
                 ->icon('heroicon-o-stop')
                 ->color('danger')
                 ->requiresConfirmation()
+                ->modalHeading('Завершить занятие?')
+                ->modalDescription('Все участники будут отключены от видеоконференции.')
                 ->action(fn() => redirect()->route('rooms.stop', $this->record))
                 ->visible(fn() => $this->record->is_running),
 
             Actions\EditAction::make()
                 ->label('Изменить'),
         ];
+    }
+
+    public function getHeaderActionsPollingInterval(): ?string
+    {
+        return '5s';
     }
 
     public function infolist(Infolist $infolist): Infolist
