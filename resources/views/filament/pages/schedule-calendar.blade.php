@@ -138,7 +138,7 @@
                                     </x-filament::button>
                                 @else
                                     {{-- Show event card for future or past lessons --}}
-                                    <a href="{{ \App\Filament\Resources\RoomResource::getUrl('edit', ['record' => $event['room_id']]) }}"
+                                    <a href="{{ \App\Filament\Resources\RoomResource::getUrl('view', ['record' => $event['room_id']]) }}"
                                         class="group relative block text-xs px-2 py-1.5 rounded-md cursor-pointer transition-all shadow-sm hover:opacity-90"
                                         style="background-color: {{ $color['bg'] }}; color: {{ $color['text'] }}; {{ $isPast ? 'opacity: 0.35; filter: grayscale(100%);' : '' }}"
                                         onmouseover="this.style.backgroundColor='{{ $color['hover_bg'] }}'"

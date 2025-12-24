@@ -355,10 +355,6 @@ class RoomResource extends Resource
                             </div>
                         ");
                     }),
-                Tables\Columns\IconColumn::make('is_running')
-                    ->label('Запущена')
-                    ->boolean()
-                    ->toggleable(),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
@@ -438,6 +434,7 @@ class RoomResource extends Resource
         return [
             'index' => Pages\ListRooms::route('/'),
             'create' => Pages\CreateRoom::route('/create'),
+            'view' => Pages\ViewRoom::route('/{record}'),
             'edit' => Pages\EditRoom::route('/{record}/edit'),
         ];
     }

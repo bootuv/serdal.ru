@@ -138,14 +138,17 @@
                                     </x-filament::button>
                                 @else
                                     {{-- Show event card for future or past lessons --}}
-                                    <div class="group relative block text-xs px-2 py-1.5 rounded-md cursor-default transition-all shadow-sm"
+                                    <a href="{{ \App\Filament\Student\Resources\RoomResource::getUrl('view', ['record' => $event['room_id']]) }}"
+                                        class="group relative block text-xs px-2 py-1.5 rounded-md cursor-pointer transition-all shadow-sm hover:opacity-90"
                                         style="background-color: {{ $color['bg'] }}; color: {{ $color['text'] }}; {{ $isPast ? 'opacity: 0.35; filter: grayscale(100%);' : '' }}"
+                                        onmouseover="this.style.backgroundColor='{{ $color['hover_bg'] }}'"
+                                        onmouseout="this.style.backgroundColor='{{ $color['bg'] }}'"
                                         title="{{ $event['title'] }} - {{ $event['start']->format('H:i') }} ({{ $event['duration'] }} мин)">
                                         <div class="font-bold text-[11px] leading-tight">{{ $event['start']->format('H:i') }}</div>
                                         <div class="truncate font-medium text-[10px] leading-tight mt-0.5 opacity-95">
                                             {{ $event['title'] }}
                                         </div>
-                                    </div>
+                                    </a>
                                 @endif
                             @endforeach
                         </div>

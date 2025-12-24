@@ -12,39 +12,36 @@
 
                 <div class="space-y-2 -mx-4 -mb-4 flex-1 overflow-y-auto">
                     @forelse($rooms as $room)
-                        <button wire:click="selectRoom({{ $room->id }})" @class([
-                            'w-full px-4 py-3 flex items-center gap-3 text-left transition-colors',
-                            'bg-primary-50 dark:bg-primary-500/10 border-l-4 border-primary-500' => $selectedRoomId === $room->id,
-                            'hover:bg-gray-50 dark:hover:bg-white/5 border-l-4 border-transparent' => $selectedRoomId !== $room->id,
+                                        <button wire:click="selectRoom({{ $room->id }})" @class([
+                                            'w-full px-4 py-3 flex items-center gap-3 text-left transition-colors',
+                                            'hover:bg-gray-50 dark:hover:bg-white/5',
+                                        ]) @style([
+                            'background-color: rgb(249 250 251);' => $selectedRoomId === $room->id,
                         ])>
-                            <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg"
-                                style="background-color: {{ $room->avatar_bg_color }}; color: {{ $room->avatar_text_color }}">
-                                {{ mb_substr($room->name, 0, 1) }}
-                            </div>
+                                            <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg"
+                                                style="background-color: {{ $room->avatar_bg_color }}; color: {{ $room->avatar_text_color }}">
+                                                {{ mb_substr($room->name, 0, 1) }}
+                                            </div>
 
-                            <div class="flex-1 min-w-0">
-                                <p class="font-medium text-gray-950 dark:text-white truncate">
-                                    {{ $room->name }}
-                                </p>
-                                <p class="text-sm text-gray-500 dark:text-gray-400 truncate">
-                                    @if($room->messages->isNotEmpty())
-                                        {{ \Illuminate\Support\Str::limit($room->messages->first()->content, 25) }}
-                                    @else
-                                        Нет сообщений
-                                    @endif
-                                </p>
-                            </div>
+                                            <div class="flex-1 min-w-0">
+                                                <p class="font-medium text-gray-950 dark:text-white truncate">
+                                                    {{ $room->name }}
+                                                </p>
+                                                <p class="text-sm text-gray-500 dark:text-gray-400 truncate">
+                                                    @if($room->messages->isNotEmpty())
+                                                        {{ \Illuminate\Support\Str::limit($room->messages->first()->content, 25) }}
+                                                    @else
+                                                        Нет сообщений
+                                                    @endif
+                                                </p>
+                                            </div>
 
-                            @php
-                                $unreadCount = $room->messages->where('read_at', null)->where('user_id', '!=', auth()->id())->count();
-                            @endphp
-
-                            @if($unreadCount > 0)
-                                <x-filament::badge color="primary" size="sm">
-                                    {{ $unreadCount }}
-                                </x-filament::badge>
-                            @endif
-                        </button>
+                                            @if($room->unread_messages_count > 0)
+                                                <x-filament::badge color="primary" size="sm">
+                                                    {{ $room->unread_messages_count }}
+                                                </x-filament::badge>
+                                            @endif
+                                        </button>
                     @empty
                         <div class="px-4 py-8 text-center">
                             <x-heroicon-o-inbox class="w-10 h-10 mx-auto text-gray-400 dark:text-gray-500" />

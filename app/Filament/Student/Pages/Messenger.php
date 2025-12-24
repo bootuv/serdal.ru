@@ -2,6 +2,7 @@
 
 namespace App\Filament\Student\Pages;
 
+use App\Models\Message;
 use App\Models\Room;
 use Filament\Pages\Page;
 
@@ -16,6 +17,29 @@ class Messenger extends Page
     protected static string $view = 'filament.student.pages.messenger';
 
     protected static ?int $navigationSort = 3;
+
+    public static function getNavigationBadge(): ?string
+    {
+        $userId = auth()->id();
+
+        // Get all rooms where user is participant
+        $roomIds = Room::whereHas('participants', function ($query) use ($userId) {
+            $query->where('user_id', $userId);
+        })->pluck('id');
+
+        // Count unread messages from others
+        $unreadCount = Message::whereIn('room_id', $roomIds)
+            ->where('user_id', '!=', $userId)
+            ->whereNull('read_at')
+            ->count();
+
+        return $unreadCount > 0 ? (string) $unreadCount : null;
+    }
+
+    public static function getNavigationBadgeColor(): ?string
+    {
+        return 'warning';
+    }
 
     public ?int $selectedRoomId = null;
 
@@ -34,6 +58,11 @@ class Messenger extends Page
             $query->where('user_id', $user->id);
         })
             ->withCount('messages')
+            ->withCount([
+                'messages as unread_messages_count' => function ($query) use ($user) {
+                    $query->where('user_id', '!=', $user->id)->whereNull('read_at');
+                }
+            ])
             ->with([
                 'user',
                 'participants',

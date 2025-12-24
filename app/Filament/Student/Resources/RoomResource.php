@@ -84,6 +84,7 @@ class RoomResource extends Resource
     {
         return [
             'index' => Pages\ListRooms::route('/'),
+            'view' => Pages\ViewRoom::route('/{record}'),
         ];
     }
 }

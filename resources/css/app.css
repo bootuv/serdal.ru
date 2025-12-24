@@ -32,3 +32,51 @@
 .student-select .flex.gap-x-1 {
     align-items: center !important;
 }
+
+/* Custom warning badge colors - dark orange with white text */
+.fi-badge.fi-color-custom,
+.fi-badge.fi-color-warning,
+span.fi-badge[style*="--c-400"],
+.fi-ac-btn-badge {
+    --c-50: 255 237 213 !important;
+    --c-300: 253 186 116 !important;
+    --c-400: 234 88 12 !important;
+    --c-500: 234 88 12 !important;
+    --c-600: 194 65 12 !important;
+}
+
+/* Force warning/orange badge appearance everywhere */
+.fi-badge.fi-color-warning {
+    background-color: rgb(234, 88, 12) !important;
+    color: white !important;
+    --tw-ring-color: rgb(234, 88, 12) !important;
+}
+
+/* Action button badges */
+.fi-ac-btn-badge,
+button .fi-badge {
+    background-color: rgb(234, 88, 12) !important;
+    color: white !important;
+}
+
+/* Hide filter badge when showing 0 (no active filters) */
+.fi-ta-filters-indicator:empty,
+.fi-ac-btn-badge:empty {
+    display: none !important;
+}
+
+/* Hide badges containing only "0" */
+.fi-badge[x-text]:has(span:only-child):empty,
+.fi-ac-btn [x-show*="0"]:not([x-show*=">"]) {
+    display: none !important;
+}
+
+/* Smaller navigation badges in sidebar */
+.fi-sidebar-nav .fi-badge,
+.fi-sidebar-item .fi-badge {
+    font-size: 0.65rem !important;
+    padding: 0.15rem 0.4rem !important;
+    min-width: 1.1rem !important;
+    height: auto !important;
+    line-height: 1.2 !important;
+}

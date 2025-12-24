@@ -14,4 +14,5 @@
     <div class="bg-fuchsia-500"></div>
     <div class="bg-pink-500"></div>
     <div class="bg-rose-500"></div>
+    <div class="bg-primary-100 bg-primary-50"></div>
 </div>
