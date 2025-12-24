@@ -81,9 +81,11 @@ class ViewRoom extends ViewRecord
         ];
     }
 
-    public function getHeaderActionsPollingInterval(): ?string
+    public function getListeners(): array
     {
-        return '5s';
+        return [
+            "echo:rooms,.room.status.updated" => '$refresh',
+        ];
     }
 
     public function infolist(Infolist $infolist): Infolist
