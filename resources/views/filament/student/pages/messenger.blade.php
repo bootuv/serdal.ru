@@ -63,16 +63,15 @@
             @if($selectedRoom)
                 <livewire:room-chat :room="$selectedRoom" :key="'chat-' . $selectedRoom->id" />
             @else
-                <x-filament::section class="flex-1 flex flex-col">
-                    <div class="flex-1 flex items-center justify-center">
-                        <div class="text-center">
-                            <x-heroicon-o-chat-bubble-left-right
-                                class="w-16 h-16 mx-auto text-gray-400 dark:text-gray-500" />
-                            <h3 class="mt-4 text-lg font-medium text-gray-900 dark:text-white">Выберите занятие</h3>
-                            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Чтобы начать переписку</p>
-                        </div>
+                <div
+                    class="flex-1 flex items-center justify-center bg-white dark:bg-gray-900 rounded-xl ring-1 ring-gray-950/5 dark:ring-white/10">
+                    <div class="text-center">
+                        <x-heroicon-o-chat-bubble-left-right class="mx-auto text-gray-400 dark:text-gray-500"
+                            style="width: 64px; height: 64px;" />
+                        <h3 class="mt-4 text-lg font-medium text-gray-900 dark:text-white">Выберите занятие</h3>
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Чтобы начать переписку</p>
                     </div>
-                </x-filament::section>
+                </div>
             @endif
         </div>
     </div>

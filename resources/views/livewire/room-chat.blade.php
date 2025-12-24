@@ -9,17 +9,68 @@
                     style="background-color: {{ $room->avatar_bg_color }}; color: {{ $room->avatar_text_color }}">
                     {{ mb_substr($room->name, 0, 1) }}
                 </div>
-                <div>
+                <div x-data="{ showParticipants: false }">
                     <h3 class="text-base font-semibold leading-6 text-gray-950 dark:text-white">
                         {{ $room->name }}
                     </h3>
                     <p class="text-sm text-gray-500 dark:text-gray-400">
-                        {{ $room->user->name }}
+                        @if($room->user_id !== auth()->id())
+                            {{ $room->user->name }}
+                            @if($room->participants->count() > 0)
+                                ·
+                            @endif
+                        @endif
                         @if($room->participants->count() > 0)
-                            · {{ $room->participants->count() }}
-                            {{ trans_choice('участник|участника|участников', $room->participants->count()) }}
+                            <button @click="showParticipants = true"
+                                class="underline hover:text-primary-500 transition-colors cursor-pointer">
+                                {{ $room->participants->count() }}
+                                {{ trans_choice('{1} участник|[2,4] участника|[5,*] участников', $room->participants->count()) }}
+                            </button>
                         @endif
                     </p>
+
+                    {{-- Модальное окно со списком участников --}}
+                    <template x-teleport="body">
+                        <div x-show="showParticipants" x-cloak x-transition:enter="transition ease-out duration-200"
+                            x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+                            x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100"
+                            x-transition:leave-end="opacity-0"
+                            class="fixed inset-0 flex items-center justify-center bg-black/50"
+                            style="z-index: 999999 !important;" @click.self="showParticipants = false"
+                            @keydown.escape.window="showParticipants = false">
+                            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full mx-4 max-h-[80vh] overflow-hidden"
+                                x-transition:enter="transition ease-out duration-200"
+                                x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
+                                x-transition:leave="transition ease-in duration-150"
+                                x-transition:leave-start="opacity-100 scale-100"
+                                x-transition:leave-end="opacity-0 scale-95">
+                                <div
+                                    class="px-6 py-4 border-b border-gray-200 dark:border-white/10 flex items-center justify-between">
+                                    <h4 class="text-lg font-semibold text-gray-900 dark:text-white">
+                                        Участники ({{ $room->participants->count() }})
+                                    </h4>
+                                    <button @click="showParticipants = false"
+                                        class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                                        <x-heroicon-o-x-mark class="w-5 h-5" />
+                                    </button>
+                                </div>
+                                <div class="p-4 space-y-3 overflow-y-auto max-h-[60vh]">
+                                    @foreach($room->participants as $participant)
+                                        <div class="flex items-center gap-3">
+                                            <x-filament::avatar :src="$participant->avatar_url" :alt="$participant->name"
+                                                size="md" />
+                                            <div>
+                                                <p class="font-medium text-gray-900 dark:text-white">{{ $participant->name }}
+                                                </p>
+                                                <p class="text-xs text-gray-500 dark:text-gray-400">{{ $participant->email }}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            </div>
+                        </div>
+                    </template>
                 </div>
             </div>
 
@@ -57,8 +108,8 @@
                 @empty
                     <div class="h-full flex items-center justify-center">
                         <div class="text-center">
-                            <x-heroicon-o-chat-bubble-left-ellipsis
-                                class="w-12 h-12 mx-auto text-gray-400 dark:text-gray-500" />
+                            <x-heroicon-o-chat-bubble-left-ellipsis class="mx-auto text-gray-400 dark:text-gray-500"
+                                style="width: 64px; height: 64px;" />
                             <p class="mt-2 text-gray-500 dark:text-gray-400">Нет сообщений</p>
                             <p class="text-sm text-gray-400 dark:text-gray-500">Напишите первое сообщение!</p>
                         </div>
