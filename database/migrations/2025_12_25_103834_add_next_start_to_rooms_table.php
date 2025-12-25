@@ -12,6 +12,7 @@ return new class extends Migration {
     {
         Schema::table('rooms', function (Blueprint $table) {
             $table->timestamp('next_start')->nullable()->index()->after('updated_at');
+            $table->unsignedInteger('duration')->nullable()->after('next_start');
         });
     }
 
@@ -21,7 +22,7 @@ return new class extends Migration {
     public function down(): void
     {
         Schema::table('rooms', function (Blueprint $table) {
-            $table->dropColumn('next_start');
+            $table->dropColumn(['next_start', 'duration']);
         });
     }
 };
