@@ -43,6 +43,14 @@ class RoomSchedule extends Model
                 $schedule->start_date = Carbon::parse($schedule->scheduled_at)->format('Y-m-d');
             }
         });
+
+        static::saved(function ($schedule) {
+            $schedule->room->updateNextStart();
+        });
+
+        static::deleted(function ($schedule) {
+            $schedule->room->updateNextStart();
+        });
     }
 
     public function room()
@@ -121,14 +129,63 @@ class RoomSchedule extends Model
         }
 
         // For recurring, calculate next occurrence
-        // This is a simplified version - full implementation would be more complex
-        $start = $now->gt($this->start_date) ? $now : $this->start_date;
+        $startDate = $this->start_date ? Carbon::parse($this->start_date) : now()->startOfDay();
+        $startTime = Carbon::parse($this->recurrence_time ?? '00:00');
 
-        if ($this->end_date && $start->gt($this->end_date)) {
-            return null;
+        $searchStart = now();
+        // If the start date is in the future, start searching from there
+        if ($startDate->gt($searchStart)) {
+            $searchStart = $startDate->copy()->setTimeFrom($startTime);
         }
 
-        // Return approximate next occurrence
-        return $start->copy()->setTimeFromTimeString($this->recurrence_time ?? '00:00');
+        // Limit search to 1 year to avoid infinite loops
+        $limit = $searchStart->copy()->addYear();
+
+        $current = $searchStart->copy();
+
+        // If we are starting today, check if the time has already passed
+        // If strict comparison is needed, we might need to increment day immediately if time passed
+        // checking the very first candidate
+        $candidateTime = $current->copy()->setTimeFrom($startTime);
+
+        $duration = $this->duration_minutes ?? 90;
+
+        // If the calculated time for today is in the past (plus duration), move to tomorrow as a base
+        if ($candidateTime->copy()->addMinutes($duration)->lt(now())) {
+            $current->addDay();
+        }
+
+        while ($current->lt($limit)) {
+            // Check end date
+            if ($this->end_date && $current->gt(Carbon::parse($this->end_date)->endOfDay())) {
+                return null;
+            }
+
+            $currentWithTime = $current->copy()->setTimeFrom($startTime);
+            $isValidDay = false;
+
+            if ($this->recurrence_type === 'daily') {
+                $isValidDay = true;
+            } elseif ($this->recurrence_type === 'weekly' && !empty($this->recurrence_days)) {
+                if (in_array($current->dayOfWeek, $this->recurrence_days)) {
+                    $isValidDay = true;
+                }
+            } elseif ($this->recurrence_type === 'monthly' && $this->recurrence_day_of_month) {
+                if ($current->day === $this->recurrence_day_of_month) {
+                    $isValidDay = true;
+                }
+            }
+
+            if ($isValidDay) {
+                // Check strict future OR within current duration window
+                if ($currentWithTime->copy()->addMinutes($duration)->gt(now())) {
+                    return $currentWithTime;
+                }
+            }
+
+            $current->addDay();
+        }
+
+        return null; // No next occurrence found
     }
 }

@@ -385,6 +385,11 @@ class RoomResource extends Resource
                     ->dateTime()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
+                Tables\Columns\ViewColumn::make('next_start')
+                    ->label('Статус')
+                    ->view('filament.tables.columns.next-lesson')
+                    ->sortable()
+                    ->state(fn(Room $record) => $record->next_start?->toIso8601String()),
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('type')
@@ -399,12 +404,12 @@ class RoomResource extends Resource
             ->filtersLayout(Tables\Enums\FiltersLayout::Dropdown)
             ->persistFiltersInSession()
             ->searchable()
-            ->defaultSort('created_at', 'desc')
+            ->defaultSort('next_start', 'asc')
             ->actions([
                 Tables\Actions\Action::make('start')
                     ->label('Начать')
                     ->icon('heroicon-o-play')
-                    ->color('gray')
+                    ->color(fn(Room $record) => $record->next_start && $record->next_start->isPast() ? 'success' : 'gray')
                     ->button()
                     ->url(fn(Room $record) => route('rooms.start', $record))
                     ->openUrlInNewTab()

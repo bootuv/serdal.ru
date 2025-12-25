@@ -40,6 +40,7 @@ class Room extends Model
         'max_participants',
         'duration',
         'logout_url',
+        'next_start',
     ];
 
     /**
@@ -55,6 +56,7 @@ class Room extends Model
         'allow_start_stop_recording' => 'boolean',
         'mute_on_start' => 'boolean',
         'webcams_only_for_moderator' => 'boolean',
+        'next_start' => 'datetime',
     ];
 
     public function user(): BelongsTo
@@ -126,5 +128,26 @@ class Room extends Model
         ];
 
         return $colors[$this->id % count($colors)];
+    }
+
+    /**
+     * Calculate the next start date from all schedules
+     */
+    public function calculateNextStart(): ?\Carbon\Carbon
+    {
+        $nextDates = $this->schedules->map(fn($schedule) => $schedule->getNextOccurrence())->filter();
+
+        if ($nextDates->isEmpty()) {
+            return null;
+        }
+
+        return $nextDates->min();
+    }
+
+    public function updateNextStart(): void
+    {
+        $this->updateQuietly([
+            'next_start' => $this->calculateNextStart(),
+        ]);
     }
 }
