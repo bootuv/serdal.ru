@@ -3,15 +3,15 @@ Description=Serdal.ru Background Workers
 After=network.target
 
 [Service]
-# IMPORTANT: Change User/Group to your server user (e.g. www-data, forge, ubuntu)
-User=root
-Group=root
+# Matches your old configuration
+User=www-data
+Group=www-data
 
-# IMPORTANT: Path to your project
+# Path to your project
 WorkingDirectory=/var/www/serdal.ru
 
-# Command to run (ensure npm is in path or use absolute path like /usr/bin/npm)
-# This runs build + optimize + queues + scheduler
+# Command to run (build + optimize + queue + schedule)
+# Ensure /usr/bin/npm is correct. You can check with `which npm`
 ExecStart=/usr/bin/npm run prod
 
 # Restart automatically if it crashes

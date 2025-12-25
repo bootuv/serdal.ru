@@ -5,9 +5,9 @@
         "dev": "concurrently \"npm:vite\" \"npm:serve\" \"npm:queue\" \"npm:schedule\"",
         "vite": "vite",
         "serve": "php artisan serve",
-        "queue": "php artisan queue:work",
+        "queue": "php artisan queue:work --sleep=3 --tries=3",
         "schedule": "php artisan schedule:work",
-        "prod": "npm run build && php artisan optimize && concurrently \"php artisan queue:work\" \"php artisan schedule:work\"",
+        "prod": "npm run build && php artisan optimize && concurrently \"npm run queue\" \"npm run schedule\"",
         "build": "vite build"
     },
     "devDependencies": {
