@@ -409,7 +409,7 @@ class RoomResource extends Resource
                 Tables\Actions\Action::make('start')
                     ->label('Начать')
                     ->icon('heroicon-o-play')
-                    ->color(fn(Room $record) => $record->next_start && $record->next_start->isPast() ? 'success' : 'gray')
+                    ->color(fn(Room $record) => $record->next_start && $record->next_start->isPast() && !$record->next_start->addMinutes($record->duration ?? 45)->isPast() ? 'success' : 'gray')
                     ->button()
                     ->url(fn(Room $record) => route('rooms.start', $record))
                     ->openUrlInNewTab()

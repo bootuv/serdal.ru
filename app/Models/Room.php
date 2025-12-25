@@ -146,8 +146,23 @@ class Room extends Model
 
     public function updateNextStart(): void
     {
+        $earliestDate = null;
+        $duration = 0;
+
+        foreach ($this->schedules as $schedule) {
+            $nextDate = $schedule->getNextOccurrence();
+
+            if ($nextDate) {
+                if ($earliestDate === null || $nextDate->lt($earliestDate)) {
+                    $earliestDate = $nextDate;
+                    $duration = $schedule->duration_minutes;
+                }
+            }
+        }
+
         $this->updateQuietly([
-            'next_start' => $this->calculateNextStart(),
+            'next_start' => $earliestDate,
+            'duration' => $duration ?: 45, // Fallback to 45 if 0 or null
         ]);
     }
 }

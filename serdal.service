@@ -1,0 +1,27 @@
+[Unit]
+Description=Serdal.ru Background Workers
+After=network.target
+
+[Service]
+# IMPORTANT: Change User/Group to your server user (e.g. www-data, forge, ubuntu)
+User=root
+Group=root
+
+# IMPORTANT: Path to your project
+WorkingDirectory=/var/www/serdal.ru
+
+# Command to run (ensure npm is in path or use absolute path like /usr/bin/npm)
+# This runs build + optimize + queues + scheduler
+ExecStart=/usr/bin/npm run prod
+
+# Restart automatically if it crashes
+Restart=always
+RestartSec=5
+
+# Output logs to syslog
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=serdal-worker
+
+[Install]
+WantedBy=multi-user.target

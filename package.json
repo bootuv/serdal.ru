@@ -2,10 +2,12 @@
     "private": true,
     "type": "module",
     "scripts": {
-        "dev": "concurrently \"npm:vite\" \"npm:serve\" \"npm:queue\"",
+        "dev": "concurrently \"npm:vite\" \"npm:serve\" \"npm:queue\" \"npm:schedule\"",
         "vite": "vite",
         "serve": "php artisan serve",
         "queue": "php artisan queue:work",
+        "schedule": "php artisan schedule:work",
+        "prod": "npm run build && php artisan optimize && concurrently \"php artisan queue:work\" \"php artisan schedule:work\"",
         "build": "vite build"
     },
     "devDependencies": {

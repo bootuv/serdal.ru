@@ -1,5 +1,6 @@
 <div x-data="{
         target: '{{ $getRecord()->next_start?->toIso8601String() }}',
+        duration: {{ ((int) $getRecord()->duration > 0 ? (int) $getRecord()->duration : 45) * 60 * 1000 }}, // duration in ms
         now: new Date(),
         get diff() { return this.target ? new Date(this.target) - this.now : -1; },
         get days() { return Math.floor(this.diff / (1000 * 60 * 60 * 24)); },
@@ -7,7 +8,9 @@
         get totalHours() { return Math.floor(this.diff / (1000 * 60 * 60)); },
         get minutes() { return Math.floor((this.diff / 1000 / 60) % 60); },
         get seconds() { return Math.floor((this.diff / 1000) % 60); },
-        get isTime() { return this.target && this.diff <= 0; },
+        // isTime = Started (diff <= 0) AND Not Expired yet (diff > -duration)
+        // Ensure duration is treated as number in JS just in case
+        get isTime() { return this.target && this.diff <= 0 && this.diff > -(this.duration); },
         get isNear() { return this.target && this.diff > 0 && this.diff < 30 * 60 * 1000; },
         get isToday() { return this.target && this.diff > 0 && this.totalHours < 24 && this.totalHours >= 0; },
         plural(number, titles) {
@@ -24,7 +27,7 @@
             const startBtn = buttons.find(el => el.textContent.includes('Начать'));
             
             if (startBtn) {
-                if (this.diff <= 0) {
+                if (this.isTime) {
                     // FORCE Green Style (Success)
                     startBtn.style.backgroundColor = '#16a34a'; // green-600
                     startBtn.style.borderColor = '#16a34a';
@@ -108,6 +111,13 @@
                             Пора начинать
                         </span>
                     </div>
+                </div>
+            </template>
+            <!-- Expired (diff <= 0 AND !isTime) -->
+            <template x-if="!isTime && diff <= 0">
+                <div class="flex flex-col gap-1 justify-center h-full opacity-60">
+                    <span class="text-xs text-gray-400">Занятие завершено</span>
+                    <span class="text-[10px] text-gray-300">Обновление расписания...</span>
                 </div>
             </template>
         </div>
