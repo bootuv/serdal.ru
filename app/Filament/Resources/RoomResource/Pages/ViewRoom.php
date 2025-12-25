@@ -32,7 +32,7 @@ class ViewRoom extends ViewRecord
             Actions\Action::make('start')
                 ->label('Начать занятие')
                 ->icon('heroicon-o-play')
-                ->color('success')
+                ->color(fn() => $this->record->next_start && $this->record->next_start->isPast() && !$this->record->next_start->addMinutes($this->record->duration ?? 45)->isPast() ? 'success' : 'gray')
                 ->url(fn() => route('rooms.start', $this->record))
                 ->openUrlInNewTab()
                 ->visible(function () {
@@ -62,6 +62,13 @@ class ViewRoom extends ViewRecord
         ];
     }
 
+    public function getListeners(): array
+    {
+        return [
+            "echo:rooms,.room.status.updated" => '$refresh',
+        ];
+    }
+
     public function infolist(Infolist $infolist): Infolist
     {
         return $infolist
@@ -73,33 +80,43 @@ class ViewRoom extends ViewRecord
                                 TextEntry::make('user.name')
                                     ->label('Владелец'),
 
-                                TextEntry::make('name')
-                                    ->label('Название'),
+
 
                                 TextEntry::make('type')
-                                    ->label('Тип')
-                                    ->formatStateUsing(fn(string $state) => match ($state) {
-                                        'individual' => 'Индивидуальное',
-                                        'group' => 'Групповое',
-                                        default => $state,
-                                    })
-                                    ->badge()
-                                    ->color(fn(string $state) => match ($state) {
-                                        'individual' => 'info',
-                                        'group' => 'success',
-                                        default => 'gray',
+                                    ->hiddenLabel()
+                                    ->formatStateUsing(function (Room $record) {
+                                        $type = $record->type;
+                                        $label = match ($type) {
+                                            'individual' => 'Индивидуальное',
+                                            'group' => 'Групповое',
+                                            default => $type,
+                                        };
+                                        $icon = match ($type) {
+                                            'individual' => '<svg class="w-4 h-4 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>',
+                                            'group' => '<svg class="w-4 h-4 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>',
+                                            default => ''
+                                        };
+
+                                        return new HtmlString(sprintf(
+                                            '<div class="flex flex-col">
+                                                <span class="text-sm font-medium leading-6 text-gray-950 dark:text-white">Тип</span>
+                                                <div class="mt-1 w-max">
+                                                    <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-blue-400 bg-white dark:bg-gray-800 dark:border-blue-600">
+                                                        %s
+                                                        <span class="text-sm font-medium text-gray-950 dark:text-white">%s</span>
+                                                    </div>
+                                                </div>
+                                            </div>',
+                                            $icon,
+                                            $label
+                                        ));
                                     }),
 
-                                TextEntry::make('is_running')
-                                    ->label('Статус')
-                                    ->formatStateUsing(fn(bool $state) => $state ? 'Идет урок' : 'Не запущено')
-                                    ->badge()
-                                    ->color(fn(bool $state) => $state ? 'warning' : 'gray')
-                                    ->icon(fn(bool $state) => $state ? 'heroicon-m-video-camera' : 'heroicon-m-clock'),
 
-                                TextEntry::make('created_at')
-                                    ->label('Создано')
-                                    ->dateTime('d.m.Y H:i'),
+
+                                \Filament\Infolists\Components\ViewEntry::make('next_start')
+                                    ->hiddenLabel()
+                                    ->view('filament.infolists.next-lesson-status'),
                             ]),
 
                         TextEntry::make('welcome_msg')
