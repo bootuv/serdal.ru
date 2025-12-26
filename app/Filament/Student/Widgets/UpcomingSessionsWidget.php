@@ -1,16 +1,14 @@
 <?php
 
-namespace App\Filament\App\Widgets;
+namespace App\Filament\Student\Widgets;
 
 use Filament\Widgets\Widget;
 use App\Models\Room;
-use Carbon\Carbon;
-use Illuminate\Support\Collection;
-use Livewire\Attributes\On;
+use Illuminate\Database\Eloquent\Builder;
 
 class UpcomingSessionsWidget extends Widget
 {
-    protected static string $view = 'filament.app.widgets.upcoming-sessions-widget';
+    protected static string $view = 'filament.student.widgets.upcoming-sessions-widget';
 
     protected int|string|array $columnSpan = 'full';
 
@@ -28,9 +26,11 @@ class UpcomingSessionsWidget extends Widget
         $now = now();
         $in24Hours = $now->copy()->addHours(24);
 
-        // Get rooms with their next_start within 24 hours or currently in progress
+        // Get rooms where student is a participant, with next_start within 24 hours or in progress
         $rooms = Room::query()
-            ->where('user_id', auth()->id())
+            ->whereHas('participants', function (Builder $query) {
+                $query->where('users.id', auth()->id());
+            })
             ->get()
             ->filter(function ($room) use ($now, $in24Hours) {
                 if (!$room->next_start) {
@@ -54,23 +54,18 @@ class UpcomingSessionsWidget extends Widget
 
         // Also get currently running rooms
         $runningRooms = Room::query()
-            ->where('user_id', auth()->id())
+            ->whereHas('participants', function (Builder $query) {
+                $query->where('users.id', auth()->id());
+            })
             ->where('is_running', true)
             ->get();
 
         // Merge running rooms first, then upcoming
         $allRooms = $runningRooms->merge($rooms)->unique('id')->take(5);
 
-        // Check if any room is currently running
-        $hasRunningRoom = Room::query()
-            ->where('user_id', auth()->id())
-            ->where('is_running', true)
-            ->exists();
-
         return [
             'rooms' => $allRooms,
-            'roomsUrl' => \App\Filament\App\Resources\RoomResource::getUrl('index'),
-            'hasRunningRoom' => $hasRunningRoom,
+            'roomsUrl' => \App\Filament\Student\Resources\RoomResource::getUrl('index'),
         ];
     }
 }
