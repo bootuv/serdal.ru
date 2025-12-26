@@ -277,6 +277,12 @@ class StudentResource extends Resource
                                 $teacher = auth()->user();
                                 auth()->user()->students()->detach($record);
 
+                                // Remove student from all teacher's rooms
+                                $teacherRooms = \App\Models\Room::where('user_id', $teacher->id)->get();
+                                foreach ($teacherRooms as $room) {
+                                    $room->participants()->detach($record->id);
+                                }
+
                                 // Check if student can leave a review:
                                 // 1. Has at least one completed lesson with this teacher
                                 // 2. Hasn't already left a review for this teacher

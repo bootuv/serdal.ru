@@ -12,7 +12,7 @@ class StudentTeachersWidget extends BaseWidget
 
     protected static ?string $heading = 'Мои учителя';
 
-    protected static ?int $sort = 1;
+    protected static ?int $sort = 2;
 
     public function table(Table $table): Table
     {

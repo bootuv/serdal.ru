@@ -10,11 +10,11 @@ use Illuminate\Database\Query\Builder;
 
 class StudentFormerTeachersWidget extends BaseWidget
 {
-    protected int|string|array $columnSpan = 'full';
+    protected int|string|array $columnSpan = 6;
 
     protected static ?string $heading = 'Мои бывшие учителя';
 
-    protected static ?int $sort = 2;
+    protected static ?int $sort = 3;
 
     public static function canView(): bool
     {
