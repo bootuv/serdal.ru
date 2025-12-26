@@ -17,13 +17,15 @@ class DirectResource extends Resource
 {
     protected static ?string $model = Direct::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+    protected static ?string $navigationIcon = 'heroicon-o-arrow-trending-up';
 
     protected static ?string $navigationLabel = 'Направления';
 
     protected static ?string $modelLabel = 'Направление';
 
     protected static ?string $pluralModelLabel = 'Направления';
+
+    protected static ?int $navigationSort = 9;
 
     public static function form(Form $form): Form
     {

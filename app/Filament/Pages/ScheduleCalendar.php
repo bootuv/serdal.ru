@@ -14,7 +14,7 @@ class ScheduleCalendar extends Page
 
     protected static string $view = 'filament.pages.schedule-calendar';
 
-    protected static ?int $navigationSort = 1;
+    protected static ?int $navigationSort = 2;
 
     protected function getListeners(): array
     {

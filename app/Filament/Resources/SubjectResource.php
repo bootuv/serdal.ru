@@ -18,13 +18,15 @@ class SubjectResource extends Resource
 {
     protected static ?string $model = Subject::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+    protected static ?string $navigationIcon = 'heroicon-o-book-open';
 
     protected static ?string $navigationLabel = 'Предметы';
 
     protected static ?string $modelLabel = 'Предмет';
 
     protected static ?string $pluralModelLabel = 'Предметы';
+
+    protected static ?int $navigationSort = 8;
 
     public static function form(Form $form): Form
     {

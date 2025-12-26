@@ -16,7 +16,7 @@ class Messenger extends Page
 
     protected static string $view = 'filament.app.pages.messenger';
 
-    protected static ?int $navigationSort = 3;
+    protected static ?int $navigationSort = 4;
 
     public static function getNavigationBadge(): ?string
     {

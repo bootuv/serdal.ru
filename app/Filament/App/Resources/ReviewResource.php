@@ -20,6 +20,8 @@ class ReviewResource extends Resource
     protected static ?string $modelLabel = 'Отзыв';
     protected static ?string $pluralModelLabel = 'Отзывы';
 
+    protected static ?int $navigationSort = 7;
+
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()

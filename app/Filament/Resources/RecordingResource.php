@@ -24,6 +24,8 @@ class RecordingResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Записи';
 
+    protected static ?int $navigationSort = 5;
+
     public static function form(Form $form): Form
     {
         return $form

@@ -16,7 +16,7 @@ class MeetingSessionResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-clock';
 
-    protected static ?int $navigationSort = 10;
+    protected static ?int $navigationSort = 6;
 
     protected static ?string $navigationLabel = 'История сессий';
 

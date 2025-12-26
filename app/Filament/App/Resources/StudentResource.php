@@ -28,6 +28,8 @@ class StudentResource extends Resource
 
     protected static ?string $slug = 'students'; // Url slug
 
+    protected static ?int $navigationSort = 1;
+
     // Disable the default create button since we use custom "Add Student" action
     public static function canCreate(): bool
     {

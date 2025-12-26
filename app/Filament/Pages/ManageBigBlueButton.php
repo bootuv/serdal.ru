@@ -21,6 +21,8 @@ class ManageBigBlueButton extends Page implements HasForms
 
     protected static ?string $title = 'Настройки BigBlueButton';
 
+    protected static ?int $navigationSort = 10;
+
     protected static string $view = 'filament.pages.manage-big-blue-button';
 
     public ?array $data = [];

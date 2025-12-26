@@ -20,6 +20,21 @@ class ReviewResource extends Resource
     protected static ?string $modelLabel = 'Отзыв';
     protected static ?string $pluralModelLabel = 'Отзывы';
 
+    protected static ?int $navigationSort = 4;
+
+    public static function getNavigationBadge(): ?string
+    {
+        $count = static::getModel()::where('is_reported', true)
+            ->where('is_rejected', false)
+            ->count();
+        return $count > 0 ? (string) $count : null;
+    }
+
+    public static function getNavigationBadgeColor(): ?string
+    {
+        return 'warning';
+    }
+
     public static function form(Form $form): Form
     {
         return $form
