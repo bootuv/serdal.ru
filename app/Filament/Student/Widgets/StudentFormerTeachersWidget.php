@@ -10,7 +10,7 @@ use Illuminate\Database\Query\Builder;
 
 class StudentFormerTeachersWidget extends BaseWidget
 {
-    protected int|string|array $columnSpan = 6;
+    protected int|string|array $columnSpan = 'full';
 
     protected static ?string $heading = 'Мои бывшие учителя';
 
