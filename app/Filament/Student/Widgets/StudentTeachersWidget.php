@@ -73,6 +73,7 @@ class StudentTeachersWidget extends BaseWidget
             ->emptyStateHeading('У вас нет учителей')
             ->emptyStateDescription('')
             ->recordUrl(fn(\App\Models\User $record): string => route('tutors.show', ['username' => $record->username]))
+            ->paginated(false)
             ->actions([
                 Tables\Actions\Action::make('leave_review')
                     ->visible(function (\App\Models\User $record) {

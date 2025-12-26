@@ -121,8 +121,12 @@
                                     ];
                                     $color = $colors[$event['room_type']] ?? $colors['individual'];
                                     $isPast = $event['end']->isPast();
-                                    // Show join button if: lesson started and not ended, OR it's a manually started room (type='running')
-                                    $isOngoing = ($event['start']->isPast() && !$event['end']->isPast()) || ($event['type'] === 'running');
+                                    // Show join button if:
+                                    // 1. Room is running (is_running = true)
+                                    // 2. Event is today OR event type is 'running' (manually started)
+                                    $now = now();
+                                    $isToday = $event['start']->isToday();
+                                    $isOngoing = ($event['is_running'] ?? false) && ($isToday || $event['type'] === 'running');
                                 @endphp
                                 
                                 @if($isOngoing)

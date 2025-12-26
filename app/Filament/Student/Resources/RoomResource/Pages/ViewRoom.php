@@ -8,6 +8,7 @@ use Filament\Actions;
 use Filament\Infolists\Components\Grid;
 use Filament\Infolists\Components\Section;
 use Filament\Infolists\Components\TextEntry;
+use Filament\Infolists\Components\ViewEntry;
 use Filament\Infolists\Infolist;
 use Filament\Resources\Pages\ViewRecord;
 use Illuminate\Support\HtmlString;
@@ -66,28 +67,42 @@ class ViewRoom extends ViewRecord
                                     ->label('Название'),
 
                                 TextEntry::make('user.name')
-                                    ->label('Преподаватель'),
+                                    ->label('Учитель')
+                                    ->formatStateUsing(function ($record) {
+                                        return new \Illuminate\Support\HtmlString(
+                                            '<div class="flex items-center gap-2">' .
+                                            '<img class="inline-block h-8 w-8 rounded-full object-cover" src="' . $record->user->avatar_url . '" alt="' . $record->user->name . '">' .
+                                            '<span>' . e($record->user->name) . '</span>' .
+                                            '</div>'
+                                        );
+                                    }),
 
                                 TextEntry::make('type')
                                     ->label('Тип')
-                                    ->formatStateUsing(fn(string $state) => match ($state) {
-                                        'individual' => 'Индивидуальное',
-                                        'group' => 'Групповое',
-                                        default => $state,
-                                    })
-                                    ->badge()
-                                    ->color(fn(string $state) => match ($state) {
-                                        'individual' => 'info',
-                                        'group' => 'success',
-                                        default => 'gray',
+                                    ->formatStateUsing(function (string $state) {
+                                        $text = match ($state) {
+                                            'individual' => 'Индивидуальное',
+                                            'group' => 'Групповое',
+                                            default => $state,
+                                        };
+
+                                        $isGroup = $state === 'group';
+                                        $icon = $isGroup
+                                            ? '<svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" /></svg>'
+                                            : '<svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" /></svg>';
+
+                                        $colorClasses = $isGroup
+                                            ? 'bg-orange-50 text-orange-700 ring-1 ring-inset ring-orange-600/20 dark:bg-orange-500/10 dark:text-orange-400 dark:ring-orange-400/30'
+                                            : 'bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-600/20 dark:bg-blue-500/10 dark:text-blue-400 dark:ring-blue-400/30';
+
+                                        return new \Illuminate\Support\HtmlString(
+                                            "<span class=\"inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium {$colorClasses}\">{$icon} <span>" . e($text) . "</span></span>"
+                                        );
                                     }),
 
-                                TextEntry::make('is_running')
+                                \Filament\Infolists\Components\ViewEntry::make('next_start')
                                     ->label('Статус')
-                                    ->formatStateUsing(fn(bool $state) => $state ? 'Идет урок' : 'Ожидание')
-                                    ->badge()
-                                    ->color(fn(bool $state) => $state ? 'warning' : 'gray')
-                                    ->icon(fn(bool $state) => $state ? 'heroicon-m-video-camera' : 'heroicon-m-clock'),
+                                    ->view('filament.infolists.next-lesson-status'),
                             ]),
 
                         TextEntry::make('welcome_msg')

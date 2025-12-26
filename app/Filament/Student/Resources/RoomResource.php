@@ -47,24 +47,23 @@ class RoomResource extends Resource
                 Tables\Columns\TextColumn::make('name')
                     ->label('Название')
                     ->searchable()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('user.name')
-                    ->label('Преподаватель')
                     ->sortable()
+                    ->icon(fn(Room $record) => $record->type === 'group' ? 'heroicon-o-user-group' : 'heroicon-o-user')
+                    ->iconColor('gray'),
+                Tables\Columns\ViewColumn::make('user')
+                    ->label('Преподаватель')
+                    ->view('filament.tables.columns.teacher-avatar')
+                    ->sortable(query: function ($query, string $direction) {
+                        return $query->join('users', 'rooms.user_id', '=', 'users.id')
+                            ->orderBy('users.name', $direction)
+                            ->select('rooms.*');
+                    })
                     ->toggleable(),
-                Tables\Columns\TextColumn::make('status')
+                Tables\Columns\ViewColumn::make('next_start')
                     ->label('Статус')
-                    ->badge()
-                    ->state(fn(Room $record) => $record->is_running ? 'Идет урок' : 'Ожидание')
-                    ->color(fn(string $state) => match ($state) {
-                        'Идет урок' => 'warning',
-                        'Ожидание' => 'gray',
-                    })
-                    ->icon(fn(string $state) => match ($state) {
-                        'Идет урок' => 'heroicon-m-video-camera',
-                        'Ожидание' => 'heroicon-m-clock',
-                    })
-                    ->toggleable(),
+                    ->view('filament.tables.columns.next-lesson')
+                    ->sortable()
+                    ->state(fn(Room $record) => $record->next_start?->toIso8601String()),
             ])
             ->searchable()
             ->actions([
