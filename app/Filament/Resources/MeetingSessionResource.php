@@ -88,6 +88,11 @@ class MeetingSessionResource extends Resource
                 Tables\Columns\TextColumn::make('status')
                     ->label('Статус')
                     ->badge()
+                    ->formatStateUsing(fn(string $state): string => match ($state) {
+                        'running' => 'Активна',
+                        'completed' => 'Завершена',
+                        default => $state,
+                    })
                     ->color(fn(string $state): string => match ($state) {
                         'running' => 'success',
                         'completed' => 'gray',

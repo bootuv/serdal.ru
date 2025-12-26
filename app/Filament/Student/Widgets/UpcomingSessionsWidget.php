@@ -58,6 +58,12 @@ class UpcomingSessionsWidget extends BaseWidget
                     })
             )
             ->heading('Ближайшие занятия')
+            ->headerActions([
+                Tables\Actions\Action::make('viewAll')
+                    ->label('Все занятия')
+                    ->url(\App\Filament\Student\Resources\RoomResource::getUrl('index'))
+                    ->link(),
+            ])
             ->columns([
                 Tables\Columns\TextColumn::make('name')
                     ->label('Название')
