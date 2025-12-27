@@ -195,5 +195,5 @@ return [
     |
     */
 
-    'release_token' => 'a',
+    'release_token' => env('APP_VERSION', md5(config('app.version', '1.0.0'))),
 ];
