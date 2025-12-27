@@ -55,11 +55,42 @@ document.addEventListener('DOMContentLoaded', function () {
 // This error occurs when Filament modals close and Livewire tries to find a component that's already been removed
 // It doesn't affect functionality, so we suppress it to keep the console clean
 window.addEventListener('unhandledrejection', function (event) {
-    if (event.reason &&
-        typeof event.reason === 'string' &&
+    // Log detailed information about the error for debugging
+    console.group('🔍 Unhandled Rejection Debug');
+    console.log('Event:', event);
+    console.log('Reason type:', typeof event.reason);
+    console.log('Reason:', event.reason);
+
+    if (event.reason instanceof Error) {
+        console.log('Error message:', event.reason.message);
+        console.log('Error stack:', event.reason.stack);
+    }
+
+    // Check different possible formats of the error
+    let shouldSuppress = false;
+
+    if (typeof event.reason === 'string' &&
         event.reason.toLowerCase().includes('could not find livewire component')) {
+        console.log('✅ Matched: String error containing livewire component');
+        shouldSuppress = true;
+    } else if (event.reason instanceof Error &&
+        event.reason.message &&
+        event.reason.message.toLowerCase().includes('could not find livewire component')) {
+        console.log('✅ Matched: Error object with livewire component message');
+        shouldSuppress = true;
+    } else if (event.reason &&
+        event.reason.toString &&
+        event.reason.toString().toLowerCase().includes('could not find livewire component')) {
+        console.log('✅ Matched: Object with toString containing livewire component');
+        shouldSuppress = true;
+    } else {
+        console.log('❌ Not matched - this is a different error');
+    }
+
+    console.groupEnd();
+
+    if (shouldSuppress) {
         event.preventDefault();
-        // Optionally log it for debugging
-        // console.debug('Suppressed Livewire component lookup error:', event.reason);
+        console.log('🔇 Suppressed Livewire component lookup error');
     }
 });
