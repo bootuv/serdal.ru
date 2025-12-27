@@ -102,7 +102,8 @@ class ViewRoom extends ViewRecord
 
                                 \Filament\Infolists\Components\ViewEntry::make('next_start')
                                     ->label('Статус')
-                                    ->view('filament.infolists.next-lesson-status'),
+                                    ->view('filament.infolists.next-lesson-status')
+                                    ->viewData(['isStudent' => true]),
                             ]),
 
                         TextEntry::make('welcome_msg')
