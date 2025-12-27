@@ -64,6 +64,7 @@ class Profile extends Page
 
                 Forms\Components\Select::make('grade')
                     ->label('Класс')
+                    ->searchable(false)
                     ->options([
                         'preschool' => 'Дошкольник',
                         '1' => '1 класс',
@@ -79,7 +80,23 @@ class Profile extends Page
                         '11' => '11 класс',
                         'adults' => 'Взрослый',
                     ])
-                    ->native(false),
+                    ->dehydrateStateUsing(function ($state) {
+                        // Convert single value to array for database storage
+                        if (empty($state)) {
+                            return [];
+                        }
+                        $value = is_numeric($state) ? (int) $state : $state;
+                        return [$value];
+                    })
+                    ->afterStateHydrated(function ($component, $state) {
+                        // Convert array to single value for form display
+                        if (!is_array($state) || empty($state)) {
+                            $component->state(null);
+                            return;
+                        }
+                        $firstValue = $state[0];
+                        $component->state(is_int($firstValue) ? (string) $firstValue : $firstValue);
+                    }),
             ])
             ->statePath('data');
     }

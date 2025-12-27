@@ -83,6 +83,11 @@ class Room extends Model
         return $this->hasMany(MeetingSession::class);
     }
 
+    public function recordings()
+    {
+        return $this->hasMany(Recording::class, 'meeting_id', 'meeting_id');
+    }
+
     public function getAvatarBgColorAttribute(): string
     {
         $colors = [
