@@ -50,3 +50,16 @@ document.addEventListener('DOMContentLoaded', function () {
         hideZeroBadges();
     }
 });
+
+// Suppress non-critical Livewire component lookup errors
+// This error occurs when Filament modals close and Livewire tries to find a component that's already been removed
+// It doesn't affect functionality, so we suppress it to keep the console clean
+window.addEventListener('unhandledrejection', function (event) {
+    if (event.reason &&
+        typeof event.reason === 'string' &&
+        event.reason.toLowerCase().includes('could not find livewire component')) {
+        event.preventDefault();
+        // Optionally log it for debugging
+        // console.debug('Suppressed Livewire component lookup error:', event.reason);
+    }
+});
