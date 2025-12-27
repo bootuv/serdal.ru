@@ -91,7 +91,7 @@ class RoomResource extends Resource
                         'image/jpeg',
                         'image/png',
                     ])
-                    ->maxSize(102400) // 100MB in KB
+                    ->maxSize(204800) // 200MB in KB
                     ->directory('presentations')
                     ->columnSpanFull(),
 
