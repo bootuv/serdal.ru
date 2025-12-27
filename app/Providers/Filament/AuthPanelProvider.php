@@ -39,6 +39,7 @@ class AuthPanelProvider extends PanelProvider
             ->brandLogo(fn() => asset('images/Logo.svg'))
             ->darkModeBrandLogo(fn() => asset('images/Logo-white.svg'))
             ->brandLogoHeight('2rem')
+            ->favicon(asset('images/favicon.ico'))
             ->middleware([
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,
