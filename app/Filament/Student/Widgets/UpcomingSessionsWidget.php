@@ -92,6 +92,7 @@ class UpcomingSessionsWidget extends BaseWidget
                 Tables\Columns\ViewColumn::make('next_start')
                     ->label('Статус')
                     ->view('filament.tables.columns.next-lesson')
+                    ->viewData(['isStudent' => true])
                     ->state(fn(Room $record) => $record->next_start?->toIso8601String()),
             ])
             ->emptyStateHeading('Нет занятий в ближайшие 24 часа')

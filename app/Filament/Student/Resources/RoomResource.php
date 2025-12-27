@@ -62,6 +62,7 @@ class RoomResource extends Resource
                 Tables\Columns\ViewColumn::make('next_start')
                     ->label('Статус')
                     ->view('filament.tables.columns.next-lesson')
+                    ->viewData(['isStudent' => true])
                     ->sortable()
                     ->state(fn(Room $record) => $record->next_start?->toIso8601String()),
             ])
