@@ -125,9 +125,47 @@ class TeacherApplicationResource extends Resource
                                         Forms\Components\TextInput::make('email')->label('Email'),
                                         Forms\Components\TextInput::make('phone')->label('Телефон'),
                                     ]),
+                                Forms\Components\Section::make('Контакты в мессенджерах')
+                                    ->schema([
+                                        Forms\Components\TextInput::make('whatsup')->label('WhatsApp'),
+                                        Forms\Components\TextInput::make('telegram')->label('Telegram'),
+                                        Forms\Components\TextInput::make('instagram')->label('Instagram'),
+                                    ])->columns(3),
                                 Forms\Components\Section::make('Профессиональные данные')
                                     ->schema([
                                         Forms\Components\Textarea::make('about')->label('О себе')->columnSpanFull(),
+                                        Forms\Components\TextInput::make('subjects_display')
+                                            ->label('Предметы')
+                                            ->formatStateUsing(function ($state, $record) {
+                                                if (empty($record->subjects))
+                                                    return 'Не указано';
+                                                $names = \App\Models\Subject::whereIn('id', $record->subjects)->pluck('name')->toArray();
+                                                return implode(', ', $names);
+                                            })
+                                            ->disabled()
+                                            ->dehydrated(false)
+                                            ->columnSpanFull(),
+                                        Forms\Components\TextInput::make('directs_display')
+                                            ->label('Направления')
+                                            ->formatStateUsing(function ($state, $record) {
+                                                if (empty($record->directs))
+                                                    return 'Не указано';
+                                                $names = \App\Models\Direct::whereIn('id', $record->directs)->pluck('name')->toArray();
+                                                return implode(', ', $names);
+                                            })
+                                            ->disabled()
+                                            ->dehydrated(false)
+                                            ->columnSpanFull(),
+                                        Forms\Components\TextInput::make('grade_display')
+                                            ->label('Классы')
+                                            ->formatStateUsing(function ($state, $record) {
+                                                if (empty($record->grade))
+                                                    return 'Не указано';
+                                                return implode(', ', $record->grade);
+                                            })
+                                            ->disabled()
+                                            ->dehydrated(false)
+                                            ->columnSpanFull(),
                                     ]),
                             ])
                     )
