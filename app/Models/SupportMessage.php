@@ -14,11 +14,13 @@ class SupportMessage extends Model
         'support_chat_id',
         'user_id',
         'content',
+        'attachments',
         'read_at',
     ];
 
     protected $casts = [
         'read_at' => 'datetime',
+        'attachments' => 'array',
     ];
 
     /**

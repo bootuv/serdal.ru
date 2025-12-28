@@ -6,14 +6,19 @@ use App\Models\SupportChat;
 use App\Models\SupportMessage;
 use App\Models\User;
 use Livewire\Component;
+use Livewire\WithFileUploads;
+use Illuminate\Support\Facades\Storage;
 
 class SupportChatComponent extends Component
 {
+    use WithFileUploads;
+
     public ?SupportChat $supportChat = null;
     public string $newMessage = '';
     public $messages = [];
     public bool $isAdmin = false;
     public bool $showUserCard = false;
+    public $attachments = [];
 
     public function mount(?SupportChat $supportChat = null)
     {
@@ -82,6 +87,7 @@ class SupportChatComponent extends Component
                 'user_name' => $msg->user->name,
                 'user_avatar' => $msg->user->avatar_url,
                 'content' => $msg->content,
+                'attachments' => $msg->attachments ?? [],
                 'created_at' => $msg->created_at->format('H:i'),
                 'is_own' => $msg->user_id === auth()->id(),
                 'is_admin' => $msg->user_id !== $chatOwnerId,
@@ -93,7 +99,7 @@ class SupportChatComponent extends Component
 
     public function sendMessage(): void
     {
-        if (!$this->supportChat || trim($this->newMessage) === '') {
+        if (!$this->supportChat || (trim($this->newMessage) === '' && empty($this->attachments))) {
             return;
         }
 
@@ -107,10 +113,25 @@ class SupportChatComponent extends Component
             return;
         }
 
+        // Обработка вложений
+        $attachmentsData = [];
+        if (!empty($this->attachments)) {
+            foreach ($this->attachments as $file) {
+                $path = $file->storePublicly('support-attachments', 's3');
+                $attachmentsData[] = [
+                    'path' => $path,
+                    'name' => $file->getClientOriginalName(),
+                    'type' => $file->getMimeType(),
+                    'size' => $file->getSize(),
+                ];
+            }
+        }
+
         $message = SupportMessage::create([
             'support_chat_id' => $this->supportChat->id,
             'user_id' => $user->id,
             'content' => trim($this->newMessage),
+            'attachments' => !empty($attachmentsData) ? $attachmentsData : null,
         ]);
 
         $message->load('user');
@@ -122,6 +143,7 @@ class SupportChatComponent extends Component
             'user_name' => $message->user->name,
             'user_avatar' => $message->user->avatar_url,
             'content' => $message->content,
+            'attachments' => $attachmentsData,
             'created_at' => $message->created_at->format('H:i'),
             'is_own' => true,
             'is_admin' => $user->role === User::ROLE_ADMIN,
@@ -130,8 +152,15 @@ class SupportChatComponent extends Component
         ];
 
         $this->newMessage = '';
+        $this->attachments = [];
 
         $this->dispatch('message-sent');
+    }
+
+    public function removeAttachment($index)
+    {
+        unset($this->attachments[$index]);
+        $this->attachments = array_values($this->attachments);
     }
 
     public function render()

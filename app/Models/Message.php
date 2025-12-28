@@ -14,11 +14,13 @@ class Message extends Model
         'room_id',
         'user_id',
         'content',
+        'attachments',
         'read_at',
     ];
 
     protected $casts = [
         'read_at' => 'datetime',
+        'attachments' => 'array',
     ];
 
     public function room(): BelongsTo

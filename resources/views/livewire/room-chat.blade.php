@@ -79,7 +79,7 @@
             </div>
 
             {{-- Сообщения --}}
-            <div class="flex-1 overflow-y-auto p-4 space-y-4" id="messages-container" x-data
+            <div class="flex-1 overflow-y-auto p-4 space-y-4" id="messages-container" x-data="{ imageModal: false, imageUrl: '' }"
                 x-init="$el.scrollTop = $el.scrollHeight"
                 @message-sent.window="$nextTick(() => $el.scrollTop = $el.scrollHeight)"
                 @message-received.window="$nextTick(() => $el.scrollTop = $el.scrollHeight)">
@@ -91,14 +91,43 @@
                             <div @class([
                                 'rounded-xl px-4 py-2',
                                 'bg-primary-600 text-white' => $message['is_own'],
-                                'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white' => !$message['is_own'],
+                                'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100' => !$message['is_own'],
                             ])>
                                 @unless($message['is_own'])
                                     <p class="text-xs font-semibold mb-1" style="color: {{ $message['user_color'] }}">
                                         {{ $message['user_name'] }}
                                     </p>
                                 @endunless
-                                <p class="text-sm whitespace-pre-wrap break-words">{{ $message['content'] }}</p>
+
+                                {{-- Вложения --}}
+                                @if(!empty($message['attachments']))
+                                    <div class="mb-2 space-y-2">
+                                        @foreach($message['attachments'] as $attachment)
+                                            @if(str_starts_with($attachment['type'], 'image/'))
+                                                <a href="{{ Storage::disk('s3')->url($attachment['path']) }}" 
+                                                   target="_blank"
+                                                   class="block">
+                                                    <img src="{{ Storage::disk('s3')->url($attachment['path']) }}"
+                                                        alt="{{ $attachment['name'] }}"
+                                                        class="max-w-full rounded-lg cursor-pointer hover:opacity-80 transition-opacity"
+                                                        style="max-height: 200px;" />
+                                                </a>
+                                            @else
+                                                <a href="{{ Storage::disk('s3')->url($attachment['path']) }}"
+                                                    download="{{ $attachment['name'] }}"
+                                                    class="flex items-center gap-2 p-2 rounded-lg {{ $message['is_own'] ? 'bg-primary-700 hover:bg-primary-800' : 'bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500' }} transition-colors">
+                                                    <x-heroicon-o-document class="w-5 h-5 flex-shrink-0" />
+                                                    <span class="text-sm truncate">{{ $attachment['name'] }}</span>
+                                                    <x-heroicon-o-arrow-down-tray class="w-4 h-4 flex-shrink-0" />
+                                                </a>
+                                            @endif
+                                        @endforeach
+                                    </div>
+                                @endif
+
+                                @if($message['content'])
+                                    <p class="text-sm whitespace-pre-wrap break-words">{{ $message['content'] }}</p>
+                                @endif
                                 <p @class([
                                     'text-xs mt-1 text-right',
                                     'text-white/80' => $message['is_own'],
@@ -119,11 +148,60 @@
                         </div>
                     </div>
                 @endforelse
+
+                {{-- fsLightbox используется вместо кастомного модального окна --}}
             </div>
 
             {{-- Форма отправки --}}
             <div class="p-4 border-t border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 z-10 sticky bottom-0">
+                {{-- Превью прикрепленных файлов --}}
+                @if(count($attachments) > 0)
+                    <div class="mb-4 p-3 bg-white dark:bg-gray-800 rounded-lg ring-1 ring-gray-200 dark:ring-gray-700">
+                        <div class="flex items-center justify-between gap-3">
+                            @foreach($attachments as $index => $file)
+                                <div class="flex items-center gap-3 flex-1 min-w-0">
+                                    @if(str_starts_with($file->getMimeType(), 'image/'))
+                                        <img src="{{ $file->temporaryUrl() }}"
+                                            class="h-8 w-8 object-cover rounded flex-shrink-0" />
+                                    @else
+                                        <div class="h-8 w-8 flex items-center justify-center rounded bg-gray-100 dark:bg-gray-700 flex-shrink-0">
+                                            <x-heroicon-o-document class="w-4 h-4 text-gray-500" />
+                                        </div>
+                                    @endif
+                                    <div class="flex-1 min-w-0">
+                                        <p class="text-sm font-medium text-gray-900 dark:text-white truncate">
+                                            {{ $file->getClientOriginalName() }}
+                                        </p>
+                                        <p class="text-xs text-gray-500 dark:text-gray-400">
+                                            {{ number_format($file->getSize() / 1024, 1) }} КБ
+                                        </p>
+                                    </div>
+                                </div>
+                                <button type="button" wire:click="removeAttachment({{ $index }})"
+                                    class="flex-shrink-0 p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                    title="Удалить">
+                                    <x-heroicon-o-trash class="w-5 h-5" />
+                                </button>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
+
+                {{-- Индикатор загрузки файла --}}
+                <div wire:loading wire:target="attachments" class="mb-3 flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                    <svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>Загрузка файла...</span>
+                </div>
+
                 <form wire:submit="sendMessage" class="flex gap-2">
+                    <label class="cursor-pointer flex items-center justify-center px-3 rounded-lg text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <input type="file" wire:model="attachments" class="hidden" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.zip,.rar" />
+                        <x-heroicon-o-paper-clip class="w-5 h-5" />
+                    </label>
+
                     <x-filament::input.wrapper class="flex-1">
                         <x-filament::input type="text" wire:model="newMessage" placeholder="Введите сообщение..."
                             autocomplete="off" />

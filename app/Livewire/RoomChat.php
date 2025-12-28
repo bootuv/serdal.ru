@@ -8,12 +8,17 @@ use App\Models\Room;
 use App\Notifications\NewMessage;
 use Livewire\Attributes\On;
 use Livewire\Component;
+use Livewire\WithFileUploads;
+use Illuminate\Support\Facades\Storage;
 
 class RoomChat extends Component
 {
+    use WithFileUploads;
+
     public ?Room $room = null;
     public string $newMessage = '';
     public $messages = [];
+    public $attachments = [];
 
     public function mount(?Room $room = null)
     {
@@ -56,6 +61,7 @@ class RoomChat extends Component
                 'user_name' => $msg->user->name,
                 'user_avatar' => $msg->user->avatar_url,
                 'content' => $msg->content,
+                'attachments' => $msg->attachments ?? [],
                 'created_at' => $msg->created_at->format('H:i'),
                 'is_own' => $msg->user_id === auth()->id(),
                 'read_at' => $msg->read_at,
@@ -86,7 +92,7 @@ class RoomChat extends Component
 
     public function sendMessage()
     {
-        if (!$this->room || trim($this->newMessage) === '') {
+        if (!$this->room || (trim($this->newMessage) === '' && empty($this->attachments))) {
             return;
         }
 
@@ -100,11 +106,25 @@ class RoomChat extends Component
             return;
         }
 
+        // Обработка вложений
+        $attachmentsData = [];
+        if (!empty($this->attachments)) {
+            foreach ($this->attachments as $file) {
+                $path = $file->storePublicly('chat-attachments', 's3');
+                $attachmentsData[] = [
+                    'path' => $path,
+                    'name' => $file->getClientOriginalName(),
+                    'type' => $file->getMimeType(),
+                    'size' => $file->getSize(),
+                ];
+            }
+        }
+
         $message = Message::create([
             'room_id' => $this->room->id,
             'user_id' => $user->id,
             'content' => trim($this->newMessage),
-            // 'read_at' is null by default
+            'attachments' => !empty($attachmentsData) ? $attachmentsData : null,
         ]);
 
         $message->load('user');
@@ -140,6 +160,7 @@ class RoomChat extends Component
             'user_name' => $message->user->name,
             'user_avatar' => $message->user->avatar_url,
             'content' => $message->content,
+            'attachments' => $attachmentsData,
             'created_at' => $message->created_at->format('H:i'),
             'is_own' => true,
             'read_at' => null,
@@ -147,6 +168,7 @@ class RoomChat extends Component
         ];
 
         $this->newMessage = '';
+        $this->attachments = [];
 
         $this->dispatch('message-sent');
     }
@@ -186,6 +208,12 @@ class RoomChat extends Component
         return [
             "echo-private:room.{$this->room->id},.message.sent" => 'onMessageReceived',
         ];
+    }
+
+    public function removeAttachment($index)
+    {
+        unset($this->attachments[$index]);
+        $this->attachments = array_values($this->attachments);
     }
 
     public function render()
