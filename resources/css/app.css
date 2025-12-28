@@ -80,3 +80,52 @@ button .fi-badge {
     height: auto !important;
     line-height: 1.2 !important;
 }
+
+/* Student Card Modal Styling */
+.fi-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid rgb(229 231 235);
+}
+
+.dark .fi-modal-header {
+    border-bottom-color: rgb(55 65 81);
+}
+
+.fi-modal-header .fi-modal-heading {
+    font-size: 1.125rem;
+    line-height: 1.75rem;
+    font-weight: 600;
+    color: rgb(17 24 39);
+}
+
+.dark .fi-modal-header .fi-modal-heading {
+    color: white;
+}
+
+.fi-modal-close-btn {
+    color: rgb(156 163 175);
+}
+
+.fi-modal-close-btn:hover {
+    color: rgb(107 114 128);
+}
+
+.dark .fi-modal-close-btn {
+    color: rgb(156 163 175);
+}
+
+.dark .fi-modal-close-btn:hover {
+    color: rgb(209 213 219);
+}
+
+.fi-modal-footer {
+    border-top: 1px solid rgb(229 231 235);
+    padding-top: 1rem;
+}
+
+.dark .fi-modal-footer {
+    border-top-color: rgb(55 65 81);
+}

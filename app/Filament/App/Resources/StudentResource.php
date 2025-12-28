@@ -49,28 +49,69 @@ class StudentResource extends Resource
     {
         return $form
             ->schema([
-                Forms\Components\Grid::make()
-                    ->schema([
-                        Forms\Components\Placeholder::make('name')
-                            ->hiddenLabel()
-                            ->content(fn(User $record): \Illuminate\Support\HtmlString => new \Illuminate\Support\HtmlString('
-                                <div class="flex items-center gap-4">
-                                    <img src="' . $record->avatar_url . '" class="rounded-full object-cover shadow-md" style="width: 80px; height: 80px;">
-                                    <span class="text-lg font-medium">' . e($record->name) . '</span>
-                                </div>
-                            ')),
-                        Forms\Components\Placeholder::make('email')
-                            ->label('Email')
-                            ->content(fn(User $record): \Illuminate\Support\HtmlString => new \Illuminate\Support\HtmlString(
-                                '<div style="word-break: break-all;">' . e($record->email) . '</div>'
-                            )),
-                        Forms\Components\Placeholder::make('phone')
-                            ->label('Телефон')
-                            ->content(fn(User $record): string => $record->phone ?? '-'),
-                    ])->columns(1),
+                Forms\Components\Placeholder::make('header')
+                    ->hiddenLabel()
+                    ->content(fn(User $record): \Illuminate\Support\HtmlString => new \Illuminate\Support\HtmlString('
+                        <div class="flex items-center gap-4">
+                            <img src="' . e($record->avatar_url) . '" class="rounded-full object-cover shadow-md" style="width: 80px; height: 80px;">
+                            <div>
+                                <p class="text-lg font-medium text-gray-900 dark:text-white">' . e($record->name) . '</p>
+                                <p class="text-sm text-gray-500 dark:text-gray-400">' . e($record->display_role) . '</p>
+                            </div>
+                        </div>
+                    '))
+                    ->columnSpanFull(),
+
+                Forms\Components\Placeholder::make('email')
+                    ->hiddenLabel()
+                    ->content(fn(User $record): \Illuminate\Support\HtmlString => new \Illuminate\Support\HtmlString('
+                        <div>
+                            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Email</p>
+                            <p class="mt-1 text-gray-900 dark:text-white break-all">' . e($record->email) . '</p>
+                        </div>
+                    '))
+                    ->columnSpanFull(),
+
+                Forms\Components\Placeholder::make('phone')
+                    ->hiddenLabel()
+                    ->content(fn(User $record): \Illuminate\Support\HtmlString => new \Illuminate\Support\HtmlString('
+                        <div>
+                            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Телефон</p>
+                            <p class="mt-1 text-gray-900 dark:text-white">' . e($record->phone ?? '-') . '</p>
+                        </div>
+                    '))
+                    ->columnSpanFull(),
+
+                Forms\Components\Placeholder::make('messengers')
+                    ->hiddenLabel()
+                    ->content(function (User $record): \Illuminate\Support\HtmlString {
+                        $badges = [];
+
+                        if ($record->telegram) {
+                            $badges[] = '<a href="https://t.me/' . e($record->telegram) . '" target="_blank" class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400 rounded-md ring-1 ring-inset ring-blue-600/20 dark:ring-blue-400/30">Telegram: ' . e($record->telegram) . '</a>';
+                        }
+
+                        if ($record->whatsup) {
+                            $whatsappNumber = preg_replace('/[^0-9]/', '', $record->whatsup);
+                            $badges[] = '<a href="https://wa.me/' . $whatsappNumber . '" target="_blank" class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium bg-green-50 text-green-700 dark:bg-green-500/10 dark:text-green-400 rounded-md ring-1 ring-inset ring-green-600/20 dark:ring-green-400/30">WhatsApp: ' . e($record->whatsup) . '</a>';
+                        }
+
+                        if (empty($badges)) {
+                            return new \Illuminate\Support\HtmlString('');
+                        }
+
+                        return new \Illuminate\Support\HtmlString('
+                            <div>
+                                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Мессенджеры</p>
+                                <div class="mt-1 flex flex-wrap gap-2">' . implode('', $badges) . '</div>
+                            </div>
+                        ');
+                    })
+                    ->visible(fn(User $record): bool => $record->telegram || $record->whatsup)
+                    ->columnSpanFull(),
 
                 Forms\Components\Placeholder::make('assigned_rooms_list')
-                    ->label('Назначенные занятия')
+                    ->hiddenLabel()
                     ->content(function (User $record) {
                         $rooms = $record->assignedRooms()
                             ->where('rooms.user_id', auth()->id())
@@ -78,19 +119,37 @@ class StudentResource extends Resource
                             ->toArray();
 
                         if (empty($rooms)) {
-                            return 'Нет назначенных занятий';
+                            return new \Illuminate\Support\HtmlString('
+                                <div>
+                                    <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Назначенные занятия</p>
+                                    <p class="mt-1 text-gray-500 dark:text-gray-400">Нет назначенных занятий</p>
+                                </div>
+                            ');
                         }
 
-                        return new \Illuminate\Support\HtmlString(
-                            '<div class="flex flex-wrap gap-2">' .
+                        return new \Illuminate\Support\HtmlString('
+                            <div>
+                                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Назначенные занятия</p>
+                                <div class="mt-1 flex flex-wrap gap-2">' .
                             implode('', array_map(
                                 fn($name) =>
-                                '<span class="px-2 py-1 text-xs font-medium bg-gray-100 dark:bg-gray-700 rounded-md">' . e($name) . '</span>',
+                                '<span class="px-2 py-1 text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white rounded-md">' . e($name) . '</span>',
                                 $rooms
                             )) .
-                            '</div>'
-                        );
+                            '</div>
+                            </div>
+                        ');
                     })
+                    ->columnSpanFull(),
+
+                Forms\Components\Placeholder::make('created_at')
+                    ->hiddenLabel()
+                    ->content(fn(User $record): \Illuminate\Support\HtmlString => new \Illuminate\Support\HtmlString('
+                        <div>
+                            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Дата регистрации</p>
+                            <p class="mt-1 text-gray-900 dark:text-white">' . $record->created_at->format('d.m.Y H:i') . '</p>
+                        </div>
+                    '))
                     ->columnSpanFull(),
             ]);
     }
@@ -258,20 +317,13 @@ class StudentResource extends Resource
                 Tables\Actions\ViewAction::make()
                     ->label('Информация')
                     ->modalHeading('Карточка ученика')
-                    ->modalWidth('lg')
+                    ->modalWidth('md')
                     ->extraAttributes(['class' => 'hidden']) // Hide the button visually
-                    ->extraModalFooterActions(fn(User $record): array => [
-                        Tables\Actions\Action::make('close_modal')
-                            ->label('Закрыть')
-                            ->color('gray')
-                            ->cancelParentActions(),
-                    ])
                     ->modalFooterActions(fn(User $record): array => [
                         Tables\Actions\Action::make('delete_from_list')
                             ->label('Удалить из списка')
                             ->color('danger')
                             ->icon('heroicon-o-trash')
-                            ->link()
                             ->requiresConfirmation()
                             ->action(function (User $record) {
                                 $teacher = auth()->user();

@@ -1,0 +1,246 @@
+<div wire:poll.30s="loadMessages" class="h-full flex flex-col" x-data="{ showUserCard: false }">
+    @if($supportChat)
+        <div
+            class="flex-1 flex flex-col bg-white dark:bg-gray-900 ring-1 ring-gray-950/5 dark:ring-white/10 rounded-xl overflow-hidden">
+            {{-- Заголовок чата --}}
+            <div
+                class="px-6 py-4 border-b border-gray-200 dark:border-white/10 flex items-center gap-3 bg-white dark:bg-gray-900 z-10">
+                @if($isAdmin)
+                    {{-- Для админа показываем аватарку пользователя --}}
+                    <x-filament::avatar :src="$supportChat->user->avatar_url" :alt="$supportChat->user->name" size="lg" />
+                    <div>
+                        <button @click="showUserCard = true"
+                            class="inline-flex items-center gap-1 text-base font-semibold leading-6 text-gray-950 dark:text-white hover:text-primary-600 dark:hover:text-primary-400 transition-colors cursor-pointer">
+                            {{ $supportChat->user->name }}
+                            <x-heroicon-m-arrow-top-right-on-square class="w-4 h-4 text-gray-400" />
+                        </button>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">
+                            {{ $supportChat->user->display_role }}
+                        </p>
+                    </div>
+                @else
+                    {{-- Для пользователя показываем иконку поддержки --}}
+                    <div class="w-10 h-10 rounded-full flex items-center justify-center"
+                        style="background-color: #ffedd5; color: #ea580c">
+                        <x-heroicon-m-lifebuoy class="w-5 h-5" />
+                    </div>
+                    <div>
+                        <h3 class="text-base font-semibold leading-6 text-gray-950 dark:text-white">
+                            Техническая поддержка
+                        </h3>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">
+                            Мы всегда на связи
+                        </p>
+                    </div>
+                @endif
+            </div>
+
+            {{-- Сообщения --}}
+            <div class="flex-1 overflow-y-auto p-4 space-y-4" id="support-messages-container"
+                x-init="$el.scrollTop = $el.scrollHeight"
+                @message-sent.window="$nextTick(() => $el.scrollTop = $el.scrollHeight)"
+                @message-received.window="$nextTick(() => $el.scrollTop = $el.scrollHeight)">
+                @forelse($messages as $message)
+                    <div class="flex {{ $message['is_own'] ? 'justify-end' : 'justify-start' }}">
+                        <div class="flex items-end gap-2 max-w-[75%] {{ $message['is_own'] ? 'flex-row-reverse' : '' }}">
+                            <x-filament::avatar :src="$message['user_avatar']" alt="{{ $message['user_name'] }}" size="md" />
+
+                            <div @class([
+                                'rounded-xl px-4 py-2',
+                                'bg-primary-600 text-white' => $message['is_own'],
+                                'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white' => !$message['is_own'],
+                            ])>
+                                @unless($message['is_own'])
+                                    <p class="text-xs font-semibold mb-1" style="color: {{ $message['user_color'] }}">
+                                        {{ $message['user_name'] }}
+                                        @if($message['is_admin'])
+                                            <span class="text-primary-500">(Поддержка)</span>
+                                        @endif
+                                    </p>
+                                @endunless
+                                <p class="text-sm whitespace-pre-wrap break-words">{{ $message['content'] }}</p>
+                                <p @class([
+                                    'text-xs mt-1 text-right',
+                                    'text-white/80' => $message['is_own'],
+                                    'text-gray-400 dark:text-gray-500' => !$message['is_own'],
+                                ])>
+                                    {{ $message['created_at'] }}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                @empty
+                    <div class="h-full flex items-center justify-center">
+                        <div class="text-center">
+                            <x-heroicon-o-chat-bubble-left-ellipsis class="mx-auto text-gray-400 dark:text-gray-500"
+                                style="width: 64px; height: 64px;" />
+                            <p class="mt-2 text-gray-500 dark:text-gray-400">Нет сообщений</p>
+                            <p class="text-sm text-gray-400 dark:text-gray-500">
+                                @if($isAdmin)
+                                    Пользователь ещё не писал
+                                @else
+                                    Напишите нам, и мы поможем!
+                                @endif
+                            </p>
+                        </div>
+                    </div>
+                @endforelse
+            </div>
+
+            {{-- Форма отправки --}}
+            <div class="p-4 border-t border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 z-10 sticky bottom-0">
+                <form wire:submit="sendMessage" class="flex gap-2">
+                    <x-filament::input.wrapper class="flex-1">
+                        <x-filament::input type="text" wire:model="newMessage" placeholder="Введите сообщение..."
+                            autocomplete="off" />
+                    </x-filament::input.wrapper>
+
+                    <x-filament::button type="submit" icon="heroicon-m-paper-airplane">
+                        Отправить
+                    </x-filament::button>
+                </form>
+            </div>
+        </div>
+
+        {{-- Модальное окно карточки пользователя (только для админа) --}}
+        @if($isAdmin)
+            {{-- Backdrop --}}
+            <div x-show="showUserCard" x-cloak x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0"
+                x-transition:enter-end="opacity-100" x-transition:leave="ease-in duration-200"
+                x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" class="fixed inset-0 z-40 bg-black/50"
+                @click="showUserCard = false" @keydown.escape.window="showUserCard = false">
+            </div>
+
+            {{-- Modal --}}
+            <div x-show="showUserCard" x-cloak x-transition:enter="ease-out duration-300"
+                x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100" x-transition:leave="ease-in duration-200"
+                x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100"
+                x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                class="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+                <div
+                    class="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto pointer-events-auto">
+
+                    {{-- Header --}}
+                    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+                            @if($supportChat->user->role === 'student')
+                                Карточка ученика
+                            @else
+                                Карточка учителя
+                            @endif
+                        </h3>
+                        <button @click="showUserCard = false"
+                            class="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300">
+                            <x-heroicon-m-x-mark class="w-5 h-5" />
+                        </button>
+                    </div>
+
+                    {{-- Content --}}
+                    <div class="px-6 py-4 space-y-4">
+                        {{-- Аватар и имя --}}
+                        <div class="flex items-center gap-4">
+                            <img src="{{ $supportChat->user->avatar_url }}" class="rounded-full object-cover shadow-md"
+                                style="width: 80px; height: 80px;">
+                            <div>
+                                <p class="text-lg font-medium text-gray-900 dark:text-white">{{ $supportChat->user->name }}</p>
+                                <p class="text-sm text-gray-500 dark:text-gray-400">{{ $supportChat->user->display_role }}</p>
+                            </div>
+                        </div>
+
+                        {{-- Email --}}
+                        <div>
+                            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Email</p>
+                            <p class="mt-1 text-gray-900 dark:text-white break-all">{{ $supportChat->user->email }}</p>
+                        </div>
+
+                        {{-- Телефон --}}
+                        <div>
+                            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Телефон</p>
+                            <p class="mt-1 text-gray-900 dark:text-white">{{ $supportChat->user->phone ?? '-' }}</p>
+                        </div>
+
+                        {{-- Мессенджеры (для всех) --}}
+                        @if($supportChat->user->telegram || $supportChat->user->whatsup)
+                            <div>
+                                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Мессенджеры</p>
+                                <div class="mt-1 flex flex-wrap gap-2">
+                                    @if($supportChat->user->telegram)
+                                        <a href="https://t.me/{{ $supportChat->user->telegram }}" target="_blank"
+                                            class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400 rounded-md">
+                                            Telegram: {{ $supportChat->user->telegram }}
+                                        </a>
+                                    @endif
+                                    @if($supportChat->user->whatsup)
+                                        <a href="https://wa.me/{{ preg_replace('/[^0-9]/', '', $supportChat->user->whatsup) }}"
+                                            target="_blank"
+                                            class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium bg-green-50 text-green-700 dark:bg-green-500/10 dark:text-green-400 rounded-md">
+                                            WhatsApp: {{ $supportChat->user->whatsup }}
+                                        </a>
+                                    @endif
+                                </div>
+                            </div>
+                        @endif
+
+                        {{-- Для учителей: предметы, классы, о себе --}}
+                        @if(in_array($supportChat->user->role, ['mentor', 'tutor']))
+                            {{-- Предметы --}}
+                            @if($supportChat->user->subjects->isNotEmpty())
+                                <div>
+                                    <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Предметы</p>
+                                    <div class="mt-1 flex flex-wrap gap-1">
+                                        @foreach($supportChat->user->subjects as $subject)
+                                            <span
+                                                class="px-2 py-1 text-xs font-medium bg-gray-100 dark:bg-gray-700 rounded-md text-gray-900 dark:text-white">{{ $subject->name }}</span>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            @endif
+
+                            {{-- Классы --}}
+                            @if($supportChat->user->display_grade)
+                                <div>
+                                    <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Классы</p>
+                                    <p class="mt-1 text-gray-900 dark:text-white">{{ $supportChat->user->display_grade }}</p>
+                                </div>
+                            @endif
+
+                            {{-- О себе --}}
+                            @if($supportChat->user->about)
+                                <div>
+                                    <p class="text-sm font-medium text-gray-500 dark:text-gray-400">О себе</p>
+                                    <p class="mt-1 text-gray-900 dark:text-white whitespace-pre-wrap">{{ $supportChat->user->about }}
+                                    </p>
+                                </div>
+                            @endif
+                        @endif
+
+                        {{-- Дата регистрации --}}
+                        <div>
+                            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Дата регистрации</p>
+                            <p class="mt-1 text-gray-900 dark:text-white">
+                                {{ $supportChat->user->created_at->format('d.m.Y H:i') }}
+                            </p>
+                        </div>
+                    </div>
+
+                    {{-- Footer --}}
+                    <div class="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex justify-end">
+                        <x-filament::button @click="showUserCard = false" color="gray">
+                            Закрыть
+                        </x-filament::button>
+                    </div>
+                </div>
+            </div>
+        @endif
+    @else
+        <div
+            class="flex-1 flex items-center justify-center bg-white dark:bg-gray-900 shadow-sm ring-1 ring-gray-950/5 dark:ring-white/10 rounded-xl">
+            <div class="text-center">
+                <x-heroicon-o-lifebuoy class="w-16 h-16 mx-auto text-gray-400 dark:text-gray-500" />
+                <h3 class="mt-4 text-lg font-medium text-gray-900 dark:text-white">Техническая поддержка</h3>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Выберите чат для просмотра</p>
+            </div>
+        </div>
+    @endif
+</div>
