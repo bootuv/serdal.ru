@@ -11,7 +11,11 @@
                 </div>
                 <div x-data="{ showParticipants: false }">
                     <h3 class="text-base font-semibold leading-6 text-gray-950 dark:text-white">
-                        {{ $room->name }}
+                        <a href="{{ \App\Filament\Student\Resources\RoomResource::getUrl('view', ['record' => $room]) }}"
+                            class="hover:text-primary-600 dark:hover:text-primary-400 transition-colors inline-flex items-center gap-1.5">
+                            {{ $room->name }}
+                            <x-heroicon-m-arrow-top-right-on-square class="w-4 h-4 text-gray-400 dark:text-gray-500" />
+                        </a>
                     </h3>
                     <p class="text-sm text-gray-500 dark:text-gray-400">
                         @if($room->user_id !== auth()->id())
