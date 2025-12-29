@@ -10,15 +10,93 @@ use Livewire\Attributes\On;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 use Illuminate\Support\Facades\Storage;
+use Filament\Actions\Action;
+use Filament\Actions\Concerns\InteractsWithActions;
+use Filament\Actions\Contracts\HasActions;
+use Filament\Forms\Concerns\InteractsWithForms;
+use Filament\Forms\Contracts\HasForms;
+use Filament\Forms\Components\TextInput;
+use Intervention\Image\Laravel\Facades\Image;
 
-class RoomChat extends Component
+class RoomChat extends Component implements HasActions, HasForms
 {
     use WithFileUploads;
+    use InteractsWithActions;
+    use InteractsWithForms;
+
+    private const MAX_IMAGE_WIDTH = 1920;
+    private const MAX_IMAGE_HEIGHT = 1080;
 
     public ?Room $room = null;
     public string $newMessage = '';
     public $messages = [];
     public $attachments = [];
+    public $processedAttachments = []; // Обработанные вложения с путями в S3
+    public int $uploadKey = 0; // Ключ для сброса FilePond
+    public ?int $editingMessageId = null; // ID редактируемого сообщения
+    public ?string $editingMessageOriginalContent = null;
+
+    /**
+     * Хук вызывается сразу после загрузки файла
+     * Здесь мы обрабатываем изображения пока временный файл ещё доступен
+     */
+    public function updatedAttachments()
+    {
+        foreach ($this->attachments as $index => $file) {
+            // Пропускаем уже обработанные файлы
+            if (isset($this->processedAttachments[$index])) {
+                continue;
+            }
+
+            $mimeType = $file->getMimeType();
+            $originalName = $file->getClientOriginalName();
+
+            // Проверяем, является ли файл изображением (не GIF)
+            if (str_starts_with($mimeType, 'image/') && !str_contains($mimeType, 'gif')) {
+                try {
+                    // Читаем содержимое файла пока он ещё доступен
+                    $imageContent = $file->get();
+
+                    if ($imageContent) {
+                        $image = Image::read($imageContent);
+
+                        // Уменьшаем только если изображение больше HD
+                        $image->scaleDown(self::MAX_IMAGE_WIDTH, self::MAX_IMAGE_HEIGHT);
+
+                        // Генерируем имя файла
+                        $extension = $file->getClientOriginalExtension() ?: 'jpg';
+                        $filename = 'chat-attachments/' . uniqid() . '_' . time() . '.' . $extension;
+
+                        // Сохраняем в S3
+                        $encodedImage = $image->encodeByExtension($extension, quality: 85);
+                        Storage::disk('s3')->put($filename, (string) $encodedImage, 'public');
+
+                        // Сохраняем данные об обработанном файле
+                        $this->processedAttachments[$index] = [
+                            'path' => $filename,
+                            'name' => $originalName,
+                            'type' => $mimeType,
+                            'size' => strlen((string) $encodedImage),
+                            'processed' => true,
+                        ];
+                        continue;
+                    }
+                } catch (\Exception $e) {
+                    \Log::error('Image resize failed during upload: ' . $e->getMessage());
+                }
+            }
+
+            // Для не-изображений или при ошибке обработки - сохраняем как есть
+            $path = $file->storePublicly('chat-attachments', 's3');
+            $this->processedAttachments[$index] = [
+                'path' => $path,
+                'name' => $originalName,
+                'type' => $mimeType,
+                'size' => $file->getSize(),
+                'processed' => false,
+            ];
+        }
+    }
 
     public function mount(?Room $room = null)
     {
@@ -64,6 +142,8 @@ class RoomChat extends Component
                 'attachments' => $msg->attachments ?? [],
                 'created_at' => $msg->created_at->format('H:i'),
                 'is_own' => $msg->user_id === auth()->id(),
+                'can_delete' => $msg->user_id === auth()->id() || in_array(auth()->user()->role, [\App\Models\User::ROLE_ADMIN, \App\Models\User::ROLE_TUTOR, \App\Models\User::ROLE_MENTOR]),
+                'can_edit' => $msg->user_id === auth()->id(),
                 'read_at' => $msg->read_at,
                 'user_color' => $msg->user->avatar_text_color,
             ])
@@ -106,16 +186,15 @@ class RoomChat extends Component
             return;
         }
 
-        // Обработка вложений
+        // Используем уже обработанные вложения из updatedAttachments
         $attachmentsData = [];
-        if (!empty($this->attachments)) {
-            foreach ($this->attachments as $file) {
-                $path = $file->storePublicly('chat-attachments', 's3');
+        if (!empty($this->processedAttachments)) {
+            foreach ($this->processedAttachments as $attachment) {
                 $attachmentsData[] = [
-                    'path' => $path,
-                    'name' => $file->getClientOriginalName(),
-                    'type' => $file->getMimeType(),
-                    'size' => $file->getSize(),
+                    'path' => $attachment['path'],
+                    'name' => $attachment['name'],
+                    'type' => $attachment['type'],
+                    'size' => $attachment['size'],
                 ];
             }
         }
@@ -163,14 +242,72 @@ class RoomChat extends Component
             'attachments' => $attachmentsData,
             'created_at' => $message->created_at->format('H:i'),
             'is_own' => true,
+            'can_delete' => true,
+            'can_edit' => true,
             'read_at' => null,
             'user_color' => $user->avatar_text_color,
         ];
 
         $this->newMessage = '';
         $this->attachments = [];
+        $this->processedAttachments = [];
 
+        // Инкрементируем ключ для сброса FilePond (wire:key заставит перерисовать)
+        $this->uploadKey++;
         $this->dispatch('message-sent');
+    }
+
+
+
+    public function editMessage(int $messageId)
+    {
+        $message = Message::find($messageId);
+
+        if (!$message || $message->user_id !== auth()->id()) {
+            return;
+        }
+
+        $this->editingMessageId = $message->id;
+        $this->editingMessageOriginalContent = $message->content;
+        $this->newMessage = $message->content;
+
+        // Focus on input
+        $this->dispatch('focus-input');
+    }
+
+    public function cancelEdit()
+    {
+        $this->editingMessageId = null;
+        $this->editingMessageOriginalContent = null;
+        $this->newMessage = '';
+    }
+
+    public function updateMessage()
+    {
+        if (!$this->editingMessageId || trim($this->newMessage) === '') {
+            return;
+        }
+
+        $message = Message::find($this->editingMessageId);
+
+        if (!$message || $message->user_id !== auth()->id()) {
+            $this->cancelEdit();
+            return;
+        }
+
+        $message->update([
+            'content' => trim($this->newMessage)
+        ]);
+
+        // Update local state
+        foreach ($this->messages as $key => $msg) {
+            if ($msg['id'] === $message->id) {
+                $this->messages[$key]['content'] = $message->content;
+                break;
+            }
+        }
+
+        $this->cancelEdit();
     }
 
     #[On('echo-private:room.{room.id},.message.sent')]
@@ -192,6 +329,8 @@ class RoomChat extends Component
             'content' => $event['content'],
             'created_at' => \Carbon\Carbon::parse($event['created_at'])->format('H:i'),
             'is_own' => false,
+            'can_delete' => in_array(auth()->user()->role, [\App\Models\User::ROLE_ADMIN, \App\Models\User::ROLE_TUTOR, \App\Models\User::ROLE_MENTOR]),
+            'can_edit' => false,
             'read_at' => now(), // Marked as read because we just read it by being here
             'user_color' => $event['user_color'] ?? '#000000',
         ];
@@ -213,7 +352,64 @@ class RoomChat extends Component
     public function removeAttachment($index)
     {
         unset($this->attachments[$index]);
+        unset($this->processedAttachments[$index]);
         $this->attachments = array_values($this->attachments);
+        $this->processedAttachments = array_values($this->processedAttachments);
+    }
+
+    public function deleteMessageAction(): Action
+    {
+        return Action::make('deleteMessage')
+            ->requiresConfirmation()
+            ->modalHeading('Удалить сообщение')
+            ->modalDescription('Вы уверены, что хотите удалить это сообщение? Это действие нельзя отменить.')
+            ->modalSubmitActionLabel('Удалить')
+            ->color('danger')
+            ->icon('heroicon-o-trash')
+            ->action(function (array $arguments) {
+                $messageId = $arguments['id'];
+                $this->deleteMessage($messageId);
+            });
+    }
+
+
+    public function deleteMessage(int $messageId)
+    {
+        $message = Message::find($messageId);
+
+        if (!$message) {
+            return;
+        }
+
+        $user = auth()->user();
+        $isOwn = $message->user_id === $user->id;
+        $isStaff = in_array($user->role, [\App\Models\User::ROLE_ADMIN, \App\Models\User::ROLE_TUTOR, \App\Models\User::ROLE_MENTOR]);
+
+        if (!$isOwn && !$isStaff) {
+            return;
+        }
+
+        // Delete attachments from S3
+        if (!empty($message->attachments)) {
+            foreach ($message->attachments as $attachment) {
+                if (isset($attachment['path'])) {
+                    if (Storage::disk('s3')->exists($attachment['path'])) {
+                        Storage::disk('s3')->delete($attachment['path']);
+                        \Log::info('Deleted chat attachment from S3: ' . $attachment['path']);
+                    } else {
+                        \Log::warning('Chat attachment not found on S3 during delete: ' . $attachment['path']);
+                    }
+                }
+            }
+        }
+
+        $message->delete();
+
+        // Update local state by removing the message
+        $this->messages = array_filter($this->messages, fn($msg) => $msg['id'] !== $messageId);
+
+        // Re-index array to avoid JS issues with associative arrays where lists are expected
+        $this->messages = array_values($this->messages);
     }
 
     public function render()

@@ -36,6 +36,10 @@ class StudentPanelProvider extends PanelProvider
                 'panels::body.end',
                 fn() => view('filament.notifications.sound')
             )
+            ->renderHook(
+                'panels::head.end',
+                fn() => \Illuminate\Support\Facades\Blade::render('@filepondScripts')
+            )
             ->databaseNotifications()
             ->databaseNotificationsPolling('30s')
             ->colors([

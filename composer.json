@@ -7,6 +7,7 @@
     "require": {
         "php": "^8.2",
         "filament/filament": "^3.0-stable",
+        "intervention/image-laravel": "^1.5",
         "joisarjignesh/bigbluebutton": "*",
         "laravel-lang/common": "^6.7",
         "laravel/framework": "^11.9",
@@ -15,6 +16,7 @@
         "league/flysystem-aws-s3-v3": "^3.30",
         "pusher/pusher-php-server": "^7.2",
         "spatie/laravel-google-calendar": "^3.8",
+        "spatie/livewire-filepond": "^1.5",
         "symfony/http-kernel": "^7.2"
     },
     "require-dev": {

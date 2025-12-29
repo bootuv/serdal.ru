@@ -64,8 +64,8 @@ return [
     */
 
     'temporary_file_upload' => [
-        'disk' => null,        // Example: 'local', 's3'              | Default: 'default'
-        'rules' => ['required', 'file', 'max:102400'],       // 100MB = 102400 KB
+        'disk' => 'local',        // Local disk for temp uploads (S3 doesn't support multiple)
+        'rules' => null,           // Use default validation rules
         'directory' => null,   // Example: 'tmp'                      | Default: 'livewire-tmp'
         'middleware' => null,  // Example: 'throttle:5,1'             | Default: 'throttle:60,1'
         'preview_mimes' => [   // Supported file types for temporary pre-signed file URLs...

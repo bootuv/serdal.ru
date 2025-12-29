@@ -79,12 +79,12 @@
             </div>
 
             {{-- Сообщения --}}
-            <div class="flex-1 overflow-y-auto p-4 space-y-4" id="messages-container" x-data="{ imageModal: false, imageUrl: '' }"
-                x-init="$el.scrollTop = $el.scrollHeight"
+            <div class="flex-1 overflow-y-auto p-4 space-y-4" id="messages-container"
+                x-data="{ imageModal: false, imageUrl: '' }" x-init="$el.scrollTop = $el.scrollHeight"
                 @message-sent.window="$nextTick(() => $el.scrollTop = $el.scrollHeight)"
                 @message-received.window="$nextTick(() => $el.scrollTop = $el.scrollHeight)">
                 @forelse($messages as $message)
-                    <div class="flex {{ $message['is_own'] ? 'justify-end' : 'justify-start' }}">
+                    <div class="flex {{ $message['is_own'] ? 'justify-end' : 'justify-start' }} group/message message-row">
                         <div class="flex items-end gap-2 max-w-[75%] {{ $message['is_own'] ? 'flex-row-reverse' : '' }}">
                             <x-filament::avatar :src="$message['user_avatar']" alt="{{ $message['user_name'] }}" size="md" />
 
@@ -104,9 +104,7 @@
                                     <div class="mb-2 space-y-2">
                                         @foreach($message['attachments'] as $attachment)
                                             @if(str_starts_with($attachment['type'], 'image/'))
-                                                <a href="{{ Storage::disk('s3')->url($attachment['path']) }}" 
-                                                   target="_blank"
-                                                   class="block">
+                                                <a href="{{ Storage::disk('s3')->url($attachment['path']) }}" target="_blank" class="block">
                                                     <img src="{{ Storage::disk('s3')->url($attachment['path']) }}"
                                                         alt="{{ $attachment['name'] }}"
                                                         class="max-w-full rounded-lg cursor-pointer hover:opacity-80 transition-opacity"
@@ -136,6 +134,37 @@
                                     {{ $message['created_at'] }}
                                 </p>
                             </div>
+
+                            @if(($message['can_delete'] ?? false) || ($message['can_edit'] ?? false))
+                                <x-filament::dropdown placement="top-end" :teleport="true" class="chat-message-dropdown">
+                                    <x-slot name="trigger">
+                                        <button class="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-opacity chat-action-trigger">
+                                            <x-heroicon-m-ellipsis-vertical class="w-5 h-5" />
+                                        </button>
+                                    </x-slot>
+                                    
+                                    <x-filament::dropdown.list>
+                                        @if($message['can_edit'] ?? false)
+                                            <x-filament::dropdown.list.item 
+                                                wire:click="editMessage({{ $message['id'] }})" 
+                                                x-on:click="close"
+                                                icon="heroicon-m-pencil">
+                                                Изменить
+                                            </x-filament::dropdown.list.item>
+                                        @endif
+
+                                        @if($message['can_delete'] ?? false)
+                                            <x-filament::dropdown.list.item 
+                                                wire:click="mountAction('deleteMessage', { id: {{ $message['id'] }} })" 
+                                                x-on:click="close"
+                                                icon="heroicon-m-trash" 
+                                                color="danger">
+                                                Удалить
+                                            </x-filament::dropdown.list.item>
+                                        @endif
+                                    </x-filament::dropdown.list>
+                                </x-filament::dropdown>
+                            @endif
                         </div>
                     </div>
                 @empty
@@ -156,63 +185,171 @@
             <div class="p-4 border-t border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 z-10 sticky bottom-0">
                 {{-- Превью прикрепленных файлов --}}
                 @if(count($attachments) > 0)
-                    <div class="mb-4 p-3 bg-white dark:bg-gray-800 rounded-lg ring-1 ring-gray-200 dark:ring-gray-700">
-                        <div class="flex items-center justify-between gap-3">
-                            @foreach($attachments as $index => $file)
-                                <div class="flex items-center gap-3 flex-1 min-w-0">
-                                    @if(str_starts_with($file->getMimeType(), 'image/'))
-                                        <img src="{{ $file->temporaryUrl() }}"
-                                            class="h-8 w-8 object-cover rounded flex-shrink-0" />
-                                    @else
-                                        <div class="h-8 w-8 flex items-center justify-center rounded bg-gray-100 dark:bg-gray-700 flex-shrink-0">
-                                            <x-heroicon-o-document class="w-4 h-4 text-gray-500" />
-                                        </div>
-                                    @endif
-                                    <div class="flex-1 min-w-0">
-                                        <p class="text-sm font-medium text-gray-900 dark:text-white truncate">
-                                            {{ $file->getClientOriginalName() }}
-                                        </p>
-                                        <p class="text-xs text-gray-500 dark:text-gray-400">
-                                            {{ number_format($file->getSize() / 1024, 1) }} КБ
-                                        </p>
+                    <div class="mb-4 space-y-2" wire:key="attachments-preview-{{ $uploadKey }}">
+                        @foreach($attachments as $index => $file)
+                            <div class="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-lg ring-1 ring-gray-200 dark:ring-gray-700">
+                                @if(str_starts_with($file->getMimeType(), 'image/'))
+                                    <img src="{{ $file->temporaryUrl() }}"
+                                        class="h-10 w-10 object-cover rounded flex-shrink-0" />
+                                @else
+                                    <div class="h-10 w-10 flex items-center justify-center rounded bg-gray-100 dark:bg-gray-700 flex-shrink-0">
+                                        <x-heroicon-o-document class="w-5 h-5 text-gray-500" />
                                     </div>
+                                @endif
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-sm font-medium text-gray-900 dark:text-white truncate">
+                                        {{ $file->getClientOriginalName() }}
+                                    </p>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400">
+                                        @if(isset($processedAttachments[$index]))
+                                            {{ number_format($processedAttachments[$index]['size'] / 1024, 1) }} КБ
+                                            @if($processedAttachments[$index]['processed'] ?? false)
+                                                <span class="text-green-600 dark:text-green-400">• сжато</span>
+                                            @endif
+                                        @else
+                                            {{ number_format($file->getSize() / 1024, 1) }} КБ
+                                        @endif
+                                    </p>
                                 </div>
                                 <button type="button" wire:click="removeAttachment({{ $index }})"
                                     class="flex-shrink-0 p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                                     title="Удалить">
                                     <x-heroicon-o-trash class="w-5 h-5" />
                                 </button>
-                            @endforeach
-                        </div>
+                            </div>
+                        @endforeach
                     </div>
                 @endif
 
-                {{-- Индикатор загрузки файла --}}
-                <div wire:loading wire:target="attachments" class="mb-3 flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-                    <svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    <span>Загрузка файла...</span>
+                {{-- Индикатор загрузки --}}
+                <div wire:loading wire:target="attachments" class="mb-4 p-3 bg-white dark:bg-gray-800 rounded-lg ring-1 ring-gray-200 dark:ring-gray-700">
+                    <div class="flex items-center gap-3">
+                        <div class="h-10 w-10 flex items-center justify-center rounded bg-gray-100 dark:bg-gray-700 flex-shrink-0">
+                            <svg class="animate-spin h-5 w-5 text-primary-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-medium text-gray-900 dark:text-white">Загрузка файла...</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">Пожалуйста, подождите</p>
+                        </div>
+                    </div>
                 </div>
 
-                <form wire:submit="sendMessage" class="flex gap-2">
-                    <label class="cursor-pointer flex items-center justify-center px-3 rounded-lg text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                        <input type="file" wire:model="attachments" class="hidden" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.zip,.rar" />
+                {{-- Индикатор редактирования --}}
+                @if($editingMessageId)
+                    <div class="flex items-start justify-between mb-2 px-3 py-2 bg-gray-50 dark:bg-gray-800 rounded-lg border-l-4 border-primary-500">
+                        <div class="flex-1 min-w-0 mr-2">
+                            <p class="text-xs font-medium text-primary-600 dark:text-primary-400 mb-0.5">Редактирование сообщения</p>
+                            <p class="text-xs text-gray-600 dark:text-gray-300 truncate">
+                                {{ $editingMessageOriginalContent }}
+                            </p>
+                        </div>
+                        <button wire:click="cancelEdit" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 shrink-0">
+                            <x-heroicon-m-x-mark class="w-5 h-5" />
+                        </button>
+                    </div>
+                @endif
+
+                <form wire:submit.prevent="{{ $editingMessageId ? 'updateMessage' : 'sendMessage' }}" class="flex gap-2" x-data="{
+                    messageText: @entangle('newMessage'),
+                    maxFileSize: 100 * 1024 * 1024, // 100 MB
+                    maxFiles: 10,
+                    validateFiles(event) {
+                        const files = event.target.files;
+                        
+                        // Проверка количества файлов
+                        if (files.length > this.maxFiles) {
+                            alert(`Можно выбрать не более ${this.maxFiles} файлов за раз. Вы выбрали: ${files.length}`);
+                            event.target.value = '';
+                            return false;
+                        }
+                        
+                        // Проверка размера файлов
+                        const oversizedFiles = [];
+                        for (let file of files) {
+                            if (file.size > this.maxFileSize) {
+                                oversizedFiles.push({
+                                    name: file.name,
+                                    size: (file.size / 1024 / 1024).toFixed(1)
+                                });
+                            }
+                        }
+                        
+                        if (oversizedFiles.length > 0) {
+                            const fileList = oversizedFiles.map(f => `${f.name} (${f.size} МБ)`).join(', ');
+                            alert(`Файлы слишком большие (максимум 100 МБ):\n${fileList}`);
+                            event.target.value = '';
+                            return false;
+                        }
+                        return true;
+                    }
+                }"
+                x-on:focus-input.window="$nextTick(() => $refs.messageInput.focus())"
+                >
+                    {{-- Кнопка прикрепления файла --}}
+                    <label class="cursor-pointer flex shrink-0 items-center justify-center w-[36px] h-[36px] self-end rounded-lg text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                        style="width: 36px; height: 36px;">
+                        <input type="file" x-ref="fileInput" class="hidden" multiple
+                            accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.zip,.rar"
+                            x-on:change="if(validateFiles($event)) { $wire.upload('attachments', $refs.fileInput.files, () => {}, () => {}, (event) => {}) }" />
                         <x-heroicon-o-paper-clip class="w-5 h-5" />
                     </label>
 
-                    <x-filament::input.wrapper class="flex-1">
-                        <x-filament::input type="text" wire:model="newMessage" placeholder="Введите сообщение..."
-                            autocomplete="off" />
-                    </x-filament::input.wrapper>
+                    <div class="flex-1">
+                        <style>
+                            #chat-message-input:focus {
+                                outline: none !important;
+                                --tw-ring-color: transparent !important;
+                                border-color: #F97316 !important;
+                                box-shadow: 0 0 0 1px #F97316 !important;
+                            }
+                            .chat-message-dropdown, 
+                            .chat-message-dropdown .fi-dropdown-panel,
+                            .fi-dropdown-panel {
+                                width: auto !important;
+                                min-width: max-content !important;
+                                max-width: max-content !important;
+                                z-index: 100000 !important;
+                            }
+                            
+                            /* Heavy artillery for hover visibility */
+                            @media (min-width: 768px) {
+                                .chat-action-trigger {
+                                    opacity: 0 !important;
+                                }
+                                .message-row:hover .chat-action-trigger {
+                                    opacity: 1 !important;
+                                }
+                            }
+                        </style>
+                        <textarea wire:model="newMessage" 
+                            id="chat-message-input"
+                            x-ref="messageInput"
+                            x-effect="tmp='{{ rand() }}'; $wire.newMessage; $nextTick(() => { $el.style.height = 'auto'; $el.style.height = $el.scrollHeight + 'px'; $el.style.overflowY = ($el.scrollHeight > 100) ? 'auto' : 'hidden'; })"
+                            x-on:input="$el.style.height = 'auto'; $el.style.height = $el.scrollHeight + 'px'; $el.style.overflowY = ($el.scrollHeight > 100) ? 'auto' : 'hidden';"
+                            placeholder="{{ $editingMessageId ? 'Редактировать сообщение...' : 'Напишите сообщение...' }}"
+                            class="w-full text-sm bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 rounded-lg resize-none overflow-hidden"
+                            style="border: 1px solid #e5e7eb; min-height: 36px; max-height: 100px;"
+                            rows="1" 
+                            @keydown.enter.prevent="if(!$event.shiftKey) $wire.{{ $editingMessageId ? 'updateMessage' : 'sendMessage' }}()"></textarea>
+                    </div>
 
-                    <x-filament::button type="submit" icon="heroicon-m-paper-airplane">
-                        Отправить
-                    </x-filament::button>
+                    <button type="submit" 
+                        class="flex shrink-0 items-center justify-center rounded-lg shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-primary-600 focus:ring-offset-2 self-end"
+                        :class="messageText?.length > 0 ? 'hover:bg-primary-500 cursor-pointer' : 'cursor-default'"
+                        :style="'width: 36px; height: 36px; transition: all 0.2s; background-color: ' + (messageText?.length > 0 ? 'rgba(var(--primary-600),var(--tw-bg-opacity,1))' : '#E5E7EB') + '; color: ' + (messageText?.length > 0 ? 'white' : '#9CA3AF')">
+                        @if($editingMessageId)
+                            <x-heroicon-m-check class="w-5 h-5" />
+                        @else
+                            <x-heroicon-m-paper-airplane class="w-5 h-5" />
+                        @endif
+                    </button>
                 </form>
             </div>
-        </div>
+            <x-filament-actions::modals />
+</div>
     @else
         <div
             class="flex-1 flex items-center justify-center bg-white dark:bg-gray-900 shadow-sm ring-1 ring-gray-950/5 dark:ring-white/10 rounded-xl">

@@ -8,10 +8,14 @@ use App\Models\User;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 use Illuminate\Support\Facades\Storage;
+use Intervention\Image\Laravel\Facades\Image;
 
 class SupportChatComponent extends Component
 {
     use WithFileUploads;
+
+    private const MAX_IMAGE_WIDTH = 1920;
+    private const MAX_IMAGE_HEIGHT = 1080;
 
     public ?SupportChat $supportChat = null;
     public string $newMessage = '';
@@ -19,6 +23,69 @@ class SupportChatComponent extends Component
     public bool $isAdmin = false;
     public bool $showUserCard = false;
     public $attachments = [];
+    public $processedAttachments = []; // Обработанные вложения с путями в S3
+
+    /**
+     * Хук вызывается сразу после загрузки файла
+     * Здесь мы обрабатываем изображения пока временный файл ещё доступен
+     */
+    public function updatedAttachments()
+    {
+        foreach ($this->attachments as $index => $file) {
+            // Пропускаем уже обработанные файлы
+            if (isset($this->processedAttachments[$index])) {
+                continue;
+            }
+
+            $mimeType = $file->getMimeType();
+            $originalName = $file->getClientOriginalName();
+
+            // Проверяем, является ли файл изображением (не GIF)
+            if (str_starts_with($mimeType, 'image/') && !str_contains($mimeType, 'gif')) {
+                try {
+                    // Читаем содержимое файла пока он ещё доступен
+                    $imageContent = $file->get();
+
+                    if ($imageContent) {
+                        $image = Image::read($imageContent);
+
+                        // Уменьшаем только если изображение больше HD
+                        $image->scaleDown(self::MAX_IMAGE_WIDTH, self::MAX_IMAGE_HEIGHT);
+
+                        // Генерируем имя файла
+                        $extension = $file->getClientOriginalExtension() ?: 'jpg';
+                        $filename = 'support-attachments/' . uniqid() . '_' . time() . '.' . $extension;
+
+                        // Сохраняем в S3
+                        $encodedImage = $image->encodeByExtension($extension, quality: 85);
+                        Storage::disk('s3')->put($filename, (string) $encodedImage, 'public');
+
+                        // Сохраняем данные об обработанном файле
+                        $this->processedAttachments[$index] = [
+                            'path' => $filename,
+                            'name' => $originalName,
+                            'type' => $mimeType,
+                            'size' => strlen((string) $encodedImage),
+                            'processed' => true,
+                        ];
+                        continue;
+                    }
+                } catch (\Exception $e) {
+                    \Log::error('Image resize failed during upload: ' . $e->getMessage());
+                }
+            }
+
+            // Для не-изображений или при ошибке обработки - сохраняем как есть
+            $path = $file->storePublicly('support-attachments', 's3');
+            $this->processedAttachments[$index] = [
+                'path' => $path,
+                'name' => $originalName,
+                'type' => $mimeType,
+                'size' => $file->getSize(),
+                'processed' => false,
+            ];
+        }
+    }
 
     public function mount(?SupportChat $supportChat = null)
     {
@@ -113,16 +180,15 @@ class SupportChatComponent extends Component
             return;
         }
 
-        // Обработка вложений
+        // Используем уже обработанные вложения из updatedAttachments
         $attachmentsData = [];
-        if (!empty($this->attachments)) {
-            foreach ($this->attachments as $file) {
-                $path = $file->storePublicly('support-attachments', 's3');
+        if (!empty($this->processedAttachments)) {
+            foreach ($this->processedAttachments as $attachment) {
                 $attachmentsData[] = [
-                    'path' => $path,
-                    'name' => $file->getClientOriginalName(),
-                    'type' => $file->getMimeType(),
-                    'size' => $file->getSize(),
+                    'path' => $attachment['path'],
+                    'name' => $attachment['name'],
+                    'type' => $attachment['type'],
+                    'size' => $attachment['size'],
                 ];
             }
         }
@@ -153,6 +219,7 @@ class SupportChatComponent extends Component
 
         $this->newMessage = '';
         $this->attachments = [];
+        $this->processedAttachments = [];
 
         $this->dispatch('message-sent');
     }
@@ -160,7 +227,9 @@ class SupportChatComponent extends Component
     public function removeAttachment($index)
     {
         unset($this->attachments[$index]);
+        unset($this->processedAttachments[$index]);
         $this->attachments = array_values($this->attachments);
+        $this->processedAttachments = array_values($this->processedAttachments);
     }
 
     public function render()
