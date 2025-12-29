@@ -1,4 +1,9 @@
-<div wire:poll.30s="loadMessages" class="h-full flex flex-col">
+<div class="h-full flex flex-col" 
+    x-data="{ isUploading: false, progress: 0 }" 
+    x-on:livewire-upload-start="isUploading = true" 
+    x-on:livewire-upload-finish="isUploading = false" 
+    x-on:livewire-upload-error="isUploading = false" 
+    x-on:livewire-upload-progress="progress = $event.detail.progress">
     @if($room)
         <div
             class="flex-1 flex flex-col bg-white dark:bg-gray-900 ring-1 ring-gray-950/5 dark:ring-white/10 rounded-xl overflow-hidden">
@@ -182,10 +187,11 @@
             </div>
 
             {{-- Форма отправки --}}
+            {{-- Форма отправки --}}
             <div class="p-4 border-t border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 z-10 sticky bottom-0">
                 {{-- Превью прикрепленных файлов --}}
                 @if(count($attachments) > 0)
-                    <div class="mb-4 space-y-2" wire:key="attachments-preview-{{ $uploadKey }}">
+                    <div class="mb-4 space-y-2">
                         @foreach($attachments as $index => $file)
                             <div class="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-lg ring-1 ring-gray-200 dark:ring-gray-700">
                                 @if(str_starts_with($file->getMimeType(), 'image/'))
@@ -222,17 +228,25 @@
                 @endif
 
                 {{-- Индикатор загрузки --}}
-                <div wire:loading wire:target="attachments" class="mb-4 p-3 bg-white dark:bg-gray-800 rounded-lg ring-1 ring-gray-200 dark:ring-gray-700">
-                    <div class="flex items-center gap-3">
-                        <div class="h-10 w-10 flex items-center justify-center rounded bg-gray-100 dark:bg-gray-700 flex-shrink-0">
-                            <svg class="animate-spin h-5 w-5 text-primary-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
+                {{-- Индикатор загрузки (Skeleton) --}}
+                {{-- Индикатор загрузки (Skeleton) - показываем при клиентской загрузке --}}
+                <div x-show="isUploading" x-cloak class="mb-4 w-full">
+                    <div class="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-lg ring-1 ring-gray-200 dark:ring-gray-700 animate-pulse">
+                        <div class="h-10 w-10 bg-gray-200 dark:bg-gray-700 rounded flex-shrink-0"></div>
+                        <div class="flex-1 min-w-0 space-y-2">
+                            <div class="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
+                            <div class="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/4"></div>
                         </div>
-                        <div class="flex-1 min-w-0">
-                            <p class="text-sm font-medium text-gray-900 dark:text-white">Загрузка файла...</p>
-                            <p class="text-xs text-gray-500 dark:text-gray-400">Пожалуйста, подождите</p>
+                    </div>
+                </div>
+
+                {{-- Индикатор загрузки (Skeleton) - показываем при серверной обработке --}}
+                <div wire:loading wire:target="attachments" class="mb-4 w-full">
+                    <div class="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-lg ring-1 ring-gray-200 dark:ring-gray-700 animate-pulse">
+                        <div class="h-10 w-10 bg-gray-200 dark:bg-gray-700 rounded flex-shrink-0"></div>
+                        <div class="flex-1 min-w-0 space-y-2">
+                            <div class="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
+                            <div class="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/4"></div>
                         </div>
                     </div>
                 </div>
@@ -289,11 +303,13 @@
                 x-on:focus-input.window="$nextTick(() => $refs.messageInput.focus())"
                 >
                     {{-- Кнопка прикрепления файла --}}
-                    <label class="cursor-pointer flex shrink-0 items-center justify-center w-[36px] h-[36px] self-end rounded-lg text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                    {{-- Кнопка прикрепления файла --}}
+                    <label class="cursor-pointer flex shrink-0 items-center justify-center w-[36px] h-[36px] self-end rounded-lg text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors relative"
                         style="width: 36px; height: 36px;">
+                        
                         <input type="file" x-ref="fileInput" class="hidden" multiple
                             accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.zip,.rar"
-                            x-on:change="if(validateFiles($event)) { $wire.upload('attachments', $refs.fileInput.files, () => {}, () => {}, (event) => {}) }" />
+                            x-on:change="if(validateFiles($event)) { isUploading = true; $wire.uploadMultiple('attachments', $refs.fileInput.files, () => { isUploading = false; }, () => { isUploading = false; }, (event) => { progress = event.detail.progress }) }" />
                         <x-heroicon-o-paper-clip class="w-5 h-5" />
                     </label>
 

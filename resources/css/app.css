@@ -122,10 +122,10 @@ button .fi-badge {
 }
 
 .fi-modal-footer {
-    border-top: 1px solid rgb(229 231 235);
-    padding-top: 1rem;
+    border-top: none !important;
+    padding-top: 0 !important;
 }
 
 .dark .fi-modal-footer {
-    border-top-color: rgb(55 65 81);
+    border-top: none !important;
 }

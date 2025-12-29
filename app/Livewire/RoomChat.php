@@ -32,7 +32,6 @@ class RoomChat extends Component implements HasActions, HasForms
     public $messages = [];
     public $attachments = [];
     public $processedAttachments = []; // Обработанные вложения с путями в S3
-    public int $uploadKey = 0; // Ключ для сброса FilePond
     public ?int $editingMessageId = null; // ID редактируемого сообщения
     public ?string $editingMessageOriginalContent = null;
 
@@ -252,8 +251,7 @@ class RoomChat extends Component implements HasActions, HasForms
         $this->attachments = [];
         $this->processedAttachments = [];
 
-        // Инкрементируем ключ для сброса FilePond (wire:key заставит перерисовать)
-        $this->uploadKey++;
+
         $this->dispatch('message-sent');
     }
 

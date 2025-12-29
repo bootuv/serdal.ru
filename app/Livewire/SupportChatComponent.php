@@ -24,6 +24,8 @@ class SupportChatComponent extends Component
     public bool $showUserCard = false;
     public $attachments = [];
     public $processedAttachments = []; // Обработанные вложения с путями в S3
+    public ?int $editingMessageId = null;
+    public ?string $editingMessageOriginalContent = null;
 
     /**
      * Хук вызывается сразу после загрузки файла
@@ -160,6 +162,8 @@ class SupportChatComponent extends Component
                 'is_admin' => $msg->user_id !== $chatOwnerId,
                 'read_at' => $msg->read_at,
                 'user_color' => $msg->user->avatar_text_color,
+                'can_delete' => $msg->user_id === auth()->id() || auth()->user()->role === User::ROLE_ADMIN,
+                'can_edit' => $msg->user_id === auth()->id(),
             ])
             ->toArray();
     }
@@ -215,6 +219,8 @@ class SupportChatComponent extends Component
             'is_admin' => $user->role === User::ROLE_ADMIN,
             'read_at' => null,
             'user_color' => $user->avatar_text_color,
+            'can_delete' => true,
+            'can_edit' => true,
         ];
 
         $this->newMessage = '';
@@ -222,6 +228,86 @@ class SupportChatComponent extends Component
         $this->processedAttachments = [];
 
         $this->dispatch('message-sent');
+    }
+
+    public function editMessage(int $messageId)
+    {
+        $message = SupportMessage::find($messageId);
+
+        if (!$message || $message->user_id !== auth()->id()) {
+            return;
+        }
+
+        $this->editingMessageId = $message->id;
+        $this->editingMessageOriginalContent = $message->content;
+        $this->newMessage = $message->content;
+
+        $this->dispatch('focus-input');
+    }
+
+    public function cancelEdit()
+    {
+        $this->editingMessageId = null;
+        $this->editingMessageOriginalContent = null;
+        $this->newMessage = '';
+    }
+
+    public function updateMessage()
+    {
+        if (!$this->editingMessageId || trim($this->newMessage) === '') {
+            return;
+        }
+
+        $message = SupportMessage::find($this->editingMessageId);
+
+        if (!$message || $message->user_id !== auth()->id()) {
+            $this->cancelEdit();
+            return;
+        }
+
+        $message->update([
+            'content' => trim($this->newMessage)
+        ]);
+
+        foreach ($this->messages as $key => $msg) {
+            if ($msg['id'] === $message->id) {
+                $this->messages[$key]['content'] = $message->content;
+                break;
+            }
+        }
+
+        $this->cancelEdit();
+    }
+
+    public function deleteMessage(int $messageId)
+    {
+        $message = SupportMessage::find($messageId);
+
+        if (!$message) {
+            return;
+        }
+
+        $user = auth()->user();
+        $isOwn = $message->user_id === $user->id;
+        $isAdmin = $user->role === User::ROLE_ADMIN;
+
+        if (!$isOwn && !$isAdmin) {
+            return;
+        }
+
+        if (!empty($message->attachments)) {
+            foreach ($message->attachments as $attachment) {
+                if (isset($attachment['path'])) {
+                    if (Storage::disk('s3')->exists($attachment['path'])) {
+                        Storage::disk('s3')->delete($attachment['path']);
+                    }
+                }
+            }
+        }
+
+        $message->delete();
+
+        $this->messages = array_values(array_filter($this->messages, fn($msg) => $msg['id'] !== $messageId));
     }
 
     public function removeAttachment($index)
