@@ -105,9 +105,7 @@ class MeetingSessionResource extends Resource
             ->persistFiltersInSession()
             ->searchable()
             ->actions([
-                Tables\Actions\ViewAction::make()
-                    ->label('Отчет')
-                    ->icon('heroicon-o-chart-bar'),
+                //
             ])
             ->bulkActions([
                 //
