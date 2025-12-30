@@ -25,3 +25,19 @@ Broadcast::channel('room.{roomId}', function ($user, $roomId) {
     // Участники занятия (ученики)
     return $room->participants()->where('user_id', $user->id)->exists();
 });
+
+// Канал для чата техподдержки - доступен владельцу чата и всем админам
+Broadcast::channel('support-chat.{chatId}', function ($user, $chatId) {
+    $chat = \App\Models\SupportChat::find($chatId);
+    if (!$chat) {
+        return false;
+    }
+
+    // Владелец чата (пользователь)
+    if ($chat->user_id === $user->id) {
+        return true;
+    }
+
+    // Все админы имеют доступ ко всем чатам поддержки
+    return $user->role === \App\Models\User::ROLE_ADMIN;
+});

@@ -2,7 +2,7 @@
 
 namespace App\Events;
 
-use App\Models\Message;
+use App\Models\SupportMessage;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PrivateChannel;
@@ -10,12 +10,12 @@ use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class MessageSent implements ShouldBroadcastNow
+class SupportMessageSent implements ShouldBroadcastNow
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
     public function __construct(
-        public Message $message
+        public SupportMessage $message
     ) {
     }
 
@@ -27,20 +27,20 @@ class MessageSent implements ShouldBroadcastNow
     public function broadcastOn(): array
     {
         return [
-            new PrivateChannel('room.' . $this->message->room_id),
+            new PrivateChannel('support-chat.' . $this->message->support_chat_id),
         ];
     }
 
     public function broadcastAs(): string
     {
-        return 'message.sent';
+        return 'support.message.sent';
     }
 
     public function broadcastWith(): array
     {
         return [
             'id' => $this->message->id,
-            'room_id' => $this->message->room_id,
+            'support_chat_id' => $this->message->support_chat_id,
             'user_id' => $this->message->user_id,
             'user_name' => $this->message->user->name,
             'user_avatar' => $this->message->user->avatar_url,

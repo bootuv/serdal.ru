@@ -170,6 +170,7 @@ class Messenger extends Page
         ];
 
         $user = auth()->user();
+
         // Подписываемся на все комнаты, где пользователь участник
         $rooms = Room::whereHas('participants', function ($query) use ($user) {
             $query->where('user_id', $user->id);
@@ -177,6 +178,12 @@ class Messenger extends Page
 
         foreach ($rooms as $roomId) {
             $listeners["echo-private:room.{$roomId},.message.sent"] = 'refreshRooms';
+        }
+
+        // Подписываемся на чат поддержки пользователя
+        $supportChat = SupportChat::where('user_id', $user->id)->first();
+        if ($supportChat) {
+            $listeners["echo-private:support-chat.{$supportChat->id},.support.message.sent"] = 'refreshRooms';
         }
 
         return $listeners;

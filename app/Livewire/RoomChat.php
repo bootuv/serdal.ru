@@ -325,6 +325,7 @@ class RoomChat extends Component implements HasActions, HasForms
             'user_name' => $event['user_name'],
             'user_avatar' => $event['user_avatar'],
             'content' => $event['content'],
+            'attachments' => $event['attachments'] ?? [],
             'created_at' => \Carbon\Carbon::parse($event['created_at'])->format('H:i'),
             'is_own' => false,
             'can_delete' => in_array(auth()->user()->role, [\App\Models\User::ROLE_ADMIN, \App\Models\User::ROLE_TUTOR, \App\Models\User::ROLE_MENTOR]),

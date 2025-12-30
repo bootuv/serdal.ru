@@ -5,6 +5,7 @@ namespace App\Livewire;
 use App\Models\SupportChat;
 use App\Models\SupportMessage;
 use App\Models\User;
+use App\Events\SupportMessageSent;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 use Illuminate\Support\Facades\Storage;
@@ -206,6 +207,23 @@ class SupportChatComponent extends Component
 
         $message->load('user');
 
+        // Broadcast для real-time обновления
+        broadcast(new SupportMessageSent($message))->toOthers();
+
+        // Уведомления с задержкой 30 секунд (если сообщение не будет прочитано)
+        if ($this->isAdmin) {
+            // Админ отправил сообщение - уведомляем владельца чата
+            \App\Jobs\SendUnreadSupportMessageNotification::dispatch($message, $this->supportChat->user)
+                ->delay(now()->addSeconds(30));
+        } else {
+            // Пользователь отправил сообщение - уведомляем всех админов
+            $admins = User::where('role', User::ROLE_ADMIN)->get();
+            foreach ($admins as $admin) {
+                \App\Jobs\SendUnreadSupportMessageNotification::dispatch($message, $admin)
+                    ->delay(now()->addSeconds(30));
+            }
+        }
+
         // Добавляем сообщение в локальный список
         $this->messages[] = [
             'id' => $message->id,
@@ -321,5 +339,47 @@ class SupportChatComponent extends Component
     public function render()
     {
         return view('livewire.support-chat-component');
+    }
+
+    public function getListeners()
+    {
+        if (!$this->supportChat) {
+            return [];
+        }
+
+        return [
+            "echo-private:support-chat.{$this->supportChat->id},.support.message.sent" => 'onMessageReceived',
+        ];
+    }
+
+    public function onMessageReceived($event)
+    {
+        // Не добавляем свои сообщения повторно
+        if ($event['user_id'] === auth()->id()) {
+            return;
+        }
+
+        // Сразу помечаем как прочитанное, так как окно открыто
+        $this->markAsRead();
+
+        $chatOwnerId = $this->supportChat->user_id;
+
+        $this->messages[] = [
+            'id' => $event['id'],
+            'user_id' => $event['user_id'],
+            'user_name' => $event['user_name'],
+            'user_avatar' => $event['user_avatar'],
+            'content' => $event['content'],
+            'attachments' => $event['attachments'] ?? [],
+            'created_at' => \Carbon\Carbon::parse($event['created_at'])->format('H:i'),
+            'is_own' => false,
+            'is_admin' => $event['user_id'] !== $chatOwnerId,
+            'read_at' => now(),
+            'user_color' => $event['user_color'] ?? '#000000',
+            'can_delete' => auth()->user()->role === User::ROLE_ADMIN,
+            'can_edit' => false,
+        ];
+
+        $this->dispatch('message-received');
     }
 }

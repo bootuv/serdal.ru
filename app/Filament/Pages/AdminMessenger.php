@@ -99,6 +99,20 @@ class AdminMessenger extends Page
         $this->selectedChatId = $chatId;
     }
 
+    public function getListeners()
+    {
+        // Админ подписывается на все активные чаты поддержки
+        $listeners = [];
+
+        $chatIds = SupportChat::whereHas('messages')->pluck('id');
+
+        foreach ($chatIds as $chatId) {
+            $listeners["echo-private:support-chat.{$chatId},.support.message.sent"] = 'refreshChats';
+        }
+
+        return $listeners;
+    }
+
     public function refreshChats()
     {
         // This will trigger a re-render

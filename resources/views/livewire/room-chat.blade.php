@@ -268,6 +268,7 @@
 
                 <form wire:submit.prevent="{{ $editingMessageId ? 'updateMessage' : 'sendMessage' }}" class="flex gap-2" x-data="{
                     messageText: @entangle('newMessage'),
+                    hasAttachments: {{ count($attachments) > 0 ? 'true' : 'false' }},
                     maxFileSize: 100 * 1024 * 1024, // 100 MB
                     maxFiles: 10,
                     validateFiles(event) {
@@ -309,7 +310,7 @@
                         
                         <input type="file" x-ref="fileInput" class="hidden" multiple
                             accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.zip,.rar"
-                            x-on:change="if(validateFiles($event)) { isUploading = true; $wire.uploadMultiple('attachments', $refs.fileInput.files, () => { isUploading = false; }, () => { isUploading = false; }, (event) => { progress = event.detail.progress }) }" />
+                            x-on:change="if(validateFiles($event)) { isUploading = true; $wire.uploadMultiple('attachments', $refs.fileInput.files, () => { isUploading = false; hasAttachments = true; }, () => { isUploading = false; }, (event) => { progress = event.detail.progress }) }" />
                         <x-heroicon-o-paper-clip class="w-5 h-5" />
                     </label>
 
@@ -354,8 +355,8 @@
 
                     <button type="submit" 
                         class="flex shrink-0 items-center justify-center rounded-lg shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-primary-600 focus:ring-offset-2 self-end"
-                        :class="messageText?.length > 0 ? 'hover:bg-primary-500 cursor-pointer' : 'cursor-default'"
-                        :style="'width: 36px; height: 36px; transition: all 0.2s; background-color: ' + (messageText?.length > 0 ? 'rgba(var(--primary-600),var(--tw-bg-opacity,1))' : '#E5E7EB') + '; color: ' + (messageText?.length > 0 ? 'white' : '#9CA3AF')">
+                        :class="(messageText?.length > 0 || hasAttachments) ? 'hover:bg-primary-500 cursor-pointer' : 'cursor-default'"
+                        :style="'width: 36px; height: 36px; transition: all 0.2s; background-color: ' + ((messageText?.length > 0 || hasAttachments) ? 'rgba(var(--primary-600),var(--tw-bg-opacity,1))' : '#E5E7EB') + '; color: ' + ((messageText?.length > 0 || hasAttachments) ? 'white' : '#9CA3AF')">
                         @if($editingMessageId)
                             <x-heroicon-m-check class="w-5 h-5" />
                         @else
