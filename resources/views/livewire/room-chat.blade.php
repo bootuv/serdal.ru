@@ -95,9 +95,9 @@
 
                             <div @class([
                                 'rounded-xl px-4 py-2',
-                                'bg-primary-600 text-white' => $message['is_own'],
+                                'text-gray-900 dark:text-white' => $message['is_own'],
                                 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100' => !$message['is_own'],
-                            ])>
+                            ]) style="{{ $message['is_own'] ? 'background-color: #ffedd5;' : '' }}">
                                 @unless($message['is_own'])
                                     <p class="text-xs font-semibold mb-1" style="color: {{ $message['user_color'] }}">
                                         {{ $message['user_name'] }}
@@ -106,7 +106,7 @@
 
                                 {{-- Вложения --}}
                                 @if(!empty($message['attachments']))
-                                    <div class="mb-2 space-y-2">
+                                    <div class="mb-2 space-y-2 pt-2">
                                         @foreach($message['attachments'] as $attachment)
                                             @if(str_starts_with($attachment['type'], 'image/'))
                                                 <a href="{{ Storage::disk('s3')->url($attachment['path']) }}" target="_blank" class="block">
@@ -118,7 +118,7 @@
                                             @else
                                                 <a href="{{ Storage::disk('s3')->url($attachment['path']) }}"
                                                     download="{{ $attachment['name'] }}"
-                                                    class="flex items-center gap-2 p-2 rounded-lg {{ $message['is_own'] ? 'bg-primary-700 hover:bg-primary-800' : 'bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500' }} transition-colors">
+                                                    class="flex items-center gap-2 p-2 rounded-lg {{ $message['is_own'] ? 'bg-white/50 hover:bg-white/80 dark:bg-white/10 dark:hover:bg-white/20' : 'bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500' }} transition-colors">
                                                     <x-heroicon-o-document class="w-5 h-5 flex-shrink-0" />
                                                     <span class="text-sm truncate">{{ $attachment['name'] }}</span>
                                                     <x-heroicon-o-arrow-down-tray class="w-4 h-4 flex-shrink-0" />
@@ -129,11 +129,11 @@
                                 @endif
 
                                 @if($message['content'])
-                                    <p class="text-sm whitespace-pre-wrap break-words">{{ $message['content'] }}</p>
+                                    <p class="text-sm whitespace-pre-wrap break-words" style="{{ !$message['is_own'] ? 'padding-top: 0.2rem;' : '' }}">{{ $message['content'] }}</p>
                                 @endif
                                 <p @class([
                                     'text-xs mt-1 text-right',
-                                    'text-white/80' => $message['is_own'],
+                                    'text-gray-500 dark:text-gray-400' => $message['is_own'],
                                     'text-gray-400 dark:text-gray-500' => !$message['is_own'],
                                 ])>
                                     {{ $message['created_at'] }}
