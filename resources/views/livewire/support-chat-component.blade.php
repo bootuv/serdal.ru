@@ -278,6 +278,31 @@
                             return false;
                         }
                         return true;
+                    },
+                    handlePaste(event) {
+                        const items = (event.clipboardData || event.originalEvent.clipboardData).items;
+                        const files = [];
+                        
+                        for (let index in items) {
+                            const item = items[index];
+                            if (item.kind === 'file' && item.type.indexOf('image/') !== -1) {
+                                files.push(item.getAsFile());
+                            }
+                        }
+                        
+                        if (files.length > 0) {
+                            // Создаем псевдо-объект события для валидации
+                            const pseudoEvent = { target: { files: files, value: '' } };
+                            
+                            if (this.validateFiles(pseudoEvent)) {
+                                isUploading = true;
+                                $wire.uploadMultiple('attachments', files, 
+                                    () => { isUploading = false; hasAttachments = true; }, 
+                                    () => { isUploading = false; }, 
+                                    (event) => { progress = event.detail.progress }
+                                );
+                            }
+                        }
                     }
                 }"
                 x-on:focus-input.window="$nextTick(() => $refs.messageInput.focus())"
@@ -310,7 +335,8 @@
                             class="w-full text-sm bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 rounded-lg resize-none overflow-hidden"
                             style="border: 1px solid #e5e7eb; min-height: 36px; max-height: 100px;"
                             rows="1" 
-                            @keydown.enter.prevent="if(!$event.shiftKey) $wire.sendMessage()"></textarea>
+                            @keydown.enter.prevent="if(!$event.shiftKey) $wire.sendMessage()"
+                            @paste="handlePaste($event)"></textarea>
                     </div>
 
                     <button type="submit" 
