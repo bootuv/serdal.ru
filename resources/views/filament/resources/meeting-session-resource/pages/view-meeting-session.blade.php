@@ -6,6 +6,21 @@
         // Convert to collection for easier sorting/filtering if needed
         $participants = collect($participants);
 
+        // Filter out Teachers (Tutors and Mentors) and get Users with Avatars
+        $userIds = $participants->pluck('user_id')->filter();
+        
+        // Fetch users to check roles AND get avatars
+        $users = \App\Models\User::whereIn('id', $userIds)->get()->keyBy('id');
+        
+        $teacherIds = $users->filter(fn($u) => in_array($u->role, [\App\Models\User::ROLE_TUTOR, \App\Models\User::ROLE_MENTOR]))
+            ->pluck('id')
+            ->map(fn($id) => (string)$id)
+            ->toArray();
+            
+        $participants = $participants->reject(function ($p) use ($teacherIds) {
+            return in_array((string)($p['user_id'] ?? ''), $teacherIds, true);
+        });
+        
         $stats = $record->getStudentAttendance();
     @endphp
 
@@ -27,7 +42,8 @@
 
         <x-filament::section>
             <div class="text-xl font-bold" style="color: {{ $stats['color'] }}">
-                {{ $stats['attended'] }}/{{ $stats['total'] }}</div>
+                {{ $stats['attended'] }}/{{ $stats['total'] }}
+            </div>
             <div class="text-sm text-gray-500">Всего участников</div>
         </x-filament::section>
 
@@ -48,8 +64,8 @@
             <table class="w-full text-sm text-left rtl:text-right text-gray-500 dark:text-gray-400">
                 <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
                     <tr>
-                        <th scope="col" class="px-6 py-3">Пользователь</th>
-                        <th scope="col" class="px-6 py-3">Роль</th>
+                        <th scope="col" class="px-6 py-3">Участники</th>
+
                         <th scope="col" class="px-6 py-3">Время в сети</th>
                         <th scope="col" class="px-6 py-3">Микрофон</th>
                         <th scope="col" class="px-6 py-3">Вебкамера</th>
@@ -70,16 +86,16 @@
                             $talkMinutes = ($p['talking_time'] ?? 0) / 60;
                             $rawScore = ($talkMinutes * 2) + ($p['message_count'] ?? 0) + ($p['emoji_count'] ?? 0) + (($p['raise_hand_count'] ?? 0) * 2);
                             $score = min(10, round($rawScore)); 
+                            
+                            $user = $users[$p['user_id'] ?? ''] ?? null;
+                            $avatar = $user?->avatar_url ?? asset('images/default-avatar.png'); 
                         @endphp
                         <tr class="bg-white border-b dark:bg-gray-800 dark:border-gray-700">
-                            <td class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">
-                                {{ $p['full_name'] ?? 'Unknown' }}
+                            <td class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white flex items-center gap-2">
+                                <img src="{{ $avatar }}" alt="Avatar" class="w-8 h-8 rounded-full bg-gray-200">
+                                <span>{{ $p['full_name'] ?? 'Unknown' }}</span>
                             </td>
-                            <td class="px-6 py-4">
-                                <x-filament::badge :color="$p['role'] === 'MODERATOR' ? 'success' : 'gray'">
-                                    {{ $p['role'] }}
-                                </x-filament::badge>
-                            </td>
+
                             <td class="px-6 py-4">
                                 @php
                                     $joined = isset($p['joined_at']) ? \Carbon\Carbon::parse($p['joined_at']) : null;
