@@ -61,14 +61,14 @@
                 @message-received.window="$nextTick(() => $el.scrollTop = $el.scrollHeight)">
                 @forelse($messages as $message)
                     <div class="flex {{ $message['is_own'] ? 'justify-end' : 'justify-start' }} group/message message-row">
-                        <div class="flex items-end gap-2 max-w-[75%] {{ $message['is_own'] ? 'flex-row-reverse' : '' }}">
+                        <div class="flex items-end gap-2 max-w-[75%] {{ $message['is_own'] ? 'flex-row-reverse' : '' }}" style="max-width: 100%; overflow: hidden;">
                             <x-filament::avatar :src="$message['user_avatar']" alt="{{ $message['user_name'] }}" size="md" />
 
                             <div @class([
-                                'rounded-xl px-4 py-2',
+                                'min-w-0 rounded-xl px-4 py-2',
                                 'text-gray-900 dark:text-white' => $message['is_own'],
                                 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100' => !$message['is_own'],
-                            ]) style="{{ $message['is_own'] ? 'background-color: #ffedd5;' : '' }}">
+                            ]) style="{{ $message['is_own'] ? 'background-color: #ffedd5;' : '' }} max-width: 100%; overflow: hidden;">
                                 @unless($message['is_own'])
                                     <p class="text-xs font-semibold mb-1" style="color: {{ $message['user_color'] }}">
                                         {{ $message['user_name'] }}
@@ -80,7 +80,7 @@
 
                                 {{-- Вложения --}}
                                 @if(!empty($message['attachments']))
-                                    <div class="mb-2 space-y-2 pt-2">
+                                    <div class="mb-2 space-y-2 pt-2" style="max-width: 100%; overflow: hidden; width: 100%">
                                         @foreach($message['attachments'] as $attachment)
                                             @if(str_starts_with($attachment['type'], 'image/'))
                                                 <a href="{{ Storage::disk('s3')->url($attachment['path']) }}" target="_blank"
@@ -91,13 +91,25 @@
                                                         style="max-height: 200px;" />
                                                 </a>
                                             @else
-                                                <a href="{{ Storage::disk('s3')->url($attachment['path']) }}"
-                                                    download="{{ $attachment['name'] }}"
-                                                    class="flex items-center gap-2 p-2 rounded-lg {{ $message['is_own'] ? 'bg-white/50 hover:bg-white/80 dark:bg-white/10 dark:hover:bg-white/20' : 'bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500' }} transition-colors">
-                                                    <x-heroicon-o-document class="w-5 h-5 flex-shrink-0" />
-                                                    <span class="text-sm truncate">{{ $attachment['name'] }}</span>
-                                                    <x-heroicon-o-arrow-down-tray class="w-4 h-4 flex-shrink-0" />
-                                                </a>
+                                                <div class="flex items-start gap-3 p-3 rounded-lg border border-gray-200/50 dark:border-white/10 {{ $message['is_own'] ? 'bg-white/60 dark:bg-black/20' : 'bg-white dark:bg-gray-900' }}" style="max-width: 100%; overflow: hidden; width: 100%; border: 1px solid #e5e7eb; background-color: {{ $message['is_own'] ? 'rgba(255, 255, 255, 0.6)' : '#ffffff' }};">
+                                                    <div class="flex-shrink-0 w-10 h-10 rounded-lg bg-gray-50 dark:bg-gray-800 flex items-center justify-center ring-1 ring-inset ring-gray-900/5 dark:ring-white/10" style="border: 1px solid rgba(17, 24, 39, 0.05);">
+                                                        <x-heroicon-o-document class="w-5 h-5 text-gray-500 dark:text-gray-400" />
+                                                    </div>
+                                                    <div class="flex-1 min-w-0">
+                                                        <p class="text-sm font-medium text-gray-900 dark:text-white truncate" title="{{ $attachment['name'] }}">
+                                                            {{ $attachment['name'] }}
+                                                        </p>
+                                                        <div class="flex items-center gap-2 mt-1 text-xs text-gray-500 dark:text-gray-400 flex-wrap">
+                                                            <span>{{ isset($attachment['size']) ? number_format($attachment['size'] / 1024, 1) . ' КБ' : '' }}</span>
+                                                            <span class="text-gray-300 dark:text-gray-600">•</span>
+                                                            <a href="{{ Storage::disk('s3')->url($attachment['path']) }}" 
+                                                               download="{{ $attachment['name'] }}"
+                                                               class="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 font-medium hover:underline transition-colors">
+                                                                Скачать файл
+                                                            </a>
+                                                        </div>
+                                                    </div>
+                                                </div>
                                             @endif
                                         @endforeach
                                     </div>
