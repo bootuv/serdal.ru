@@ -91,7 +91,39 @@
                 @forelse($messages as $message)
                     <div class="flex {{ $message['is_own'] ? 'justify-end' : 'justify-start' }} group/message message-row">
                         <div class="flex items-end gap-2 max-w-[75%] {{ $message['is_own'] ? 'flex-row-reverse' : '' }}" style="max-width: 100%; overflow: hidden;">
-                            <x-filament::avatar :src="$message['user_avatar']" alt="{{ $message['user_name'] }}" size="md" />
+                            <div class="flex flex-col items-center gap-1">
+                                @if(($message['can_delete'] ?? false) || ($message['can_edit'] ?? false))
+                                    <x-filament::dropdown placement="top-end" :teleport="true" class="chat-message-dropdown">
+                                        <x-slot name="trigger">
+                                            <button class="p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors chat-action-trigger">
+                                                <x-heroicon-m-ellipsis-vertical class="w-5 h-5" />
+                                            </button>
+                                        </x-slot>
+                                        
+                                        <x-filament::dropdown.list>
+                                            @if($message['can_edit'] ?? false)
+                                                <x-filament::dropdown.list.item 
+                                                    wire:click="editMessage({{ $message['id'] }})" 
+                                                    x-on:click="close"
+                                                    icon="heroicon-m-pencil">
+                                                    Изменить
+                                                </x-filament::dropdown.list.item>
+                                            @endif
+
+                                            @if($message['can_delete'] ?? false)
+                                                <x-filament::dropdown.list.item 
+                                                    wire:click="mountAction('deleteMessage', { id: {{ $message['id'] }} })" 
+                                                    x-on:click="close"
+                                                    icon="heroicon-m-trash" 
+                                                    color="danger">
+                                                    Удалить
+                                                </x-filament::dropdown.list.item>
+                                            @endif
+                                        </x-filament::dropdown.list>
+                                    </x-filament::dropdown>
+                                @endif
+                                <x-filament::avatar :src="$message['user_avatar']" alt="{{ $message['user_name'] }}" size="md" />
+                            </div>
 
                             <div @class([
                                 'min-w-0 rounded-xl px-4 py-2',
@@ -117,7 +149,7 @@
                                                 </a>
                                             @else
                                                 <div class="flex items-start gap-3 p-3 rounded-lg border border-gray-200/50 dark:border-white/10 {{ $message['is_own'] ? 'bg-white/60 dark:bg-black/20' : 'bg-white dark:bg-gray-900' }}" style="max-width: 100%; overflow: hidden; width: 100%; border: 1px solid #e5e7eb; background-color: {{ $message['is_own'] ? 'rgba(255, 255, 255, 0.6)' : '#ffffff' }};">
-                                                    <div class="flex-shrink-0 w-10 h-10 rounded-lg bg-gray-50 dark:bg-gray-800 flex items-center justify-center ring-1 ring-inset ring-gray-900/5 dark:ring-white/10" style="border: 1px solid rgba(17, 24, 39, 0.05);">
+                                                    <div class="flex-shrink-0 w-10 h-10 rounded-lg bg-gray-50 dark:bg-gray-800 flex items-center justify-center" style="border: 1px solid rgba(17, 24, 39, 0.05);">
                                                         <x-heroicon-o-document class="w-5 h-5 text-gray-500 dark:text-gray-400" />
                                                     </div>
                                                     <div class="flex-1 min-w-0">
@@ -152,36 +184,7 @@
                                 </p>
                             </div>
 
-                            @if(($message['can_delete'] ?? false) || ($message['can_edit'] ?? false))
-                                <x-filament::dropdown placement="top-end" :teleport="true" class="chat-message-dropdown">
-                                    <x-slot name="trigger">
-                                        <button class="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-opacity chat-action-trigger">
-                                            <x-heroicon-m-ellipsis-vertical class="w-5 h-5" />
-                                        </button>
-                                    </x-slot>
-                                    
-                                    <x-filament::dropdown.list>
-                                        @if($message['can_edit'] ?? false)
-                                            <x-filament::dropdown.list.item 
-                                                wire:click="editMessage({{ $message['id'] }})" 
-                                                x-on:click="close"
-                                                icon="heroicon-m-pencil">
-                                                Изменить
-                                            </x-filament::dropdown.list.item>
-                                        @endif
 
-                                        @if($message['can_delete'] ?? false)
-                                            <x-filament::dropdown.list.item 
-                                                wire:click="mountAction('deleteMessage', { id: {{ $message['id'] }} })" 
-                                                x-on:click="close"
-                                                icon="heroicon-m-trash" 
-                                                color="danger">
-                                                Удалить
-                                            </x-filament::dropdown.list.item>
-                                        @endif
-                                    </x-filament::dropdown.list>
-                                </x-filament::dropdown>
-                            @endif
                         </div>
                     </div>
                 @empty
