@@ -91,9 +91,9 @@
                             $avatar = $user?->avatar_url ?? asset('images/default-avatar.png'); 
                         @endphp
                         <tr class="bg-white border-b dark:bg-gray-800 dark:border-gray-700 [&>td]:align-middle">
-                            <td class="px-6 py-4 font-medium text-gray-900 dark:text-white flex items-center gap-2">
+                            <td class="px-6 py-4 font-medium text-gray-900 dark:text-white flex items-center gap-2 min-w-[180px]">
                                 <img src="{{ $avatar }}" alt="Avatar" class="w-8 h-8 rounded-full bg-gray-200 shrink-0">
-                                <span class="line-clamp-2 leading-tight"
+                                <span class="leading-tight" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;"
                                     title="{{ $p['full_name'] ?? 'Unknown' }}">{{ $p['full_name'] ?? 'Unknown' }}</span>
                             </td>
 
