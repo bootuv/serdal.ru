@@ -18,7 +18,7 @@
                             <button wire:click="selectSupportChat" @class([
                                 'w-full px-4 py-3 flex items-center gap-3 text-left transition-colors cursor-pointer',
                                 'hover:bg-gray-50 dark:hover:bg-white/5',
-                                'bg-gray-50 dark:bg-white/5' => $supportChatSelected,
+                                'bg-gray-100 dark:bg-white/5' => $supportChatSelected,
                             ])>
                                 <div class="w-10 h-10 rounded-full flex items-center justify-center"
                                     style="background-color: #ffedd5; color: #ea580c">
@@ -50,7 +50,7 @@
                             <button wire:click="selectRoom({{ $room->id }})" @class([
                                 'w-full px-4 py-3 flex items-center gap-3 text-left transition-colors cursor-pointer',
                                 'hover:bg-gray-50 dark:hover:bg-white/5',
-                                'bg-gray-50 dark:bg-white/5' => $selectedRoomId === $room->id && !$supportChatSelected,
+                                'bg-gray-100 dark:bg-white/5' => $selectedRoomId === $room->id && !$supportChatSelected,
                             ])>
                                 <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg"
                                     style="background-color: {{ $room->avatar_bg_color }}; color: {{ $room->avatar_text_color }}">

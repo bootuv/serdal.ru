@@ -12,7 +12,7 @@
                         <button wire:click="selectChat({{ $chat->id }})" @class([
                             'w-full px-4 py-3 flex items-center gap-3 text-left transition-colors cursor-pointer',
                             'hover:bg-gray-50 dark:hover:bg-white/5',
-                            'bg-gray-50 dark:bg-white/5' => $selectedChatId === $chat->id,
+                            'bg-gray-100 dark:bg-white/5' => $selectedChatId === $chat->id,
                         ])>
                             <x-filament::avatar :src="$chat->user->avatar_url" :alt="$chat->user->name" size="lg" />
 
