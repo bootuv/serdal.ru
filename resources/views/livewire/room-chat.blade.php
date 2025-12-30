@@ -109,7 +109,7 @@
                 @forelse($messages as $message)
                     <div class="flex {{ $message['is_own'] ? 'justify-end' : 'justify-start' }} group/message message-row">
                         <div class="flex items-end gap-2 max-w-[75%] {{ $message['is_own'] ? 'flex-row-reverse' : '' }}" style="max-width: 100%; overflow: hidden;">
-                            <div class="flex flex-col items-center gap-1">
+                            <div class="flex flex-col items-center gap-1 shrink-0">
                                 @if(($message['can_delete'] ?? false) || ($message['can_edit'] ?? false))
                                     <x-filament::dropdown placement="top-end" :teleport="true" class="chat-message-dropdown">
                                         <x-slot name="trigger">
