@@ -8,19 +8,19 @@
 
         // Filter out Teachers (Tutors and Mentors) and get Users with Avatars
         $userIds = $participants->pluck('user_id')->filter();
-        
+
         // Fetch users to check roles AND get avatars
         $users = \App\Models\User::whereIn('id', $userIds)->get()->keyBy('id');
-        
+
         $teacherIds = $users->filter(fn($u) => in_array($u->role, [\App\Models\User::ROLE_TUTOR, \App\Models\User::ROLE_MENTOR]))
             ->pluck('id')
-            ->map(fn($id) => (string)$id)
+            ->map(fn($id) => (string) $id)
             ->toArray();
-            
+
         $participants = $participants->reject(function ($p) use ($teacherIds) {
-            return in_array((string)($p['user_id'] ?? ''), $teacherIds, true);
+            return in_array((string) ($p['user_id'] ?? ''), $teacherIds, true);
         });
-        
+
         $stats = $record->getStudentAttendance();
     @endphp
 
@@ -85,13 +85,14 @@
                             // User asked for "Activity Score", likely 0-10 or similar.
                             $talkMinutes = ($p['talking_time'] ?? 0) / 60;
                             $rawScore = ($talkMinutes * 2) + ($p['message_count'] ?? 0) + ($p['emoji_count'] ?? 0) + (($p['raise_hand_count'] ?? 0) * 2);
-                            $score = min(10, round($rawScore)); 
-                            
+                            $score = min(10, round($rawScore));
+
                             $user = $users[$p['user_id'] ?? ''] ?? null;
                             $avatar = $user?->avatar_url ?? asset('images/default-avatar.png'); 
                         @endphp
-                        <tr class="bg-white border-b dark:bg-gray-800 dark:border-gray-700">
-                            <td class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white flex items-center gap-2">
+                        <tr class="bg-white border-b dark:bg-gray-800 dark:border-gray-700 [&>td]:align-middle">
+                            <td
+                                class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white flex items-center gap-2">
                                 <img src="{{ $avatar }}" alt="Avatar" class="w-8 h-8 rounded-full bg-gray-200">
                                 <span>{{ $p['full_name'] ?? 'Unknown' }}</span>
                             </td>
@@ -106,7 +107,7 @@
                                     <div class="h-2.5 w-2.5 rounded-full bg-green-500 me-2"></div>
                                     {{ gmdate("H:i:s", abs($duration)) }}
                                 </div>
-                                <div class="text-xs text-gray-400">
+                                <div class="text-xs text-gray-400 whitespace-nowrap">
                                     {{ $joined ? $joined->format('H:i') : '-' }} - {{ $left ? $left->format('H:i') : '-' }}
                                 </div>
                             </td>
