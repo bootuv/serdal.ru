@@ -59,6 +59,9 @@ class ViewRoom extends ViewRecord
                     if ($this->record->is_running) {
                         return false;
                     }
+                    if ($this->record->trashed()) {
+                        return false;
+                    }
                     $hasOtherRunningMeeting = Room::where('user_id', auth()->id())
                         ->where('is_running', true)
                         ->where('id', '!=', $this->record->id)
@@ -77,7 +80,13 @@ class ViewRoom extends ViewRecord
                 ->visible(fn() => $this->record->is_running),
 
             Actions\EditAction::make()
-                ->label('Изменить'),
+                ->label('Изменить')
+                ->visible(fn() => !$this->record->trashed()),
+
+            Actions\RestoreAction::make()
+                ->visible(fn() => $this->record->trashed()),
+            Actions\ForceDeleteAction::make()
+                ->visible(fn() => $this->record->trashed()),
         ];
     }
 

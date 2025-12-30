@@ -382,6 +382,7 @@ class RoomResource extends Resource
                     ]),
                 Tables\Filters\TernaryFilter::make('is_running')
                     ->label('Запущено'),
+                Tables\Filters\TrashedFilter::make(),
             ])
             ->filtersLayout(Tables\Enums\FiltersLayout::Dropdown)
             ->persistFiltersInSession()
@@ -398,6 +399,11 @@ class RoomResource extends Resource
                     ->visible(function (Room $record) {
                         // Hide if this room is already running
                         if ($record->is_running) {
+                            return false;
+                        }
+
+                        // Hide if archived
+                        if ($record->trashed()) {
                             return false;
                         }
 
@@ -422,6 +428,8 @@ class RoomResource extends Resource
                     ->requiresConfirmation()
                     ->action(fn(Room $record) => redirect()->route('rooms.stop', $record))
                     ->visible(fn(Room $record) => $record->is_running),
+                Tables\Actions\RestoreAction::make(),
+                Tables\Actions\ForceDeleteAction::make(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
@@ -445,5 +453,12 @@ class RoomResource extends Resource
             'view' => Pages\ViewRoom::route('/{record}'),
             'edit' => Pages\EditRoom::route('/{record}/edit'),
         ];
+    }
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()
+            ->withoutGlobalScopes([
+                SoftDeletingScope::class,
+            ]);
     }
 }

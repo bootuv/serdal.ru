@@ -16,11 +16,15 @@
                 </div>
                 <div x-data="{ showParticipants: false }">
                     <h3 class="text-base font-semibold leading-6 text-gray-950 dark:text-white">
-                        <a href="{{ \App\Filament\Student\Resources\RoomResource::getUrl('view', ['record' => $room]) }}"
-                            class="hover:text-primary-600 dark:hover:text-primary-400 transition-colors inline-flex items-center gap-1.5">
+                        @if(!$room->trashed())
+                            <a href="{{ \App\Filament\Student\Resources\RoomResource::getUrl('view', ['record' => $room]) }}"
+                                class="hover:text-primary-600 dark:hover:text-primary-400 transition-colors inline-flex items-center gap-1.5">
+                                {{ $room->name }}
+                                <x-heroicon-m-arrow-top-right-on-square class="w-4 h-4 text-gray-400 dark:text-gray-500" />
+                            </a>
+                        @else
                             {{ $room->name }}
-                            <x-heroicon-m-arrow-top-right-on-square class="w-4 h-4 text-gray-400 dark:text-gray-500" />
-                        </a>
+                        @endif
                     </h3>
                     <p class="text-sm text-gray-500 dark:text-gray-400">
                         @if($room->user_id !== auth()->id())
@@ -299,6 +303,12 @@
                     </div>
                 @endif
 
+                @if($room->trashed())
+                    <div class="p-6 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-center text-gray-500 dark:text-gray-400">
+                        <x-heroicon-o-lock-closed class="w-6 h-6 mx-auto mb-2 opacity-50" />
+                        <span class="text-sm font-medium">Этот чат находится в архиве. Отправка сообщений недоступна.</span>
+                    </div>
+                @else
                 <form wire:submit.prevent="{{ $editingMessageId ? 'updateMessage' : 'sendMessage' }}" class="flex gap-2" x-data="{
                     messageText: @entangle('newMessage'),
                     hasAttachments: {{ count($attachments) > 0 ? 'true' : 'false' }},
@@ -423,6 +433,7 @@
                         @endif
                     </button>
                 </form>
+                @endif
             </div>
             <x-filament-actions::modals />
 </div>

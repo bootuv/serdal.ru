@@ -51,6 +51,7 @@
                                 'w-full px-4 py-3 flex items-center gap-3 text-left transition-colors cursor-pointer',
                                 'hover:bg-gray-50 dark:hover:bg-white/5',
                                 'bg-gray-100 dark:bg-white/5' => $selectedRoomId === $room->id && !$supportChatSelected,
+                                'opacity-75' => $item['is_archived'] ?? false,
                             ])>
                                 <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg"
                                     style="background-color: {{ $room->avatar_bg_color }}; color: {{ $room->avatar_text_color }}">
@@ -58,8 +59,13 @@
                                 </div>
 
                                 <div class="flex-1 min-w-0">
-                                    <p class="font-medium text-gray-950 dark:text-white truncate">
+                                    <p class="font-medium text-gray-950 dark:text-white truncate flex items-center gap-2">
                                         {{ $room->name }}
+                                        @if($item['is_archived'] ?? false)
+                                            <x-filament::badge color="gray" size="xs">
+                                                Архив
+                                            </x-filament::badge>
+                                        @endif
                                     </p>
                                     <p class="text-sm text-gray-500 dark:text-gray-400 truncate">
                                         @if($item['last_message_content'])

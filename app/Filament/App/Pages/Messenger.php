@@ -70,7 +70,8 @@ class Messenger extends Page
         $user = auth()->user();
 
         // Получаем занятия, где пользователь является владельцем
-        $rooms = Room::where('user_id', $user->id)
+        $rooms = Room::withTrashed()
+            ->where('user_id', $user->id)
             ->withCount('messages')
             ->withCount([
                 'messages as unread_messages_count' => function ($query) use ($user) {
@@ -110,6 +111,7 @@ class Messenger extends Page
                 'last_message_at' => $lastMessage ? $lastMessage->created_at : $room->created_at,
                 'last_message_content' => $lastMessage ? $lastMessage->content : null,
                 'unread_count' => $room->unread_messages_count,
+                'is_archived' => $room->trashed(),
             ]);
         }
 

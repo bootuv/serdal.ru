@@ -39,6 +39,9 @@ class ViewRoom extends ViewRecord
                     if ($this->record->is_running) {
                         return false;
                     }
+                    if ($this->record->trashed()) {
+                        return false;
+                    }
                     if ($this->record->user_id !== auth()->id()) {
                         return false;
                     }
@@ -58,7 +61,13 @@ class ViewRoom extends ViewRecord
                 ->visible(fn() => $this->record->is_running),
 
             Actions\EditAction::make()
-                ->label('Изменить'),
+                ->label('Изменить')
+                ->visible(fn() => !$this->record->trashed()),
+
+            Actions\RestoreAction::make()
+                ->visible(fn() => $this->record->trashed()),
+            Actions\ForceDeleteAction::make()
+                ->visible(fn() => $this->record->trashed()),
         ];
     }
 

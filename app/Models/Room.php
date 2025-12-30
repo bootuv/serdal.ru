@@ -5,17 +5,50 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Room extends Model
 {
     use HasFactory;
+    use SoftDeletes;
 
     protected static function boot()
     {
         parent::boot();
 
-        // When room is deleted, delete schedules one by one to trigger observers
         static::deleting(function (Room $room) {
+            if ($room->isForceDeleting()) {
+                return; // Let forceDeleting handle it? Or just ignore schedules here?
+                // Actually, if forceDeleting, we still want schedules gone.
+                // But usually forceDeleting fires forceDeleting event.
+            }
+            // Logic for soft delete (archive)
+            foreach ($room->schedules as $schedule) {
+                $schedule->delete();
+            }
+        });
+
+        static::forceDeleting(function (Room $room) {
+            // Delete Presentations
+            if (!empty($room->presentations)) {
+                $files = is_array($room->presentations) ? $room->presentations : [];
+                foreach ($files as $file) {
+                    \Illuminate\Support\Facades\Storage::disk('s3')->delete($file);
+                }
+            }
+
+            // Delete Message Attachments in this room
+            foreach ($room->messages()->get() as $message) {
+                if (!empty($message->attachments)) {
+                    foreach ($message->attachments as $attachment) {
+                        if (isset($attachment['path'])) {
+                            \Illuminate\Support\Facades\Storage::disk('s3')->delete($attachment['path']);
+                        }
+                    }
+                }
+            }
+
+            // Also delete schedules if they exist (though they might be gone if soft deleted first)
             foreach ($room->schedules as $schedule) {
                 $schedule->delete();
             }

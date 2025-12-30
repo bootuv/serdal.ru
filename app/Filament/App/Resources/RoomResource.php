@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use JoisarJignesh\Bigbluebutton\Facades\Bigbluebutton;
 use Filament\Notifications\Notification;
+use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class RoomResource extends Resource
 {
@@ -400,6 +401,7 @@ class RoomResource extends Resource
                     ]),
                 Tables\Filters\TernaryFilter::make('is_running')
                     ->label('Запущено'),
+                Tables\Filters\TrashedFilter::make(),
             ])
             ->filtersLayout(Tables\Enums\FiltersLayout::Dropdown)
             ->persistFiltersInSession()
@@ -416,6 +418,11 @@ class RoomResource extends Resource
                     ->visible(function (Room $record) {
                         // Hide if this room is already running
                         if ($record->is_running) {
+                            return false;
+                        }
+
+                        // Hide if archived
+                        if ($record->trashed()) {
                             return false;
                         }
 
@@ -445,6 +452,9 @@ class RoomResource extends Resource
                     ->requiresConfirmation()
                     ->action(fn(Room $record) => redirect()->route('rooms.stop', $record))
                     ->visible(fn(Room $record) => $record->is_running),
+
+                Tables\Actions\RestoreAction::make(),
+                Tables\Actions\ForceDeleteAction::make(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
@@ -470,6 +480,10 @@ class RoomResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()->where('user_id', auth()->id());
+        return parent::getEloquentQuery()
+            ->where('user_id', auth()->id())
+            ->withoutGlobalScopes([
+                SoftDeletingScope::class,
+            ]);
     }
 }
