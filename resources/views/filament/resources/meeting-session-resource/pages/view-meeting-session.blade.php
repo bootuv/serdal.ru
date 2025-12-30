@@ -5,17 +5,30 @@
 
         // Convert to collection for easier sorting/filtering if needed
         $participants = collect($participants);
+
+        $stats = $record->getStudentAttendance();
     @endphp
 
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <x-filament::section>
-            <div class="text-xl font-bold">{{ $analytics['participant_count'] ?? 0 }}</div>
-            <div class="text-sm text-gray-500">Всего участников</div>
+            <div class="text-xl font-bold">{{ $record->started_at?->format('d.m.Y H:i') ?? '-' }}</div>
+            <div class="text-sm text-gray-500">Начало</div>
+        </x-filament::section>
+
+        <x-filament::section>
+            <div class="text-xl font-bold">{{ $record->ended_at?->format('d.m.Y H:i') ?? '-' }}</div>
+            <div class="text-sm text-gray-500">Конец</div>
         </x-filament::section>
 
         <x-filament::section>
             <div class="text-xl font-bold">{{ gmdate("H:i:s", $record->duration_seconds ?? 0) }}</div>
             <div class="text-sm text-gray-500">Длительность</div>
+        </x-filament::section>
+
+        <x-filament::section>
+            <div class="text-xl font-bold" style="color: {{ $stats['color'] }}">
+                {{ $stats['attended'] }}/{{ $stats['total'] }}</div>
+            <div class="text-sm text-gray-500">Всего участников</div>
         </x-filament::section>
 
         <x-filament::section>

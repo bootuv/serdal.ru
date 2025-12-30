@@ -9,6 +9,7 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class MeetingSessionResource extends Resource
 {
@@ -60,21 +61,21 @@ class MeetingSessionResource extends Resource
                     ->sortable(),
                 Tables\Columns\TextColumn::make('participant_count')
                     ->label('Участники')
-                    ->numeric()
+                    ->html()
+                    ->state(function (MeetingSession $record) {
+                        $stats = $record->getStudentAttendance();
+                        $color = $stats['color'];
+                        $text = "{$stats['attended']}/{$stats['total']}";
+                        // Use the same inline style approach as the blade view
+                        return "<span class=\"inline-flex items-center justify-center -my-1 mx-auto min-h-6 min-w-6 px-2 py-0.5 rounded-full text-xs font-medium\" style=\"color: {$color}; background-color: {$color}1A;\">{$text}</span>";
+                    })
                     ->sortable()
                     ->toggleable(),
                 Tables\Columns\TextColumn::make('started_at')
-                    ->label('Начало')
+                    ->label('Дата')
                     ->dateTime('d.m.Y H:i')
                     ->timezone('Europe/Moscow')
                     ->sortable()
-                    ->toggleable(),
-                Tables\Columns\TextColumn::make('ended_at')
-                    ->label('Конец')
-                    ->dateTime('d.m.Y H:i')
-                    ->timezone('Europe/Moscow')
-                    ->sortable()
-                    ->placeholder('Запущена...')
                     ->toggleable(),
                 Tables\Columns\TextColumn::make('duration')
                     ->label('Длительность')
@@ -83,20 +84,6 @@ class MeetingSessionResource extends Resource
                             return $record->started_at->diffForHumans(now(), true) . ' (Активна)';
                         }
                         return $record->started_at->diffForHumans($record->ended_at, true);
-                    })
-                    ->toggleable(),
-                Tables\Columns\TextColumn::make('status')
-                    ->label('Статус')
-                    ->badge()
-                    ->formatStateUsing(fn(string $state): string => match ($state) {
-                        'running' => 'Активна',
-                        'completed' => 'Завершена',
-                        default => $state,
-                    })
-                    ->color(fn(string $state): string => match ($state) {
-                        'running' => 'success',
-                        'completed' => 'gray',
-                        default => 'warning',
                     })
                     ->toggleable(),
             ])
@@ -137,6 +124,11 @@ class MeetingSessionResource extends Resource
         return [
             //
         ];
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()->with(['room.participants']);
     }
 
     public static function getPages(): array

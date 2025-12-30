@@ -31,6 +31,7 @@ class SessionHistory extends Component
     public function getSessions()
     {
         return MeetingSession::where('room_id', $this->roomId)
+            ->with(['room.participants'])
             ->orderByDesc('started_at')
             ->take($this->perPage * $this->currentPage)
             ->get();
