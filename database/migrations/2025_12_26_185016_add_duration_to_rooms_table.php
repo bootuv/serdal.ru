@@ -11,7 +11,9 @@ return new class extends Migration {
     public function up(): void
     {
         Schema::table('rooms', function (Blueprint $table) {
-            $table->integer('duration')->nullable()->default(45)->after('next_start');
+            if (!Schema::hasColumn('rooms', 'duration')) {
+                $table->integer('duration')->nullable()->default(45)->after('next_start');
+            }
         });
     }
 
