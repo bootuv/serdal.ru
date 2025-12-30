@@ -1,5 +1,5 @@
 <x-filament-panels::page>
-    <div class="flex flex-col md:flex-row gap-6" style="height: calc(100vh - 10rem);">
+    <div class="flex flex-col md:flex-row gap-3" style="height: calc(100vh - 10rem);">
         {{-- Список чатов --}}
         <div class="md:flex-shrink-0 flex flex-col" style="min-width: 400px;">
             <x-filament::section class="flex-1 flex flex-col">
