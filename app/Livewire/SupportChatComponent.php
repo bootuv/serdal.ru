@@ -27,6 +27,8 @@ class SupportChatComponent extends Component
     public $processedAttachments = []; // Обработанные вложения с путями в S3
     public ?int $editingMessageId = null;
     public ?string $editingMessageOriginalContent = null;
+    public int $perPage = 20;
+    public int $totalMessagesCount = 0;
 
     /**
      * Хук вызывается сразу после загрузки файла
@@ -146,11 +148,14 @@ class SupportChatComponent extends Component
         $this->markAsRead();
 
         $chatOwnerId = $this->supportChat->user_id;
+        $query = $this->supportChat->messages()->with('user');
+        $this->totalMessagesCount = $query->count();
 
-        $this->messages = $this->supportChat->messages()
-            ->with('user')
-            ->orderBy('created_at', 'asc')
+        $this->messages = $query
+            ->orderBy('created_at', 'desc')
+            ->take($this->perPage)
             ->get()
+            ->sortBy('created_at')
             ->map(fn($msg) => [
                 'id' => $msg->id,
                 'user_id' => $msg->user_id,
@@ -166,7 +171,16 @@ class SupportChatComponent extends Component
                 'can_delete' => $msg->user_id === auth()->id() || auth()->user()->role === User::ROLE_ADMIN,
                 'can_edit' => $msg->user_id === auth()->id(),
             ])
+            ->values()
             ->toArray();
+    }
+
+    public function loadMore()
+    {
+        if (count($this->messages) < $this->totalMessagesCount) {
+            $this->perPage += 20;
+            $this->loadMessages();
+        }
     }
 
     public function sendMessage(): void
@@ -244,6 +258,7 @@ class SupportChatComponent extends Component
         $this->newMessage = '';
         $this->attachments = [];
         $this->processedAttachments = [];
+        $this->totalMessagesCount++;
 
         $this->dispatch('message-sent');
     }
@@ -381,5 +396,6 @@ class SupportChatComponent extends Component
         ];
 
         $this->dispatch('message-received');
+        $this->totalMessagesCount++;
     }
 }

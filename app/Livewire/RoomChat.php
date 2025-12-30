@@ -34,6 +34,8 @@ class RoomChat extends Component implements HasActions, HasForms
     public $processedAttachments = []; // Обработанные вложения с путями в S3
     public ?int $editingMessageId = null; // ID редактируемого сообщения
     public ?string $editingMessageOriginalContent = null;
+    public int $perPage = 20;
+    public int $totalMessagesCount = 0;
 
     /**
      * Хук вызывается сразу после загрузки файла
@@ -128,10 +130,15 @@ class RoomChat extends Component implements HasActions, HasForms
         // Also mark as read on polling
         $this->markAsRead();
 
-        $this->messages = $this->room->messages()
+        $query = $this->room->messages();
+        $this->totalMessagesCount = $query->count();
+
+        $this->messages = $query
             ->with('user')
-            ->orderBy('created_at', 'asc')
+            ->orderBy('created_at', 'desc')
+            ->take($this->perPage)
             ->get()
+            ->sortBy('created_at')
             ->map(fn($msg) => [
                 'id' => $msg->id,
                 'user_id' => $msg->user_id,
@@ -146,7 +153,16 @@ class RoomChat extends Component implements HasActions, HasForms
                 'read_at' => $msg->read_at,
                 'user_color' => $msg->user->avatar_text_color,
             ])
+            ->values()
             ->toArray();
+    }
+
+    public function loadMore()
+    {
+        if (count($this->messages) < $this->totalMessagesCount) {
+            $this->perPage += 20;
+            $this->loadMessages();
+        }
     }
 
     public function selectRoom(int $roomId)
@@ -250,7 +266,7 @@ class RoomChat extends Component implements HasActions, HasForms
         $this->newMessage = '';
         $this->attachments = [];
         $this->processedAttachments = [];
-
+        $this->totalMessagesCount++;
 
         $this->dispatch('message-sent');
     }
@@ -335,6 +351,7 @@ class RoomChat extends Component implements HasActions, HasForms
         ];
 
         $this->dispatch('message-received');
+        $this->totalMessagesCount++;
     }
 
     public function getListeners()
