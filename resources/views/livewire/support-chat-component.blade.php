@@ -134,13 +134,14 @@
                                     <div class="mb-2 space-y-2 pt-2" style="max-width: 100%; overflow: hidden; width: 100%">
                                         @foreach($message['attachments'] as $attachment)
                                             @if(str_starts_with($attachment['type'], 'image/'))
-                                                <a href="{{ Storage::disk('s3')->url($attachment['path']) }}" target="_blank"
-                                                    class="block">
+                                                <button type="button" 
+                                                    @click.prevent="imageUrl = '{{ Storage::disk('s3')->url($attachment['path']) }}'; imageModal = true" 
+                                                    class="block text-left">
                                                     <img src="{{ Storage::disk('s3')->url($attachment['path']) }}"
                                                         alt="{{ $attachment['name'] }}"
-                                                        class="max-w-full rounded-lg cursor-pointer hover:opacity-80 transition-opacity"
+                                                        class="max-w-full rounded-lg cursor-zoom-in hover:opacity-90 transition-opacity"
                                                         style="max-height: 200px;" />
-                                                </a>
+                                                </button>
                                             @else
                                                 <div class="flex items-start gap-3 p-3 rounded-lg border border-gray-200/50 dark:border-white/10 {{ $message['is_own'] ? 'bg-white/60 dark:bg-black/20' : 'bg-white dark:bg-gray-900' }}" style="max-width: 100%; overflow: hidden; width: 100%; border: 1px solid #e5e7eb; background-color: {{ $message['is_own'] ? 'rgba(255, 255, 255, 0.6)' : '#ffffff' }};">
                                                     <div class="flex-shrink-0 w-10 h-10 rounded-lg bg-gray-50 dark:bg-gray-800 flex items-center justify-center" style="border: 1px solid rgba(17, 24, 39, 0.05);">
@@ -198,7 +199,37 @@
                     </div>
                 @endforelse
 
-                {{-- fsLightbox используется вместо кастомного модального окна --}}
+                {{-- Lightbox Modal --}}
+                <template x-teleport="body">
+                    <div x-show="imageModal" 
+                        x-transition:enter="transition ease-out duration-300"
+                        x-transition:enter-start="opacity-0"
+                        x-transition:enter-end="opacity-100"
+                        x-transition:leave="transition ease-in duration-200"
+                        x-transition:leave-start="opacity-100"
+                        x-transition:leave-end="opacity-0"
+                        @click="imageModal = false"
+                        @keydown.escape.window="imageModal = false"
+                        class="fixed inset-0 flex items-center justify-center"
+                        style="z-index: 999999 !important; background-color: rgba(0, 0, 0, 0.9) !important;">
+                        
+                        <div class="relative w-full h-full flex items-center justify-center p-4">
+                            {{-- Close button --}}
+                            <button @click="imageModal = false" 
+                                class="p-2 rounded-full bg-black/50 hover:bg-black/70 transition-colors"
+                                style="position: absolute !important; top: 20px !important; right: 20px !important; z-index: 1000000 !important; color: white !important;">
+                                <x-heroicon-o-x-mark class="w-8 h-8" />
+                            </button>
+
+                            {{-- Image --}}
+                            <img :src="imageUrl" 
+                                @click.stop
+                                class="object-contain rounded-lg shadow-2xl" 
+                                style="max-width: 90vw; max-height: 90vh;"
+                                alt="Full size image">
+                        </div>
+                    </div>
+                </template>
             </div>
 
             {{-- Форма отправки --}}
