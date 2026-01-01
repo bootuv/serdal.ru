@@ -109,7 +109,7 @@
                 @message-sent.window="$nextTick(() => $el.scrollTop = $el.scrollHeight)"
                 @message-received.window="$nextTick(() => $el.scrollTop = $el.scrollHeight)">
                 
-                @if(count($messages) < $totalMessagesCount)
+                @if($hasMorePages)
                     <div x-intersect="
                         if (isInitialized) {
                             $nextTick(() => {

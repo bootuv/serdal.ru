@@ -119,51 +119,45 @@ class SupportChatComponent extends Component
             return;
         }
 
-        $user = auth()->user();
-        $messageIds = [];
         $readAt = now();
+        $affected = 0;
 
         // Админы помечают как прочитанные сообщения пользователя
         // Пользователи помечают как прочитанные сообщения админов
         if ($this->isAdmin) {
             // Админ читает сообщения владельца чата
-            $messageIds = $this->supportChat->messages()
+            $affected = $this->supportChat->messages()
                 ->where('user_id', $this->supportChat->user_id)
                 ->whereNull('read_at')
-                ->pluck('id')
-                ->toArray();
-
-            if (!empty($messageIds)) {
-                $this->supportChat->messages()
-                    ->where('user_id', $this->supportChat->user_id)
-                    ->whereNull('read_at')
-                    ->update(['read_at' => $readAt]);
-            }
+                ->update(['read_at' => $readAt]);
         } else {
             // Пользователь читает сообщения от админов
-            $messageIds = $this->supportChat->messages()
+            $affected = $this->supportChat->messages()
                 ->where('user_id', '!=', $this->supportChat->user_id)
                 ->whereNull('read_at')
-                ->pluck('id')
-                ->toArray();
-
-            if (!empty($messageIds)) {
-                $this->supportChat->messages()
-                    ->where('user_id', '!=', $this->supportChat->user_id)
-                    ->whereNull('read_at')
-                    ->update(['read_at' => $readAt]);
-            }
+                ->update(['read_at' => $readAt]);
         }
 
-        // Broadcast read receipt update
-        if (!empty($messageIds)) {
+        // Broadcast only if messages were actually marked as read
+        if ($affected > 0) {
+            // Get IDs for broadcast
+            $query = $this->supportChat->messages()->where('read_at', $readAt);
+            if ($this->isAdmin) {
+                $query->where('user_id', $this->supportChat->user_id);
+            } else {
+                $query->where('user_id', '!=', $this->supportChat->user_id);
+            }
+            $messageIds = $query->pluck('id')->toArray();
+
             broadcast(new \App\Events\MessagesRead(
                 $this->supportChat->id,
                 $messageIds,
                 $readAt->toISOString()
-            ));
+            ))->toOthers();
         }
     }
+
+    public bool $hasMorePages = false;
 
     public function loadMessages(): void
     {
@@ -172,16 +166,20 @@ class SupportChatComponent extends Component
             return;
         }
 
-        $this->markAsRead();
-
         $chatOwnerId = $this->supportChat->user_id;
         $query = $this->supportChat->messages()->with('user');
-        $this->totalMessagesCount = $query->count();
 
-        $this->messages = $query
+        // Optimize: Fetch one extra item to check if there are more pages
+        // instead of running count(*) query
+        $rawMessages = $query
             ->orderBy('created_at', 'desc')
+            ->take($this->perPage + 1)
+            ->get();
+
+        $this->hasMorePages = $rawMessages->count() > $this->perPage;
+
+        $this->messages = $rawMessages
             ->take($this->perPage)
-            ->get()
             ->sortBy('created_at')
             ->map(fn($msg) => [
                 'id' => $msg->id,

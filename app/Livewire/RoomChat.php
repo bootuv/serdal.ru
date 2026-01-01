@@ -114,31 +114,32 @@ class RoomChat extends Component implements HasActions, HasForms
             return;
         }
 
-        // Get IDs of messages that will be marked as read
-        $messageIds = $this->room->messages()
-            ->where('user_id', '!=', auth()->id())
-            ->whereNull('read_at')
-            ->pluck('id')
-            ->toArray();
-
-        if (empty($messageIds)) {
-            return;
-        }
-
         $readAt = now();
 
-        $this->room->messages()
+        // Single query: update and get affected count
+        $affected = $this->room->messages()
             ->where('user_id', '!=', auth()->id())
             ->whereNull('read_at')
             ->update(['read_at' => $readAt]);
 
-        // Broadcast read receipt update
-        broadcast(new \App\Events\MessagesRead(
-            $this->room->id,
-            $messageIds,
-            $readAt->toISOString()
-        ));
+        // Broadcast only if messages were actually marked as read
+        if ($affected > 0) {
+            // Get IDs for broadcast (only if needed)
+            $messageIds = $this->room->messages()
+                ->where('user_id', '!=', auth()->id())
+                ->where('read_at', $readAt)
+                ->pluck('id')
+                ->toArray();
+
+            broadcast(new \App\Events\MessagesRead(
+                $this->room->id,
+                $messageIds,
+                $readAt->toISOString()
+            ))->toOthers();
+        }
     }
+
+    public bool $hasMorePages = false;
 
     public function loadMessages()
     {
@@ -147,17 +148,20 @@ class RoomChat extends Component implements HasActions, HasForms
             return;
         }
 
-        // Also mark as read on polling
-        $this->markAsRead();
-
         $query = $this->room->messages();
-        $this->totalMessagesCount = $query->count();
 
-        $this->messages = $query
+        // Optimize: Fetch one extra item to check if there are more pages
+        // instead of running count(*) query
+        $rawMessages = $query
             ->with('user')
             ->orderBy('created_at', 'desc')
+            ->take($this->perPage + 1)
+            ->get();
+
+        $this->hasMorePages = $rawMessages->count() > $this->perPage;
+
+        $this->messages = $rawMessages
             ->take($this->perPage)
-            ->get()
             ->sortBy('created_at')
             ->map(fn($msg) => [
                 'id' => $msg->id,
