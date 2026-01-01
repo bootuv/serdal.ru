@@ -44,6 +44,16 @@ class StudentPanelProvider extends PanelProvider
             ->databaseNotificationsPolling('30s')
             ->colors([
                 'primary' => Color::Amber,
+                'success' => Color::Green,
+                'warning' => Color::Amber,
+                'danger' => Color::Red,
+                'gray' => Color::Gray,
+                'info' => Color::Blue,
+                'indigo' => Color::Indigo,
+                'purple' => Color::Purple,
+                'pink' => Color::Pink,
+                'teal' => Color::Teal,
+                'orange' => Color::Orange,
             ])
             ->brandLogo(fn() => asset('images/Logo.svg'))
             ->darkModeBrandLogo(fn() => asset('images/Logo-white.svg'))

@@ -8,6 +8,7 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Filament\Support\Colors\Color;
 
 class HomeworkSubmissionResource extends Resource
 {
@@ -22,6 +23,21 @@ class HomeworkSubmissionResource extends Resource
     protected static ?string $pluralModelLabel = 'Проверка работ';
 
     protected static ?int $navigationSort = 6;
+
+    public static function getNavigationBadge(): ?string
+    {
+        return static::getModel()::whereNotNull('submitted_at')
+            ->whereNull('grade')
+            ->whereHas('homework', function ($query) {
+                $query->where('teacher_id', auth()->id());
+            })
+            ->count() ?: null;
+    }
+
+    public static function getNavigationBadgeColor(): ?string
+    {
+        return 'warning';
+    }
 
     public static function table(Table $table): Table
     {
@@ -42,10 +58,19 @@ class HomeworkSubmissionResource extends Resource
                     ->dateTime('d.m.Y H:i')
                     ->sortable(),
 
-                Tables\Columns\TextColumn::make('status_label')
+                Tables\Columns\TextColumn::make('status')
                     ->label('Статус')
+                    ->getStateUsing(function (HomeworkSubmission $record) {
+                        if ($record->grade !== null) {
+                            return 'Оценено';
+                        }
+                        if ($record->submitted_at !== null) {
+                            return 'На проверке';
+                        }
+                        return 'Не сдано';
+                    })
                     ->badge()
-                    ->color(fn(HomeworkSubmission $record): string => match ($record->status_label) {
+                    ->color(fn(string $state): string => match ($state) {
                         'Не сдано' => 'gray',
                         'На проверке' => 'warning',
                         'Оценено' => 'success',

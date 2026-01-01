@@ -36,4 +36,25 @@ class HomeworkSubmissionObserver
                 ->delay(now()->addSeconds(5)); // Small delay to ensure file is fully uploaded
         }
     }
+    /**
+     * Handle the HomeworkSubmission "deleted" event.
+     */
+    public function deleted(HomeworkSubmission $submission): void
+    {
+        if (!empty($submission->attachments)) {
+            foreach ($submission->attachments as $path) {
+                if (\Illuminate\Support\Facades\Storage::disk('s3')->exists($path)) {
+                    \Illuminate\Support\Facades\Storage::disk('s3')->delete($path);
+                }
+            }
+        }
+
+        if (!empty($submission->feedback_attachments)) {
+            foreach ($submission->feedback_attachments as $path) {
+                if (\Illuminate\Support\Facades\Storage::disk('s3')->exists($path)) {
+                    \Illuminate\Support\Facades\Storage::disk('s3')->delete($path);
+                }
+            }
+        }
+    }
 }

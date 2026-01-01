@@ -164,6 +164,59 @@ class HomeworkResource extends Resource
                                 'image/gif',
                             ])
                             ->maxSize(51200) // 50MB
+                            ->live()
+                            ->afterStateUpdated(function (\Filament\Forms\Get $get, \Filament\Forms\Set $set, $state) {
+                                if (empty($state))
+                                    return;
+
+                                $processedState = [];
+                                $hasChanges = false;
+
+                                foreach ($state as $file) {
+                                    if ($file instanceof \Livewire\Features\SupportFileUploads\TemporaryUploadedFile) {
+                                        $extension = strtolower($file->getClientOriginalExtension());
+                                        $isImage = in_array($extension, ['jpg', 'jpeg', 'png', 'webp']);
+                                        $isGif = $extension === 'gif';
+
+                                        $newPath = 'homework-attachments/' . $file->getFilename();
+
+                                        if ($isImage && !$isGif) {
+                                            try {
+                                                $imageContent = $file->get();
+                                                $image = \Intervention\Image\Laravel\Facades\Image::read($imageContent);
+
+                                                if ($image->width() > 1920 || $image->height() > 1080) {
+                                                    $image->scaleDown(1920, 1080);
+                                                }
+
+                                                $newPath = 'homework-attachments/' . pathinfo($file->getFilename(), PATHINFO_FILENAME) . '_processed.' . $extension;
+                                                $encoded = $image->encodeByExtension($extension, quality: 85);
+
+                                                \Illuminate\Support\Facades\Storage::disk('s3')->put($newPath, (string) $encoded, 'public');
+                                            } catch (\Exception $e) {
+                                                \Log::error("Failed to resize image on upload: " . $e->getMessage());
+                                                // Fallback to original upload path if resize fails
+                                                $newPath = $file->store('homework-attachments', 's3');
+                                            }
+                                        } else {
+                                            // Non-images (or gifs) are processed here:
+                                            // Since we are in 'local' config mode, the file is currently in local temp.
+                                            // We must manually put it in S3.
+                                            \Illuminate\Support\Facades\Storage::disk('s3')->putFileAs('homework-attachments', $file, basename($newPath), 'public');
+                                        }
+
+                                        $processedState[] = $newPath;
+                                        $hasChanges = true;
+                                    } else {
+                                        // Keep existing file paths (strings)
+                                        $processedState[] = $file;
+                                    }
+                                }
+
+                                if ($hasChanges) {
+                                    $set('attachments', $processedState);
+                                }
+                            })
                             ->columnSpanFull(),
                     ])
                     ->columns(2),
@@ -180,11 +233,26 @@ class HomeworkResource extends Resource
                     ->sortable()
                     ->limit(40),
 
-                Tables\Columns\TextColumn::make('type_label')
+                Tables\Columns\TextColumn::make('type')
                     ->label('Тип')
-                    ->badge()
-                    ->color(fn(Homework $record) => $record->type_color)
-                    ->icon(fn(Homework $record) => $record->type_icon),
+                    ->formatStateUsing(function (Homework $record) {
+                        // Цвета в стиле Filament "soft" (светлый фон, темный текст, обводка)
+                        $style = match ($record->type) {
+                            Homework::TYPE_HOMEWORK => 'background-color: #f9fafb; color: #374151; border: 1px solid #e5e7eb;', // Gray-50, Gray-700, Ring-200
+                            Homework::TYPE_EXAM => 'background-color: #fef2f2; color: #b91c1c; border: 1px solid #fecaca;', // Red-50, Red-700, Ring-200
+                            Homework::TYPE_PRACTICE => 'background-color: #fff7ed; color: #c2410c; border: 1px solid #fed7aa;', // Orange-50, Orange-700, Ring-200
+                            Homework::TYPE_EGE => 'background-color: #ecfdf5; color: #047857; border: 1px solid #a7f3d0;', // Emerald-50, Emerald-700, Ring-200
+                            default => 'background-color: #f9fafb; color: #374151; border: 1px solid #e5e7eb;',
+                        };
+
+                        return \Illuminate\Support\Facades\Blade::render('
+                            <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-medium whitespace-nowrap" style="' . $style . '">
+                                <x-filament::icon icon="' . $record->type_icon . '" class="w-4 h-4" />
+                                <span>' . $record->type_label . '</span>
+                            </div>
+                        ');
+                    })
+                    ->html(),
 
                 Tables\Columns\TextColumn::make('room.name')
                     ->label('Урок')
@@ -241,7 +309,7 @@ class HomeworkResource extends Resource
             ->actions([
                 Tables\Actions\EditAction::make(),
             ])
-            ->recordUrl(fn(Homework $record) => static::getUrl('view', ['record' => $record]))
+            ->recordUrl(fn(Homework $record) => route('filament.app.resources.homework.view', $record))
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),

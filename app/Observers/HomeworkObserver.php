@@ -2,7 +2,6 @@
 
 namespace App\Observers;
 
-use App\Jobs\ProcessHomeworkFiles;
 use App\Models\Homework;
 
 class HomeworkObserver
@@ -10,9 +9,12 @@ class HomeworkObserver
     /**
      * Handle the Homework "created" event.
      */
+    /**
+     * Handle the Homework "created" event.
+     */
     public function created(Homework $homework): void
     {
-        $this->dispatchProcessingJob($homework);
+        // Processing handled in form
     }
 
     /**
@@ -20,20 +22,20 @@ class HomeworkObserver
      */
     public function updated(Homework $homework): void
     {
-        // Only process if attachments were changed
-        if ($homework->wasChanged('attachments')) {
-            $this->dispatchProcessingJob($homework);
-        }
+        // Processing handled in form
     }
 
     /**
-     * Dispatch the image processing job.
+     * Handle the Homework "deleted" event.
      */
-    private function dispatchProcessingJob(Homework $homework): void
+    public function deleted(Homework $homework): void
     {
         if (!empty($homework->attachments)) {
-            ProcessHomeworkFiles::dispatch($homework)
-                ->delay(now()->addSeconds(5));
+            foreach ($homework->attachments as $path) {
+                if (\Illuminate\Support\Facades\Storage::disk('s3')->exists($path)) {
+                    \Illuminate\Support\Facades\Storage::disk('s3')->delete($path);
+                }
+            }
         }
     }
 }

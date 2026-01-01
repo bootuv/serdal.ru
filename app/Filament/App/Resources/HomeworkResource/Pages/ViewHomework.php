@@ -64,15 +64,12 @@ class ViewHomework extends ViewRecord
 
                 Infolists\Components\Section::make('Файлы задания')
                     ->schema([
-                        Infolists\Components\RepeatableEntry::make('attachments')
+                        Infolists\Components\ViewEntry::make('attachments')
                             ->hiddenLabel()
-                            ->schema([
-                                Infolists\Components\TextEntry::make('')
-                                    ->getStateUsing(fn($state) => basename($state))
-                                    ->url(fn($state) => \Storage::url($state))
-                                    ->openUrlInNewTab(),
-                            ])
-                            ->columns(1),
+                            ->view('filament.infolists.entries.attachments-list')
+                            ->viewData([
+                                'attachments' => fn($state) => is_string($state) ? json_decode($state, true) : $state,
+                            ]),
                     ])
                     ->visible(fn(Homework $record) => !empty($record->attachments))
                     ->collapsed(),

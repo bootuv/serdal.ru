@@ -65,6 +65,7 @@ return [
 
     'temporary_file_upload' => [
         'disk' => 'local',        // Local disk for temp uploads (S3 doesn't support multiple)
+
         'rules' => ['max:204800'],  // 200 MB max file size (in KB)
         'directory' => null,   // Example: 'tmp'                      | Default: 'livewire-tmp'
         'middleware' => null,  // Example: 'throttle:5,1'             | Default: 'throttle:60,1'

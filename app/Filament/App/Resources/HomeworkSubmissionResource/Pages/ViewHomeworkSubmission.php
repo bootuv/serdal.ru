@@ -53,8 +53,55 @@ class ViewHomeworkSubmission extends ViewRecord
                     Forms\Components\FileUpload::make('feedback_attachments')
                         ->label('Прикрепить файлы')
                         ->multiple()
-                        ->directory('homework-feedback')
-                        ->default($this->record->feedback_attachments)
+                        ->maxSize(51200)
+                        ->live()
+                        ->afterStateUpdated(function (\Filament\Forms\Get $get, \Filament\Forms\Set $set, $state) {
+                            if (empty($state))
+                                return;
+
+                            $processedState = [];
+                            $hasChanges = false;
+
+                            foreach ($state as $file) {
+                                if ($file instanceof \Livewire\Features\SupportFileUploads\TemporaryUploadedFile) {
+                                    $extension = strtolower($file->getClientOriginalExtension());
+                                    $isImage = in_array($extension, ['jpg', 'jpeg', 'png', 'webp']);
+                                    $isGif = $extension === 'gif';
+
+                                    $newPath = 'homework-feedback/' . $file->getFilename();
+
+                                    if ($isImage && !$isGif) {
+                                        try {
+                                            $imageContent = $file->get();
+                                            $image = \Intervention\Image\Laravel\Facades\Image::read($imageContent);
+
+                                            if ($image->width() > 1920 || $image->height() > 1080) {
+                                                $image->scaleDown(1920, 1080);
+                                            }
+
+                                            $newPath = 'homework-feedback/' . pathinfo($file->getFilename(), PATHINFO_FILENAME) . '_processed.' . $extension;
+                                            $encoded = $image->encodeByExtension($extension, quality: 85);
+
+                                            \Illuminate\Support\Facades\Storage::disk('s3')->put($newPath, (string) $encoded, 'public');
+                                        } catch (\Exception $e) {
+                                            \Log::error("Failed to resize feedback image: " . $e->getMessage());
+                                            $newPath = $file->store('homework-feedback', 's3');
+                                        }
+                                    } else {
+                                        \Illuminate\Support\Facades\Storage::disk('s3')->putFileAs('homework-feedback', $file, basename($newPath), 'public');
+                                    }
+
+                                    $processedState[] = $newPath;
+                                    $hasChanges = true;
+                                } else {
+                                    $processedState[] = $file;
+                                }
+                            }
+
+                            if ($hasChanges) {
+                                $set('feedback_attachments', $processedState);
+                            }
+                        })
                         ->columnSpanFull(),
                 ])
                 ->action(function (array $data) {
@@ -134,15 +181,12 @@ class ViewHomeworkSubmission extends ViewRecord
 
                 Infolists\Components\Section::make('Файлы ученика')
                     ->schema([
-                        Infolists\Components\RepeatableEntry::make('attachments')
+                        Infolists\Components\ViewEntry::make('attachments')
                             ->hiddenLabel()
-                            ->schema([
-                                Infolists\Components\TextEntry::make('')
-                                    ->getStateUsing(fn($state) => basename($state ?? ''))
-                                    ->url(fn($state) => $state ? \Storage::url($state) : null)
-                                    ->openUrlInNewTab(),
-                            ])
-                            ->columns(1),
+                            ->view('filament.infolists.entries.attachments-list')
+                            ->viewData([
+                                'attachments' => fn($state) => is_string($state) ? json_decode($state, true) : $state,
+                            ]),
                     ])
                     ->visible(fn() => !empty($this->record->attachments))
                     ->collapsible(),
@@ -161,6 +205,14 @@ class ViewHomeworkSubmission extends ViewRecord
                             ->html()
                             ->columnSpanFull()
                             ->placeholder('—'),
+
+                        Infolists\Components\ViewEntry::make('feedback_attachments')
+                            ->hiddenLabel()
+                            ->view('filament.infolists.entries.attachments-list')
+                            ->viewData([
+                                'attachments' => fn($state) => is_string($state) ? json_decode($state, true) : $state,
+                            ])
+                            ->visible(fn() => !empty($this->record->feedback_attachments)),
                     ])
                     ->columns(1),
             ]);
