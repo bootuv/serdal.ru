@@ -259,35 +259,47 @@ class HomeworkResource extends Resource
                     ->placeholder('—')
                     ->toggleable(),
 
-                Tables\Columns\TextColumn::make('students_count')
-                    ->label('Учеников')
-                    ->counts('students')
-                    ->badge()
-                    ->color('gray'),
 
-                Tables\Columns\TextColumn::make('submissions_stats')
+
+                Tables\Columns\TextColumn::make('submitted_count')
                     ->label('Сдано')
+                    ->badge()
                     ->getStateUsing(function (Homework $record) {
                         $total = $record->students()->count();
                         $submitted = $record->submissions()->whereNotNull('submitted_at')->count();
-                        $graded = $record->submissions()->whereNotNull('grade')->count();
-
-                        if ($total === 0) {
-                            return '—';
-                        }
-
-                        $html = "<div class='flex flex-col gap-0.5'>";
-                        $html .= "<div class='text-sm font-medium'>{$submitted} из {$total}</div>";
-
-                        if ($graded > 0) {
-                            $html .= "<div class='text-xs text-success-600 dark:text-success-400'>Проверено: {$graded}</div>";
-                        }
-
-                        $html .= "</div>";
-
-                        return $html;
+                        return "{$submitted}/{$total}";
                     })
-                    ->html(),
+                    ->color(function (Homework $record) {
+                        $total = $record->students()->count();
+                        $submitted = $record->submissions()->whereNotNull('submitted_at')->count();
+
+                        // Если учеников нет, серый
+                        if ($total === 0)
+                            return 'gray';
+
+                        // Если сдали не все - оранжевый (warning), если все - зеленый (success)
+                        return $submitted < $total ? 'warning' : 'success';
+                    }),
+
+                Tables\Columns\TextColumn::make('graded_count')
+                    ->label('Проверено')
+                    ->badge()
+                    ->getStateUsing(function (Homework $record) {
+                        $submitted = $record->submissions()->whereNotNull('submitted_at')->count();
+                        $graded = $record->submissions()->whereNotNull('grade')->count();
+                        return "{$graded}/{$submitted}";
+                    })
+                    ->color(function (Homework $record) {
+                        $submitted = $record->submissions()->whereNotNull('submitted_at')->count();
+                        $graded = $record->submissions()->whereNotNull('grade')->count(); // Исправлено: считаем только те, у которых есть оценка
+            
+                        // Если никто не сдал, то проверять нечего - серый
+                        if ($submitted === 0)
+                            return 'gray';
+
+                        // Если проверены не все из сданных - оранжевый, иначе зеленый
+                        return $graded < $submitted ? 'warning' : 'success';
+                    }),
 
                 Tables\Columns\TextColumn::make('deadline')
                     ->label('Срок сдачи')
@@ -316,7 +328,7 @@ class HomeworkResource extends Resource
             ])
             ->defaultSort('created_at', 'desc')
             ->actions([
-                Tables\Actions\EditAction::make(),
+                // Edit button removed from here, available in View page
             ])
             ->recordUrl(fn(Homework $record) => route('filament.app.resources.homework.view', $record))
             ->bulkActions([

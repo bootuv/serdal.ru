@@ -37,30 +37,35 @@ class ViewHomework extends ViewRecord
         return $infolist
             ->schema([
                 Infolists\Components\Section::make('Информация о задании')
+                    ->compact()
                     ->schema([
                         Infolists\Components\TextEntry::make('title')
-                            ->label('Название'),
+                            ->label('Название')
+                            ->columnSpan(1),
 
                         Infolists\Components\TextEntry::make('room.name')
                             ->label('Урок')
-                            ->placeholder('Не привязано к уроку'),
+                            ->placeholder('Не привязано')
+                            ->columnSpan(1),
 
                         Infolists\Components\TextEntry::make('deadline')
                             ->label('Срок сдачи')
                             ->dateTime('d.m.Y H:i')
-                            ->placeholder('Без ограничений')
-                            ->color(fn(Homework $record) => $record->is_overdue ? 'danger' : null),
+                            ->placeholder('—')
+                            ->color(fn(Homework $record) => $record->is_overdue ? 'danger' : null)
+                            ->columnSpan(1),
 
                         Infolists\Components\IconEntry::make('is_visible')
-                            ->label('Видимо для учеников')
-                            ->boolean(),
+                            ->label('Видимо')
+                            ->boolean()
+                            ->columnSpan(1),
 
                         Infolists\Components\TextEntry::make('description')
                             ->label('Описание')
                             ->html()
                             ->columnSpanFull(),
                     ])
-                    ->columns(2),
+                    ->columns(4),
 
                 Infolists\Components\Section::make('Файлы задания')
                     ->schema([

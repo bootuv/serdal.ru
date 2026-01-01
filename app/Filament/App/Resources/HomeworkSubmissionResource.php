@@ -105,7 +105,11 @@ class HomeworkSubmissionResource extends Resource
             ->defaultSort('submitted_at', 'desc')
             ->actions([
                 Tables\Actions\ViewAction::make()
-                    ->label('Проверить'),
+                    ->label('Проверить')
+                    ->color('warning')
+                    ->button()
+                    ->icon('heroicon-m-pencil-square')
+                    ->visible(fn(HomeworkSubmission $record) => $record->grade === null),
             ])
             ->emptyStateHeading('Нет работ на проверку')
             ->emptyStateDescription('Когда ученики сдадут домашние задания, они появятся здесь')
