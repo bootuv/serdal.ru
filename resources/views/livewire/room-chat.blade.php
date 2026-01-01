@@ -344,8 +344,8 @@
                 <form wire:submit.prevent="{{ $editingMessageId ? 'updateMessage' : 'sendMessage' }}" class="flex gap-2" x-data="{
                     messageText: @entangle('newMessage'),
                     hasAttachments: {{ count($attachments) > 0 ? 'true' : 'false' }},
-                    maxFileSize: 50 * 1024 * 1024, // 50 MB - должно совпадать с maxSize в FileUpload
-                    maxFileSizeMB: 50,
+                    maxFileSize: 200 * 1024 * 1024, // 200 MB - должно совпадать с upload_max_filesize
+                    maxFileSizeMB: 200,
                     maxFiles: 10,
                     validateFiles(event) {
                         const files = event.target.files;
