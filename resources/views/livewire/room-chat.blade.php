@@ -22,11 +22,15 @@
                 const textToSend = this.messageText;
                 this.messageText = ''; // Clear input immediately
                 
-                // Scroll to bottom immediately (synchronous)
-                const container = document.getElementById('messages-container');
-                if (container) {
-                    container.scrollTop = container.scrollHeight;
-                }
+                // Wait for DOM to render, then scroll smoothly
+                this.$nextTick(() => {
+                    requestAnimationFrame(() => {
+                        const container = document.getElementById('messages-container');
+                        if (container) {
+                            container.scrollTop = container.scrollHeight;
+                        }
+                    });
+                });
                 
                 this.$wire.sendMessage(textToSend).then(() => {
                      // Message sent successfully, handled by message-sent event
