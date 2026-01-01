@@ -8,6 +8,30 @@ use App\Http\Controllers\RoomController;
 
 Route::get('/', [IndexController::class, 'index']);
 
+// Temporary Debug Route (remove after use)
+Route::get('/debug-image', function () {
+    $info = [];
+    $info['gd'] = extension_loaded('gd');
+    $info['imagick'] = extension_loaded('imagick');
+
+    try {
+        $files = \Illuminate\Support\Facades\Storage::disk('s3')->allFiles('homework-submissions');
+        $info['s3_access'] = 'OK, found ' . count($files) . ' files';
+    } catch (\Exception $e) {
+        $info['s3_access'] = 'Error: ' . $e->getMessage();
+    }
+
+    try {
+        $tempPath = storage_path('app/livewire-tmp/test.txt');
+        file_put_contents($tempPath, 'test');
+        $info['temp_write'] = 'OK: ' . $tempPath;
+    } catch (\Exception $e) {
+        $info['temp_write'] = 'Error: ' . $e->getMessage();
+    }
+
+    return $info;
+});
+
 Route::get('/reviews', [PageController::class, 'reviewsPage'])->name('reviews');
 Route::get('/privacy', [PageController::class, 'privacyPage'])->name('privacy');
 Route::get('/terms', [PageController::class, 'termsPage'])->name('terms');
