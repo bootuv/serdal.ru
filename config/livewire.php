@@ -65,7 +65,7 @@ return [
 
     'temporary_file_upload' => [
         'disk' => 'local',        // Local disk for temp uploads (S3 doesn't support multiple)
-        'rules' => null,           // Use default validation rules
+        'rules' => ['max:204800'],  // 200 MB max file size (in KB)
         'directory' => null,   // Example: 'tmp'                      | Default: 'livewire-tmp'
         'middleware' => null,  // Example: 'throttle:5,1'             | Default: 'throttle:60,1'
         'preview_mimes' => [   // Supported file types for temporary pre-signed file URLs...
@@ -85,6 +85,13 @@ return [
             'mpga',
             'webp',
             'wma',
+            'pdf',
+            'doc',
+            'docx',
+            'xls',
+            'xlsx',
+            'zip',
+            'rar',
         ],
         'max_upload_time' => 10, // Max duration (in minutes) before an upload is invalidated...
         'cleanup' => true, // Should cleanup temporary uploads older than 24 hrs...
