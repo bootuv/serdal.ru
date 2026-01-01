@@ -262,7 +262,7 @@
 
                 {{-- Optimistic Messages --}}
                 <template x-for="msg in optimisticMessages" :key="msg.id">
-                    <div class="flex justify-end group/message message-row" :class="{'mt-4': {{ count($messages) > 0 ? 'true' : 'false' }}}">
+                    <div class="flex justify-end group/message message-row mt-4">
                         <div class="flex items-end gap-2 max-w-[75%] flex-row-reverse" style="max-width: 100%; overflow: hidden;">
                             <div class="flex flex-col items-center gap-1 shrink-0">
                                 <x-filament::avatar src="#" x-bind:src="currentUserAvatar" alt="Me" size="md" />
