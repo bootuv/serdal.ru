@@ -87,7 +87,7 @@ class RoomController extends Controller
                 if (!empty($globalSettings['logout_url'])) {
                     $createParams['logoutURL'] = $globalSettings['logout_url'];
                 } else {
-                    $createParams['logoutURL'] = route('filament.app.resources.rooms.index');
+                    $createParams['logoutURL'] = 'https://serdal.ru/admin/login';
                 }
 
                 // Only upload presentations if not running on localhost
