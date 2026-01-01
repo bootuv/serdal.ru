@@ -133,32 +133,7 @@
             <div class="flex-1 overflow-y-auto p-4 space-y-4 relative"
                 x-ref="chatContainer" id="messages-container"
                 x-data="{ imageModal: false, imageUrl: '' }" 
-                x-init="
-                    // Wait for DOM to be fully rendered, then wait for images
-                    setTimeout(() => {
-                        const images = $el.querySelectorAll('img');
-                        if (images.length > 0) {
-                            let loadedCount = 0;
-                            images.forEach(img => {
-                                if (img.complete) {
-                                    loadedCount++;
-                                } else {
-                                    img.addEventListener('load', () => {
-                                        loadedCount++;
-                                        if (loadedCount === images.length) {
-                                            $el.scrollTop = $el.scrollHeight;
-                                        }
-                                    });
-                                }
-                            });
-                            if (loadedCount === images.length) {
-                                $el.scrollTop = $el.scrollHeight;
-                            }
-                        } else {
-                            $el.scrollTop = $el.scrollHeight;
-                        }
-                    }, 100);
-                "
+                x-init="$nextTick(() => { $nextTick(() => { $el.scrollTop = $el.scrollHeight; }); });"
                 @message-sent.window="$nextTick(() => $el.scrollTop = $el.scrollHeight)"
                 @message-received.window="$nextTick(() => $el.scrollTop = $el.scrollHeight)">
                 
@@ -208,6 +183,7 @@
                                                     class="block text-left">
                                                     <img src="{{ Storage::disk('s3')->url($attachment['path']) }}"
                                                         alt="{{ $attachment['name'] }}"
+                                                        loading="lazy"
                                                         class="max-w-full rounded-lg cursor-zoom-in hover:opacity-90 transition-opacity"
                                                         x-on:load="$nextTick(() => { const container = document.getElementById('messages-container'); if (container) container.scrollTop = container.scrollHeight; })"
                                                         style="max-height: 200px;" />
