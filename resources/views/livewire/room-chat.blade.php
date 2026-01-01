@@ -22,6 +22,14 @@
                 const textToSend = this.messageText;
                 this.messageText = ''; // Clear input immediately
                 
+                // Scroll to bottom after adding optimistic message
+                this.$nextTick(() => {
+                    const container = this.$refs.chatContainer;
+                    if (container) {
+                        container.scrollTop = container.scrollHeight;
+                    }
+                });
+                
                 this.$wire.sendMessage(textToSend).then(() => {
                      // Message sent successfully, handled by message-sent event
                 });
