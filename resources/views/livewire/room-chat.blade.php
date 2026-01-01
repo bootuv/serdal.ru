@@ -14,7 +14,7 @@
                     content: this.messageText,
                     is_own: true,
                     user_avatar: this.currentUserAvatar,
-                    created_at: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+                    created_at: new Date().toLocaleTimeString('ru-RU', {hour: '2-digit', minute:'2-digit', hour12: false}),
                     bg_color: '#ffedd5', // Match owner color
                     sending: true
                 });
