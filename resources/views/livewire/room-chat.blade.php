@@ -242,11 +242,25 @@
                                     <p class="text-sm whitespace-pre-wrap break-words" style="{{ !$message['is_own'] ? 'padding-top: 0.2rem;' : '' }}">{{ $message['content'] }}</p>
                                 @endif
                                 <p @class([
-                                    'text-xs mt-1 text-right',
+                                    'text-xs mt-1 text-right flex items-center justify-end gap-1',
                                     'text-gray-500 dark:text-gray-400' => $message['is_own'],
                                     'text-gray-400 dark:text-gray-500' => !$message['is_own'],
                                 ])>
-                                    {{ $message['created_at'] }}
+                                    <span>{{ $message['created_at'] }}</span>
+                                    @if($message['is_own'])
+                                        @if($message['read_at'])
+                                            {{-- Double checkmark for read --}}
+                                            <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13l4 4L23 7" transform="translate(-2, 0)"></path>
+                                            </svg>
+                                        @else
+                                            {{-- Single checkmark for delivered --}}
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                            </svg>
+                                        @endif
+                                    @endif
                                 </p>
                             </div>
 
@@ -277,7 +291,9 @@
                                 <p class="text-sm whitespace-pre-wrap break-words" x-text="msg.content"></p>
                                 <p class="text-xs mt-1 text-right text-gray-500 dark:text-gray-400 flex items-center justify-end gap-1">
                                     <span x-text="msg.created_at"></span>
-                                    <x-filament::loading-indicator class="w-3 h-3" />
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                    </svg>
                                 </p>
                             </div>
                         </div>
