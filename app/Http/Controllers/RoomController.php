@@ -144,7 +144,7 @@ class RoomController extends Controller
                 $response = Bigbluebutton::create($createParams);
                 $internalMeetingId = $response['internalMeetingID'] ?? null;
 
-                \App\Models\MeetingSession::create([
+                $meetingSession = \App\Models\MeetingSession::create([
                     'user_id' => auth()->id(),
                     'room_id' => $room->id,
                     'meeting_id' => $room->meeting_id,
@@ -193,7 +193,17 @@ class RoomController extends Controller
                 } catch (\Exception $e) {
                     \Illuminate\Support\Facades\Log::error('BBB Webhook: Failed to register.', ['error' => $e->getMessage()]);
                 }
+            } else {
+                // If meeting is already running, we need to find the existing session for the redirect
+                $meetingSession = \App\Models\MeetingSession::where('room_id', $room->id)
+                    ->where('meeting_id', $room->meeting_id)
+                    ->latest()
+                    ->first();
             }
+
+            $logoutUrl = $meetingSession
+                ? route('filament.app.resources.meeting-sessions.view', $meetingSession)
+                : route('filament.app.pages.dashboard');
 
             return redirect()->to(
                 Bigbluebutton::join([
@@ -202,7 +212,7 @@ class RoomController extends Controller
                     'password' => $room->moderator_pw, // Owner is moderator
                     'userID' => (string) auth()->id(),
                     'avatarURL' => auth()->user()->avatar ? asset('storage/' . auth()->user()->avatar) : null,
-                    'logoutURL' => 'https://serdal.ru/admin/login',
+                    'logoutURL' => $logoutUrl,
                 ])
             );
         } catch (\Exception $e) {
@@ -246,6 +256,22 @@ class RoomController extends Controller
             }
 
             $password = $room->user_id === auth()->id() ? $room->moderator_pw : $room->attendee_pw;
+            $user = auth()->user();
+
+            // Default logout URL for students
+            $logoutUrl = route('filament.app.pages.dashboard');
+
+            // If user is Admin or Tutor (Owner), redirect to session report
+            if ($user->hasRole('admin') || in_array($user->role, [\App\Models\User::ROLE_TUTOR, \App\Models\User::ROLE_MENTOR])) {
+                $session = \App\Models\MeetingSession::where('room_id', $room->id)
+                    ->where('meeting_id', $room->meeting_id)
+                    ->latest()
+                    ->first();
+
+                if ($session) {
+                    $logoutUrl = route('filament.app.resources.meeting-sessions.view', $session);
+                }
+            }
 
             return redirect()->to(
                 Bigbluebutton::join([
@@ -254,7 +280,7 @@ class RoomController extends Controller
                     'password' => $password,
                     'userID' => (string) auth()->id(),
                     'avatarURL' => auth()->user()->avatar ? asset('storage/' . auth()->user()->avatar) : null,
-                    'logoutURL' => 'https://serdal.ru/admin/login',
+                    'logoutURL' => $logoutUrl,
                 ])
             );
         } catch (\Exception $e) {
