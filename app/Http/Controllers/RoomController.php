@@ -202,6 +202,7 @@ class RoomController extends Controller
                     'password' => $room->moderator_pw, // Owner is moderator
                     'userID' => (string) auth()->id(),
                     'avatarURL' => auth()->user()->avatar ? asset('storage/' . auth()->user()->avatar) : null,
+                    'logoutURL' => 'https://serdal.ru/admin/login',
                 ])
             );
         } catch (\Exception $e) {
@@ -253,6 +254,7 @@ class RoomController extends Controller
                     'password' => $password,
                     'userID' => (string) auth()->id(),
                     'avatarURL' => auth()->user()->avatar ? asset('storage/' . auth()->user()->avatar) : null,
+                    'logoutURL' => 'https://serdal.ru/admin/login',
                 ])
             );
         } catch (\Exception $e) {

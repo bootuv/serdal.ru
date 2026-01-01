@@ -9,8 +9,8 @@ return [
     'BBB_SERVER_BASE_URL' => env('BBB_SERVER_BASE_URL', ''),
 
     /*
-    * available hash algorithm sha1,sha256,sha512,sha384
-    */
+     * available hash algorithm sha1,sha256,sha512,sha384
+     */
     'hash_algorithm' => 'sha1',
 
     /**
@@ -64,7 +64,7 @@ return [
          *
          * var @string
          */
-        'logoutUrl' => null,
+        'logoutUrl' => 'https://serdal.ru/admin/login',
 
         /**
          * Setting ‘record=true’ instructs the BigBlueButton server to record the media and
