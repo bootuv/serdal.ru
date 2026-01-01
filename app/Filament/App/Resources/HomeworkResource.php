@@ -276,7 +276,16 @@ class HomeworkResource extends Resource
                             return '—';
                         }
 
-                        return "{$submitted}/{$total}" . ($graded > 0 ? " (✓{$graded})" : '');
+                        $html = "<div class='flex flex-col gap-0.5'>";
+                        $html .= "<div class='text-sm font-medium'>{$submitted} из {$total}</div>";
+
+                        if ($graded > 0) {
+                            $html .= "<div class='text-xs text-success-600 dark:text-success-400'>Проверено: {$graded}</div>";
+                        }
+
+                        $html .= "</div>";
+
+                        return $html;
                     })
                     ->html(),
 
