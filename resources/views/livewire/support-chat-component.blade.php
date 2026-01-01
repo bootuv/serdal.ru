@@ -162,7 +162,7 @@
                                                         alt="{{ $attachment['name'] }}"
                                                         loading="lazy"
                                                         class="max-w-full rounded-lg cursor-zoom-in hover:opacity-90 transition-opacity"
-                                                        x-on:load="$nextTick(() => { const container = document.getElementById('messages-container'); if (container) container.scrollTop = container.scrollHeight; })"
+                                                        x-on:load="$nextTick(() => { const container = document.getElementById('support-messages-container'); if (container) container.scrollTop = container.scrollHeight; })"
                                                         style="max-height: 200px;" />
                                                 </button>
                                             @else
