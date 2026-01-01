@@ -212,7 +212,7 @@ class RoomController extends Controller
             ]);
 
             // DEBUG: Hardcode to Google to verify BBB redirect
-            $logoutUrl = 'https://google.com';
+            // $logoutUrl = 'https://google.com';
 
             return redirect()->to(
                 Bigbluebutton::join([
@@ -222,6 +222,7 @@ class RoomController extends Controller
                     'userID' => (string) auth()->id(),
                     'avatarURL' => auth()->user()->avatar ? asset('storage/' . auth()->user()->avatar) : null,
                     'logoutURL' => $logoutUrl,
+                    'logoutUrl' => $logoutUrl,
                 ])
             );
         } catch (\Exception $e) {
@@ -304,6 +305,7 @@ class RoomController extends Controller
                     'userID' => (string) auth()->id(),
                     'avatarURL' => auth()->user()->avatar ? asset('storage/' . auth()->user()->avatar) : null,
                     'logoutURL' => $logoutUrl,
+                    'logoutUrl' => $logoutUrl,
                 ])
             );
         } catch (\Exception $e) {
