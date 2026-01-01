@@ -10,8 +10,19 @@
 
     @foreach($files as $path)
         @if(is_string($path))
-            <a href="{{ \Storage::url($path) }}" target="_blank"
-                class="text-primary-600 hover:underline flex items-center gap-1">
+            @php
+                $url = $path;
+                try {
+                    if (config('filesystems.default') === 's3' || \Illuminate\Support\Str::startsWith($path, ['homework-submissions/', 'homework-feedback/'])) {
+                        $url = \Illuminate\Support\Facades\Storage::disk('s3')->temporaryUrl($path, now()->addMinutes(30));
+                    } else {
+                        $url = \Illuminate\Support\Facades\Storage::url($path);
+                    }
+                } catch (\Exception $e) {
+                    $url = \Illuminate\Support\Facades\Storage::url($path);
+                }
+            @endphp
+            <a href="{{ $url }}" target="_blank" class="text-primary-600 hover:underline flex items-center gap-1">
                 @svg('heroicon-o-paper-clip', 'w-4 h-4')
                 {{ basename($path) }}
             </a>

@@ -14,6 +14,7 @@ class RoomScheduleObserver
     public function created(RoomSchedule $roomSchedule): void
     {
         $this->syncToGoogleCalendar($roomSchedule);
+        $roomSchedule->room->updateNextStart();
     }
 
     /**
@@ -27,6 +28,7 @@ class RoomScheduleObserver
         }
 
         $this->syncToGoogleCalendar($roomSchedule);
+        $roomSchedule->room->updateNextStart();
     }
 
     /**
@@ -44,6 +46,14 @@ class RoomScheduleObserver
         $roomSchedule->load(['room.user', 'room.participants']);
 
         $this->deleteFromGoogleCalendar($roomSchedule);
+    }
+
+    /**
+     * Handle the RoomSchedule "deleted" event.
+     */
+    public function deleted(RoomSchedule $roomSchedule): void
+    {
+        $roomSchedule->room->updateNextStart();
     }
 
     /**
