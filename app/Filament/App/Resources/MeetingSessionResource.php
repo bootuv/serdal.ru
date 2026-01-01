@@ -130,7 +130,7 @@ class MeetingSessionResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()
-            // ->where('user_id', auth()->id()) // Commented out for debugging
+            ->where('user_id', auth()->id())
             ->with(['room.participants']);
     }
 }
