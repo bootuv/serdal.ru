@@ -252,6 +252,11 @@ class User extends Authenticatable implements FilamentUser
         return $this->hasMany(HomeworkSubmission::class, 'student_id');
     }
 
+    public function isAdmin(): bool
+    {
+        return $this->role === self::ROLE_ADMIN;
+    }
+
     public function getAvatarTextColorAttribute(): string
     {
         $colors = [
