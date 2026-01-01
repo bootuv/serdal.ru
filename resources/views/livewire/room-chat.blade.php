@@ -1,9 +1,41 @@
 <div class="h-full flex flex-col" 
-    x-data="{ isUploading: false, progress: 0 }" 
+    x-data="{ 
+        isUploading: false, 
+        progress: 0, 
+        optimisticMessages: [],
+        currentUserAvatar: '{{ auth()->user()->avatar_url }}',
+        submitMessage() {
+            if (this.messageText.trim() === '' && !this.hasAttachments) return;
+
+            // Optimistic UI only for text messages with no attachments (simpler)
+            if (this.messageText.trim() !== '' && !this.hasAttachments && !this.$wire.editingMessageId) {
+                this.optimisticMessages.push({
+                    id: 'opt-' + Date.now(),
+                    content: this.messageText,
+                    is_own: true,
+                    user_avatar: this.currentUserAvatar,
+                    created_at: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+                    bg_color: '#ffedd5', // Match owner color
+                    sending: true
+                });
+                
+                const textToSend = this.messageText;
+                this.messageText = ''; // Clear input immediately
+                
+                this.$wire.sendMessage(textToSend).then(() => {
+                     // Message sent successfully, handled by message-sent event
+                });
+            } else {
+                // Fallback for attachments or editing
+                this.$wire.call(this.$wire.editingMessageId ? 'updateMessage' : 'sendMessage');
+            }
+        }
+    }" 
     x-on:livewire-upload-start="isUploading = true" 
     x-on:livewire-upload-finish="isUploading = false" 
     x-on:livewire-upload-error="isUploading = false" 
-    x-on:livewire-upload-progress="progress = $event.detail.progress">
+    x-on:livewire-upload-progress="progress = $event.detail.progress"
+    x-on:message-sent.window="optimisticMessages = []">
     @if($room)
         <div
             class="flex-1 flex flex-col bg-white dark:bg-gray-900 ring-1 ring-gray-950/5 dark:ring-white/10 rounded-xl overflow-hidden">
@@ -222,6 +254,26 @@
                     </div>
                 @endforelse
 
+                {{-- Optimistic Messages --}}
+                <template x-for="msg in optimisticMessages" :key="msg.id">
+                    <div class="flex justify-end group/message message-row">
+                        <div class="flex items-end gap-2 max-w-[75%] flex-row-reverse" style="max-width: 100%; overflow: hidden;">
+                            <div class="flex flex-col items-center gap-1 shrink-0">
+                                <x-filament::avatar :src="currentUserAvatar" alt="Me" size="md" />
+                            </div>
+
+                            <div class="min-w-0 rounded-xl px-4 py-2 text-gray-900 dark:text-white" 
+                                 style="background-color: #ffedd5; max-width: 100%; overflow: hidden; opacity: 0.7;">
+                                <p class="text-sm whitespace-pre-wrap break-words" x-text="msg.content"></p>
+                                <p class="text-xs mt-1 text-right text-gray-500 dark:text-gray-400 flex items-center justify-end gap-1">
+                                    <span x-text="msg.created_at"></span>
+                                    <x-filament::loading-indicator class="w-3 h-3" />
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+
                 {{-- Lightbox Modal --}}
                 <template x-teleport="body">
                     <div x-show="imageModal" 
@@ -341,7 +393,7 @@
                         <span class="text-sm font-medium">Этот чат находится в архиве. Отправка сообщений недоступна.</span>
                     </div>
                 @else
-                <form wire:submit.prevent="{{ $editingMessageId ? 'updateMessage' : 'sendMessage' }}" class="flex gap-2" x-data="{
+                <form @submit.prevent="submitMessage" class="flex gap-2" x-data="{
                     messageText: @entangle('newMessage'),
                     hasAttachments: {{ count($attachments) > 0 ? 'true' : 'false' }},
                     maxFileSize: 200 * 1024 * 1024, // 200 MB - должно совпадать с upload_max_filesize
@@ -451,7 +503,7 @@
                             class="w-full text-sm bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 rounded-lg resize-none overflow-hidden"
                             style="border: 1px solid #e5e7eb; min-height: 36px; max-height: 100px;"
                             rows="1" 
-                            @keydown.enter.prevent="if(!$event.shiftKey) $wire.{{ $editingMessageId ? 'updateMessage' : 'sendMessage' }}()"
+                            @keydown.enter.prevent="if(!$event.shiftKey) submitMessage()"
                             @paste="handlePaste($event)"></textarea>
                     </div>
 
