@@ -43,15 +43,17 @@ class MeetingSession extends Model
     {
         if (!$this->relationLoaded('room')) {
             $this->load('room.participants');
-        } elseif (!$this->room->relationLoaded('participants')) {
+        }
+
+        if (!$this->room) {
+            return ['attended' => 0, 'total' => 0, 'color' => 'gray'];
+        }
+
+        if (!$this->room->relationLoaded('participants')) {
             $this->room->load('participants');
         }
 
         $room = $this->room;
-
-        if (!$room) {
-            return ['attended' => 0, 'total' => 0, 'color' => 'gray'];
-        }
 
         $studentIds = $room->participants->pluck('id')->map(fn($id) => (string) $id)->toArray();
         $total = count($studentIds);
