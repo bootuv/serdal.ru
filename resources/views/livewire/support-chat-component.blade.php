@@ -104,22 +104,24 @@
             {{-- Сообжения --}}
             <div class="flex-1 overflow-y-auto p-4 space-y-4 relative"
                 x-ref="chatContainer" id="support-messages-container"
-                x-data="{ imageModal: false, imageUrl: '' }" 
-                x-init="$el.scrollTop = $el.scrollHeight"
+                x-data="{ imageModal: false, imageUrl: '', isInitialized: false }" 
+                x-init="$el.scrollTop = $el.scrollHeight; setTimeout(() => isInitialized = true, 500);"
                 @message-sent.window="$nextTick(() => $el.scrollTop = $el.scrollHeight)"
                 @message-received.window="$nextTick(() => $el.scrollTop = $el.scrollHeight)">
                 
                 @if(count($messages) < $totalMessagesCount)
                     <div x-intersect="
-                        $nextTick(() => {
-                            const container = $refs.chatContainer;
-                            const prevHeight = container.scrollHeight;
-                            $wire.loadMore().then(() => {
-                                $nextTick(() => {
-                                    container.scrollTop = container.scrollHeight - prevHeight;
+                        if (isInitialized) {
+                            $nextTick(() => {
+                                const container = $refs.chatContainer;
+                                const prevHeight = container.scrollHeight;
+                                $wire.loadMore().then(() => {
+                                    $nextTick(() => {
+                                        container.scrollTop = container.scrollHeight - prevHeight;
+                                    });
                                 });
                             });
-                        })
+                        }
                     " class="py-4 flex justify-center">
                         <x-filament::loading-indicator class="w-6 h-6 text-gray-400" />
                     </div>
