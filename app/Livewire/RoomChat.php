@@ -185,9 +185,12 @@ class RoomChat extends Component implements HasActions, HasForms
         }
     }
 
-    public function sendMessage()
+    public function sendMessage($content = null)
     {
-        if (!$this->room || (trim($this->newMessage) === '' && empty($this->attachments))) {
+        // Use provided content or fall back to newMessage property
+        $messageContent = $content !== null ? $content : $this->newMessage;
+
+        if (!$this->room || (trim($messageContent) === '' && empty($this->attachments))) {
             return;
         }
 
@@ -217,7 +220,7 @@ class RoomChat extends Component implements HasActions, HasForms
         $message = Message::create([
             'room_id' => $this->room->id,
             'user_id' => $user->id,
-            'content' => trim($this->newMessage),
+            'content' => trim($messageContent),
             'attachments' => !empty($attachmentsData) ? $attachmentsData : null,
         ]);
 

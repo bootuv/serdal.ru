@@ -183,9 +183,12 @@ class SupportChatComponent extends Component
         }
     }
 
-    public function sendMessage(): void
+    public function sendMessage($content = null): void
     {
-        if (!$this->supportChat || (trim($this->newMessage) === '' && empty($this->attachments))) {
+        // Use provided content or fall back to newMessage property
+        $messageContent = $content !== null ? $content : $this->newMessage;
+
+        if (!$this->supportChat || (trim($messageContent) === '' && empty($this->attachments))) {
             return;
         }
 
@@ -215,7 +218,7 @@ class SupportChatComponent extends Component
         $message = SupportMessage::create([
             'support_chat_id' => $this->supportChat->id,
             'user_id' => $user->id,
-            'content' => trim($this->newMessage),
+            'content' => trim($messageContent),
             'attachments' => !empty($attachmentsData) ? $attachmentsData : null,
         ]);
 
