@@ -344,7 +344,8 @@
                 <form wire:submit.prevent="{{ $editingMessageId ? 'updateMessage' : 'sendMessage' }}" class="flex gap-2" x-data="{
                     messageText: @entangle('newMessage'),
                     hasAttachments: {{ count($attachments) > 0 ? 'true' : 'false' }},
-                    maxFileSize: 100 * 1024 * 1024, // 100 MB
+                    maxFileSize: 50 * 1024 * 1024, // 50 MB - должно совпадать с maxSize в FileUpload
+                    maxFileSizeMB: 50,
                     maxFiles: 10,
                     validateFiles(event) {
                         const files = event.target.files;
@@ -368,8 +369,8 @@
                         }
                         
                         if (oversizedFiles.length > 0) {
-                            const fileList = oversizedFiles.map(f => `${f.name} (${f.size} МБ)`).join(', ');
-                            alert(`Файлы слишком большие (максимум 100 МБ):\n${fileList}`);
+                            const fileList = oversizedFiles.map(f => `• ${f.name} (${f.size} МБ)`).join('\n');
+                            alert(`Превышен максимальный размер файла (${this.maxFileSizeMB} МБ):\n\n${fileList}\n\nПожалуйста, выберите файлы меньшего размера или сожмите их.`);
                             event.target.value = '';
                             return false;
                         }

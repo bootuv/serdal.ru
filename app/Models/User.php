@@ -228,6 +228,30 @@ class User extends Authenticatable implements FilamentUser
         return $this->hasMany(Message::class);
     }
 
+    /**
+     * Домашние задания, созданные учителем
+     */
+    public function homeworks()
+    {
+        return $this->hasMany(Homework::class, 'teacher_id');
+    }
+
+    /**
+     * Домашние задания, назначенные ученику
+     */
+    public function assignedHomeworks()
+    {
+        return $this->belongsToMany(Homework::class, 'homework_student', 'student_id', 'homework_id');
+    }
+
+    /**
+     * Сданные работы ученика
+     */
+    public function homeworkSubmissions()
+    {
+        return $this->hasMany(HomeworkSubmission::class, 'student_id');
+    }
+
     public function getAvatarTextColorAttribute(): string
     {
         $colors = [

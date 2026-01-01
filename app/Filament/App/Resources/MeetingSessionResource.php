@@ -23,7 +23,7 @@ class MeetingSessionResource extends Resource
 
     protected static ?string $pluralModelLabel = 'История сессий';
 
-    protected static ?int $navigationSort = 6;
+    protected static ?int $navigationSort = 8;
 
     public static function form(Form $form): Form
     {
