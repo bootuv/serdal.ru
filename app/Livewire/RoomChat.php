@@ -35,7 +35,7 @@ class RoomChat extends Component implements HasActions, HasForms
     public ?int $editingMessageId = null; // ID редактируемого сообщения
     public ?string $editingMessageOriginalContent = null;
     public int $perPage = 20;
-    public int $totalMessagesCount = 0;
+
 
     /**
      * Хук вызывается сразу после загрузки файла
@@ -183,7 +183,7 @@ class RoomChat extends Component implements HasActions, HasForms
 
     public function loadMore()
     {
-        if (count($this->messages) < $this->totalMessagesCount) {
+        if ($this->hasMorePages) {
             $this->perPage += 20;
             $this->loadMessages();
         }
@@ -293,7 +293,7 @@ class RoomChat extends Component implements HasActions, HasForms
         $this->newMessage = '';
         $this->attachments = [];
         $this->processedAttachments = [];
-        $this->totalMessagesCount++;
+
 
         $this->dispatch('message-sent');
     }
@@ -378,7 +378,7 @@ class RoomChat extends Component implements HasActions, HasForms
         ];
 
         $this->dispatch('message-received');
-        $this->totalMessagesCount++;
+
     }
 
     public function getListeners()

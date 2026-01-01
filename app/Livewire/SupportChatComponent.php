@@ -28,7 +28,7 @@ class SupportChatComponent extends Component
     public ?int $editingMessageId = null;
     public ?string $editingMessageOriginalContent = null;
     public int $perPage = 20;
-    public int $totalMessagesCount = 0;
+
 
     /**
      * Хук вызывается сразу после загрузки файла
@@ -202,7 +202,7 @@ class SupportChatComponent extends Component
 
     public function loadMore()
     {
-        if (count($this->messages) < $this->totalMessagesCount) {
+        if ($this->hasMorePages) {
             $this->perPage += 20;
             $this->loadMessages();
         }
@@ -286,7 +286,7 @@ class SupportChatComponent extends Component
         $this->newMessage = '';
         $this->attachments = [];
         $this->processedAttachments = [];
-        $this->totalMessagesCount++;
+
 
         $this->dispatch('message-sent');
     }
@@ -442,6 +442,6 @@ class SupportChatComponent extends Component
         ];
 
         $this->dispatch('message-received');
-        $this->totalMessagesCount++;
+
     }
 }
