@@ -241,7 +241,7 @@
                     <div class="flex justify-end group/message message-row">
                         <div class="flex items-end gap-2 max-w-[75%] flex-row-reverse" style="max-width: 100%; overflow: hidden;">
                             <div class="flex flex-col items-center gap-1 shrink-0">
-                                <x-filament::avatar :src="currentUserAvatar" alt="Me" size="md" />
+                                <x-filament::avatar src="#" x-bind:src="currentUserAvatar" alt="Me" size="md" />
                             </div>
 
                             <div class="min-w-0 rounded-xl px-4 py-2 text-gray-900 dark:text-white" 
