@@ -3,14 +3,6 @@
 use Laravel\Pulse\Http\Middleware\Authorize;
 use Laravel\Pulse\Pulse;
 use Laravel\Pulse\Recorders;
-use App\Models\User;
-
-Pulse::user(fn($user) => [
-    'name' => $user->name,
-    'extra' => $user->email,
-    'avatar' => $user->avatar_url,
-]);
-
 
 return [
 

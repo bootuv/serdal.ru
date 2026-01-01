@@ -25,5 +25,11 @@ class AppServiceProvider extends ServiceProvider
         \Illuminate\Support\Facades\Gate::define('viewPulse', function ($user) {
             return $user->isAdmin();
         });
+
+        \Laravel\Pulse\Facades\Pulse::user(fn($user) => [
+            'name' => $user->name,
+            'extra' => $user->email,
+            'avatar' => $user->avatar_url,
+        ]);
     }
 }
