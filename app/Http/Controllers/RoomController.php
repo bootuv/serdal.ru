@@ -211,6 +211,9 @@ class RoomController extends Controller
                 'has_session' => (bool) $meetingSession
             ]);
 
+            // DEBUG: Hardcode to Google to verify BBB redirect
+            $logoutUrl = 'https://google.com';
+
             return redirect()->to(
                 Bigbluebutton::join([
                     'meetingID' => $room->meeting_id,

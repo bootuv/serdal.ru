@@ -23,6 +23,12 @@ class MeetingSessionPolicy
      */
     public function view(User $user, MeetingSession $meetingSession): bool
     {
+        \Illuminate\Support\Facades\Log::info('MeetingSessionPolicy view check', [
+            'user_id' => $user->id,
+            'session_user_id' => $meetingSession->user_id,
+            'is_admin' => $user->isAdmin(),
+        ]);
+
         if ($user->isAdmin()) {
             return true;
         }
