@@ -104,7 +104,33 @@
             {{-- Сообжения --}}
             <div class="flex-1 overflow-y-auto p-4 space-y-4 relative"
                 x-ref="chatContainer" id="support-messages-container"
-                x-data="{ imageModal: false, imageUrl: '' }" x-init="$el.scrollTop = $el.scrollHeight"
+                x-data="{ imageModal: false, imageUrl: '' }" 
+                x-init="
+                    // Wait for DOM to be fully rendered, then wait for images
+                    setTimeout(() => {
+                        const images = $el.querySelectorAll('img');
+                        if (images.length > 0) {
+                            let loadedCount = 0;
+                            images.forEach(img => {
+                                if (img.complete) {
+                                    loadedCount++;
+                                } else {
+                                    img.addEventListener('load', () => {
+                                        loadedCount++;
+                                        if (loadedCount === images.length) {
+                                            $el.scrollTop = $el.scrollHeight;
+                                        }
+                                    });
+                                }
+                            });
+                            if (loadedCount === images.length) {
+                                $el.scrollTop = $el.scrollHeight;
+                            }
+                        } else {
+                            $el.scrollTop = $el.scrollHeight;
+                        }
+                    }, 100);
+                "
                 @message-sent.window="$nextTick(() => $el.scrollTop = $el.scrollHeight)"
                 @message-received.window="$nextTick(() => $el.scrollTop = $el.scrollHeight)">
                 

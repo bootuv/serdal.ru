@@ -134,28 +134,30 @@
                 x-ref="chatContainer" id="messages-container"
                 x-data="{ imageModal: false, imageUrl: '' }" 
                 x-init="
-                    // Wait for all images to load before scrolling
-                    const images = $el.querySelectorAll('img');
-                    if (images.length > 0) {
-                        let loadedCount = 0;
-                        images.forEach(img => {
-                            if (img.complete) {
-                                loadedCount++;
-                            } else {
-                                img.addEventListener('load', () => {
+                    // Wait for DOM to be fully rendered, then wait for images
+                    setTimeout(() => {
+                        const images = $el.querySelectorAll('img');
+                        if (images.length > 0) {
+                            let loadedCount = 0;
+                            images.forEach(img => {
+                                if (img.complete) {
                                     loadedCount++;
-                                    if (loadedCount === images.length) {
-                                        $el.scrollTop = $el.scrollHeight;
-                                    }
-                                });
+                                } else {
+                                    img.addEventListener('load', () => {
+                                        loadedCount++;
+                                        if (loadedCount === images.length) {
+                                            $el.scrollTop = $el.scrollHeight;
+                                        }
+                                    });
+                                }
+                            });
+                            if (loadedCount === images.length) {
+                                $el.scrollTop = $el.scrollHeight;
                             }
-                        });
-                        if (loadedCount === images.length) {
+                        } else {
                             $el.scrollTop = $el.scrollHeight;
                         }
-                    } else {
-                        $el.scrollTop = $el.scrollHeight;
-                    }
+                    }, 100);
                 "
                 @message-sent.window="$nextTick(() => $el.scrollTop = $el.scrollHeight)"
                 @message-received.window="$nextTick(() => $el.scrollTop = $el.scrollHeight)">
