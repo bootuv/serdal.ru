@@ -1,4 +1,4 @@
-<div class="h-full flex flex-col" 
+<div class="h-full min-h-0 flex flex-col" 
     x-data="{ 
         showUserCard: false, 
         isUploading: false, 
@@ -127,41 +127,12 @@
                 @forelse($messages as $message)
                     <div class="flex {{ $message['is_own'] ? 'justify-end' : 'justify-start' }} group/message message-row">
                         <div class="flex items-end gap-2 max-w-[75%] {{ $message['is_own'] ? 'flex-row-reverse' : '' }}" style="max-width: 100%; overflow: hidden;">
-                            <div class="flex flex-col items-center gap-1 shrink-0">
-                                @if(($message['can_delete'] ?? false) || ($message['can_edit'] ?? false))
-                                    <x-filament::dropdown placement="top-end" :teleport="true" class="chat-message-dropdown">
-                                        <x-slot name="trigger">
-                                            <button class="p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors chat-action-trigger">
-                                                <x-heroicon-m-ellipsis-vertical class="w-5 h-5" />
-                                            </button>
-                                        </x-slot>
-                                        
-                                        <x-filament::dropdown.list>
-                                            @if($message['can_edit'] ?? false)
-                                                <x-filament::dropdown.list.item 
-                                                    wire:click="editMessage({{ $message['id'] }})"
-                                                    icon="heroicon-m-pencil" 
-                                                    x-on:click="close">
-                                                    Изменить
-                                                </x-filament::dropdown.list.item>
-                                            @endif
-    
-                                            @if($message['can_delete'] ?? false)
-                                                <x-filament::dropdown.list.item
-                                                    wire:click="deleteMessage({{ $message['id'] }})"
-                                                    wire:confirm="Вы уверены, что хотите удалить это сообщение?"
-                                                    icon="heroicon-m-trash" 
-                                                    color="danger" 
-                                                    x-on:click="close">
-                                                    Удалить
-                                                </x-filament::dropdown.list.item>
-                                            @endif
-                                        </x-filament::dropdown.list>
-                                    </x-filament::dropdown>
-                                @endif
+                            {{-- Avatar --}}
+                            <div class="flex items-center shrink-0">
                                 <x-filament::avatar :src="$message['user_avatar']" alt="{{ $message['user_name'] }}" size="md" />
                             </div>
 
+                            {{-- Message bubble --}}
                             <div @class([
                                 'min-w-0 rounded-xl px-4 py-2',
                                 'text-gray-900 dark:text-white' => $message['is_own'],
@@ -187,6 +158,7 @@
                                                     <img src="{{ Storage::disk('s3')->url($attachment['path']) }}"
                                                         alt="{{ $attachment['name'] }}"
                                                         class="max-w-full rounded-lg cursor-zoom-in hover:opacity-90 transition-opacity"
+                                                        x-on:load="$nextTick(() => { const container = document.getElementById('messages-container'); if (container) container.scrollTop = container.scrollHeight; })"
                                                         style="max-height: 200px;" />
                                                 </button>
                                             @else
@@ -226,19 +198,54 @@
                                     @if($message['is_own'])
                                         @if($message['read_at'])
                                             {{-- Double checkmark for read --}}
-                                            <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13l4 4L23 7" transform="translate(-2, 0)"></path>
+                                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                <path d="M9.9101 3.53713C10.1659 3.21155 10.6371 3.15458 10.9628 3.41018C11.2884 3.666 11.3454 4.13722 11.0898 4.46292L5.58978 11.4639C5.45732 11.6324 5.25879 11.7362 5.04486 11.749C4.83078 11.7618 4.62132 11.6819 4.46967 11.5303L1.46967 8.5303C1.17678 8.2374 1.17678 7.76264 1.46967 7.46975C1.76256 7.17687 2.23732 7.17686 2.53021 7.46975L4.93256 9.87209L9.9101 3.53713Z" fill="#40B1E2"/>
+                                                <path d="M13.9102 3.53713C14.166 3.21152 14.6372 3.15452 14.9629 3.41018C15.2885 3.66599 15.3454 4.13723 15.0899 4.46291L9.5899 11.4639C9.45745 11.6324 9.25888 11.7362 9.04497 11.749C8.83092 11.7618 8.62143 11.6819 8.46978 11.5303L7.46978 10.5303C7.17692 10.2374 7.17687 9.76262 7.46978 9.46975C7.76266 9.17692 8.23745 9.17692 8.53033 9.46975L8.93267 9.87209L13.9102 3.53713Z" fill="#40B1E2"/>
                                             </svg>
                                         @else
                                             {{-- Single checkmark for delivered --}}
-                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                <path d="M11.9101 3.5371C12.1659 3.21151 12.6371 3.15455 12.9628 3.41015C13.2884 3.66597 13.3454 4.13719 13.0898 4.46288L7.58978 11.4639C7.45732 11.6323 7.25879 11.7362 7.04486 11.749C6.83078 11.7618 6.62132 11.6819 6.46967 11.5303L3.46967 8.53026C3.17678 8.23737 3.17678 7.76261 3.46967 7.46972C3.76256 7.17683 4.23732 7.17683 4.53021 7.46972L6.93256 9.87206L11.9101 3.5371Z" fill="#6B7280"/>
                                             </svg>
                                         @endif
                                     @endif
                                 </p>
                             </div>
+
+                            {{-- Action menu on opposite side --}}
+                            @if(($message['can_delete'] ?? false) || ($message['can_edit'] ?? false))
+                                <div class="flex items-center shrink-0">
+                                    <x-filament::dropdown placement="top-end" :teleport="true" class="chat-message-dropdown">
+                                        <x-slot name="trigger">
+                                            <button class="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors chat-action-trigger opacity-0 group-hover/message:opacity-100">
+                                                <x-heroicon-m-ellipsis-vertical class="w-4 h-4" />
+                                            </button>
+                                        </x-slot>
+                                        
+                                        <x-filament::dropdown.list>
+                                            @if($message['can_edit'] ?? false)
+                                                <x-filament::dropdown.list.item 
+                                                    wire:click="editMessage({{ $message['id'] }})"
+                                                    icon="heroicon-m-pencil" 
+                                                    x-on:click="close">
+                                                    Изменить
+                                                </x-filament::dropdown.list.item>
+                                            @endif
+
+                                            @if($message['can_delete'] ?? false)
+                                                <x-filament::dropdown.list.item
+                                                    wire:click="deleteMessage({{ $message['id'] }})"
+                                                    wire:confirm="Вы уверены, что хотите удалить это сообщение?"
+                                                    icon="heroicon-m-trash" 
+                                                    color="danger" 
+                                                    x-on:click="close">
+                                                    Удалить
+                                                </x-filament::dropdown.list.item>
+                                            @endif
+                                        </x-filament::dropdown.list>
+                                    </x-filament::dropdown>
+                                </div>
+                            @endif
                         </div>
 
 
@@ -396,7 +403,7 @@
                     </div>
                 </div>
 
-                <form @submit.prevent="submitMessage" class="flex gap-2" x-data="{
+                <form @submit.prevent="submitMessage" class="flex items-end gap-2" x-data="{
                     messageText: @entangle('newMessage'),
                     hasAttachments: {{ count($attachments) > 0 ? 'true' : 'false' }},
                     maxFileSize: 200 * 1024 * 1024, // 200 MB - должно совпадать с upload_max_filesize
@@ -455,7 +462,7 @@
                 x-on:focus-input.window="$nextTick(() => $refs.messageInput.focus())"
                 >
                     {{-- Кнопка прикрепления файла --}}
-                    <label class="cursor-pointer flex shrink-0 items-center justify-center w-[36px] h-[36px] self-end rounded-lg text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors relative"
+                    <label class="cursor-pointer flex shrink-0 items-center justify-center w-[36px] h-[36px] rounded-lg text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors relative"
                         style="width: 36px; height: 36px;">
                         
                         <input type="file" x-ref="fileInput" class="hidden" multiple
@@ -464,7 +471,7 @@
                         <x-heroicon-o-paper-clip class="w-5 h-5" />
                     </label>
 
-                    <div class="flex-1">
+                    <div style="height: 36px; flex-grow: 1;">
                         <style>
                             #chat-message-input:focus {
                                 outline: none !important;
@@ -487,7 +494,7 @@
                     </div>
 
                     <button type="submit" 
-                        class="flex shrink-0 items-center justify-center rounded-lg shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-primary-600 focus:ring-offset-2 self-end"
+                        class="flex shrink-0 items-center justify-center rounded-lg shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-primary-600 focus:ring-offset-2"
                         :class="(messageText?.length > 0 || hasAttachments) ? 'hover:bg-primary-500 cursor-pointer' : 'cursor-default'"
                         :style="'width: 36px; height: 36px; transition: all 0.2s; background-color: ' + ((messageText?.length > 0 || hasAttachments) ? 'rgba(var(--primary-600),var(--tw-bg-opacity,1))' : '#E5E7EB') + '; color: ' + ((messageText?.length > 0 || hasAttachments) ? 'white' : '#9CA3AF')">
                         <x-heroicon-m-paper-airplane class="w-5 h-5" />

@@ -114,10 +114,30 @@ class RoomChat extends Component implements HasActions, HasForms
             return;
         }
 
+        // Get IDs of messages that will be marked as read
+        $messageIds = $this->room->messages()
+            ->where('user_id', '!=', auth()->id())
+            ->whereNull('read_at')
+            ->pluck('id')
+            ->toArray();
+
+        if (empty($messageIds)) {
+            return;
+        }
+
+        $readAt = now();
+
         $this->room->messages()
             ->where('user_id', '!=', auth()->id())
             ->whereNull('read_at')
-            ->update(['read_at' => now()]);
+            ->update(['read_at' => $readAt]);
+
+        // Broadcast read receipt update
+        broadcast(new \App\Events\MessagesRead(
+            $this->room->id,
+            $messageIds,
+            $readAt->toISOString()
+        ));
     }
 
     public function loadMessages()
@@ -365,8 +385,27 @@ class RoomChat extends Component implements HasActions, HasForms
 
         return [
             "echo-private:room.{$this->room->id},.message.sent" => 'onMessageReceived',
+            "echo-private:room.{$this->room->id},.messages.read" => 'onMessagesRead',
         ];
     }
+
+    public function onMessagesRead($event)
+    {
+        $messageIds = $event['message_ids'] ?? [];
+        $readAt = $event['read_at'] ?? null;
+
+        if (empty($messageIds) || !$readAt) {
+            return;
+        }
+
+        // Update read_at for messages in local state
+        foreach ($this->messages as &$message) {
+            if (in_array($message['id'], $messageIds)) {
+                $message['read_at'] = $readAt;
+            }
+        }
+    }
+
 
     public function removeAttachment($index)
     {

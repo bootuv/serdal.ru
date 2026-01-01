@@ -120,21 +120,48 @@ class SupportChatComponent extends Component
         }
 
         $user = auth()->user();
+        $messageIds = [];
+        $readAt = now();
 
         // Админы помечают как прочитанные сообщения пользователя
         // Пользователи помечают как прочитанные сообщения админов
         if ($this->isAdmin) {
             // Админ читает сообщения владельца чата
-            $this->supportChat->messages()
+            $messageIds = $this->supportChat->messages()
                 ->where('user_id', $this->supportChat->user_id)
                 ->whereNull('read_at')
-                ->update(['read_at' => now()]);
+                ->pluck('id')
+                ->toArray();
+
+            if (!empty($messageIds)) {
+                $this->supportChat->messages()
+                    ->where('user_id', $this->supportChat->user_id)
+                    ->whereNull('read_at')
+                    ->update(['read_at' => $readAt]);
+            }
         } else {
             // Пользователь читает сообщения от админов
-            $this->supportChat->messages()
+            $messageIds = $this->supportChat->messages()
                 ->where('user_id', '!=', $this->supportChat->user_id)
                 ->whereNull('read_at')
-                ->update(['read_at' => now()]);
+                ->pluck('id')
+                ->toArray();
+
+            if (!empty($messageIds)) {
+                $this->supportChat->messages()
+                    ->where('user_id', '!=', $this->supportChat->user_id)
+                    ->whereNull('read_at')
+                    ->update(['read_at' => $readAt]);
+            }
+        }
+
+        // Broadcast read receipt update
+        if (!empty($messageIds)) {
+            broadcast(new \App\Events\MessagesRead(
+                $this->supportChat->id,
+                $messageIds,
+                $readAt->toISOString()
+            ));
         }
     }
 
@@ -367,7 +394,25 @@ class SupportChatComponent extends Component
 
         return [
             "echo-private:support-chat.{$this->supportChat->id},.support.message.sent" => 'onMessageReceived',
+            "echo-private:room.{$this->supportChat->id},.messages.read" => 'onMessagesRead',
         ];
+    }
+
+    public function onMessagesRead($event)
+    {
+        $messageIds = $event['message_ids'] ?? [];
+        $readAt = $event['read_at'] ?? null;
+
+        if (empty($messageIds) || !$readAt) {
+            return;
+        }
+
+        // Update read_at for messages in local state
+        foreach ($this->messages as &$message) {
+            if (in_array($message['id'], $messageIds)) {
+                $message['read_at'] = $readAt;
+            }
+        }
     }
 
     public function onMessageReceived($event)
