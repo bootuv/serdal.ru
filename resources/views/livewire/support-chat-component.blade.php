@@ -105,7 +105,7 @@
             <div class="flex-1 overflow-y-auto p-4 space-y-4 relative"
                 x-ref="chatContainer" id="support-messages-container"
                 x-data="{ imageModal: false, imageUrl: '' }" 
-                x-init="$nextTick(() => { $nextTick(() => { $el.scrollTop = $el.scrollHeight; }); });"
+                x-init="$el.scrollTop = $el.scrollHeight"
                 @message-sent.window="$nextTick(() => $el.scrollTop = $el.scrollHeight)"
                 @message-received.window="$nextTick(() => $el.scrollTop = $el.scrollHeight)">
                 
