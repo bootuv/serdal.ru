@@ -205,6 +205,12 @@ class RoomController extends Controller
                 ? route('filament.app.resources.meeting-sessions.view', $meetingSession)
                 : route('filament.app.pages.dashboard');
 
+            \Illuminate\Support\Facades\Log::info('BBB Start: Generated Logout URL', [
+                'user_id' => auth()->id(),
+                'url' => $logoutUrl,
+                'has_session' => (bool) $meetingSession
+            ]);
+
             return redirect()->to(
                 Bigbluebutton::join([
                     'meetingID' => $room->meeting_id,
@@ -262,7 +268,10 @@ class RoomController extends Controller
             $logoutUrl = route('filament.app.pages.dashboard');
 
             // If user is Admin or Tutor (Owner), redirect to session report
-            if ($user->hasRole('admin') || in_array($user->role, [\App\Models\User::ROLE_TUTOR, \App\Models\User::ROLE_MENTOR])) {
+            // Use isAdmin() method if it exists, otherwise assume manual role check
+            $isAdmin = method_exists($user, 'isAdmin') ? $user->isAdmin() : ($user->role === 'admin');
+
+            if ($isAdmin || in_array($user->role, [\App\Models\User::ROLE_TUTOR, \App\Models\User::ROLE_MENTOR])) {
                 $session = \App\Models\MeetingSession::where('room_id', $room->id)
                     ->where('meeting_id', $room->meeting_id)
                     ->latest()
@@ -270,8 +279,19 @@ class RoomController extends Controller
 
                 if ($session) {
                     $logoutUrl = route('filament.app.resources.meeting-sessions.view', $session);
+                } else {
+                    \Illuminate\Support\Facades\Log::warning('BBB Join: Meeting session not found for redirect', [
+                        'room_id' => $room->id,
+                        'meeting_id' => $room->meeting_id
+                    ]);
                 }
             }
+
+            \Illuminate\Support\Facades\Log::info('BBB Join: Generated Logout URL', [
+                'user_id' => $user->id,
+                'role' => $user->role,
+                'url' => $logoutUrl
+            ]);
 
             return redirect()->to(
                 Bigbluebutton::join([
