@@ -64,7 +64,6 @@ class RoomController extends Controller
                     'webcams_only_for_moderator' => \App\Models\Setting::where('key', 'bbb_webcams_only_for_moderator')->value('value') === '1',
                     'max_participants' => (int) (\App\Models\Setting::where('key', 'bbb_max_participants')->value('value') ?? 0),
                     'duration' => (int) (\App\Models\Setting::where('key', 'bbb_duration')->value('value') ?? 0),
-                    'logout_url' => \App\Models\Setting::where('key', 'bbb_logout_url')->value('value'),
                 ];
 
                 $createParams = [
@@ -95,17 +94,18 @@ class RoomController extends Controller
                     'settings_snapshot' => $createParams,
                 ]);
 
-                // Set logout URL based on user role (teachers/admins go to session report)
-                if (!empty($globalSettings['logout_url'])) {
-                    $createParams['logoutUrl'] = $globalSettings['logout_url'];
+                // Set logout URL based on user role
+                $user = auth()->user();
+                if ($user->isAdmin()) {
+                    // Admins go to admin panel session view
+                    $createParams['logoutUrl'] = route('filament.admin.resources.meeting-sessions.view', $meetingSession);
                 } else {
-                    // For teachers/admins: redirect to session report
+                    // Teachers go to tutor panel session view
                     $createParams['logoutUrl'] = route('filament.app.resources.meeting-sessions.view', $meetingSession);
                 }
 
                 \Illuminate\Support\Facades\Log::info('BBB Create: logoutUrl being set', [
                     'logoutUrl' => $createParams['logoutUrl'],
-                    'globalSettings_logout_url' => $globalSettings['logout_url'] ?? 'not set',
                     'session_id' => $meetingSession->id,
                 ]);
 

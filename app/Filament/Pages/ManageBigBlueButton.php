@@ -39,7 +39,6 @@ class ManageBigBlueButton extends Page implements HasForms
             'webcams_only_for_moderator' => Setting::where('key', 'bbb_webcams_only_for_moderator')->value('value') === '1',
             'max_participants' => Setting::where('key', 'bbb_max_participants')->value('value') ?? 0,
             'duration' => Setting::where('key', 'bbb_duration')->value('value') ?? 0,
-            'logout_url' => Setting::where('key', 'bbb_logout_url')->value('value'),
         ]);
     }
 
@@ -93,10 +92,6 @@ class ManageBigBlueButton extends Page implements HasForms
                             ->numeric()
                             ->default(0)
                             ->helperText('0 = неограничено'),
-                        TextInput::make('logout_url')
-                            ->label('URL выхода')
-                            ->url()
-                            ->helperText('URL для перенаправления после выхода'),
                     ]),
             ])
             ->statePath('data');
@@ -124,7 +119,6 @@ class ManageBigBlueButton extends Page implements HasForms
         Setting::updateOrCreate(['key' => 'bbb_webcams_only_for_moderator'], ['value' => $data['webcams_only_for_moderator'] ? '1' : '0']);
         Setting::updateOrCreate(['key' => 'bbb_max_participants'], ['value' => $data['max_participants'] ?? 0]);
         Setting::updateOrCreate(['key' => 'bbb_duration'], ['value' => $data['duration'] ?? 0]);
-        Setting::updateOrCreate(['key' => 'bbb_logout_url'], ['value' => $data['logout_url'] ?? '']);
 
         Notification::make()
             ->title('Настройки сохранены')
