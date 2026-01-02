@@ -103,6 +103,12 @@ class RoomController extends Controller
                     $createParams['logoutURL'] = route('filament.app.resources.meeting-sessions.view', $meetingSession);
                 }
 
+                \Illuminate\Support\Facades\Log::info('BBB Create: logoutURL being set', [
+                    'logoutURL' => $createParams['logoutURL'],
+                    'globalSettings_logout_url' => $globalSettings['logout_url'] ?? 'not set',
+                    'session_id' => $meetingSession->id,
+                ]);
+
                 // Only upload presentations if not running on localhost
                 // On production with a public domain, presentations will be uploaded automatically
                 $appUrl = config('app.url');
