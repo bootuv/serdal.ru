@@ -84,10 +84,23 @@ class RoomController extends Controller
                     'duration' => $globalSettings['duration'],
                 ];
 
+                // Create MeetingSession FIRST to get ID for logout URL
+                $meetingSession = \App\Models\MeetingSession::create([
+                    'user_id' => auth()->id(),
+                    'room_id' => $room->id,
+                    'meeting_id' => $room->meeting_id,
+                    'internal_meeting_id' => null, // Will be updated after BBB create
+                    'started_at' => now(),
+                    'status' => 'running',
+                    'settings_snapshot' => $createParams,
+                ]);
+
+                // Set logout URL based on user role (teachers/admins go to session report)
                 if (!empty($globalSettings['logout_url'])) {
                     $createParams['logoutURL'] = $globalSettings['logout_url'];
                 } else {
-                    $createParams['logoutURL'] = 'https://serdal.ru/admin/login';
+                    // For teachers/admins: redirect to session report
+                    $createParams['logoutURL'] = route('filament.app.resources.meeting-sessions.view', $meetingSession);
                 }
 
                 // Only upload presentations if not running on localhost
@@ -144,14 +157,10 @@ class RoomController extends Controller
                 $response = Bigbluebutton::create($createParams);
                 $internalMeetingId = $response['internalMeetingID'] ?? null;
 
-                $meetingSession = \App\Models\MeetingSession::create([
-                    'user_id' => auth()->id(),
-                    'room_id' => $room->id,
-                    'meeting_id' => $room->meeting_id,
+                // Update session with internalMeetingId
+                $meetingSession->update([
                     'internal_meeting_id' => $internalMeetingId,
-                    'started_at' => now(),
-                    'status' => 'running',
-                    'settings_snapshot' => $createParams,
+                    'settings_snapshot' => $createParams, // Update with final params including logoutURL
                 ]);
 
                 $room->update(['is_running' => true]);
@@ -201,19 +210,8 @@ class RoomController extends Controller
                     ->first();
             }
 
-            $logoutUrl = $meetingSession
-                ? route('filament.app.resources.meeting-sessions.view', $meetingSession)
-                : route('filament.app.pages.dashboard');
-
-            \Illuminate\Support\Facades\Log::info('BBB Start: Generated Logout URL', [
-                'user_id' => auth()->id(),
-                'url' => $logoutUrl,
-                'has_session' => (bool) $meetingSession
-            ]);
-
-            // DEBUG: Hardcode to Google to verify BBB redirect
-            // $logoutUrl = 'https://google.com';
-
+            // Note: logoutURL is set at meeting creation time, not per-user join
+            // The redirect will go to the session report for all users
             return redirect()->to(
                 Bigbluebutton::join([
                     'meetingID' => $room->meeting_id,
@@ -221,8 +219,6 @@ class RoomController extends Controller
                     'password' => $room->moderator_pw, // Owner is moderator
                     'userID' => (string) auth()->id(),
                     'avatarURL' => auth()->user()->avatar ? asset('storage/' . auth()->user()->avatar) : null,
-                    'logoutURL' => $logoutUrl,
-                    'logoutUrl' => $logoutUrl,
                 ])
             );
         } catch (\Exception $e) {
@@ -266,37 +262,9 @@ class RoomController extends Controller
             }
 
             $password = $room->user_id === auth()->id() ? $room->moderator_pw : $room->attendee_pw;
-            $user = auth()->user();
 
-            // Default logout URL for students
-            $logoutUrl = route('filament.app.pages.dashboard');
-
-            // If user is Admin or Tutor (Owner), redirect to session report
-            // Use isAdmin() method if it exists, otherwise assume manual role check
-            $isAdmin = method_exists($user, 'isAdmin') ? $user->isAdmin() : ($user->role === 'admin');
-
-            if ($isAdmin || in_array($user->role, [\App\Models\User::ROLE_TUTOR, \App\Models\User::ROLE_MENTOR])) {
-                $session = \App\Models\MeetingSession::where('room_id', $room->id)
-                    ->where('meeting_id', $room->meeting_id)
-                    ->latest()
-                    ->first();
-
-                if ($session) {
-                    $logoutUrl = route('filament.app.resources.meeting-sessions.view', $session);
-                } else {
-                    \Illuminate\Support\Facades\Log::warning('BBB Join: Meeting session not found for redirect', [
-                        'room_id' => $room->id,
-                        'meeting_id' => $room->meeting_id
-                    ]);
-                }
-            }
-
-            \Illuminate\Support\Facades\Log::info('BBB Join: Generated Logout URL', [
-                'user_id' => $user->id,
-                'role' => $user->role,
-                'url' => $logoutUrl
-            ]);
-
+            // Note: logoutURL is set at meeting creation time (in start method)
+            // The redirect is the same for all users of this meeting
             return redirect()->to(
                 Bigbluebutton::join([
                     'meetingID' => $room->meeting_id,
@@ -304,8 +272,6 @@ class RoomController extends Controller
                     'password' => $password,
                     'userID' => (string) auth()->id(),
                     'avatarURL' => auth()->user()->avatar ? asset('storage/' . auth()->user()->avatar) : null,
-                    'logoutURL' => $logoutUrl,
-                    'logoutUrl' => $logoutUrl,
                 ])
             );
         } catch (\Exception $e) {
