@@ -97,14 +97,14 @@ class RoomController extends Controller
 
                 // Set logout URL based on user role (teachers/admins go to session report)
                 if (!empty($globalSettings['logout_url'])) {
-                    $createParams['logoutURL'] = $globalSettings['logout_url'];
+                    $createParams['logoutUrl'] = $globalSettings['logout_url'];
                 } else {
                     // For teachers/admins: redirect to session report
-                    $createParams['logoutURL'] = route('filament.app.resources.meeting-sessions.view', $meetingSession);
+                    $createParams['logoutUrl'] = route('filament.app.resources.meeting-sessions.view', $meetingSession);
                 }
 
-                \Illuminate\Support\Facades\Log::info('BBB Create: logoutURL being set', [
-                    'logoutURL' => $createParams['logoutURL'],
+                \Illuminate\Support\Facades\Log::info('BBB Create: logoutUrl being set', [
+                    'logoutUrl' => $createParams['logoutUrl'],
                     'globalSettings_logout_url' => $globalSettings['logout_url'] ?? 'not set',
                     'session_id' => $meetingSession->id,
                 ]);
