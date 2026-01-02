@@ -64,7 +64,7 @@ return [
          *
          * var @string
          */
-        'logoutUrl' => 'https://serdal.ru/admin/login',
+        'logoutUrl' => null,
 
         /**
          * Setting ‘record=true’ instructs the BigBlueButton server to record the media and
