@@ -25,9 +25,13 @@ self.addEventListener('push', function (event) {
         };
     }
 
+    const icon = (data.icon && (data.icon.startsWith('/') || data.icon.startsWith('http')) && !data.icon.startsWith('heroicon'))
+        ? data.icon
+        : APP_ICON;
+
     const options = {
         body: data.body || '',
-        icon: data.icon || APP_ICON,
+        icon: icon,
         badge: APP_ICON,
         tag: data.tag || 'serdal-' + Date.now(),
         renotify: true,
