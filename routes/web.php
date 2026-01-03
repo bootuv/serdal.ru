@@ -35,6 +35,8 @@ Route::middleware(['auth'])->group(function () {
     // Push Notifications
     Route::post('/push-subscription', [\App\Http\Controllers\PushSubscriptionController::class, 'store'])->name('push.subscribe');
     Route::delete('/push-subscription', [\App\Http\Controllers\PushSubscriptionController::class, 'destroy'])->name('push.unsubscribe');
+    Route::get('/push-subscription/check', [\App\Http\Controllers\PushSubscriptionController::class, 'check'])->name('push.check');
+    Route::delete('/push-subscription/cleanup', [\App\Http\Controllers\PushSubscriptionController::class, 'cleanup'])->name('push.cleanup');
 });
 
 Route::get('/{username}', [PageController::class, 'tutorPage'])->name('tutors.show');

@@ -18,16 +18,17 @@
                 return;
             }
 
-            // If already granted and subscribed, close modal
-            if (Notification.permission === 'granted') {
-                const vapidKey = '{{ $this->getVapidPublicKey() }}';
-                if (vapidKey && window.PushNotifications) {
-                    await window.PushNotifications.init(vapidKey);
-                    const isSubscribed = await window.PushNotifications.checkSubscription();
-                    if (isSubscribed) {
-                        this.show = false;
-                    }
+            // Initialize push notifications and sync with server
+            const vapidKey = '{{ $this->getVapidPublicKey() }}';
+            if (vapidKey && window.PushNotifications) {
+                await window.PushNotifications.init(vapidKey);
+                
+                // Use syncWithServer to detect mismatches (e.g., user revoked then re-granted)
+                const needsSubscription = await window.PushNotifications.syncWithServer();
+                if (!needsSubscription) {
+                    this.show = false;
                 }
+                // If needsSubscription is true, show stays as is (from Livewire)
             }
         },
 

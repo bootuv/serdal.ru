@@ -53,4 +53,31 @@ class PushSubscriptionController extends Controller
             'message' => 'Push subscription removed.',
         ]);
     }
+
+    /**
+     * Check if user has any push subscriptions.
+     */
+    public function check(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        return response()->json([
+            'hasSubscription' => $user->pushSubscriptions()->exists(),
+        ]);
+    }
+
+    /**
+     * Remove all push subscriptions for the user.
+     * Used when browser subscription is invalid but server still has record.
+     */
+    public function cleanup(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $user->pushSubscriptions()->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'All push subscriptions cleaned up.',
+        ]);
+    }
 }

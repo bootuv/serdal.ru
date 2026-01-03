@@ -63,6 +63,74 @@ class PushNotifications {
     }
 
     /**
+     * Check if server has a subscription for this user
+     */
+    async serverHasSubscription() {
+        try {
+            const response = await fetch('/push-subscription/check', {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content,
+                },
+            });
+            if (response.ok) {
+                const data = await response.json();
+                return data.hasSubscription;
+            }
+        } catch (error) {
+            console.error('Failed to check server subscription:', error);
+        }
+        return false;
+    }
+
+    /**
+     * Sync browser subscription state with server
+     * Returns true if re-subscription is needed (modal should show)
+     */
+    async syncWithServer() {
+        const browserHasSub = await this.checkSubscription();
+        const serverHasSub = await this.serverHasSubscription();
+
+        // Case: Server has subscription but browser doesn't 
+        // (user revoked permission and then re-granted, or cleared browser data)
+        if (serverHasSub && !browserHasSub && Notification.permission === 'granted') {
+            // Clean up stale server subscription
+            await this.cleanupServerSubscription();
+            return true; // Need to re-subscribe
+        }
+
+        // Case: Browser has subscription but server doesn't
+        // (server data was cleared)
+        if (browserHasSub && !serverHasSub) {
+            const subscription = await this.swRegistration.pushManager.getSubscription();
+            if (subscription) {
+                await this.sendSubscriptionToServer(subscription);
+            }
+            return false;
+        }
+
+        return !browserHasSub; // Need modal if not subscribed
+    }
+
+    /**
+     * Remove all subscriptions for this user from server
+     */
+    async cleanupServerSubscription() {
+        try {
+            await fetch('/push-subscription/cleanup', {
+                method: 'DELETE',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content,
+                },
+            });
+        } catch (error) {
+            console.error('Failed to cleanup server subscription:', error);
+        }
+    }
+
+    /**
      * Request permission and subscribe to push notifications
      */
     async subscribe() {
