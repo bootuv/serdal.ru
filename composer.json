@@ -10,6 +10,7 @@
         "intervention/image-laravel": "^1.5",
         "joisarjignesh/bigbluebutton": "*",
         "laravel-lang/common": "^6.7",
+        "laravel-notification-channels/webpush": "^10.4",
         "laravel/framework": "^11.9",
         "laravel/pulse": "^1.4",
         "laravel/reverb": "^1.6",

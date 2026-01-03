@@ -4,13 +4,16 @@ namespace App\Notifications;
 
 use App\Models\Room;
 use App\Models\User;
+use App\Notifications\Traits\BroadcastsNotification;
 use Filament\Notifications\Notification as FilamentNotification;
-use Illuminate\Notifications\Messages\BroadcastMessage;
+use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 
 class TeacherAssignedLesson extends Notification implements ShouldBroadcastNow
 {
+    use Queueable, BroadcastsNotification;
+
     public function __construct(
         public Room $room,
         public User $teacher
@@ -19,7 +22,13 @@ class TeacherAssignedLesson extends Notification implements ShouldBroadcastNow
 
     public function via(object $notifiable): array
     {
-        return ['database', 'broadcast'];
+        $channels = ['database', 'broadcast'];
+
+        if ($notifiable->pushSubscriptions()->exists()) {
+            $channels[] = \NotificationChannels\WebPush\WebPushChannel::class;
+        }
+
+        return $channels;
     }
 
     public function toDatabase(object $notifiable): array
@@ -32,8 +41,4 @@ class TeacherAssignedLesson extends Notification implements ShouldBroadcastNow
             ->getDatabaseMessage();
     }
 
-    public function toBroadcast(object $notifiable): BroadcastMessage
-    {
-        return new BroadcastMessage($this->toDatabase($notifiable));
-    }
 }

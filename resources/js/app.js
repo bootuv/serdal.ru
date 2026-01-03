@@ -1,4 +1,5 @@
 import './bootstrap';
+import './push-notifications';
 
 // Hide filter badges showing 0
 // Debounce function to prevent excessive calls

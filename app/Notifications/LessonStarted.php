@@ -20,7 +20,13 @@ class LessonStarted extends Notification implements ShouldBroadcast
 
     public function via(object $notifiable): array
     {
-        return ['database', 'broadcast'];
+        $channels = ['database', 'broadcast'];
+
+        if ($notifiable->pushSubscriptions()->exists()) {
+            $channels[] = \NotificationChannels\WebPush\WebPushChannel::class;
+        }
+
+        return $channels;
     }
 
     public function toDatabase(object $notifiable): array
@@ -31,5 +37,20 @@ class LessonStarted extends Notification implements ShouldBroadcast
             ->icon('heroicon-o-play-circle')
             ->iconColor('success')
             ->getDatabaseMessage();
+    }
+
+    /**
+     * Get URL for push notification click action.
+     */
+    public function getWebPushUrl(object $notifiable): string
+    {
+        // Determine the correct URL based on user role
+        if ($notifiable->role === 'tutor' || $notifiable->role === 'admin') {
+            return \App\Filament\App\Resources\RoomResource::getUrl('view', ['record' => $this->room->id]);
+        } elseif ($notifiable->role === 'student') {
+            return \App\Filament\Student\Resources\RoomResource::getUrl('view', ['record' => $this->room->id]);
+        }
+
+        return '/';
     }
 }

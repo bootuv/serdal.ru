@@ -45,6 +45,10 @@ class AdminPanelProvider extends PanelProvider
             )
             ->renderHook(
                 'panels::body.end',
+                fn() => \Illuminate\Support\Facades\Blade::render('@livewire(\'push-notification-modal\')')
+            )
+            ->renderHook(
+                'panels::body.end',
                 fn() => view('filament.notifications.sound')
             )
             ->databaseNotifications()

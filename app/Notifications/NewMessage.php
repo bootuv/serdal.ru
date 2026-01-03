@@ -21,7 +21,13 @@ class NewMessage extends Notification implements ShouldBroadcast
 
     public function via(object $notifiable): array
     {
-        return ['database', 'broadcast'];
+        $channels = ['database', 'broadcast'];
+
+        if ($notifiable->pushSubscriptions()->exists()) {
+            $channels[] = \NotificationChannels\WebPush\WebPushChannel::class;
+        }
+
+        return $channels;
     }
 
     public function toDatabase(object $notifiable): array
@@ -32,9 +38,9 @@ class NewMessage extends Notification implements ShouldBroadcast
 
         // Determine the correct URL based on user role
         $user = $notifiable;
-        if ($user->hasRole('tutor')) {
+        if ($user->role === 'tutor' || $user->role === 'admin') {
             $url = \App\Filament\App\Pages\Messenger::getUrl(['room' => $roomId]);
-        } elseif ($user->hasRole('student')) {
+        } elseif ($user->role === 'student') {
             $url = \App\Filament\Student\Pages\Messenger::getUrl(['room' => $roomId]);
         } else {
             $url = null;

@@ -15,6 +15,7 @@ use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Database\Eloquent\Model;
+use NotificationChannels\WebPush\HasPushSubscriptions;
 
 class User extends Authenticatable implements FilamentUser
 {
@@ -26,7 +27,7 @@ class User extends Authenticatable implements FilamentUser
 
     const ROLE_ADMIN = 'admin';
 
-    use HasFactory, Notifiable;
+    use HasFactory, Notifiable, HasPushSubscriptions;
 
     /**
      * The attributes that are mass assignable.
@@ -58,6 +59,8 @@ class User extends Authenticatable implements FilamentUser
         'google_token_expires_at',
         'google_calendar_id',
         'is_profile_completed',
+        'push_reminder_at',
+        'push_reminder_count',
     ];
 
     /**
@@ -82,6 +85,7 @@ class User extends Authenticatable implements FilamentUser
             'password' => 'hashed',
             'grade' => 'json',
             'google_token_expires_at' => 'datetime',
+            'push_reminder_at' => 'datetime',
         ];
     }
 
