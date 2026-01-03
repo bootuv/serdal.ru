@@ -39,6 +39,12 @@ class StudentLeftReviewAdmin extends Notification implements ShouldBroadcast
             ->body("Ученик {$this->student->name} оставил отзыв учителю {$this->teacher->name}")
             ->icon('heroicon-o-star')
             ->iconColor('warning')
+            ->actions([
+                \Filament\Notifications\Actions\Action::make('view')
+                    ->label('Открыть')
+                    ->button()
+                    ->url(route('filament.admin.resources.reviews.index'))
+            ])
             ->getDatabaseMessage();
     }
 }

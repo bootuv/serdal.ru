@@ -178,36 +178,12 @@ class StudentFormerTeachersWidget extends BaseWidget
                             $student = auth()->user();
 
                             // Notify teacher
-                            \Filament\Notifications\Notification::make()
-                                ->title('Новый отзыв')
-                                ->body("Ученик {$student->name} оставил вам отзыв")
-                                ->icon('heroicon-o-star')
-                                ->iconColor('warning')
-                                ->actions([
-                                    \Filament\Notifications\Actions\Action::make('view')
-                                        ->label('Открыть')
-                                        ->button()
-                                        ->url(route('filament.app.resources.reviews.index'))
-                                ])
-                                ->sendToDatabase($record)
-                                ->broadcast($record);
+                            $record->notify(new \App\Notifications\StudentLeftReview($review, $student));
 
                             // Notify all admins
                             $admins = \App\Models\User::where('role', \App\Models\User::ROLE_ADMIN)->get();
                             foreach ($admins as $admin) {
-                                \Filament\Notifications\Notification::make()
-                                    ->title('Новый отзыв')
-                                    ->body("Ученик {$student->name} оставил отзыв учителю {$record->name}")
-                                    ->icon('heroicon-o-star')
-                                    ->iconColor('warning')
-                                    ->actions([
-                                        \Filament\Notifications\Actions\Action::make('view')
-                                            ->label('Открыть')
-                                            ->button()
-                                            ->url(route('filament.admin.resources.reviews.index'))
-                                    ])
-                                    ->sendToDatabase($admin)
-                                    ->broadcast($admin);
+                                $admin->notify(new \App\Notifications\StudentLeftReviewAdmin($review, $student, $record));
                             }
                         }
                     })

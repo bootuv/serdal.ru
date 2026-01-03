@@ -148,18 +148,7 @@ class ViewHomework extends ViewRecord
                         ->send();
 
                     // Notify teacher
-                    Notification::make()
-                        ->title('Новая работа')
-                        ->body(auth()->user()->name . ' сдал(а) работу: ' . $this->record->title)
-                        ->icon('heroicon-o-clipboard-document-check')
-                        ->actions([
-                            \Filament\Notifications\Actions\Action::make('view')
-                                ->label('Проверить')
-                                ->button()
-                                ->url(route('filament.app.resources.homework.view', $this->record)),
-                        ])
-                        ->sendToDatabase($this->record->teacher)
-                        ->broadcast($this->record->teacher);
+                    $this->record->teacher->notify(new \App\Notifications\HomeworkSubmitted($this->record, auth()->user()));
 
                     $this->redirect($this->getResource()::getUrl('view', ['record' => $this->record]));
                 })

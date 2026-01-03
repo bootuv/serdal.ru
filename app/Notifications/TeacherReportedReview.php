@@ -40,6 +40,12 @@ class TeacherReportedReview extends Notification implements ShouldBroadcast
             ->body("Учитель {$this->teacher->name} пожаловался на отзыв ученика {$studentName}")
             ->icon('heroicon-o-flag')
             ->iconColor('danger')
+            ->actions([
+                \Filament\Notifications\Actions\Action::make('view')
+                    ->label('Открыть')
+                    ->button()
+                    ->url(route('filament.admin.resources.reviews.index'))
+            ])
             ->getDatabaseMessage();
     }
 }

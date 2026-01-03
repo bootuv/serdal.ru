@@ -36,6 +36,12 @@ class NewTeacher extends Notification implements ShouldBroadcast
             ->body("У вас новый учитель: {$this->teacher->name}")
             ->icon('heroicon-o-user-plus')
             ->iconColor('success')
+            ->actions([
+                \Filament\Notifications\Actions\Action::make('view')
+                    ->label('Открыть')
+                    ->button()
+                    ->url(route('filament.student.pages.dashboard'))
+            ])
             ->getDatabaseMessage();
     }
 }

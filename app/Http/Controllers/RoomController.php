@@ -174,19 +174,7 @@ class RoomController extends Controller
 
                 // Notify assigned students about lesson start
                 foreach ($room->participants as $student) {
-                    \Filament\Notifications\Notification::make()
-                        ->title('Занятие началось')
-                        ->body("Занятие \"{$room->name}\" началось")
-                        ->icon('heroicon-o-play-circle')
-                        ->iconColor('success')
-                        ->actions([
-                            \Filament\Notifications\Actions\Action::make('join')
-                                ->label('Присоединиться')
-                                ->button()
-                                ->url(route('rooms.join', $room))
-                        ])
-                        ->sendToDatabase($student)
-                        ->broadcast($student);
+                    $student->notify(new \App\Notifications\LessonStarted($room));
                 }
 
                 // Register Webhook for Analytics

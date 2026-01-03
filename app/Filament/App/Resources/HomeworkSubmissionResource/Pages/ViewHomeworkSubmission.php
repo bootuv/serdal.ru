@@ -117,19 +117,7 @@ class ViewHomeworkSubmission extends ViewRecord
                         ->send();
 
                     // Notify student
-                    Notification::make()
-                        ->title('Работа оценена')
-                        ->body('Ваша работа "' . $this->record->homework->title . '" получила оценку: ' . $data['grade'])
-                        ->icon('heroicon-o-academic-cap')
-                        ->iconColor('success')
-                        ->actions([
-                            \Filament\Notifications\Actions\Action::make('view')
-                                ->label('Посмотреть')
-                                ->button()
-                                ->url(route('filament.student.resources.homework.view', $this->record->homework)),
-                        ])
-                        ->sendToDatabase($this->record->student)
-                        ->broadcast($this->record->student);
+                    $this->record->student->notify(new \App\Notifications\HomeworkGraded($this->record->homework, $data['grade']));
 
                     $this->refreshFormData(['*']);
                 })

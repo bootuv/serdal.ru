@@ -123,19 +123,7 @@ class ReviewResource extends Resource
                                 $studentName = $record->user?->name ?? 'Ученик';
 
                                 foreach ($admins as $admin) {
-                                    \Filament\Notifications\Notification::make()
-                                        ->title('Жалоба на отзыв')
-                                        ->body("Учитель {$teacher->name} пожаловался на отзыв ученика {$studentName}")
-                                        ->icon('heroicon-o-flag')
-                                        ->iconColor('danger')
-                                        ->actions([
-                                            \Filament\Notifications\Actions\Action::make('view')
-                                                ->label('Открыть')
-                                                ->button()
-                                                ->url(route('filament.admin.resources.reviews.index'))
-                                        ])
-                                        ->sendToDatabase($admin)
-                                        ->broadcast($admin);
+                                    $admin->notify(new \App\Notifications\TeacherReportedReview($record, $teacher));
                                 }
 
                                 \Filament\Notifications\Notification::make()

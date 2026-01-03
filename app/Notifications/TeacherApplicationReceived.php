@@ -38,6 +38,12 @@ class TeacherApplicationReceived extends Notification implements ShouldBroadcast
             ->body("Получена заявка на регистрацию от {$name}")
             ->icon('heroicon-o-document-text')
             ->iconColor('info')
+            ->actions([
+                \Filament\Notifications\Actions\Action::make('view')
+                    ->label('Открыть')
+                    ->button()
+                    ->url(route('filament.admin.resources.teacher-applications.index'))
+            ])
             ->getDatabaseMessage();
     }
 }

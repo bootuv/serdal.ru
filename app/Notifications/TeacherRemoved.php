@@ -14,7 +14,8 @@ class TeacherRemoved extends Notification implements ShouldBroadcast
     use Queueable, BroadcastsNotification;
 
     public function __construct(
-        public User $teacher
+        public User $teacher,
+        public bool $canLeaveReview = false
     ) {
     }
 
@@ -31,11 +32,24 @@ class TeacherRemoved extends Notification implements ShouldBroadcast
 
     public function toDatabase(object $notifiable): array
     {
-        return FilamentNotification::make()
+        $notification = FilamentNotification::make()
             ->title('Прощание с учителем')
-            ->body("Учитель {$this->teacher->name} убрал вас из своего списка учеников. Пожалуйста, оставьте отзыв.")
             ->icon('heroicon-o-user-minus')
-            ->iconColor('warning')
-            ->getDatabaseMessage();
+            ->iconColor('warning');
+
+        if ($this->canLeaveReview) {
+            $notification
+                ->body("Учитель {$this->teacher->name} убрал вас из своего списка учеников. Пожалуйста, оставьте отзыв.")
+                ->actions([
+                    \Filament\Notifications\Actions\Action::make('review')
+                        ->label('Оставить отзыв')
+                        ->button()
+                        ->url(route('filament.student.pages.dashboard'))
+                ]);
+        } else {
+            $notification->body("Учитель {$this->teacher->name} убрал вас из своего списка учеников.");
+        }
+
+        return $notification->getDatabaseMessage();
     }
 }

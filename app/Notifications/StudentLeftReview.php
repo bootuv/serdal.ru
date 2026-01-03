@@ -38,6 +38,12 @@ class StudentLeftReview extends Notification implements ShouldBroadcast
             ->body("Ученик {$this->student->name} оставил вам отзыв")
             ->icon('heroicon-o-star')
             ->iconColor('warning')
+            ->actions([
+                \Filament\Notifications\Actions\Action::make('view')
+                    ->label('Открыть')
+                    ->button()
+                    ->url(route('filament.app.resources.reviews.index'))
+            ])
             ->getDatabaseMessage();
     }
 }

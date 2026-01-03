@@ -21,19 +21,7 @@ class CreateHomework extends CreateRecord
     {
         // Отправить уведомления всем назначенным ученикам
         foreach ($this->record->students as $student) {
-            Notification::make()
-                ->title('Новое задание')
-                ->body('Вам назначено: ' . $this->record->title)
-                ->icon($this->record->type_icon)
-                ->iconColor($this->record->type_color)
-                ->actions([
-                    Action::make('view')
-                        ->label('Открыть')
-                        ->button()
-                        ->url(route('filament.student.resources.homework.view', $this->record)),
-                ])
-                ->sendToDatabase($student)
-                ->broadcast($student);
+            $student->notify(new \App\Notifications\NewHomework($this->record));
         }
     }
 

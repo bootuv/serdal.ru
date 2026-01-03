@@ -40,34 +40,10 @@ class RegisterInvitedStudent extends Component
 
                     if (count($changes['attached']) > 0) {
                         // Notify teacher about accepted invite
-                        \Filament\Notifications\Notification::make()
-                            ->title('Приглашение принято')
-                            ->body("Ученик {$user->name} принял ваше приглашение")
-                            ->icon('heroicon-o-check-circle')
-                            ->iconColor('success')
-                            ->actions([
-                                \Filament\Notifications\Actions\Action::make('view')
-                                    ->label('Открыть')
-                                    ->button()
-                                    ->url(route('filament.app.resources.students.index'))
-                            ])
-                            ->sendToDatabase($teacher)
-                            ->broadcast($teacher);
+                        $teacher->notify(new \App\Notifications\StudentAcceptedInvite($user));
 
                         // Notify student about new teacher
-                        \Filament\Notifications\Notification::make()
-                            ->title('Новый учитель')
-                            ->body("У вас новый учитель: {$teacher->name}")
-                            ->icon('heroicon-o-user-plus')
-                            ->iconColor('success')
-                            ->actions([
-                                \Filament\Notifications\Actions\Action::make('view')
-                                    ->label('Открыть')
-                                    ->button()
-                                    ->url(route('filament.student.pages.dashboard'))
-                            ])
-                            ->sendToDatabase($user)
-                            ->broadcast($user);
+                        $user->notify(new \App\Notifications\NewTeacher($teacher));
 
                         Notification::make()
                             ->title('Вы добавлены в список учеников')
@@ -122,34 +98,10 @@ class RegisterInvitedStudent extends Component
                 $teacher->students()->syncWithoutDetaching([$user->id]);
 
                 // Notify teacher about new student
-                \Filament\Notifications\Notification::make()
-                    ->title('Приглашение принято')
-                    ->body("Ученик {$user->name} принял ваше приглашение")
-                    ->icon('heroicon-o-check-circle')
-                    ->iconColor('success')
-                    ->actions([
-                        \Filament\Notifications\Actions\Action::make('view')
-                            ->label('Открыть')
-                            ->button()
-                            ->url(route('filament.app.resources.students.index'))
-                    ])
-                    ->sendToDatabase($teacher)
-                    ->broadcast($teacher);
+                $teacher->notify(new \App\Notifications\StudentAcceptedInvite($user));
 
                 // Notify student about new teacher
-                \Filament\Notifications\Notification::make()
-                    ->title('Новый учитель')
-                    ->body("У вас новый учитель: {$teacher->name}")
-                    ->icon('heroicon-o-user-plus')
-                    ->iconColor('success')
-                    ->actions([
-                        \Filament\Notifications\Actions\Action::make('view')
-                            ->label('Открыть')
-                            ->button()
-                            ->url(route('filament.student.pages.dashboard'))
-                    ])
-                    ->sendToDatabase($user)
-                    ->broadcast($user);
+                $user->notify(new \App\Notifications\NewTeacher($teacher));
             }
         }
 

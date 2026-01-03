@@ -36,6 +36,12 @@ class TeacherCompletedOnboarding extends Notification implements ShouldBroadcast
             ->body("Учитель {$this->teacher->name} прошёл онбординг")
             ->icon('heroicon-o-check-badge')
             ->iconColor('success')
+            ->actions([
+                \Filament\Notifications\Actions\Action::make('view')
+                    ->label('Открыть')
+                    ->button()
+                    ->url(route('filament.admin.resources.users.index', ['tableFilters[role][value]' => 'tutor']))
+            ])
             ->getDatabaseMessage();
     }
 }

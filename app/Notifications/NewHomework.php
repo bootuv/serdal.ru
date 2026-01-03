@@ -2,19 +2,19 @@
 
 namespace App\Notifications;
 
-use App\Models\User;
+use App\Models\Homework;
 use App\Notifications\Traits\BroadcastsNotification;
 use Filament\Notifications\Notification as FilamentNotification;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Notifications\Notification;
 
-class StudentAcceptedInvite extends Notification implements ShouldBroadcast
+class NewHomework extends Notification implements ShouldBroadcastNow
 {
     use Queueable, BroadcastsNotification;
 
     public function __construct(
-        public User $student
+        public Homework $homework
     ) {
     }
 
@@ -32,15 +32,15 @@ class StudentAcceptedInvite extends Notification implements ShouldBroadcast
     public function toDatabase(object $notifiable): array
     {
         return FilamentNotification::make()
-            ->title('Приглашение принято')
-            ->body("Ученик {$this->student->name} принял ваше приглашение")
-            ->icon('heroicon-o-check-circle')
-            ->iconColor('success')
+            ->title('Новое задание')
+            ->body('Вам назначено: ' . $this->homework->title)
+            ->icon($this->homework->type_icon)
+            ->iconColor($this->homework->type_color)
             ->actions([
                 \Filament\Notifications\Actions\Action::make('view')
                     ->label('Открыть')
                     ->button()
-                    ->url(route('filament.app.resources.students.index'))
+                    ->url(route('filament.student.resources.homework.view', $this->homework))
             ])
             ->getDatabaseMessage();
     }

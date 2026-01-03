@@ -243,19 +243,8 @@ class StudentResource extends Resource
 
                             if (count($changes['attached']) > 0) {
                                 // Notify the student
-                                \Filament\Notifications\Notification::make()
-                                    ->title('Новый учитель')
-                                    ->body("У вас новый учитель: " . auth()->user()->name)
-                                    ->icon('heroicon-o-user-plus')
-                                    ->iconColor('success')
-                                    ->actions([
-                                        \Filament\Notifications\Actions\Action::make('view')
-                                            ->label('Открыть')
-                                            ->button()
-                                            ->url(route('filament.student.pages.dashboard'))
-                                    ])
-                                    ->sendToDatabase($student)
-                                    ->broadcast($student);
+                                // Notify the student
+                                $student->notify(new \App\Notifications\NewTeacher(auth()->user()));
 
                                 Notification::make()
                                     ->title('Ученик добавлен')
@@ -355,27 +344,8 @@ class StudentResource extends Resource
                                 $canLeaveReview = $hasCompletedLesson && !$hasExistingReview;
 
                                 // Notify the student about being removed
-                                $notification = \Filament\Notifications\Notification::make()
-                                    ->title('Прощание с учителем')
-                                    ->icon('heroicon-o-user-minus')
-                                    ->iconColor('warning');
-
-                                if ($canLeaveReview) {
-                                    $notification
-                                        ->body("Учитель {$teacher->name} убрал вас из своего списка учеников. Пожалуйста, оставьте отзыв.")
-                                        ->actions([
-                                            \Filament\Notifications\Actions\Action::make('review')
-                                                ->label('Оставить отзыв')
-                                                ->button()
-                                                ->url(route('filament.student.pages.dashboard'))
-                                        ]);
-                                } else {
-                                    $notification->body("Учитель {$teacher->name} убрал вас из своего списка учеников.");
-                                }
-
-                                $notification
-                                    ->sendToDatabase($record)
-                                    ->broadcast($record);
+                                // Notify the student about being removed
+                                $record->notify(new \App\Notifications\TeacherRemoved($teacher, $canLeaveReview));
 
                                 Notification::make()
                                     ->title('Ученик удален из списка')
@@ -409,19 +379,7 @@ class StudentResource extends Resource
 
                         // Send notification for each assigned lesson
                         foreach ($assignedRooms as $room) {
-                            \Filament\Notifications\Notification::make()
-                                ->title('Новое занятие')
-                                ->body("Учитель {$teacher->name} назначил вам занятие \"{$room->name}\"")
-                                ->icon('heroicon-o-calendar')
-                                ->iconColor('info')
-                                ->actions([
-                                    \Filament\Notifications\Actions\Action::make('view')
-                                        ->label('Открыть')
-                                        ->button()
-                                        ->url(route('filament.student.resources.rooms.index'))
-                                ])
-                                ->sendToDatabase($record)
-                                ->broadcast($record);
+                            $record->notify(new \App\Notifications\TeacherAssignedLesson($room, $teacher));
                         }
                     }),
             ])
