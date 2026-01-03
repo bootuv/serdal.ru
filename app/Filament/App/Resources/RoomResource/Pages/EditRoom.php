@@ -146,20 +146,7 @@ class EditRoom extends EditRecord
         foreach ($addedParticipantIds as $participantId) {
             $student = User::find($participantId);
             if ($student) {
-
-                \Filament\Notifications\Notification::make()
-                    ->title('Новое занятие')
-                    ->body("Учитель {$teacher->name} назначил вам занятие \"{$this->record->name}\"")
-                    ->icon('heroicon-o-calendar')
-                    ->iconColor('info')
-                    ->actions([
-                        \Filament\Notifications\Actions\Action::make('view')
-                            ->label('Открыть')
-                            ->button()
-                            ->url(route('filament.student.resources.rooms.index'))
-                    ])
-                    ->sendToDatabase($student)
-                    ->broadcast($student);
+                $student->notify(new \App\Notifications\TeacherAssignedLesson($this->record, $teacher));
             }
         }
 
@@ -175,19 +162,7 @@ class EditRoom extends EditRecord
             foreach ($existingParticipants as $participantId) {
                 $student = User::find($participantId);
                 if ($student) {
-                    \Filament\Notifications\Notification::make()
-                        ->title('Расписание обновлено')
-                        ->body("Учитель {$teacher->name} обновил расписание занятия \"{$this->record->name}\"")
-                        ->icon('heroicon-o-clock')
-                        ->iconColor('primary')
-                        ->actions([
-                            \Filament\Notifications\Actions\Action::make('view')
-                                ->label('Календарь')
-                                ->button()
-                                ->url(route('filament.student.pages.schedule-calendar'))
-                        ])
-                        ->sendToDatabase($student)
-                        ->broadcast($student);
+                    $student->notify(new \App\Notifications\TeacherUpdatedSchedule($teacher));
                 }
             }
         }

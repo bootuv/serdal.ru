@@ -36,6 +36,12 @@ class TeacherUpdatedSchedule extends Notification implements ShouldBroadcast
             ->body("Учитель {$this->teacher->name} обновил ваше расписание занятий")
             ->icon('heroicon-o-calendar-days')
             ->iconColor('info')
+            ->actions([
+                \Filament\Notifications\Actions\Action::make('view')
+                    ->label('Календарь')
+                    ->button()
+                    ->url(route('filament.student.pages.schedule-calendar'))
+            ])
             ->getDatabaseMessage();
     }
 }

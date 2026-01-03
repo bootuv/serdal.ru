@@ -38,6 +38,12 @@ class TeacherAssignedLesson extends Notification implements ShouldBroadcastNow
             ->body("Учитель {$this->teacher->name} назначил вам занятие \"{$this->room->name}\"")
             ->icon('heroicon-o-calendar')
             ->iconColor('info')
+            ->actions([
+                \Filament\Notifications\Actions\Action::make('view')
+                    ->label('Открыть')
+                    ->button()
+                    ->url(route('filament.student.resources.rooms.index'))
+            ])
             ->getDatabaseMessage();
     }
 

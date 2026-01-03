@@ -296,19 +296,7 @@ class RoomResource extends Resource
 
                                                 // Notify participants about schedule update (deletion)
                                                 foreach ($participants as $student) {
-                                                    \Filament\Notifications\Notification::make()
-                                                        ->title('Расписание обновлено')
-                                                        ->body("Учитель {$teacher->name} удалил одно из расписаний занятия \"{$room->name}\"")
-                                                        ->icon('heroicon-o-clock')
-                                                        ->iconColor('primary')
-                                                        ->actions([
-                                                            \Filament\Notifications\Actions\Action::make('view')
-                                                                ->label('Календарь')
-                                                                ->button()
-                                                                ->url(route('filament.student.pages.schedule-calendar'))
-                                                        ])
-                                                        ->sendToDatabase($student)
-                                                        ->broadcast($student);
+                                                    $student->notify(new \App\Notifications\TeacherUpdatedSchedule($teacher));
                                                 }
                                             }
                                         }
