@@ -29,7 +29,7 @@ self.addEventListener('push', function (event) {
         body: data.body || '',
         icon: data.icon || APP_ICON,
         badge: APP_ICON,
-        tag: data.tag || 'serdal-notification',
+        tag: data.tag || 'serdal-' + Date.now(),
         renotify: true,
         requireInteraction: data.requireInteraction || false,
         data: {
