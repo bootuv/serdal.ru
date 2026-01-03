@@ -8,9 +8,9 @@ use App\Notifications\Traits\BroadcastsNotification;
 use Filament\Notifications\Notification as FilamentNotification;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 
-class TeacherAssignedLesson extends Notification implements ShouldBroadcastNow
+class TeacherAssignedLesson extends Notification implements ShouldBroadcast
 {
     use Queueable, BroadcastsNotification;
 

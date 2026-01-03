@@ -7,10 +7,10 @@ use App\Models\User;
 use App\Notifications\Traits\BroadcastsNotification;
 use Filament\Notifications\Notification as FilamentNotification;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Notifications\Notification;
 
-class HomeworkSubmitted extends Notification implements ShouldBroadcastNow
+class HomeworkSubmitted extends Notification implements ShouldBroadcast
 {
     use Queueable, BroadcastsNotification;
 
