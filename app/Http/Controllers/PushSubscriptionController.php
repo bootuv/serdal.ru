@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use NotificationChannels\WebPush\PushSubscription;
 
 class PushSubscriptionController extends Controller
 {
@@ -19,9 +20,15 @@ class PushSubscriptionController extends Controller
         ]);
 
         $user = $request->user();
+        $endpoint = $request->input('endpoint');
+
+        // Remove this endpoint from other users (handles browser shared between accounts)
+        PushSubscription::where('endpoint', $endpoint)
+            ->where('subscribable_id', '!=', $user->id)
+            ->delete();
 
         $user->updatePushSubscription(
-            $request->input('endpoint'),
+            $endpoint,
             $request->input('keys.p256dh'),
             $request->input('keys.auth'),
             $request->input('content_encoding', 'aesgcm')
