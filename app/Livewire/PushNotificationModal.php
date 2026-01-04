@@ -23,10 +23,10 @@ class PushNotificationModal extends Component
             return;
         }
 
-        // Don't show if already has subscriptions
-        if ($user->pushSubscriptions()->exists()) {
-            return;
-        }
+        // Check removed to allow multi-device subscriptions
+        // if ($user->pushSubscriptions()->exists()) {
+        //     return;
+        // }
 
         // Don't show if max reminders reached (3)
         if ($user->push_reminder_count >= 3) {

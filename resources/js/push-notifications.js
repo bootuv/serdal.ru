@@ -95,8 +95,8 @@ class PushNotifications {
         // Case: Server has subscription but browser doesn't 
         // (user revoked permission and then re-granted, or cleared browser data)
         if (serverHasSub && !browserHasSub && Notification.permission === 'granted') {
-            // Clean up stale server subscription
-            await this.cleanupServerSubscription();
+            // Clean up stale server subscription - REMOVED for multi-device support
+            // await this.cleanupServerSubscription();
             return true; // Need to re-subscribe
         }
 
