@@ -1,0 +1,1 @@
+<livewire:image-annotator />

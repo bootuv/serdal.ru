@@ -17,6 +17,25 @@ class ViewHomeworkSubmission extends ViewRecord
 {
     protected static string $resource = HomeworkSubmissionResource::class;
 
+    public array $annotatedImages = [];
+
+    protected $listeners = ['imageAnnotated' => 'handleImageAnnotated'];
+
+    public function handleImageAnnotated(string $path): void
+    {
+        $this->annotatedImages[] = $path;
+
+        // Add to record's feedback_attachments
+        $existing = $this->record->feedback_attachments ?? [];
+        $existing[] = $path;
+        $this->record->update(['feedback_attachments' => $existing]);
+
+        \Filament\Notifications\Notification::make()
+            ->title('Аннотация сохранена')
+            ->success()
+            ->send();
+    }
+
     public function getTitle(): string|Htmlable
     {
         return 'Работа: ' . $this->record->student->name;
@@ -212,7 +231,7 @@ class ViewHomeworkSubmission extends ViewRecord
 
                         Infolists\Components\ViewEntry::make('attachments')
                             ->hiddenLabel()
-                            ->view('filament.infolists.entries.attachments-list')
+                            ->view('filament.infolists.entries.attachments-annotatable')
                             ->viewData([
                                 'attachments' => fn($state) => is_string($state) ? json_decode($state, true) : $state,
                             ])
@@ -245,5 +264,10 @@ class ViewHomeworkSubmission extends ViewRecord
                     ])
                     ->columns(1),
             ]);
+    }
+
+    public function getFooter(): ?\Illuminate\Contracts\View\View
+    {
+        return view('filament.pages.partials.image-annotator-footer');
     }
 }
