@@ -32,10 +32,10 @@ class ViewHomework extends ViewRecord
 
         return [
             Actions\Action::make('submit')
-                ->label('Сдать работу')
+                ->label(fn() => $submission?->status === HomeworkSubmission::STATUS_REVISION_REQUESTED ? 'Пересдать работу' : 'Сдать работу')
                 ->icon('heroicon-o-paper-airplane')
                 ->color('primary')
-                ->visible(fn() => !$submission || !$submission->submitted_at)
+                ->visible(fn() => !$submission || !$submission->submitted_at || $submission->status === HomeworkSubmission::STATUS_REVISION_REQUESTED)
                 ->form([
                     Forms\Components\RichEditor::make('content')
                         ->label('Ответ')
@@ -138,6 +138,7 @@ class ViewHomework extends ViewRecord
                             'content' => $data['content'],
                             'attachments' => $data['attachments'],
                             'submitted_at' => now(),
+                            'status' => HomeworkSubmission::STATUS_SUBMITTED,
                         ]
                     );
 
@@ -182,42 +183,29 @@ class ViewHomework extends ViewRecord
                             ->label('Описание')
                             ->html()
                             ->columnSpanFull(),
+
+                        Infolists\Components\Fieldset::make('Файлы задания')
+                            ->schema([
+                                Infolists\Components\ViewEntry::make('attachments')
+                                    ->hiddenLabel()
+                                    ->view('filament.infolists.entries.attachments-list')
+                                    ->viewData([
+                                        'attachments' => fn($state) => is_string($state) ? json_decode($state, true) : $state,
+                                    ]),
+                            ])
+                            ->columnSpanFull()
+                            ->visible(fn(Homework $record) => !empty($record->attachments)),
                     ])
                     ->columns(3),
-
-                Infolists\Components\Section::make('Файлы задания')
-                    ->schema([
-                        Infolists\Components\ViewEntry::make('attachments')
-                            ->hiddenLabel()
-                            ->view('filament.infolists.entries.attachments-list')
-                            ->viewData([
-                                'attachments' => fn($state) => is_string($state) ? json_decode($state, true) : $state,
-                            ]),
-                    ])
-                    ->visible(fn(Homework $record) => !empty($record->attachments))
-                    ->collapsible(),
 
                 // Submission section
                 Infolists\Components\Section::make('Моя работа')
                     ->schema([
                         Infolists\Components\TextEntry::make('submission_status')
                             ->label('Статус')
-                            ->getStateUsing(function () use ($submission) {
-                                if (!$submission || !$submission->submitted_at) {
-                                    return 'Не сдано';
-                                }
-                                if ($submission->grade !== null) {
-                                    return 'Оценено';
-                                }
-                                return 'На проверке';
-                            })
+                            ->getStateUsing(fn() => $submission?->status_label ?? 'Не сдано')
                             ->badge()
-                            ->color(fn(string $state): string => match ($state) {
-                                'Не сдано' => 'gray',
-                                'На проверке' => 'warning',
-                                'Оценено' => 'success',
-                                default => 'gray',
-                            }),
+                            ->color(fn() => $submission?->status_color ?? 'gray'),
 
                         Infolists\Components\TextEntry::make('submission_submitted_at')
                             ->label('Дата сдачи')
@@ -239,13 +227,17 @@ class ViewHomework extends ViewRecord
                             ->html()
                             ->columnSpanFull()
                             ->visible(fn() => !empty($submission?->content)),
+                    ])
+                    ->columns(3),
 
+                // Feedback section (shown prominently when revision requested)
+                Infolists\Components\Section::make('Комментарий учителя')
+                    ->schema([
                         Infolists\Components\TextEntry::make('submission_feedback')
-                            ->label('Комментарий учителя')
+                            ->hiddenLabel()
                             ->getStateUsing(fn() => $submission?->feedback)
                             ->html()
-                            ->columnSpanFull()
-                            ->visible(fn() => !empty($submission?->feedback)),
+                            ->columnSpanFull(),
 
                         Infolists\Components\ViewEntry::make('submission_feedback_attachments')
                             ->hiddenLabel()
@@ -257,7 +249,9 @@ class ViewHomework extends ViewRecord
                             ])
                             ->visible(fn() => !empty($submission?->feedback_attachments)),
                     ])
-                    ->columns(3),
+                    ->visible(fn() => !empty($submission?->feedback))
+                    ->icon(fn() => $submission?->status === HomeworkSubmission::STATUS_REVISION_REQUESTED ? 'heroicon-o-exclamation-triangle' : null)
+                    ->iconColor('danger'),
             ]);
     }
 

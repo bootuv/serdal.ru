@@ -64,20 +64,20 @@ class ViewHomework extends ViewRecord
                             ->label('Описание')
                             ->html()
                             ->columnSpanFull(),
+
+                        Infolists\Components\Fieldset::make('Файлы задания')
+                            ->schema([
+                                Infolists\Components\ViewEntry::make('attachments')
+                                    ->hiddenLabel()
+                                    ->view('filament.infolists.entries.attachments-list')
+                                    ->viewData([
+                                        'attachments' => fn($state) => is_string($state) ? json_decode($state, true) : $state,
+                                    ]),
+                            ])
+                            ->columnSpanFull()
+                            ->visible(fn(Homework $record) => !empty($record->attachments)),
                     ])
                     ->columns(4),
-
-                Infolists\Components\Section::make('Файлы задания')
-                    ->schema([
-                        Infolists\Components\ViewEntry::make('attachments')
-                            ->hiddenLabel()
-                            ->view('filament.infolists.entries.attachments-list')
-                            ->viewData([
-                                'attachments' => fn($state) => is_string($state) ? json_decode($state, true) : $state,
-                            ]),
-                    ])
-                    ->visible(fn(Homework $record) => !empty($record->attachments))
-                    ->collapsed(),
 
                 Infolists\Components\Section::make('Сданные работы')
                     ->schema([

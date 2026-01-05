@@ -4,6 +4,7 @@ namespace App\Filament\App\Resources\HomeworkSubmissionResource\Pages;
 
 use App\Filament\App\Resources\HomeworkSubmissionResource;
 use App\Models\HomeworkSubmission;
+use App\Notifications\HomeworkRevisionRequested;
 use Filament\Actions;
 use Filament\Forms;
 use Filament\Infolists;
@@ -28,6 +29,7 @@ class ViewHomeworkSubmission extends ViewRecord
                 ->label($this->record->grade !== null ? 'Изменить оценку' : 'Оценить')
                 ->icon('heroicon-o-academic-cap')
                 ->color('primary')
+                ->visible(fn() => $this->record->status !== HomeworkSubmission::STATUS_REVISION_REQUESTED)
                 ->form([
                     Forms\Components\TextInput::make('grade')
                         ->label($this->record->homework->grade_label)
@@ -109,6 +111,7 @@ class ViewHomeworkSubmission extends ViewRecord
                         'grade' => $data['grade'],
                         'feedback' => $data['feedback'],
                         'feedback_attachments' => $data['feedback_attachments'],
+                        'status' => HomeworkSubmission::STATUS_GRADED,
                     ]);
 
                     Notification::make()
@@ -123,11 +126,49 @@ class ViewHomeworkSubmission extends ViewRecord
                 })
                 ->modalHeading('Оценка работы'),
 
-            Actions\Action::make('back')
-                ->label('К заданию')
-                ->icon('heroicon-o-arrow-left')
+            Actions\Action::make('request_revision')
+                ->label('На доработку')
+                ->icon('heroicon-o-arrow-path')
                 ->color('gray')
-                ->url(fn() => route('filament.app.resources.homework.view', $this->record->homework)),
+                ->visible(fn() => $this->record->status === HomeworkSubmission::STATUS_SUBMITTED)
+                ->form([
+                    Forms\Components\RichEditor::make('feedback')
+                        ->label('Комментарий (обязательно)')
+                        ->required()
+                        ->toolbarButtons([
+                            'bold',
+                            'italic',
+                            'underline',
+                            'bulletList',
+                            'orderedList',
+                        ])
+                        ->columnSpanFull(),
+
+                    Forms\Components\FileUpload::make('feedback_attachments')
+                        ->label('Прикрепить файлы')
+                        ->multiple()
+                        ->maxSize(51200)
+                        ->columnSpanFull(),
+                ])
+                ->action(function (array $data) {
+                    $this->record->update([
+                        'status' => HomeworkSubmission::STATUS_REVISION_REQUESTED,
+                        'feedback' => $data['feedback'],
+                        'feedback_attachments' => $data['feedback_attachments'] ?? null,
+                    ]);
+
+                    Notification::make()
+                        ->title('Работа отправлена на доработку')
+                        ->success()
+                        ->send();
+
+                    // Notify student
+                    $this->record->student->notify(new HomeworkRevisionRequested($this->record->homework, $data['feedback']));
+
+                    $this->refreshFormData(['*']);
+                })
+                ->modalHeading('На доработку')
+                ->modalSubmitActionLabel('Отправить'),
         ];
     }
 
@@ -138,7 +179,10 @@ class ViewHomeworkSubmission extends ViewRecord
                 Infolists\Components\Section::make('Информация о задании')
                     ->schema([
                         Infolists\Components\TextEntry::make('homework.title')
-                            ->label('Задание'),
+                            ->label('Задание')
+                            ->icon('heroicon-o-document-text')
+                            ->url(fn() => route('filament.app.resources.homework.view', $this->record->homework))
+                            ->color('primary'),
 
                         Infolists\Components\TextEntry::make('student.name')
                             ->label('Ученик'),
@@ -163,23 +207,20 @@ class ViewHomeworkSubmission extends ViewRecord
                         Infolists\Components\TextEntry::make('content')
                             ->label('')
                             ->html()
-                            ->columnSpanFull(),
-                    ])
-                    ->visible(fn() => !empty($this->record->content)),
+                            ->columnSpanFull()
+                            ->visible(fn() => !empty($this->record->content)),
 
-                Infolists\Components\Section::make('Файлы ученика')
-                    ->schema([
                         Infolists\Components\ViewEntry::make('attachments')
                             ->hiddenLabel()
                             ->view('filament.infolists.entries.attachments-list')
                             ->viewData([
                                 'attachments' => fn($state) => is_string($state) ? json_decode($state, true) : $state,
-                            ]),
+                            ])
+                            ->visible(fn() => !empty($this->record->attachments)),
                     ])
-                    ->visible(fn() => !empty($this->record->attachments))
-                    ->collapsible(),
+                    ->visible(fn() => !empty($this->record->content) || !empty($this->record->attachments)),
 
-                Infolists\Components\Section::make('Оценка')
+                Infolists\Components\Section::make('Ваша оценка')
                     ->schema([
                         Infolists\Components\TextEntry::make('grade')
                             ->label('Оценка')

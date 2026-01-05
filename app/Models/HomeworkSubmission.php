@@ -13,14 +13,20 @@ class HomeworkSubmission extends Model
 {
     use HasFactory;
 
+    // Status constants
+    public const STATUS_PENDING = 'pending';
+    public const STATUS_SUBMITTED = 'submitted';
+    public const STATUS_REVISION_REQUESTED = 'revision_requested';
+    public const STATUS_GRADED = 'graded';
+
     protected $fillable = [
         'homework_id',
         'student_id',
+        'status',
         'content',
         'attachments',
         'annotated_files',
         'annotated_images',
-        'status',
         'feedback',
         'feedback_attachments',
         'grade',
@@ -72,12 +78,25 @@ class HomeworkSubmission extends Model
      */
     public function getStatusLabelAttribute(): string
     {
-        if ($this->is_graded) {
-            return 'Оценено';
-        }
-        if ($this->is_submitted) {
-            return 'На проверке';
-        }
-        return 'Не сдано';
+        return match ($this->status) {
+            self::STATUS_GRADED => 'Оценено',
+            self::STATUS_REVISION_REQUESTED => 'На доработке',
+            self::STATUS_SUBMITTED => 'На проверке',
+            default => 'Не сдано',
+        };
+    }
+
+    /**
+     * Получить цвет статуса
+     */
+    public function getStatusColorAttribute(): string
+    {
+        return match ($this->status) {
+            self::STATUS_GRADED => 'success',
+            self::STATUS_REVISION_REQUESTED => 'danger',
+            self::STATUS_SUBMITTED => 'warning',
+            default => 'gray',
+        };
     }
 }
+

@@ -46,36 +46,23 @@ class HomeworkSubmissionResource extends Resource
                 Tables\Columns\TextColumn::make('student.name')
                     ->label('Ученик')
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->formatStateUsing(fn(HomeworkSubmission $record) => view('filament.components.avatar-name', [
+                        'avatarUrl' => $record->student->avatar_url,
+                        'name' => $record->student->name,
+                    ]))
+                    ->html(),
 
                 Tables\Columns\TextColumn::make('homework.title')
                     ->label('Задание')
                     ->searchable()
                     ->limit(30),
 
-                Tables\Columns\TextColumn::make('submitted_at')
-                    ->label('Сдано')
-                    ->dateTime('d.m.Y H:i')
-                    ->sortable(),
-
                 Tables\Columns\TextColumn::make('status')
                     ->label('Статус')
-                    ->getStateUsing(function (HomeworkSubmission $record) {
-                        if ($record->grade !== null) {
-                            return 'Оценено';
-                        }
-                        if ($record->submitted_at !== null) {
-                            return 'На проверке';
-                        }
-                        return 'Не сдано';
-                    })
+                    ->getStateUsing(fn(HomeworkSubmission $record) => $record->status_label)
                     ->badge()
-                    ->color(fn(string $state): string => match ($state) {
-                        'Не сдано' => 'gray',
-                        'На проверке' => 'warning',
-                        'Оценено' => 'success',
-                        default => 'gray',
-                    }),
+                    ->color(fn(HomeworkSubmission $record) => $record->status_color),
 
                 Tables\Columns\TextColumn::make('grade')
                     ->label('Оценка')
@@ -109,7 +96,7 @@ class HomeworkSubmissionResource extends Resource
                     ->color('warning')
                     ->button()
                     ->icon('heroicon-m-pencil-square')
-                    ->visible(fn(HomeworkSubmission $record) => $record->grade === null),
+                    ->visible(fn(HomeworkSubmission $record) => $record->grade === null && $record->status !== HomeworkSubmission::STATUS_REVISION_REQUESTED),
             ])
             ->emptyStateHeading('Нет работ на проверку')
             ->emptyStateDescription('Когда ученики сдадут домашние задания, они появятся здесь')
