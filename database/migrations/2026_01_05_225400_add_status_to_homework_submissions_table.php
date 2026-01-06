@@ -8,9 +8,11 @@ use Illuminate\Support\Facades\DB;
 return new class extends Migration {
     public function up(): void
     {
-        Schema::table('homework_submissions', function (Blueprint $table) {
-            $table->string('status')->default('pending')->after('student_id');
-        });
+        if (!Schema::hasColumn('homework_submissions', 'status')) {
+            Schema::table('homework_submissions', function (Blueprint $table) {
+                $table->string('status')->default('pending')->after('student_id');
+            });
+        }
 
         // Migrate existing data
         DB::table('homework_submissions')
