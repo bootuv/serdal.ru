@@ -59,6 +59,9 @@ class HomeworkResource extends Resource
                         if (!$submission || !$submission->submitted_at) {
                             return 'Не сдано';
                         }
+                        if ($submission->status === \App\Models\HomeworkSubmission::STATUS_REVISION_REQUESTED) {
+                            return 'На доработке';
+                        }
                         if ($submission->grade !== null) {
                             return 'Оценено';
                         }
@@ -68,6 +71,7 @@ class HomeworkResource extends Resource
                     ->color(fn(string $state): string => match ($state) {
                         'Не сдано' => 'gray',
                         'На проверке' => 'warning',
+                        'На доработке' => 'danger',
                         'Оценено' => 'success',
                         default => 'gray',
                     }),
@@ -95,6 +99,7 @@ class HomeworkResource extends Resource
                     ->options([
                         'pending' => 'Не сдано',
                         'submitted' => 'На проверке',
+                        'revision_requested' => 'На доработке',
                         'graded' => 'Оценено',
                     ])
                     ->query(function (Builder $query, array $data) {
@@ -110,8 +115,11 @@ class HomeworkResource extends Resource
                                 }),
                             'submitted' => $query->whereHas('submissions', function ($q) use ($studentId) {
                                     $q->where('student_id', $studentId)
-                                    ->whereNotNull('submitted_at')
-                                    ->whereNull('grade');
+                                    ->where('status', \App\Models\HomeworkSubmission::STATUS_SUBMITTED);
+                                }),
+                            'revision_requested' => $query->whereHas('submissions', function ($q) use ($studentId) {
+                                    $q->where('student_id', $studentId)
+                                    ->where('status', \App\Models\HomeworkSubmission::STATUS_REVISION_REQUESTED);
                                 }),
                             'graded' => $query->whereHas('submissions', function ($q) use ($studentId) {
                                     $q->where('student_id', $studentId)->whereNotNull('grade');
