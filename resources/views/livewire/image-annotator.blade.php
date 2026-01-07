@@ -74,22 +74,21 @@
                 @mouseup="handleMouseUp($event)" @mouseleave="handleMouseUp($event)">
                 <div class="relative transition-transform duration-100"
                     :style="`transform: translate(${panX}px, ${panY}px) scale(${zoom}); transform-origin: center center;`">
-                <canvas x-ref="canvas" @mousedown="handleCanvasMouseDown($event)" @touchstart.prevent="startDrawing($event)"
-                        @touchmove.prevent="draw($event)" @touchend="stopDrawing()"
+                    <canvas x-ref="canvas" @mousedown="handleCanvasMouseDown($event)"
+                        @touchstart.prevent="startDrawing($event)" @touchmove.prevent="draw($event)"
+                        @touchend="stopDrawing()"
                         :class="spaceHeld ? (isPanDragging ? 'cursor-grabbing' : 'cursor-grab') : 'cursor-crosshair'"></canvas>
                 </div>
             </div>
 
             {{-- Bottom buttons --}}
             <div class="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-3 z-20">
-                <button @click="$wire.closeModal()" type="button"
-                    class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-medium">
+                <x-filament::button color="gray" @click="$wire.closeModal()">
                     Отмена
-                </button>
-                <button @click="save()" type="button"
-                    class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-medium">
+                </x-filament::button>
+                <x-filament::button color="primary" @click="save" wire:target="saveAnnotatedImage">
                     Сохранить
-                </button>
+                </x-filament::button>
             </div>
 
             <div class="absolute bottom-4 right-4 text-gray-400 text-xs z-20">
