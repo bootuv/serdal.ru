@@ -10,9 +10,11 @@ return new class extends Migration {
      */
     public function up(): void
     {
-        Schema::table('homework_submissions', function (Blueprint $table) {
-            $table->json('annotated_files')->nullable()->after('attachments');
-        });
+        if (!Schema::hasColumn('homework_submissions', 'annotated_files')) {
+            Schema::table('homework_submissions', function (Blueprint $table) {
+                $table->json('annotated_files')->nullable()->after('attachments');
+            });
+        }
     }
 
     /**
