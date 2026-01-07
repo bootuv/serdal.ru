@@ -11,7 +11,7 @@
                     </div>
                 </x-slot>
 
-                <div class="space-y-2 -mx-4 -mb-4 flex-1 overflow-y-auto">
+                <div class="space-y-2 -mx-4 -mb-4 flex-1 overflow-y-auto messenger-list-container">
                     @foreach($chatItems as $item)
                         @if($item['type'] === 'support')
                             {{-- Чат поддержки --}}

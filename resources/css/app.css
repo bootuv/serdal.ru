@@ -110,3 +110,13 @@
 .dark .fi-modal-footer {
     border-top: none !important;
 }
+
+/* Global Counter Styling (Sidebar, Header, Messenger) */
+.fi-sidebar-item .fi-badge,
+.fi-sidebar-nav .fi-badge,
+.fi-topbar .fi-badge,
+.fi-topbar .fi-icon-btn-badge,
+.messenger-list-container .fi-badge {
+    background-color: #ef4444 !important; /* Red-500 */
+    color: #ffffff !important;
+}

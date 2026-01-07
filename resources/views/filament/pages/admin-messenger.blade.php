@@ -7,7 +7,7 @@
                     Чаты поддержки
                 </x-slot>
 
-                <div class="space-y-2 -mx-4 -mb-4 flex-1 overflow-y-auto">
+                <div class="space-y-2 -mx-4 -mb-4 flex-1 overflow-y-auto messenger-list-container">
                     @forelse($chats as $chat)
                         <button wire:click="selectChat({{ $chat->id }})" @class([
                             'w-full px-4 py-3 flex items-center gap-3 text-left transition-colors cursor-pointer',
