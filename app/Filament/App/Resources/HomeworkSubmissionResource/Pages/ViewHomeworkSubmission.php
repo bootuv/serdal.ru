@@ -70,66 +70,11 @@ class ViewHomeworkSubmission extends ViewRecord
                         ])
                         ->default($this->record->feedback)
                         ->columnSpanFull(),
-
-                    Forms\Components\FileUpload::make('feedback_attachments')
-                        ->label('Прикрепить файлы')
-                        ->multiple()
-                        ->maxSize(51200)
-                        ->live()
-                        ->afterStateUpdated(function (\Filament\Forms\Get $get, \Filament\Forms\Set $set, $state) {
-                            if (empty($state))
-                                return;
-
-                            $processedState = [];
-                            $hasChanges = false;
-
-                            foreach ($state as $file) {
-                                if ($file instanceof \Livewire\Features\SupportFileUploads\TemporaryUploadedFile) {
-                                    $extension = strtolower($file->getClientOriginalExtension());
-                                    $isImage = in_array($extension, ['jpg', 'jpeg', 'png', 'webp']);
-                                    $isGif = $extension === 'gif';
-
-                                    $newPath = 'homework-feedback/' . $file->getFilename();
-
-                                    if ($isImage && !$isGif) {
-                                        try {
-                                            $imageContent = $file->get();
-                                            $image = \Intervention\Image\Laravel\Facades\Image::read($imageContent);
-
-                                            if ($image->width() > 1920 || $image->height() > 1080) {
-                                                $image->scaleDown(1920, 1080);
-                                            }
-
-                                            $newPath = 'homework-feedback/' . pathinfo($file->getFilename(), PATHINFO_FILENAME) . '_processed.' . $extension;
-                                            $encoded = $image->encodeByExtension($extension, quality: 85);
-
-                                            \Illuminate\Support\Facades\Storage::disk('s3')->put($newPath, (string) $encoded, 'public');
-                                        } catch (\Exception $e) {
-                                            \Log::error("Failed to resize feedback image: " . $e->getMessage());
-                                            $newPath = $file->store('homework-feedback', 's3');
-                                        }
-                                    } else {
-                                        \Illuminate\Support\Facades\Storage::disk('s3')->putFileAs('homework-feedback', $file, basename($newPath), 'public');
-                                    }
-
-                                    $processedState[] = $newPath;
-                                    $hasChanges = true;
-                                } else {
-                                    $processedState[] = $file;
-                                }
-                            }
-
-                            if ($hasChanges) {
-                                $set('feedback_attachments', $processedState);
-                            }
-                        })
-                        ->columnSpanFull(),
                 ])
                 ->action(function (array $data) {
                     $this->record->update([
                         'grade' => $data['grade'],
                         'feedback' => $data['feedback'],
-                        'feedback_attachments' => $data['feedback_attachments'],
                         'status' => HomeworkSubmission::STATUS_GRADED,
                     ]);
 
@@ -199,7 +144,6 @@ class ViewHomeworkSubmission extends ViewRecord
                     ->schema([
                         Infolists\Components\TextEntry::make('homework.title')
                             ->label('Задание')
-                            ->icon('heroicon-o-document-text')
                             ->url(fn() => route('filament.app.resources.homework.view', $this->record->homework))
                             ->color('primary'),
 
@@ -231,9 +175,11 @@ class ViewHomeworkSubmission extends ViewRecord
 
                         Infolists\Components\ViewEntry::make('attachments')
                             ->hiddenLabel()
-                            ->view('filament.infolists.entries.attachments-annotatable')
+                            ->view('filament.infolists.entries.file-cards')
                             ->viewData([
-                                'attachments' => fn($state) => is_string($state) ? json_decode($state, true) : $state,
+                                'annotatedFiles' => fn() => $this->record->annotated_files ?? [],
+                                'showAnnotateButton' => true,
+                                'submissionId' => fn() => $this->record->id,
                             ])
                             ->visible(fn() => !empty($this->record->attachments)),
                     ])
@@ -245,24 +191,28 @@ class ViewHomeworkSubmission extends ViewRecord
                             ->label('Оценка')
                             ->size('lg')
                             ->weight('bold')
-                            ->color('success')
-                            ->placeholder('Не оценено'),
+                            ->color('success'),
 
                         Infolists\Components\TextEntry::make('feedback')
                             ->label('Комментарий')
                             ->html()
                             ->columnSpanFull()
-                            ->placeholder('—'),
-
-                        Infolists\Components\ViewEntry::make('feedback_attachments')
-                            ->hiddenLabel()
-                            ->view('filament.infolists.entries.attachments-list')
-                            ->viewData([
-                                'attachments' => fn($state) => is_string($state) ? json_decode($state, true) : $state,
-                            ])
-                            ->visible(fn() => !empty($this->record->feedback_attachments)),
+                            ->placeholder('—')
+                            ->visible(fn() => !empty($this->record->feedback)),
                     ])
-                    ->columns(1),
+                    ->columns(1)
+                    ->visible(fn() => $this->record->grade !== null),
+
+                // History section
+                Infolists\Components\Section::make('История')
+                    ->schema([
+                        Infolists\Components\ViewEntry::make('activities')
+                            ->hiddenLabel()
+                            ->view('filament.infolists.entries.activity-timeline')
+                            ->state(fn() => $this->record->activities()->with('user')->get()),
+                    ])
+                    ->collapsible()
+                    ->collapsed(),
             ]);
     }
 

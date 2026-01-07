@@ -227,6 +227,18 @@ class ViewHomework extends ViewRecord
                             ->html()
                             ->columnSpanFull()
                             ->visible(fn() => !empty($submission?->content)),
+
+                        Infolists\Components\ViewEntry::make('my_files')
+                            ->hiddenLabel()
+                            ->view('filament.infolists.entries.file-cards')
+                            ->state($submission?->attachments)
+                            ->viewData([
+                                'annotatedFiles' => $submission?->annotated_files ?? [],
+                                'showAnnotateButton' => false,
+                                'submissionId' => $submission?->id,
+                            ])
+                            ->columnSpanFull()
+                            ->visible($submission && !empty($submission->attachments)),
                     ])
                     ->columns(3),
 
@@ -252,6 +264,18 @@ class ViewHomework extends ViewRecord
                     ->visible(fn() => !empty($submission?->feedback))
                     ->icon(fn() => $submission?->status === HomeworkSubmission::STATUS_REVISION_REQUESTED ? 'heroicon-o-exclamation-triangle' : null)
                     ->iconColor('danger'),
+
+                // History section
+                Infolists\Components\Section::make('История')
+                    ->schema([
+                        Infolists\Components\ViewEntry::make('submission_activities')
+                            ->hiddenLabel()
+                            ->view('filament.infolists.entries.activity-timeline')
+                            ->state(fn() => $submission?->activities()->with('user')->get() ?? collect()),
+                    ])
+                    ->collapsible()
+                    ->collapsed()
+                    ->visible(fn() => $submission !== null),
             ]);
     }
 

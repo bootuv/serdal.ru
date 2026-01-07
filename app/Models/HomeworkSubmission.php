@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 #[ObservedBy([HomeworkSubmissionObserver::class])]
 class HomeworkSubmission extends Model
@@ -97,6 +98,14 @@ class HomeworkSubmission extends Model
             self::STATUS_SUBMITTED => 'warning',
             default => 'gray',
         };
+    }
+
+    /**
+     * История событий
+     */
+    public function activities(): HasMany
+    {
+        return $this->hasMany(HomeworkActivity::class, 'submission_id')->orderBy('created_at', 'desc');
     }
 }
 
