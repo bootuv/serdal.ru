@@ -137,6 +137,16 @@ class HomeworkResource extends Resource
             ->emptyStateIcon('heroicon-o-clipboard-document-list');
     }
 
+    public static function getNavigationBadge(): ?string
+    {
+        return (string) static::getEloquentQuery()
+            ->whereDoesntHave('submissions', function ($query) {
+                $query->where('student_id', auth()->id())
+                    ->whereNotNull('grade');
+            })
+            ->count();
+    }
+
     public static function getPages(): array
     {
         return [
