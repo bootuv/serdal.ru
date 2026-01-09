@@ -21,6 +21,9 @@ class RegisterInvitedStudent extends Component
     public $password_confirmation;
     public $teacher_id;
 
+    public $step = 1;
+    public $verification_code;
+
     public function mount()
     {
         if (!request()->hasValidSignature()) {
@@ -79,28 +82,62 @@ class RegisterInvitedStudent extends Component
             'password' => ['required', 'string', 'min:8', 'confirmed'],
         ]);
 
-        // Мы не передаем name и username, так как они генерируются автоматически в User::booted()
-        $user = User::create([
+        // Генерируем код
+        $code = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+
+        // Сохраняем данные в сессию
+        session()->put('registration_data', [
             'first_name' => $this->first_name,
             'last_name' => $this->last_name,
             'middle_name' => $this->middle_name,
             'email' => $this->email,
             'phone' => $this->phone,
-            'password' => Hash::make($this->password),
+            'password' => $this->password,
+            'teacher_id' => $this->teacher_id,
+            'verification_code' => $code,
+            'expires_at' => now()->addMinutes(30),
+        ]);
+
+        // Отправляем код
+        \Illuminate\Support\Facades\Notification::route('mail', $this->email)
+            ->notify(new \App\Notifications\EmailVerificationCode($code));
+
+        $this->step = 2;
+    }
+
+    public function verifyAndRegister()
+    {
+        $data = session()->get('registration_data');
+
+        if (!$data || now()->greaterThan($data['expires_at'])) {
+            $this->step = 1;
+            $this->addError('verification_code', 'Срок действия кода истек. Пожалуйста, заполните форму заново.');
+            return;
+        }
+
+        if ($this->verification_code !== $data['verification_code']) {
+            $this->addError('verification_code', 'Неверный код подтверждения.');
+            return;
+        }
+
+        // Создаем пользователя
+        $user = User::create([
+            'first_name' => $data['first_name'],
+            'last_name' => $data['last_name'],
+            'middle_name' => $data['middle_name'],
+            'email' => $data['email'],
+            'phone' => $data['phone'],
+            'password' => Hash::make($data['password']),
             'role' => 'student',
+            'email_verified_at' => now(),
         ]);
 
         // Привязываем ученика к учителю
-        if ($this->teacher_id) {
-            $teacher = User::find($this->teacher_id);
+        if ($data['teacher_id']) {
+            $teacher = User::find($data['teacher_id']);
             if ($teacher) {
-                // Используем syncWithoutDetaching чтобы случайно не удалить другие связи, если они есть
                 $teacher->students()->syncWithoutDetaching([$user->id]);
-
-                // Notify teacher about new student
                 $teacher->notify(new \App\Notifications\StudentAcceptedInvite($user));
-
-                // Notify student about new teacher
                 $user->notify(new \App\Notifications\NewTeacher($teacher));
             }
         }
@@ -108,9 +145,38 @@ class RegisterInvitedStudent extends Component
         event(new Registered($user));
 
         auth()->guard('web')->login($user);
+        session()->forget('registration_data');
         session()->regenerate();
 
-        return redirect()->to('/student'); // Перенаправляем в панель ученика
+        return redirect()->to('/student');
+    }
+
+    public function resendCode()
+    {
+        $data = session()->get('registration_data');
+
+        if (!$data) {
+            $this->step = 1;
+            return;
+        }
+
+        $code = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+        $data['verification_code'] = $code;
+        $data['expires_at'] = now()->addMinutes(30);
+        session()->put('registration_data', $data);
+
+        \Illuminate\Support\Facades\Notification::route('mail', $data['email'])
+            ->notify(new \App\Notifications\EmailVerificationCode($code));
+
+        Notification::make()
+            ->title('Код отправлен повторно')
+            ->success()
+            ->send();
+    }
+
+    public function backToForm()
+    {
+        $this->step = 1;
     }
 
     #[Layout('components.layouts.app')]
