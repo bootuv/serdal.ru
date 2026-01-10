@@ -67,7 +67,91 @@ class RoomResource extends Resource
                         </div>
                     ")
                     ->extraAttributes(['class' => 'student-select'])
+                    ->live()
+                    ->afterStateUpdated(function (Forms\Set $set, ?array $state, Forms\Get $get) {
+                        $count = is_array($state) ? count($state) : 0;
+
+                        if ($count === 0) {
+                            // No students selected - clear type and price
+                            $set('type', null);
+                            $set('base_price', null);
+                            return;
+                        }
+
+                        // Determine type based on participant count
+                        $type = $count > 1 ? 'group' : 'individual';
+                        $set('type', $type);
+
+                        // Get owner (teacher)
+                        $teacherId = $get('user_id');
+                        if (!$teacherId)
+                            return;
+
+                        $teacher = \App\Models\User::find($teacherId);
+
+                        // Get price for the determined type
+                        $lessonType = $teacher?->lessonTypes()
+                            ->where('type', $type)
+                            ->first();
+
+                        $set('base_price', $lessonType?->price);
+                    })
                     ->columnSpanFull(),
+
+                Forms\Components\Section::make('Стоимость занятия')
+                    ->description('Цена за одно занятие')
+                    ->schema([
+                        Forms\Components\TextInput::make('base_price')
+                            ->label('Цена')
+                            ->numeric()
+                            ->suffix('₽')
+                            ->live()
+                            ->helperText(function (Forms\Get $get) {
+                                $participants = $get('participants');
+
+                                // Normalize to array of IDs
+                                $ids = [];
+                                if ($participants instanceof \Illuminate\Support\Collection) {
+                                    $ids = $participants->toArray();
+                                } elseif (is_array($participants)) {
+                                    $ids = $participants;
+                                }
+
+                                if (empty($ids)) {
+                                    return null;
+                                }
+
+                                // Count real existing users to avoid "ghost" participants
+                                $count = \App\Models\User::whereIn('id', $ids)->count();
+
+                                if ($count === 0) {
+                                    return null;
+                                }
+
+                                $type = $count > 1 ? 'group' : 'individual';
+                                $teacherId = $get('user_id');
+
+                                if (!$teacherId) {
+                                    return 'Сначала выберите пользователя (владельца комнаты)';
+                                }
+
+                                $teacher = \App\Models\User::find($teacherId);
+
+                                $lessonType = $teacher?->lessonTypes()
+                                    ->where('type', $type)
+                                    ->first();
+                                $defaultPrice = $lessonType?->price;
+                                $typeLabel = $type === 'group' ? 'группового' : 'индивидуального';
+
+                                if ($defaultPrice) {
+                                    return "Базовая цена {$typeLabel} занятия: " . number_format($defaultPrice, 0, '', ' ') . " ₽";
+                                }
+
+                                // In Admin panel, link to user profile edit page might be different or needed differently.
+                                // But generic message is fine.
+                                return "Базовая цена {$typeLabel} занятия не задана в профиле пользователя";
+                            }),
+                    ]),
                 Forms\Components\FileUpload::make('presentations')
                     ->label('Презентации')
                     ->multiple()
