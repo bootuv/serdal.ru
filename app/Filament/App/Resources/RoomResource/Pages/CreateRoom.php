@@ -17,10 +17,6 @@ class CreateRoom extends CreateRecord
         $data['moderator_pw'] = Str::random(8);
         $data['attendee_pw'] = Str::random(8);
 
-        // Determine type based on participant count
-        $participantCount = isset($data['participants']) ? count($data['participants']) : 0;
-        $data['type'] = $participantCount > 1 ? 'group' : 'individual';
-
         // Fix start_date for one-time schedules
         if (isset($data['schedules'])) {
             foreach ($data['schedules'] as &$schedule) {
@@ -36,6 +32,11 @@ class CreateRoom extends CreateRecord
     protected function afterCreate(): void
     {
         $teacher = auth()->user();
+
+        // Determine type based on actual participant count after relationship is synced
+        $participantCount = $this->record->participants()->count();
+        $type = $participantCount > 1 ? 'group' : 'individual';
+        $this->record->update(['type' => $type]);
 
         // Notify all assigned participants about the new lesson
         foreach ($this->record->participants as $student) {

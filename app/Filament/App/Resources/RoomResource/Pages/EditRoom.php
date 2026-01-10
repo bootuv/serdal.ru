@@ -39,14 +39,6 @@ class EditRoom extends EditRecord
         return $data;
     }
 
-    protected function mutateFormDataBeforeSave(array $data): array
-    {
-        // Determine type based on participant count
-        $participantCount = isset($data['participants']) ? count($data['participants']) : 0;
-        $data['type'] = $participantCount > 1 ? 'group' : 'individual';
-
-        return $data;
-    }
 
     protected function getSchedulesHash(array $schedules): string
     {
@@ -143,6 +135,12 @@ class EditRoom extends EditRecord
 
     protected function afterSave(): void
     {
+        // Determine type based on actual participant count after relationship is synced
+        $this->record->refresh();
+        $participantCount = $this->record->participants()->count();
+        $type = $participantCount > 1 ? 'group' : 'individual';
+        $this->record->updateQuietly(['type' => $type]);
+
         // Get the new participant IDs from form data
         $newParticipantIds = array_unique($this->data['participants'] ?? []);
 
