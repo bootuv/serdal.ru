@@ -18,7 +18,9 @@ class UsersTableSeeder extends Seeder
      */
     public function run(): void
     {
+        DB::statement('SET FOREIGN_KEY_CHECKS=0;');
         DB::table('users')->truncate();
+        DB::statement('SET FOREIGN_KEY_CHECKS=1;');
 
         $data = [];
 
@@ -43,7 +45,7 @@ class UsersTableSeeder extends Seeder
                 'password' => Hash::make('password'),
                 'avatar' => null,
                 'status' => 'Продолжаю прием в группы и индивидуальников',
-                'role' => match(rand(0, 2)) {
+                'role' => match (rand(0, 2)) {
                     0 => User::ROLE_STUDENT,
                     1 => User::ROLE_TUTOR,
                     2 => User::ROLE_MENTOR,
@@ -56,8 +58,8 @@ class UsersTableSeeder extends Seeder
                 'telegram' => 'example',
             ]);
 
-            $user->subjects()->attach(rand(0, 1) === 1 ? [1,2] : [1,3]);
-            $user->directs()->attach([1,3,4]);
+            $user->subjects()->attach(rand(0, 1) === 1 ? [1, 2] : [1, 3]);
+            $user->directs()->attach([1, 3, 4]);
         }
     }
 }

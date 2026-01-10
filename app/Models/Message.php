@@ -32,4 +32,17 @@ class Message extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    protected static function booted()
+    {
+        static::deleting(function ($message) {
+            if (!empty($message->attachments)) {
+                foreach ($message->attachments as $attachment) {
+                    if (isset($attachment['path'])) {
+                        \Illuminate\Support\Facades\Storage::disk('s3')->delete($attachment['path']);
+                    }
+                }
+            }
+        });
+    }
 }

@@ -38,14 +38,9 @@ class Room extends Model
             }
 
             // Delete Message Attachments in this room
+            // Delete Message Attachments in this room
             foreach ($room->messages()->get() as $message) {
-                if (!empty($message->attachments)) {
-                    foreach ($message->attachments as $attachment) {
-                        if (isset($attachment['path'])) {
-                            \Illuminate\Support\Facades\Storage::disk('s3')->delete($attachment['path']);
-                        }
-                    }
-                }
+                $message->delete();
             }
 
             // Also delete schedules if they exist (though they might be gone if soft deleted first)

@@ -107,5 +107,21 @@ class HomeworkSubmission extends Model
     {
         return $this->hasMany(HomeworkActivity::class, 'submission_id')->orderBy('created_at', 'desc');
     }
+
+    protected static function booted()
+    {
+        static::deleting(function ($submission) {
+            $files = array_merge(
+                $submission->attachments ?? [],
+                $submission->annotated_files ?? [],
+                $submission->annotated_images ?? [],
+                $submission->feedback_attachments ?? []
+            );
+
+            foreach ($files as $file) {
+                \Illuminate\Support\Facades\Storage::disk('public')->delete($file);
+            }
+        });
+    }
 }
 

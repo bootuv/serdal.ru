@@ -212,6 +212,11 @@ class User extends Authenticatable implements FilamentUser
         return $this->hasMany(Review::class);
     }
 
+    public function rooms()
+    {
+        return $this->hasMany(Room::class);
+    }
+
     public function assignedRooms()
     {
         return $this->belongsToMany(Room::class, 'room_user', 'user_id', 'room_id');
@@ -230,6 +235,11 @@ class User extends Authenticatable implements FilamentUser
     public function messages()
     {
         return $this->hasMany(Message::class);
+    }
+
+    public function supportMessages()
+    {
+        return $this->hasMany(SupportMessage::class);
     }
 
     /**
@@ -312,6 +322,26 @@ class User extends Authenticatable implements FilamentUser
         });
 
         static::deleting(function ($user) {
+            if ($user->avatar) {
+                Storage::disk('public')->delete($user->avatar);
+            }
+
+            // Удаляем комнаты (soft delete, затем force delete в обсервере комнаты, если нужно)
+            // Но в ТЗ "удалять все созданные им занятия", подразумевается полное удаление
+            $user->rooms()->get()->each(function ($room) {
+                // Force delete to trigger Room's forceDeleting event for file cleanup
+                $room->forceDelete();
+            });
+
+            $user->homeworks()->get()->each->delete();
+            $user->homeworkSubmissions()->get()->each->delete();
+            $user->messages()->get()->each->delete();
+
+            // Assuming SupportMessage relation exists or will be added, if not present we need to add it or use query
+            // Checking file analysis, SupportMessage has user_id, but User model doesn't have supportMessages relation yet.
+            // I will add the relation and the delete logic.
+            $user->supportMessages()->get()->each->delete();
+
             $user->reviews()->delete();
         });
     }

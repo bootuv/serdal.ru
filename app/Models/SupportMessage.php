@@ -38,4 +38,15 @@ class SupportMessage extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    protected static function booted()
+    {
+        static::deleting(function ($message) {
+            if (!empty($message->attachments)) {
+                foreach ($message->attachments as $attachment) {
+                    \Illuminate\Support\Facades\Storage::disk('public')->delete($attachment);
+                }
+            }
+        });
+    }
 }

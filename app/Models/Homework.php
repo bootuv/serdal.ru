@@ -212,4 +212,15 @@ class Homework extends Model
     {
         return $this->deadline && $this->deadline->isPast();
     }
+
+    protected static function booted()
+    {
+        static::deleting(function ($homework) {
+            foreach ($homework->attachments ?? [] as $attachment) {
+                \Illuminate\Support\Facades\Storage::disk('public')->delete($attachment);
+            }
+
+            $homework->submissions()->get()->each->delete();
+        });
+    }
 }
