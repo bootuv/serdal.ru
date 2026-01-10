@@ -12,7 +12,11 @@ return new class extends Migration {
     public function up(): void
     {
         // Force the column to be VARCHAR(255) to support all status strings
-        DB::statement("ALTER TABLE homework_submissions MODIFY COLUMN status VARCHAR(255) NOT NULL DEFAULT 'pending'");
+        if (DB::getDriverName() !== 'sqlite') {
+            DB::statement("ALTER TABLE homework_submissions MODIFY COLUMN status VARCHAR(255) NOT NULL DEFAULT 'pending'");
+        } else {
+            dump('Skipping MODIFY for sqlite');
+        }
     }
 
     /**

@@ -84,7 +84,8 @@ class UserResource extends Resource
                     ->revealable()
                     ->maxLength(255)
                     ->dehydrated(fn($state) => filled($state))
-                    ->dehydrateStateUsing(fn($state) => bcrypt($state)),
+                    ->dehydrateStateUsing(fn($state) => bcrypt($state))
+                    ->required(fn(string $operation): bool => $operation === 'create'),
                 Select::make('role')
                     ->label('Роль')
                     ->options([
