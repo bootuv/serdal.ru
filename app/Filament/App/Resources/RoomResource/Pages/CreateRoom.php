@@ -17,6 +17,10 @@ class CreateRoom extends CreateRecord
         $data['moderator_pw'] = Str::random(8);
         $data['attendee_pw'] = Str::random(8);
 
+        // Determine type based on participant count
+        $participantCount = isset($data['participants']) ? count($data['participants']) : 0;
+        $data['type'] = $participantCount > 1 ? 'group' : 'individual';
+
         // Fix start_date for one-time schedules
         if (isset($data['schedules'])) {
             foreach ($data['schedules'] as &$schedule) {

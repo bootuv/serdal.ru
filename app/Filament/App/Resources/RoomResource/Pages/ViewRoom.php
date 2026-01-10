@@ -219,6 +219,7 @@ class ViewRoom extends ViewRecord
                             ->color('gray')
                             ->modalHeading('Индивидуальные цены')
                             ->modalWidth('md')
+                            ->modalSubmitActionLabel('Сохранить')
                             ->form(function (Room $record) {
                                 $participants = $record->participants;
                                 if ($participants->isEmpty()) {
@@ -313,6 +314,8 @@ class ViewRoom extends ViewRecord
                                     ->title('Цены обновлены')
                                     ->success()
                                     ->send();
+
+                                return redirect(request()->header('Referer'));
                             }),
                     ])
                     ->collapsible(),

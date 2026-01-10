@@ -39,6 +39,15 @@ class EditRoom extends EditRecord
         return $data;
     }
 
+    protected function mutateFormDataBeforeSave(array $data): array
+    {
+        // Determine type based on participant count
+        $participantCount = isset($data['participants']) ? count($data['participants']) : 0;
+        $data['type'] = $participantCount > 1 ? 'group' : 'individual';
+
+        return $data;
+    }
+
     protected function getSchedulesHash(array $schedules): string
     {
         $simplified = array_map(function ($s) {
