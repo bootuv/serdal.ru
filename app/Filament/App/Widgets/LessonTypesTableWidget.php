@@ -23,11 +23,12 @@ class LessonTypesTableWidget extends BaseWidget
     {
         return $table
             ->query(LessonType::query()->where('user_id', auth()->id()))
-            ->description('Создайте хотя бы один тип урока для продолжения.')
+
             ->modelLabel('Тип урока')
             ->pluralModelLabel('Типы уроков')
             ->emptyStateHeading('Типы уроков не добавлены')
-            ->emptyStateDescription('Создайте свой первый тип урока для старта.')
+            ->emptyStateDescription('Добавьте хотя бы один тип урока для старта.')
+            ->paginated(false)
             ->columns([
                 Tables\Columns\TextColumn::make('type')
                     ->label('Тип')
@@ -53,11 +54,23 @@ class LessonTypesTableWidget extends BaseWidget
                                 LessonType::TYPE_GROUP => 'Групповой',
                             ])
                             ->required(),
-                        \Filament\Forms\Components\TextInput::make('price')
-                            ->label('Цена')
-                            ->numeric()
-                            ->required()
-                            ->prefix('₽'),
+                        \Filament\Forms\Components\Grid::make(2)
+                            ->schema([
+                                \Filament\Forms\Components\TextInput::make('price')
+                                    ->label('Цена за урок')
+                                    ->numeric()
+                                    ->required()
+                                    ->prefix('₽'),
+                                \Filament\Forms\Components\Select::make('payment_type')
+                                    ->label('Тип оплаты')
+                                    ->options([
+                                        'per_lesson' => 'Поурочная оплата',
+                                        'monthly' => 'Помесячная оплата',
+                                    ])
+                                    ->default('per_lesson')
+                                    ->required()
+                                    ->selectablePlaceholder(false),
+                            ]),
                         \Filament\Forms\Components\TextInput::make('duration')
                             ->label('Длительность (мин)')
                             ->numeric()
@@ -67,19 +80,43 @@ class LessonTypesTableWidget extends BaseWidget
             ])
             ->headerActions([
                 Tables\Actions\CreateAction::make()
+                    ->label('Добавить')
+                    ->createAnother(false)
+                    ->modalHeading('Добавить тип урока')
+                    ->visible(fn() => LessonType::where('user_id', auth()->id())->count() < 2)
                     ->form([
                         \Filament\Forms\Components\Select::make('type')
                             ->label('Тип')
-                            ->options([
-                                LessonType::TYPE_INDIVIDUAL => 'Индивидуальный',
-                                LessonType::TYPE_GROUP => 'Групповой',
-                            ])
+                            ->options(function () {
+                                $existingTypes = LessonType::where('user_id', auth()->id())
+                                    ->pluck('type')
+                                    ->toArray();
+
+                                $types = [
+                                    LessonType::TYPE_INDIVIDUAL => 'Индивидуальный',
+                                    LessonType::TYPE_GROUP => 'Групповой',
+                                ];
+
+                                return array_diff_key($types, array_flip($existingTypes));
+                            })
                             ->required(),
-                        \Filament\Forms\Components\TextInput::make('price')
-                            ->label('Цена')
-                            ->numeric()
-                            ->required()
-                            ->prefix('₽'),
+                        \Filament\Forms\Components\Grid::make(2)
+                            ->schema([
+                                \Filament\Forms\Components\TextInput::make('price')
+                                    ->label('Цена за урок')
+                                    ->numeric()
+                                    ->required()
+                                    ->prefix('₽'),
+                                \Filament\Forms\Components\Select::make('payment_type')
+                                    ->label('Тип оплаты')
+                                    ->options([
+                                        'per_lesson' => 'Поурочная оплата',
+                                        'monthly' => 'Помесячная оплата',
+                                    ])
+                                    ->default('per_lesson')
+                                    ->required()
+                                    ->selectablePlaceholder(false),
+                            ]),
                         \Filament\Forms\Components\TextInput::make('duration')
                             ->label('Длительность (мин)')
                             ->numeric()

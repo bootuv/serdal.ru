@@ -13,6 +13,7 @@ class LessonType extends Model
     protected $fillable = [
         'type',
         'price',
+        'payment_type',
         'count_per_week',
         'duration',
         'user_id',

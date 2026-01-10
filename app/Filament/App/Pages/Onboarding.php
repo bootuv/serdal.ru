@@ -79,24 +79,47 @@ class Onboarding extends Page implements HasForms, HasTable
         return $table
             ->query(LessonType::query()->where('user_id', Auth::id()))
             ->heading('Типы уроков')
-            ->description('Создайте хотя бы один тип урока для продолжения.')
+
             ->modelLabel('Тип урока')
             ->pluralModelLabel('Типы уроков')
             ->emptyStateHeading('Типы уроков не добавлены')
-            ->emptyStateDescription('Создайте свой первый тип урока для старта.')
+            ->emptyStateDescription('Добавьте хотя бы один тип урока для старта.')
+            ->paginated(false)
             ->headerActions([
                 Tables\Actions\CreateAction::make()
-                    ->label('Создать')
+                    ->label('Добавить')
+                    ->createAnother(false)
+                    ->visible(fn() => LessonType::where('user_id', Auth::id())->count() < 2)
                     ->modalHeading('Добавить тип урока')
                     ->form([
                         Forms\Components\Select::make('type')
                             ->label('Тип')
-                            ->options([
-                                LessonType::TYPE_INDIVIDUAL => 'Индивидуальный',
-                                LessonType::TYPE_GROUP => 'Групповой',
-                            ])
+                            ->options(function () {
+                                $existingTypes = LessonType::where('user_id', Auth::id())
+                                    ->pluck('type')
+                                    ->toArray();
+
+                                $types = [
+                                    LessonType::TYPE_INDIVIDUAL => 'Индивидуальный',
+                                    LessonType::TYPE_GROUP => 'Групповой',
+                                ];
+
+                                return array_diff_key($types, array_flip($existingTypes));
+                            })
                             ->required(),
-                        Forms\Components\TextInput::make('price')->label('Цена')->numeric()->suffix('₽')->required(),
+                        Forms\Components\Grid::make(2)
+                            ->schema([
+                                Forms\Components\TextInput::make('price')->label('Цена за урок')->numeric()->suffix('₽')->required(),
+                                Forms\Components\Select::make('payment_type')
+                                    ->label('Тип оплаты')
+                                    ->options([
+                                        'per_lesson' => 'Поурочная оплата',
+                                        'monthly' => 'Помесячная оплата',
+                                    ])
+                                    ->default('per_lesson')
+                                    ->required()
+                                    ->selectablePlaceholder(false),
+                            ]),
                         Forms\Components\TextInput::make('duration')->label('Длительность')->numeric()->suffix('мин')->required(),
                     ])
                     ->mutateFormDataUsing(function (array $data): array {
@@ -124,7 +147,19 @@ class Onboarding extends Page implements HasForms, HasTable
                             LessonType::TYPE_GROUP => 'Групповой',
                         ])
                         ->required(),
-                    Forms\Components\TextInput::make('price')->label('Цена')->numeric()->suffix('₽')->required(),
+                    Forms\Components\Grid::make(2)
+                        ->schema([
+                            Forms\Components\TextInput::make('price')->label('Цена за урок')->numeric()->suffix('₽')->required(),
+                            Forms\Components\Select::make('payment_type')
+                                ->label('Тип оплаты')
+                                ->options([
+                                    'per_lesson' => 'Поурочная оплата',
+                                    'monthly' => 'Помесячная оплата',
+                                ])
+                                ->default('per_lesson')
+                                ->required()
+                                ->selectablePlaceholder(false),
+                        ]),
                     Forms\Components\TextInput::make('duration')->label('Длительность')->numeric()->suffix('мин')->required(),
                 ]),
                 Tables\Actions\DeleteAction::make(),
