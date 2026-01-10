@@ -106,7 +106,15 @@ class Onboarding extends Page implements HasForms, HasTable
 
                                 return array_diff_key($types, array_flip($existingTypes));
                             })
-                            ->required(),
+                            ->required()
+                            ->live()
+                            ->afterStateUpdated(function ($state, \Filament\Forms\Set $set) {
+                                if ($state === LessonType::TYPE_INDIVIDUAL) {
+                                    $set('payment_type', 'per_lesson');
+                                } elseif ($state === LessonType::TYPE_GROUP) {
+                                    $set('payment_type', 'monthly');
+                                }
+                            }),
                         Forms\Components\Grid::make(2)
                             ->schema([
                                 Forms\Components\TextInput::make('price')->label('Цена за урок')->numeric()->suffix('₽')->required(),
@@ -136,7 +144,13 @@ class Onboarding extends Page implements HasForms, HasTable
                         default => $state,
                     }),
                 Tables\Columns\TextColumn::make('price')->label('Цена')->money('RUB'),
-                Tables\Columns\TextColumn::make('duration')->label('Длительность')->suffix(' мин'),
+                Tables\Columns\TextColumn::make('payment_type')
+                    ->label('Тип оплаты')
+                    ->formatStateUsing(fn(string $state): string => match ($state) {
+                        'per_lesson' => 'Поурочная',
+                        'monthly' => 'Помесячная',
+                        default => $state,
+                    }),
             ])
             ->actions([
                 Tables\Actions\EditAction::make()->form([
@@ -146,7 +160,15 @@ class Onboarding extends Page implements HasForms, HasTable
                             LessonType::TYPE_INDIVIDUAL => 'Индивидуальный',
                             LessonType::TYPE_GROUP => 'Групповой',
                         ])
-                        ->required(),
+                        ->required()
+                        ->live()
+                        ->afterStateUpdated(function ($state, \Filament\Forms\Set $set) {
+                            if ($state === LessonType::TYPE_INDIVIDUAL) {
+                                $set('payment_type', 'per_lesson');
+                            } elseif ($state === LessonType::TYPE_GROUP) {
+                                $set('payment_type', 'monthly');
+                            }
+                        }),
                     Forms\Components\Grid::make(2)
                         ->schema([
                             Forms\Components\TextInput::make('price')->label('Цена за урок')->numeric()->suffix('₽')->required(),

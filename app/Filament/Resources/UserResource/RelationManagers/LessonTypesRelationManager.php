@@ -28,7 +28,15 @@ class LessonTypesRelationManager extends RelationManager
                         \App\Models\LessonType::TYPE_INDIVIDUAL => 'Индивидуальный',
                         \App\Models\LessonType::TYPE_GROUP => 'Групповой',
                     ])
-                    ->required(),
+                    ->required()
+                    ->live()
+                    ->afterStateUpdated(function ($state, \Filament\Forms\Set $set) {
+                        if ($state === \App\Models\LessonType::TYPE_INDIVIDUAL) {
+                            $set('payment_type', 'per_lesson');
+                        } elseif ($state === \App\Models\LessonType::TYPE_GROUP) {
+                            $set('payment_type', 'monthly');
+                        }
+                    }),
                 Forms\Components\Grid::make(2)
                     ->schema([
                         Forms\Components\TextInput::make('price')
@@ -73,9 +81,13 @@ class LessonTypesRelationManager extends RelationManager
                 Tables\Columns\TextColumn::make('price')
                     ->label('Цена')
                     ->money('rub'),
-                Tables\Columns\TextColumn::make('duration')
-                    ->label('Длительность')
-                    ->suffix(' мин'),
+                Tables\Columns\TextColumn::make('payment_type')
+                    ->label('Тип оплаты')
+                    ->formatStateUsing(fn(string $state): string => match ($state) {
+                        'per_lesson' => 'Поурочная',
+                        'monthly' => 'Помесячная',
+                        default => $state,
+                    }),
             ])
             ->filters([
                 //
@@ -99,7 +111,15 @@ class LessonTypesRelationManager extends RelationManager
 
                                 return array_diff_key($types, array_flip($existingTypes));
                             })
-                            ->required(),
+                            ->required()
+                            ->live()
+                            ->afterStateUpdated(function ($state, \Filament\Forms\Set $set) {
+                                if ($state === \App\Models\LessonType::TYPE_INDIVIDUAL) {
+                                    $set('payment_type', 'per_lesson');
+                                } elseif ($state === \App\Models\LessonType::TYPE_GROUP) {
+                                    $set('payment_type', 'monthly');
+                                }
+                            }),
                         Forms\Components\Grid::make(2)
                             ->schema([
                                 Forms\Components\TextInput::make('price')
