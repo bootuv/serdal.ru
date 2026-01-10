@@ -103,7 +103,7 @@ class ViewRoom extends ViewRecord
             ->schema([
                 Section::make('Основная информация')
                     ->schema([
-                        Grid::make(2)
+                        Grid::make(3)
                             ->schema([
 
 
@@ -130,7 +130,28 @@ class ViewRoom extends ViewRecord
                                         );
                                     }),
 
+                                TextEntry::make('base_price')
+                                    ->label('Цена')
+                                    ->getStateUsing(function (Room $record) {
+                                        $lessonPrice = $record->base_price ?? $record->default_price;
+                                        $basePrice = $record->default_price;
 
+                                        if (!$lessonPrice) {
+                                            return new HtmlString('<span class="text-gray-400">Не указана</span>');
+                                        }
+
+                                        $priceText = number_format($lessonPrice, 0, '', ' ') . ' ₽';
+
+                                        // Check if lesson has custom price that's lower than base
+                                        if ($record->base_price !== null && $basePrice && $record->base_price < $basePrice) {
+                                            $discount = round((1 - $record->base_price / $basePrice) * 100);
+                                            return new HtmlString(
+                                                '<span class="font-medium">' . $priceText . '</span> <span class="text-green-600 dark:text-green-400 text-sm ml-1">−' . $discount . '%</span>'
+                                            );
+                                        }
+
+                                        return new HtmlString('<span class="font-medium">' . $priceText . '</span>');
+                                    }),
 
                                 \Filament\Infolists\Components\ViewEntry::make('next_start')
                                     ->hiddenLabel()
@@ -153,16 +174,36 @@ class ViewRoom extends ViewRecord
                                     return new HtmlString('<span class="text-gray-400">Ученики не добавлены</span>');
                                 }
 
-                                $html = '<div class="flex flex-wrap gap-3">';
+                                // Current lesson price
+                                $lessonPrice = $record->base_price ?? $record->default_price;
+                                $defaultPriceLabel = $lessonPrice ? number_format($lessonPrice, 0, '', ' ') . ' ₽' : 'не задана';
+
+                                $html = '<div class="flex flex-wrap gap-2">';
                                 foreach ($participants as $participant) {
+                                    $customPrice = $participant->pivot->custom_price;
+
+                                    // Calculate discount dynamically relative to lesson price
+                                    $discountDisplay = '';
+                                    if ($customPrice !== null && $lessonPrice && $customPrice < $lessonPrice) {
+                                        $discount = round((1 - $customPrice / $lessonPrice) * 100);
+                                        $discountDisplay = ' <span class="text-green-600 dark:text-green-400 text-sm">(-' . $discount . '%)</span>';
+                                    }
+
+                                    $priceDisplay = $customPrice !== null
+                                        ? '<span class="text-gray-500">' . number_format($customPrice, 0, '', ' ') . ' ₽</span>'
+                                        : '<span class="text-gray-500">' . $defaultPriceLabel . '</span>';
+
                                     $html .= sprintf(
-                                        '<div class="flex items-center gap-2 bg-gray-100 dark:bg-gray-800 rounded-lg px-3 py-2">
+                                        '<div class="inline-flex items-center gap-2 bg-gray-100 dark:bg-gray-800 rounded-lg px-3 py-2">
                                             <img src="%s" class="w-8 h-8 rounded-full object-cover" alt="%s">
                                             <span class="text-sm font-medium">%s</span>
+                                            <span class="ml-1">%s%s</span>
                                         </div>',
                                         e($participant->avatar_url),
                                         e($participant->name),
-                                        e($participant->name)
+                                        e($participant->name),
+                                        $priceDisplay,
+                                        $discountDisplay
                                     );
                                 }
                                 $html .= '</div>';
@@ -170,6 +211,109 @@ class ViewRoom extends ViewRecord
                                 return new HtmlString($html);
                             })
                             ->columnSpanFull(),
+                    ])
+                    ->headerActions([
+                        \Filament\Infolists\Components\Actions\Action::make('edit_prices')
+                            ->label('Изменить цены')
+                            ->icon('heroicon-o-currency-dollar')
+                            ->color('gray')
+                            ->modalHeading('Индивидуальные цены')
+                            ->modalWidth('md')
+                            ->form(function (Room $record) {
+                                $participants = $record->participants;
+                                if ($participants->isEmpty()) {
+                                    return [
+                                        \Filament\Forms\Components\Placeholder::make('empty')
+                                            ->content('Нет учеников для настройки цен')
+                                            ->hiddenLabel(),
+                                    ];
+                                }
+
+                                // Lesson price (room base_price or teacher's default)
+                                $lessonPrice = $record->base_price ?? $record->default_price;
+                                // Teacher's base price from profile
+                                $teacherBasePrice = $record->default_price;
+
+                                $priceHint = "Цена занятия не задана";
+                                if ($lessonPrice) {
+                                    $priceHint = "Цена занятия: " . number_format($lessonPrice, 0, '', ' ') . " ₽";
+                                    // Show discount if lesson price is lower than teacher's base
+                                    if ($record->base_price !== null && $teacherBasePrice && $record->base_price < $teacherBasePrice) {
+                                        $discount = round((1 - $record->base_price / $teacherBasePrice) * 100);
+                                        $priceHint .= ' <span class="text-green-600 dark:text-green-400">−' . $discount . '%</span>';
+                                    }
+                                }
+
+                                $fields = [
+                                    \Filament\Forms\Components\Placeholder::make('hint')
+                                        ->content(new \Illuminate\Support\HtmlString($priceHint))
+                                        ->hiddenLabel(),
+                                ];
+
+                                foreach ($participants as $participant) {
+                                    $avatarHtml = '<div class="flex items-center gap-2"><img src="' . e($participant->avatar_url) . '" class="w-6 h-6 rounded-full object-cover" alt="' . e($participant->name) . '"><span>' . e($participant->name) . '</span></div>';
+
+                                    $fields[] = \Filament\Forms\Components\Section::make(new \Illuminate\Support\HtmlString($avatarHtml))
+                                        ->compact()
+                                        ->schema([
+                                            \Filament\Forms\Components\Grid::make(2)
+                                                ->schema([
+                                                    \Filament\Forms\Components\TextInput::make("prices.{$participant->id}.custom_price")
+                                                        ->hiddenLabel()
+                                                        ->numeric()
+                                                        ->suffix('₽')
+                                                        ->placeholder($lessonPrice ? number_format($lessonPrice, 0, '', ' ') : 'По умолчанию')
+                                                        ->default($participant->pivot->custom_price)
+                                                        ->live(debounce: 300),
+                                                    \Filament\Forms\Components\Placeholder::make("prices.{$participant->id}.discount_display")
+                                                        ->hiddenLabel()
+                                                        ->extraAttributes(['class' => 'h-10 flex items-center'])
+                                                        ->content(function (\Filament\Forms\Get $get) use ($teacherBasePrice, $lessonPrice, $participant) {
+                                                            $state = $get("prices.{$participant->id}.custom_price");
+                                                            // Calculate discount relative to teacher's base price (total discount)
+                                                            $comparePrice = $teacherBasePrice ?? $lessonPrice;
+                                                            if (!$comparePrice || !$state || $state >= $comparePrice) {
+                                                                return '';
+                                                            }
+                                                            $discount = round((1 - $state / $comparePrice) * 100);
+                                                            return new \Illuminate\Support\HtmlString(
+                                                                '<span class="text-green-600 dark:text-green-400 font-medium">Скидка: ' . $discount . '%</span>'
+                                                            );
+                                                        }),
+                                                ]),
+                                        ]);
+                                }
+
+                                return $fields;
+                            })
+                            ->action(function (Room $record, array $data) {
+                                if (empty($data['prices'])) {
+                                    return;
+                                }
+
+                                $defaultPrice = $record->getEffectivePrice();
+
+                                foreach ($data['prices'] as $studentId => $priceData) {
+                                    $customPrice = $priceData['custom_price'] !== '' ? $priceData['custom_price'] : null;
+
+                                    // Auto-calculate discount note
+                                    $priceNote = null;
+                                    if ($customPrice !== null && $defaultPrice && $customPrice < $defaultPrice) {
+                                        $discount = round((1 - $customPrice / $defaultPrice) * 100);
+                                        $priceNote = "Скидка {$discount}%";
+                                    }
+
+                                    $record->participants()->updateExistingPivot($studentId, [
+                                        'custom_price' => $customPrice,
+                                        'price_note' => $priceNote,
+                                    ]);
+                                }
+
+                                \Filament\Notifications\Notification::make()
+                                    ->title('Цены обновлены')
+                                    ->success()
+                                    ->send();
+                            }),
                     ])
                     ->collapsible(),
 

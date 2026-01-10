@@ -78,7 +78,59 @@ class RoomResource extends Resource
                         </div>
                     ")
                     ->extraAttributes(['class' => 'student-select'])
+                    ->live()
+                    ->afterStateUpdated(function (Forms\Set $set, ?array $state) {
+                        // Determine type based on participant count
+                        $count = is_array($state) ? count($state) : 0;
+                        $type = $count > 1 ? 'group' : 'individual';
+
+                        // Update type field
+                        $set('type', $type);
+
+                        // Get price for the determined type
+                        $lessonType = auth()->user()?->lessonTypes()
+                            ->where('type', $type)
+                            ->first();
+
+                        if ($lessonType) {
+                            $set('base_price', $lessonType->price);
+                        }
+                    })
                     ->columnSpanFull(),
+
+                Forms\Components\Section::make('Стоимость занятия')
+                    ->description('Цена за одно занятие')
+                    ->schema([
+                        Forms\Components\TextInput::make('base_price')
+                            ->label('Цена')
+                            ->numeric()
+                            ->suffix('₽')
+                            ->default(function () {
+                                // Get default price from current user's lesson types
+                                $lessonType = auth()->user()?->lessonTypes()
+                                    ->where('type', 'individual')
+                                    ->first();
+                                return $lessonType?->price;
+                            })
+                            ->helperText(function (Forms\Get $get) {
+                                $participants = $get('participants');
+                                $count = is_array($participants) ? count($participants) : 0;
+                                $type = $count > 1 ? 'group' : 'individual';
+
+                                $lessonType = auth()->user()?->lessonTypes()
+                                    ->where('type', $type)
+                                    ->first();
+                                $defaultPrice = $lessonType?->price;
+                                $typeLabel = $type === 'group' ? 'группового' : 'индивидуального';
+
+                                return $defaultPrice
+                                    ? "Базовая цена {$typeLabel} занятия: " . number_format($defaultPrice, 0, '', ' ') . " ₽"
+                                    : 'Задайте цену или настройте типы уроков в профиле.';
+                            }),
+                    ])
+                    ->collapsible()
+                    ->collapsed(fn(?Room $record) => $record === null || $record->base_price === null),
+
                 Forms\Components\FileUpload::make('presentations')
                     ->label('Презентации')
                     ->multiple()

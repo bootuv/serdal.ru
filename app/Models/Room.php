@@ -69,6 +69,7 @@ class Room extends Model
         'duration',
         'logout_url',
         'next_start',
+        'base_price',
     ];
 
     /**
@@ -98,7 +99,7 @@ class Room extends Model
     }
     public function participants()
     {
-        return $this->belongsToMany(User::class);
+        return $this->belongsToMany(User::class)->withPivot(['custom_price', 'price_note'])->withTimestamps();
     }
 
     public function messages()
@@ -197,5 +198,44 @@ class Room extends Model
             'next_start' => $earliestDate,
             'duration' => $duration ?: 45, // Fallback to 45 if 0 or null
         ]);
+    }
+
+    /**
+     * Get effective price for a student in this room.
+     * Priority: custom_price (pivot) → base_price (room) → lesson_type price (teacher)
+     */
+    public function getEffectivePrice(?int $studentId = null): ?int
+    {
+        // 1. Check student-specific price
+        if ($studentId) {
+            $participant = $this->participants()->where('user_id', $studentId)->first();
+            if ($participant && $participant->pivot->custom_price !== null) {
+                return $participant->pivot->custom_price;
+            }
+        }
+
+        // 2. Check room base price
+        if ($this->base_price !== null) {
+            return $this->base_price;
+        }
+
+        // 3. Fallback to teacher's lesson type price
+        $lessonType = $this->user?->lessonTypes()
+            ->where('type', $this->type ?? 'individual')
+            ->first();
+
+        return $lessonType?->price;
+    }
+
+    /**
+     * Get the default price from teacher's lesson types based on room type.
+     */
+    public function getDefaultPriceAttribute(): ?int
+    {
+        $lessonType = $this->user?->lessonTypes()
+            ->where('type', $this->type ?? 'individual')
+            ->first();
+
+        return $lessonType?->price;
     }
 }
