@@ -19,7 +19,7 @@ class EditProfile extends Page implements HasForms
 
     protected static string $view = 'filament.app.pages.edit-profile';
 
-    protected static ?int $navigationSort = 8;
+    protected static ?int $navigationSort = 50;
 
     public ?array $data = [];
 
