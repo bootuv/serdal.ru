@@ -94,15 +94,9 @@ class RoomController extends Controller
                     'settings_snapshot' => $createParams,
                 ]);
 
-                // Set logout URL based on user role
-                $user = auth()->user();
-                if ($user->isAdmin()) {
-                    // Admins go to admin panel session view
-                    $createParams['logoutUrl'] = route('filament.admin.resources.meeting-sessions.view', $meetingSession);
-                } else {
-                    // Teachers go to tutor panel session view
-                    $createParams['logoutUrl'] = route('filament.app.resources.meeting-sessions.view', $meetingSession);
-                }
+                // Set logout URL to our redirect controller that handles role-based routing
+                // BBB only allows one logoutUrl per meeting, so we use a controller to handle different roles
+                $createParams['logoutUrl'] = route('session.logout', $meetingSession);
 
                 \Illuminate\Support\Facades\Log::info('BBB Create: logoutUrl being set', [
                     'logoutUrl' => $createParams['logoutUrl'],
@@ -344,16 +338,35 @@ class RoomController extends Controller
                 ];
 
                 // Extract participant details if available
-                if (isset($info['attendees']) && is_array($info['attendees'])) {
-                    foreach ($info['attendees'] as $attendee) {
+                // BBB returns attendees.attendee, which can be an array (multiple) or object (single)
+                $attendeesRaw = $info['attendees']['attendee'] ?? $info['attendees'] ?? null;
+
+                if ($attendeesRaw) {
+                    // Normalize: if single attendee (associative array), wrap in array
+                    if (isset($attendeesRaw['userID'])) {
+                        $attendeesRaw = [$attendeesRaw];
+                    }
+
+                    // Get session for timestamps
+                    $currentSession = \App\Models\MeetingSession::where('room_id', $room->id)
+                        ->where('meeting_id', $room->meeting_id)
+                        ->where('status', 'running')
+                        ->orderByDesc('started_at')
+                        ->first();
+                    $sessionStart = $currentSession?->started_at ?? now();
+
+                    foreach ($attendeesRaw as $attendee) {
                         $analyticsData['participants'][] = [
                             'user_id' => $attendee['userID'] ?? null,
                             'full_name' => $attendee['fullName'] ?? 'Unknown',
                             'role' => $attendee['role'] ?? 'VIEWER',
-                            'is_presenter' => $attendee['isPresenter'] ?? false,
-                            'is_listening_only' => $attendee['isListeningOnly'] ?? false,
-                            'has_joined_voice' => $attendee['hasJoinedVoice'] ?? false,
-                            'has_video' => $attendee['hasVideo'] ?? false,
+                            'is_presenter' => filter_var($attendee['isPresenter'] ?? false, FILTER_VALIDATE_BOOLEAN),
+                            'is_listening_only' => filter_var($attendee['isListeningOnly'] ?? false, FILTER_VALIDATE_BOOLEAN),
+                            'has_joined_voice' => filter_var($attendee['hasJoinedVoice'] ?? false, FILTER_VALIDATE_BOOLEAN),
+                            'has_video' => filter_var($attendee['hasVideo'] ?? false, FILTER_VALIDATE_BOOLEAN),
+                            // Add time tracking - use session timestamps as fallback
+                            'joined_at' => $sessionStart->toIso8601String(),
+                            'left_at' => now()->toIso8601String(),
                         ];
                     }
                 }
