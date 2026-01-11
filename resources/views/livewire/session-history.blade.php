@@ -13,6 +13,7 @@
                                     Посещаемость</th>
                             @endif
                             <th class="px-4 py-3 font-medium text-gray-600 dark:text-gray-300">Длительность</th>
+                            <th class="px-4 py-3 font-medium text-gray-600 dark:text-gray-300">Стоимость</th>
                             <th class="px-4 py-3 font-medium text-gray-600 dark:text-gray-300 text-right whitespace-nowrap">
                                 Участники</th>
                         </tr>
@@ -71,6 +72,37 @@
                                 @endif
                                 <td class="px-4 py-3 text-gray-600 dark:text-gray-400">
                                     {{ $duration }}
+                                </td>
+                                @php
+                                    // Use stored pricing snapshot if available (new sessions)
+                                    $sessionCost = 0;
+                                    if (!empty($session->pricing_snapshot['total_cost'])) {
+                                        $sessionCost = $session->pricing_snapshot['total_cost'];
+                                    } else {
+                                        // Fallback to dynamic calculation for old sessions without snapshot
+                                        $room = $session->room;
+                                        if ($room) {
+                                            $lessonType = $room->user?->lessonTypes?->where('type', $room->type)->first();
+                                            $paymentType = $lessonType?->payment_type ?? 'per_lesson';
+                                            if ($paymentType === 'monthly') {
+                                                foreach ($room->participants as $participant) {
+                                                    $sessionCost += $room->getEffectivePrice($participant->id) ?? 0;
+                                                }
+                                            } else {
+                                                $analytics = $session->analytics_data ?? [];
+                                                $participantsData = $analytics['participants'] ?? [];
+                                                $attendedIds = collect($participantsData)->pluck('user_id')->map(fn($id) => (string) $id)->toArray();
+                                                foreach ($room->participants as $participant) {
+                                                    if (in_array((string) $participant->id, $attendedIds)) {
+                                                        $sessionCost += $room->getEffectivePrice($participant->id) ?? 0;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                @endphp
+                                <td class="px-4 py-3 text-gray-600 dark:text-gray-400">
+                                    {{ number_format($sessionCost, 0, '.', ' ') }} ₽
                                 </td>
                                 @php
                                     $stats = $session->getStudentAttendance();

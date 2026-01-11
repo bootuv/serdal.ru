@@ -112,6 +112,13 @@ class TeacherFinancialStatsWidget extends Widget implements HasForms
         $totalEarnings = 0;
 
         foreach ($sessions as $session) {
+            // Use stored pricing snapshot if available (new sessions)
+            if (!empty($session->pricing_snapshot['total_cost'])) {
+                $totalEarnings += $session->pricing_snapshot['total_cost'];
+                continue;
+            }
+
+            // Fallback to dynamic calculation for old sessions without snapshot
             $room = $session->room;
             if (!$room)
                 continue;

@@ -40,10 +40,11 @@ class ListMeetingSessions extends ListRecords
                 ]);
 
                 if (!$isRunning) {
-                    // Meeting ended, update session
+                    // Meeting ended, update session with pricing snapshot
                     $session->update([
                         'status' => 'completed',
                         'ended_at' => now(),
+                        'pricing_snapshot' => $session->capturePricingSnapshot(),
                     ]);
 
                     // Also update room status

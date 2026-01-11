@@ -379,17 +379,21 @@ class RoomController extends Controller
         $room->update(['is_running' => false]);
         \App\Events\RoomStatusUpdated::dispatch();
 
-        \App\Models\MeetingSession::where('room_id', $room->id)
+        $session = \App\Models\MeetingSession::where('room_id', $room->id)
             ->where('meeting_id', $room->meeting_id)
             ->where('status', 'running')
             ->orderByDesc('started_at')
-            ->first()
-                ?->update([
+            ->first();
+
+        if ($session) {
+            $session->update([
                 'ended_at' => now(),
                 'status' => 'completed',
                 'participant_count' => max($participantCount, 1), // At least the creator
                 'analytics_data' => $analyticsData,
+                'pricing_snapshot' => $session->capturePricingSnapshot(),
             ]);
+        }
 
         return back()->with('success', 'Meeting stopped successfully.');
     }

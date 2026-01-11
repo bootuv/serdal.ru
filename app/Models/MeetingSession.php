@@ -20,6 +20,7 @@ class MeetingSession extends Model
         'participant_count',
         'analytics_data',
         'settings_snapshot',
+        'pricing_snapshot',
     ];
 
     protected $casts = [
@@ -27,6 +28,7 @@ class MeetingSession extends Model
         'ended_at' => 'datetime',
         'analytics_data' => 'array',
         'settings_snapshot' => 'array',
+        'pricing_snapshot' => 'array',
     ];
 
     public function user()
@@ -84,5 +86,69 @@ class MeetingSession extends Model
         }
 
         return ['attended' => $attended, 'total' => $total, 'color' => $color];
+    }
+
+    /**
+     * Capture pricing data at the moment of session completion.
+     * This stores prices as they were when the lesson occurred.
+     */
+    public function capturePricingSnapshot(): array
+    {
+        if (!$this->relationLoaded('room')) {
+            $this->load('room.participants', 'room.user.lessonTypes');
+        }
+
+        $room = $this->room;
+        if (!$room) {
+            return [];
+        }
+
+        // Get payment type from lesson type
+        $lessonType = $room->user?->lessonTypes?->where('type', $room->type)->first();
+        $paymentType = $lessonType?->payment_type ?? 'per_lesson';
+
+        $snapshot = [
+            'payment_type' => $paymentType,
+            'base_price' => $room->base_price,
+            'room_type' => $room->type,
+            'participants' => [],
+            'total_cost' => 0,
+        ];
+
+        // Get attended participant IDs
+        $analytics = $this->analytics_data ?? [];
+        $participantsData = $analytics['participants'] ?? [];
+        $attendedIds = collect($participantsData)
+            ->pluck('user_id')
+            ->map(fn($id) => (string) $id)
+            ->toArray();
+
+        // Calculate prices for each participant
+        foreach ($room->participants as $participant) {
+            $price = $room->getEffectivePrice($participant->id) ?? 0;
+            $attended = in_array((string) $participant->id, $attendedIds);
+
+            $participantData = [
+                'user_id' => $participant->id,
+                'name' => $participant->name,
+                'price' => $price,
+                'attended' => $attended,
+            ];
+
+            $snapshot['participants'][] = $participantData;
+
+            // Calculate total based on payment type
+            if ($paymentType === 'monthly') {
+                // Monthly: all participants count
+                $snapshot['total_cost'] += $price;
+            } else {
+                // Per-lesson: only attended participants
+                if ($attended) {
+                    $snapshot['total_cost'] += $price;
+                }
+            }
+        }
+
+        return $snapshot;
     }
 }
