@@ -43,6 +43,27 @@ class MeetingSession extends Model
 
     public function getStudentAttendance(): array
     {
+        // Use pricing_snapshot if available (historical data)
+        if (!empty($this->pricing_snapshot['participants'])) {
+            $participants = $this->pricing_snapshot['participants'];
+            $total = count($participants);
+            $attended = collect($participants)->filter(fn($p) => $p['attended'] ?? false)->count();
+
+            if ($total === 0) {
+                return ['attended' => 0, 'total' => 0, 'color' => 'gray'];
+            }
+
+            $color = '#ef4444'; // Red
+            if ($attended === $total) {
+                $color = '#22c55e'; // Green
+            } elseif ($attended > $total / 2) {
+                $color = '#f59e0b'; // Amber/Orange
+            }
+
+            return ['attended' => $attended, 'total' => $total, 'color' => $color];
+        }
+
+        // Fallback to dynamic calculation for old sessions without snapshot
         if (!$this->relationLoaded('room')) {
             $this->load('room.participants');
         }
