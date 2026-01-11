@@ -34,6 +34,17 @@ class EditRoom extends EditRecord
         return $data;
     }
 
+    protected function mutateFormDataBeforeSave(array $data): array
+    {
+        // If custom price is disabled, set base_price to null
+        if (empty($data['custom_price_enabled'])) {
+            $data['base_price'] = null;
+        }
+        unset($data['custom_price_enabled']);
+
+        return $data;
+    }
+
     protected string $originalSchedulesHash = '';
     protected array $previousParticipantIds = [];
 
