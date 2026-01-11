@@ -107,7 +107,7 @@ class RoomResource extends Resource
                     ->schema([
                         Forms\Components\Hidden::make('custom_price_enabled')
                             ->default(false)
-                            ->dehydrated(false)
+                            ->dehydrated(true)
                             ->afterStateHydrated(function (Forms\Components\Hidden $component, Forms\Get $get, ?Model $record) {
                                 if (!$record)
                                     return;

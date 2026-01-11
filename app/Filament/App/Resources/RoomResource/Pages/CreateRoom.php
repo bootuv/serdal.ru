@@ -26,6 +26,12 @@ class CreateRoom extends CreateRecord
             }
         }
 
+        // If custom price is disabled, set base_price to null (so it falls back to lesson type price)
+        if (empty($data['custom_price_enabled'])) {
+            $data['base_price'] = null;
+        }
+        unset($data['custom_price_enabled']);
+
         return $data;
     }
 

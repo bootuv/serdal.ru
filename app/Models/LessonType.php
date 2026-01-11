@@ -20,4 +20,20 @@ class LessonType extends Model
     ];
 
     use HasFactory;
+
+    protected static function booted()
+    {
+        static::updated(function (LessonType $lessonType) {
+            if ($lessonType->isDirty('price')) {
+                $originalPrice = $lessonType->getOriginal('price');
+
+                // Find rooms with the OLD price and set them to NULL (dynamic)
+                // This upgrades legacy data to the new system where NULL = "use lesson type price"
+                \App\Models\Room::where('user_id', $lessonType->user_id)
+                    ->where('type', $lessonType->type)
+                    ->where('base_price', $originalPrice)
+                    ->update(['base_price' => null]);
+            }
+        });
+    }
 }
