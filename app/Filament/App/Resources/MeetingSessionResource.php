@@ -89,12 +89,12 @@ class MeetingSessionResource extends Resource
                 Tables\Columns\TextColumn::make('session_cost')
                     ->label('Стоимость занятия')
                     ->state(function (MeetingSession $record) {
-                        // Use stored pricing snapshot if available (new sessions)
-                        if (!empty($record->pricing_snapshot['total_cost'])) {
+                        // Use stored pricing snapshot if available (immutable historical data)
+                        if (isset($record->pricing_snapshot['total_cost'])) {
                             return $record->pricing_snapshot['total_cost'];
                         }
 
-                        // Fallback to dynamic calculation for old sessions without snapshot
+                        // Fallback to dynamic calculation ONLY for old sessions without snapshot
                         $room = $record->room;
                         if (!$room)
                             return 0;

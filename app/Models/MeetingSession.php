@@ -43,8 +43,8 @@ class MeetingSession extends Model
 
     public function getStudentAttendance(): array
     {
-        // Use pricing_snapshot if available (historical data)
-        if (!empty($this->pricing_snapshot['participants'])) {
+        // Use pricing_snapshot if available (immutable historical data)
+        if (isset($this->pricing_snapshot['participants']) && is_array($this->pricing_snapshot['participants'])) {
             $participants = $this->pricing_snapshot['participants'];
             $total = count($participants);
             $attended = collect($participants)->filter(fn($p) => $p['attended'] ?? false)->count();

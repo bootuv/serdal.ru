@@ -74,9 +74,9 @@
                                     {{ $duration }}
                                 </td>
                                 @php
-                                    // Use stored pricing snapshot if available (new sessions)
+                                    // Use stored pricing snapshot if available (immutable historical data)
                                     $sessionCost = 0;
-                                    if (!empty($session->pricing_snapshot['total_cost'])) {
+                                    if (isset($session->pricing_snapshot['total_cost'])) {
                                         $sessionCost = $session->pricing_snapshot['total_cost'];
                                     } else {
                                         // Fallback to dynamic calculation for old sessions without snapshot
