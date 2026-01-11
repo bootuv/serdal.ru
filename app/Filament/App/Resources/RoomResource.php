@@ -103,13 +103,34 @@ class RoomResource extends Resource
 
                 Forms\Components\Section::make('Стоимость занятия')
                     ->description('Цена за одно занятие')
+                    ->visible(fn(Forms\Get $get) => !empty($get('participants')))
                     ->schema([
-                        Forms\Components\TextInput::make('base_price')
-                            ->label('Цена')
-                            ->numeric()
-                            ->suffix('₽')
-                            ->live()
-                            ->helperText(function (Forms\Get $get) {
+                        Forms\Components\Hidden::make('custom_price_enabled')
+                            ->default(false)
+                            ->dehydrated(false)
+                            ->afterStateHydrated(function (Forms\Components\Hidden $component, Forms\Get $get, ?Model $record) {
+                                if (!$record)
+                                    return;
+
+                                // Check if base_price differs from lesson type price
+                                $participants = $record->participants ?? collect();
+                                $count = $participants->count();
+                                $type = $count > 1 ? 'group' : 'individual';
+
+                                $lessonType = auth()->user()?->lessonTypes()
+                                    ->where('type', $type)
+                                    ->first();
+                                $defaultPrice = $lessonType?->price;
+
+                                // If base_price is set and differs from default, enable custom mode
+                                if ($record->base_price !== null && $record->base_price != $defaultPrice) {
+                                    $component->state(true);
+                                }
+                            }),
+
+                        Forms\Components\Placeholder::make('base_price_display')
+                            ->label('Базовая цена')
+                            ->content(function (Forms\Get $get) {
                                 $participants = $get('participants');
 
                                 // Normalize to array of IDs
@@ -121,18 +142,58 @@ class RoomResource extends Resource
                                 }
 
                                 if (empty($ids)) {
+                                    return 'Добавьте учеников для отображения цены';
+                                }
+
+                                // Count real existing users
+                                $count = \App\Models\User::whereIn('id', $ids)->count();
+
+                                if ($count === 0) {
+                                    return 'Добавьте учеников для отображения цены';
+                                }
+
+                                $type = $count > 1 ? 'group' : 'individual';
+                                $lessonType = auth()->user()?->lessonTypes()
+                                    ->where('type', $type)
+                                    ->first();
+
+                                if (!$lessonType) {
+                                    $profileUrl = \App\Filament\App\Pages\EditProfile::getUrl();
+                                    $typeLabel = $type === 'group' ? 'групповых' : 'индивидуальных';
+                                    return new \Illuminate\Support\HtmlString(
+                                        "Цена для {$typeLabel} занятий не задана в <a href=\"{$profileUrl}\" class=\"text-primary-600 hover:underline\">профиле</a>"
+                                    );
+                                }
+
+                                return number_format($lessonType->price, 0, '', ' ') . ' ₽';
+                            })
+                            ->visible(fn(Forms\Get $get) => !$get('custom_price_enabled')),
+
+                        Forms\Components\TextInput::make('base_price')
+                            ->label('Своя цена')
+                            ->numeric()
+                            ->suffix('₽')
+                            ->visible(fn(Forms\Get $get) => $get('custom_price_enabled'))
+                            ->helperText(function (Forms\Get $get) {
+                                $participants = $get('participants');
+
+                                $ids = [];
+                                if ($participants instanceof \Illuminate\Support\Collection) {
+                                    $ids = $participants->toArray();
+                                } elseif (is_array($participants)) {
+                                    $ids = $participants;
+                                }
+
+                                if (empty($ids)) {
                                     return null;
                                 }
 
-                                // Count real existing users to avoid "ghost" participants
                                 $count = \App\Models\User::whereIn('id', $ids)->count();
-
                                 if ($count === 0) {
                                     return null;
                                 }
 
                                 $type = $count > 1 ? 'group' : 'individual';
-
                                 $lessonType = auth()->user()?->lessonTypes()
                                     ->where('type', $type)
                                     ->first();
@@ -143,11 +204,38 @@ class RoomResource extends Resource
                                     return "Базовая цена {$typeLabel} занятия: " . number_format($defaultPrice, 0, '', ' ') . " ₽";
                                 }
 
-                                $profileUrl = \App\Filament\App\Pages\EditProfile::getUrl();
-                                return new \Illuminate\Support\HtmlString(
-                                    "Базовая цена {$typeLabel} занятия не задана в <a href=\"{$profileUrl}\" class=\"text-primary-600 hover:underline\">профиле</a>"
-                                );
+                                return null;
                             }),
+
+                        Forms\Components\Actions::make([
+                            Forms\Components\Actions\Action::make('toggle_custom_price')
+                                ->label(fn(Forms\Get $get) => $get('custom_price_enabled') ? 'Использовать базовую цену' : 'Изменить')
+                                ->icon(fn(Forms\Get $get) => $get('custom_price_enabled') ? 'heroicon-o-arrow-uturn-left' : 'heroicon-o-pencil')
+                                ->color(fn(Forms\Get $get) => $get('custom_price_enabled') ? 'gray' : 'primary')
+                                ->size('sm')
+                                ->action(function (Forms\Set $set, Forms\Get $get) {
+                                    $newState = !$get('custom_price_enabled');
+                                    $set('custom_price_enabled', $newState);
+
+                                    if (!$newState) {
+                                        // Reset to base price when switching back
+                                        $participants = $get('participants');
+                                        $ids = [];
+                                        if ($participants instanceof \Illuminate\Support\Collection) {
+                                            $ids = $participants->toArray();
+                                        } elseif (is_array($participants)) {
+                                            $ids = $participants;
+                                        }
+
+                                        $count = \App\Models\User::whereIn('id', $ids)->count();
+                                        $type = $count > 1 ? 'group' : 'individual';
+                                        $lessonType = auth()->user()?->lessonTypes()
+                                            ->where('type', $type)
+                                            ->first();
+                                        $set('base_price', $lessonType?->price);
+                                    }
+                                }),
+                        ])->visible(fn(Forms\Get $get) => !empty($get('participants'))),
                     ]),
 
                 Forms\Components\FileUpload::make('presentations')
