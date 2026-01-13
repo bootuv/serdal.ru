@@ -122,6 +122,7 @@ class RoomResource extends Resource
                     ->schema([
                         Forms\Components\Hidden::make('custom_price_enabled')
                             ->default(false)
+                            ->live()
                             ->dehydrated(true)
                             ->afterStateHydrated(function (Forms\Components\Hidden $component, Forms\Get $get, ?Model $record) {
                                 if (!$record)
@@ -154,7 +155,14 @@ class RoomResource extends Resource
                                         $participants = $get('participants');
                                         $teacherId = $get('user_id');
 
-                                        $ids = is_array($participants) ? $participants : [];
+                                        // Handle both array and Collection, and deduplicate
+                                        $ids = [];
+                                        if ($participants instanceof \Illuminate\Support\Collection) {
+                                            $ids = $participants->unique()->values()->toArray();
+                                        } elseif (is_array($participants)) {
+                                            $ids = array_values(array_unique($participants));
+                                        }
+
                                         if (empty($ids))
                                             return 'Добавьте учеников';
 
@@ -200,7 +208,14 @@ class RoomResource extends Resource
                                         $participants = $get('participants');
                                         $teacherId = $get('user_id');
 
-                                        $ids = is_array($participants) ? $participants : [];
+                                        // Handle both array and Collection, and deduplicate
+                                        $ids = [];
+                                        if ($participants instanceof \Illuminate\Support\Collection) {
+                                            $ids = $participants->unique()->values()->toArray();
+                                        } elseif (is_array($participants)) {
+                                            $ids = array_values(array_unique($participants));
+                                        }
+
                                         if (empty($ids))
                                             return null;
 
@@ -233,7 +248,15 @@ class RoomResource extends Resource
 
                                             $participants = $get('participants');
                                             $teacherId = $get('user_id');
-                                            $ids = is_array($participants) ? $participants : [];
+
+                                            // Handle both array and Collection, and deduplicate
+                                            $ids = [];
+                                            if ($participants instanceof \Illuminate\Support\Collection) {
+                                                $ids = $participants->unique()->values()->toArray();
+                                            } elseif (is_array($participants)) {
+                                                $ids = array_values(array_unique($participants));
+                                            }
+
                                             $count = \App\Models\User::whereIn('id', $ids)->count();
                                             $type = $count > 1 ? 'group' : 'individual';
 

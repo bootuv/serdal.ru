@@ -131,6 +131,7 @@ class RoomResource extends Resource
                     ->schema([
                         Forms\Components\Hidden::make('custom_price_enabled')
                             ->default(false)
+                            ->live()
                             ->dehydrated(true)
                             ->afterStateHydrated(function (Forms\Components\Hidden $component, Forms\Get $get, ?Model $record) {
                                 if (!$record)
@@ -157,12 +158,22 @@ class RoomResource extends Resource
                                     ->label('Базовая цена за одно занятие')
                                     ->content(function (Forms\Get $get) {
                                         $participants = $get('participants');
-                                        $count = is_array($participants) ? count($participants) : 0;
+
+                                        // Handle both array and Collection, and deduplicate
+                                        $ids = [];
+                                        if ($participants instanceof \Illuminate\Support\Collection) {
+                                            $ids = $participants->unique()->values()->toArray();
+                                        } elseif (is_array($participants)) {
+                                            $ids = array_values(array_unique($participants));
+                                        }
+
+                                        $count = count($ids);
 
                                         if ($count === 0)
                                             return '—';
 
                                         $type = $count > 1 ? 'group' : 'individual';
+
                                         $lessonType = auth()->user()?->lessonTypes()
                                             ->where('type', $type)
                                             ->first();
@@ -198,7 +209,16 @@ class RoomResource extends Resource
                                     ->suffix('₽')
                                     ->helperText(function (Forms\Get $get) {
                                         $participants = $get('participants');
-                                        $count = is_array($participants) ? count($participants) : 0;
+
+                                        // Handle both array and Collection, and deduplicate
+                                        $ids = [];
+                                        if ($participants instanceof \Illuminate\Support\Collection) {
+                                            $ids = $participants->unique()->values()->toArray();
+                                        } elseif (is_array($participants)) {
+                                            $ids = array_values(array_unique($participants));
+                                        }
+
+                                        $count = count($ids);
                                         $type = $count > 1 ? 'group' : 'individual';
 
                                         $lessonType = auth()->user()?->lessonTypes()
@@ -223,7 +243,16 @@ class RoomResource extends Resource
                                             $set('custom_price_enabled', false);
 
                                             $participants = $get('participants');
-                                            $count = is_array($participants) ? count($participants) : 0;
+
+                                            // Handle both array and Collection, and deduplicate
+                                            $ids = [];
+                                            if ($participants instanceof \Illuminate\Support\Collection) {
+                                                $ids = $participants->unique()->values()->toArray();
+                                            } elseif (is_array($participants)) {
+                                                $ids = array_values(array_unique($participants));
+                                            }
+
+                                            $count = count($ids);
                                             $type = $count > 1 ? 'group' : 'individual';
 
                                             $lessonType = auth()->user()?->lessonTypes()
