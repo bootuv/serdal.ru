@@ -70,10 +70,6 @@ class RoomResource extends Resource
                 Forms\Components\Hidden::make('type')
                     ->default('individual')
                     ->dehydrated(),
-                Forms\Components\Textarea::make('welcome_msg')
-                    ->label('Приветственное сообщение')
-                    ->maxLength(65535)
-                    ->columnSpanFull(),
                 Forms\Components\Select::make('participants')
                     ->label('Ученики')
                     ->relationship('participants', 'name', fn(Builder $query) => $query->where('role', 'student'))
@@ -96,6 +92,7 @@ class RoomResource extends Resource
                             // No students selected - clear type and price
                             $set('type', null);
                             $set('base_price', null);
+                            $set('custom_price_enabled', false);
                             return;
                         }
 
@@ -103,19 +100,19 @@ class RoomResource extends Resource
                         $type = $count > 1 ? 'group' : 'individual';
                         $set('type', $type);
 
-                        // Get owner (teacher)
-                        $teacherId = $get('user_id');
-                        if (!$teacherId)
-                            return;
+                        // Only update base_price if custom price is NOT enabled
+                        if (!$get('custom_price_enabled')) {
+                            $teacherId = $get('user_id');
+                            if (!$teacherId)
+                                return;
 
-                        $teacher = \App\Models\User::find($teacherId);
+                            $teacher = \App\Models\User::find($teacherId);
+                            $lessonType = $teacher?->lessonTypes()
+                                ->where('type', $type)
+                                ->first();
 
-                        // Get price for the determined type
-                        $lessonType = $teacher?->lessonTypes()
-                            ->where('type', $type)
-                            ->first();
-
-                        $set('base_price', $lessonType?->price);
+                            $set('base_price', $lessonType?->price);
+                        }
                     })
                     ->columnSpanFull(),
 

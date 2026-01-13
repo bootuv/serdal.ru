@@ -39,9 +39,25 @@ class RoomResource extends Resource
                     ->maxLength(255),
                 Forms\Components\Hidden::make('type')
                     ->dehydrated(),
-                Forms\Components\Textarea::make('welcome_msg')
-                    ->label('Приветственное сообщение')
-                    ->maxLength(65535)
+                Forms\Components\FileUpload::make('presentations')
+                    ->label('Презентации')
+                    ->multiple()
+                    ->acceptedFileTypes([
+                        'application/pdf',
+                        'application/vnd.ms-powerpoint',
+                        'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+                        'application/msword',
+                        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                        'application/vnd.ms-excel',
+                        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                        'application/vnd.oasis.opendocument.presentation',
+                        'application/vnd.oasis.opendocument.text',
+                        'application/vnd.oasis.opendocument.spreadsheet',
+                        'image/jpeg',
+                        'image/png',
+                    ])
+                    ->maxSize(204800)
+                    ->directory('presentations')
                     ->columnSpanFull(),
                 Forms\Components\Select::make('participants')
                     ->label('Ученики')
@@ -78,13 +94,14 @@ class RoomResource extends Resource
                     ")
                     ->extraAttributes(['class' => 'student-select'])
                     ->live()
-                    ->afterStateUpdated(function (Forms\Set $set, ?array $state) {
+                    ->afterStateUpdated(function (Forms\Set $set, Forms\Get $get, ?array $state) {
                         $count = is_array($state) ? count($state) : 0;
 
                         if ($count === 0) {
                             // No students selected - clear type and price
                             $set('type', null);
                             $set('base_price', null);
+                            $set('custom_price_enabled', false);
                             return;
                         }
 
@@ -92,16 +109,23 @@ class RoomResource extends Resource
                         $type = $count > 1 ? 'group' : 'individual';
                         $set('type', $type);
 
-                        // Get price for the determined type
-                        $lessonType = auth()->user()?->lessonTypes()
-                            ->where('type', $type)
-                            ->first();
-
-                        $set('base_price', $lessonType?->price);
+                        // Only update base_price if custom price is NOT enabled
+                        if (!$get('custom_price_enabled')) {
+                            $lessonType = auth()->user()?->lessonTypes()
+                                ->where('type', $type)
+                                ->first();
+                            $set('base_price', $lessonType?->price);
+                        }
                     })
                     ->columnSpanFull(),
 
                 Forms\Components\Section::make('Стоимость занятия')
+                    ->description(function () {
+                        $profileUrl = \App\Filament\App\Pages\EditProfile::getUrl();
+                        return new \Illuminate\Support\HtmlString(
+                            "Изменить базовую цену можно в <a href=\"{$profileUrl}\" class=\"text-primary-600 hover:underline\">настройках профиля</a>"
+                        );
+                    })
                     ->compact()
                     ->visible(fn(Forms\Get $get) => !empty($get('participants')))
                     ->schema([
@@ -152,12 +176,6 @@ class RoomResource extends Resource
                                         }
 
                                         return number_format($lessonType->price, 0, '', ' ') . ' ₽';
-                                    })
-                                    ->helperText(function () {
-                                        $profileUrl = \App\Filament\App\Pages\EditProfile::getUrl();
-                                        return new \Illuminate\Support\HtmlString(
-                                            "Изменить базовую цену можно в <a href=\"{$profileUrl}\" class=\"text-primary-600 hover:underline\">настройках профиля</a>"
-                                        );
                                     }),
 
                                 Forms\Components\Actions::make([
@@ -217,35 +235,9 @@ class RoomResource extends Resource
                             ]),
                     ]),
 
-                Forms\Components\FileUpload::make('presentations')
-                    ->label('Презентации')
-                    ->multiple()
-                    ->acceptedFileTypes([
-                        // PDF
-                        'application/pdf',
-                        // Microsoft PowerPoint
-                        'application/vnd.ms-powerpoint',
-                        'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-                        // Microsoft Word
-                        'application/msword',
-                        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                        // Microsoft Excel
-                        'application/vnd.ms-excel',
-                        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                        // OpenOffice/LibreOffice
-                        'application/vnd.oasis.opendocument.presentation',
-                        'application/vnd.oasis.opendocument.text',
-                        'application/vnd.oasis.opendocument.spreadsheet',
-                        // Images
-                        'image/jpeg',
-                        'image/png',
-                    ])
-                    ->maxSize(204800) // 200MB in KB
-                    ->directory('presentations')
-                    ->columnSpanFull(),
-
-                Forms\Components\Section::make('')
+                Forms\Components\Section::make('Расписание')
                     ->description('Настройте расписание автоматического запуска встреч')
+                    ->compact()
                     ->schema([
                         Forms\Components\Repeater::make('schedules')
                             ->hiddenLabel()

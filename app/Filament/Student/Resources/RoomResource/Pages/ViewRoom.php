@@ -105,11 +105,6 @@ class ViewRoom extends ViewRecord
                                     ->view('filament.infolists.next-lesson-status')
                                     ->viewData(['isStudent' => true]),
                             ]),
-
-                        TextEntry::make('welcome_msg')
-                            ->label('Приветственное сообщение')
-                            ->placeholder('Не указано')
-                            ->columnSpanFull(),
                     ]),
 
                 Section::make('Расписание')
