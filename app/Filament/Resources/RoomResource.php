@@ -120,7 +120,7 @@ class RoomResource extends Resource
                     ->columnSpanFull(),
 
                 Forms\Components\Section::make('Стоимость занятия')
-                    ->description('Цена за одно занятие')
+                    ->compact()
                     ->visible(fn(Forms\Get $get) => !empty($get('participants')))
                     ->schema([
                         Forms\Components\Hidden::make('custom_price_enabled')
@@ -130,12 +130,11 @@ class RoomResource extends Resource
                                 if (!$record)
                                     return;
 
-                                // Check if base_price differs from lesson type price
                                 $participants = $record->participants ?? collect();
                                 $count = $participants->count();
                                 $type = $count > 1 ? 'group' : 'individual';
 
-                                $teacher = $record->user; // Admin determines teacher via relationship
+                                $teacher = $record->user;
                                 if (!$teacher)
                                     return;
 
@@ -144,125 +143,111 @@ class RoomResource extends Resource
                                     ->first();
                                 $defaultPrice = $lessonType?->price;
 
-                                // If base_price is set and differs from default, enable custom mode
                                 if ($record->base_price !== null && $record->base_price != $defaultPrice) {
                                     $component->state(true);
                                 }
                             }),
 
-                        Forms\Components\Placeholder::make('base_price_display')
-                            ->label('Базовая цена')
-                            ->content(function (Forms\Get $get) {
-                                $participants = $get('participants');
-                                $teacherId = $get('user_id');
-
-                                // Normalize to array of IDs
-                                $ids = [];
-                                if ($participants instanceof \Illuminate\Support\Collection) {
-                                    $ids = $participants->toArray();
-                                } elseif (is_array($participants)) {
-                                    $ids = $participants;
-                                }
-
-                                if (empty($ids)) {
-                                    return 'Добавьте учеников для отображения цены';
-                                }
-
-                                $count = \App\Models\User::whereIn('id', $ids)->count();
-
-                                if ($count === 0) {
-                                    return 'Добавьте учеников для отображения цены';
-                                }
-
-                                if (!$teacherId) {
-                                    return 'Материалы занятий и цены зависят от выбранного пользователя';
-                                }
-                                $teacher = \App\Models\User::find($teacherId);
-
-                                $type = $count > 1 ? 'group' : 'individual';
-                                $lessonType = $teacher?->lessonTypes()
-                                    ->where('type', $type)
-                                    ->first();
-
-                                if (!$lessonType) {
-                                    $typeLabel = $type === 'group' ? 'групповых' : 'индивидуальных';
-                                    return "Цена для {$typeLabel} занятий не задана в профиле пользователя";
-                                }
-
-                                return number_format($lessonType->price, 0, '', ' ') . ' ₽';
-                            })
-                            ->visible(fn(Forms\Get $get) => !$get('custom_price_enabled')),
-
-                        Forms\Components\TextInput::make('base_price')
-                            ->label('Своя цена')
-                            ->numeric()
-                            ->suffix('₽')
-                            ->visible(fn(Forms\Get $get) => $get('custom_price_enabled'))
-                            ->helperText(function (Forms\Get $get) {
-                                $participants = $get('participants');
-                                $teacherId = $get('user_id');
-
-                                $ids = [];
-                                if ($participants instanceof \Illuminate\Support\Collection) {
-                                    $ids = $participants->toArray();
-                                } elseif (is_array($participants)) {
-                                    $ids = $participants;
-                                }
-
-                                if (empty($ids))
-                                    return null;
-                                $count = \App\Models\User::whereIn('id', $ids)->count();
-                                if ($count === 0)
-                                    return null;
-                                if (!$teacherId)
-                                    return null;
-
-                                $teacher = \App\Models\User::find($teacherId);
-                                $type = $count > 1 ? 'group' : 'individual';
-                                $lessonType = $teacher?->lessonTypes()
-                                    ->where('type', $type)
-                                    ->first();
-                                $defaultPrice = $lessonType?->price;
-                                $typeLabel = $type === 'group' ? 'группового' : 'индивидуального';
-
-                                if ($defaultPrice) {
-                                    return "Базовая цена {$typeLabel} занятия: " . number_format($defaultPrice, 0, '', ' ') . " ₽";
-                                }
-
-                                return null;
-                            }),
-
-                        Forms\Components\Actions::make([
-                            Forms\Components\Actions\Action::make('toggle_custom_price')
-                                ->label(fn(Forms\Get $get) => $get('custom_price_enabled') ? 'Использовать базовую цену' : 'Изменить')
-                                ->icon(fn(Forms\Get $get) => $get('custom_price_enabled') ? 'heroicon-o-arrow-uturn-left' : 'heroicon-o-pencil')
-                                ->color(fn(Forms\Get $get) => $get('custom_price_enabled') ? 'gray' : 'primary')
-                                ->size('sm')
-                                ->action(function (Forms\Set $set, Forms\Get $get) {
-                                    $newState = !$get('custom_price_enabled');
-                                    $set('custom_price_enabled', $newState);
-
-                                    if (!$newState) {
-                                        // Reset to base price (visually) when switching back
+                        Forms\Components\Grid::make(2)
+                            ->visible(fn(Forms\Get $get) => !$get('custom_price_enabled'))
+                            ->schema([
+                                Forms\Components\Placeholder::make('base_price_display')
+                                    ->label('Базовая цена за одно занятие')
+                                    ->content(function (Forms\Get $get) {
                                         $participants = $get('participants');
                                         $teacherId = $get('user_id');
-                                        $ids = [];
-                                        if ($participants instanceof \Illuminate\Support\Collection) {
-                                            $ids = $participants->toArray();
-                                        } elseif (is_array($participants)) {
-                                            $ids = $participants;
-                                        }
-                                        $count = \App\Models\User::whereIn('id', $ids)->count();
-                                        $type = $count > 1 ? 'group' : 'individual';
 
-                                        $teacher = $teacherId ? \App\Models\User::find($teacherId) : null;
+                                        $ids = is_array($participants) ? $participants : [];
+                                        if (empty($ids))
+                                            return 'Добавьте учеников';
+
+                                        $count = \App\Models\User::whereIn('id', $ids)->count();
+                                        if ($count === 0)
+                                            return 'Добавьте учеников';
+                                        if (!$teacherId)
+                                            return 'Выберите пользователя';
+
+                                        $teacher = \App\Models\User::find($teacherId);
+                                        $type = $count > 1 ? 'group' : 'individual';
                                         $lessonType = $teacher?->lessonTypes()
                                             ->where('type', $type)
                                             ->first();
-                                        $set('base_price', $lessonType?->price);
-                                    }
-                                }),
-                        ])->visible(fn(Forms\Get $get) => !empty($get('participants'))),
+
+                                        if (!$lessonType) {
+                                            $typeLabel = $type === 'group' ? 'групповых' : 'индивидуальных';
+                                            return "Цена для {$typeLabel} занятий не задана";
+                                        }
+
+                                        return number_format($lessonType->price, 0, '', ' ') . ' ₽';
+                                    }),
+
+                                Forms\Components\Actions::make([
+                                    Forms\Components\Actions\Action::make('toggle_custom_price')
+                                        ->label('Изменить')
+                                        ->icon('heroicon-o-pencil')
+                                        ->link()
+                                        ->action(function (Forms\Set $set) {
+                                            $set('custom_price_enabled', true);
+                                        }),
+                                ])->alignEnd(),
+                            ]),
+
+                        Forms\Components\Grid::make(2)
+                            ->visible(fn(Forms\Get $get) => $get('custom_price_enabled'))
+                            ->schema([
+                                Forms\Components\TextInput::make('base_price')
+                                    ->label('Новая цена')
+                                    ->numeric()
+                                    ->suffix('₽')
+                                    ->helperText(function (Forms\Get $get) {
+                                        $participants = $get('participants');
+                                        $teacherId = $get('user_id');
+
+                                        $ids = is_array($participants) ? $participants : [];
+                                        if (empty($ids))
+                                            return null;
+
+                                        $count = \App\Models\User::whereIn('id', $ids)->count();
+                                        if ($count === 0 || !$teacherId)
+                                            return null;
+
+                                        $teacher = \App\Models\User::find($teacherId);
+                                        $type = $count > 1 ? 'group' : 'individual';
+                                        $lessonType = $teacher?->lessonTypes()
+                                            ->where('type', $type)
+                                            ->first();
+                                        $defaultPrice = $lessonType?->price;
+                                        $typeLabel = $type === 'group' ? 'группового' : 'индивидуального';
+
+                                        if ($defaultPrice) {
+                                            return "Базовая цена {$typeLabel} занятия: " . number_format($defaultPrice, 0, '', ' ') . " ₽";
+                                        }
+                                        return null;
+                                    }),
+
+                                Forms\Components\Actions::make([
+                                    Forms\Components\Actions\Action::make('reset_price')
+                                        ->label('Сбросить')
+                                        ->icon('heroicon-o-arrow-uturn-left')
+                                        ->color('gray')
+                                        ->link()
+                                        ->action(function (Forms\Set $set, Forms\Get $get) {
+                                            $set('custom_price_enabled', false);
+
+                                            $participants = $get('participants');
+                                            $teacherId = $get('user_id');
+                                            $ids = is_array($participants) ? $participants : [];
+                                            $count = \App\Models\User::whereIn('id', $ids)->count();
+                                            $type = $count > 1 ? 'group' : 'individual';
+
+                                            $teacher = $teacherId ? \App\Models\User::find($teacherId) : null;
+                                            $lessonType = $teacher?->lessonTypes()
+                                                ->where('type', $type)
+                                                ->first();
+                                            $set('base_price', $lessonType?->price);
+                                        }),
+                                ])->alignEnd(),
+                            ]),
                     ]),
                 Forms\Components\FileUpload::make('presentations')
                     ->label('Презентации')
