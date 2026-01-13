@@ -152,6 +152,12 @@ class RoomResource extends Resource
                                         }
 
                                         return number_format($lessonType->price, 0, '', ' ') . ' ₽';
+                                    })
+                                    ->helperText(function () {
+                                        $profileUrl = \App\Filament\App\Pages\EditProfile::getUrl();
+                                        return new \Illuminate\Support\HtmlString(
+                                            "Изменить базовую цену можно в <a href=\"{$profileUrl}\" class=\"text-primary-600 hover:underline\">настройках профиля</a>"
+                                        );
                                     }),
 
                                 Forms\Components\Actions::make([
