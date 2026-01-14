@@ -303,58 +303,6 @@ class StudentResource extends Resource
             ])
             ->defaultSort('created_at', 'desc')
             ->actions([
-                Tables\Actions\ViewAction::make()
-                    ->label('Информация')
-                    ->modalHeading('Карточка ученика')
-                    ->modalWidth('md')
-                    ->extraAttributes(['class' => 'hidden']) // Hide the button visually
-                    ->modalFooterActions(fn(User $record): array => [
-                        Tables\Actions\Action::make('delete_from_list')
-                            ->label('Удалить из списка')
-                            ->color('danger')
-                            ->icon('heroicon-o-trash')
-                            ->requiresConfirmation()
-                            ->action(function (User $record) {
-                                $teacher = auth()->user();
-                                auth()->user()->students()->detach($record);
-
-                                // Remove student from all teacher's rooms
-                                $teacherRooms = \App\Models\Room::where('user_id', $teacher->id)->get();
-                                foreach ($teacherRooms as $room) {
-                                    $room->participants()->detach($record->id);
-                                }
-
-                                // Check if student can leave a review:
-                                // 1. Has at least one completed lesson with this teacher
-                                // 2. Hasn't already left a review for this teacher
-                                $studentId = (string) $record->id;
-                                $hasCompletedLesson = \App\Models\MeetingSession::whereHas('room', function ($q) use ($teacher) {
-                                    $q->where('user_id', $teacher->id);
-                                })
-                                    ->where(function ($q) use ($studentId) {
-                                        $q->whereJsonContains('analytics_data->participants', ['user_id' => $studentId])
-                                            ->orWhereJsonContains('analytics_data->participants', ['user_id' => (int) $studentId]);
-                                    })
-                                    ->exists();
-
-                                $hasExistingReview = \App\Models\Review::where('user_id', $record->id)
-                                    ->where('teacher_id', $teacher->id)
-                                    ->exists();
-
-                                $canLeaveReview = $hasCompletedLesson && !$hasExistingReview;
-
-                                // Notify the student about being removed
-                                // Notify the student about being removed
-                                $record->notify(new \App\Notifications\TeacherRemoved($teacher, $canLeaveReview));
-
-                                Notification::make()
-                                    ->title('Ученик удален из списка')
-                                    ->success()
-                                    ->send();
-                            })
-                            ->cancelParentActions(),
-                    ]),
-
                 Tables\Actions\EditAction::make()
                     ->label('Назначить занятия')
                     ->modalHeading('Управление занятиями ученика')
@@ -383,6 +331,7 @@ class StudentResource extends Resource
                         }
                     }),
             ])
+            ->recordUrl(fn(User $record): string => Pages\ViewStudent::getUrl([$record]))
             ->bulkActions([
                 // Tables\Actions\BulkActionGroup::make([
                 //     Tables\Actions\DeleteBulkAction::make(),
@@ -401,6 +350,7 @@ class StudentResource extends Resource
     {
         return [
             'index' => Pages\ListStudents::route('/'),
+            'view' => Pages\ViewStudent::route('/{record}'),
         ];
     }
 }
