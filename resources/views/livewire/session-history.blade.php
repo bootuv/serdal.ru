@@ -54,13 +54,6 @@
                                 @endif
                                 <td class="px-4 py-3 text-gray-900 dark:text-white font-medium whitespace-nowrap">
                                     {{ $session->started_at->format('d.m.Y H:i') }}
-                                    @if($session->deletion_requested_at)
-                                        <span
-                                            class="ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-warning-50 text-warning-700 dark:bg-warning-500/10 dark:text-warning-400">
-                                            <x-heroicon-m-clock class="w-3 h-3" />
-                                            Ожидает удаления
-                                        </span>
-                                    @endif
                                 </td>
                                 @if(auth()->user()->role === \App\Models\User::ROLE_STUDENT)
                                     <td class="px-4 py-3 whitespace-nowrap">
@@ -141,7 +134,7 @@
                                 @if(auth()->user()->role !== \App\Models\User::ROLE_STUDENT)
                                     <td class="px-4 py-3 text-right whitespace-nowrap" onclick="event.stopPropagation()">
                                         @if($session->deletion_requested_at)
-                                            <button type="button" wire:click="cancelDeletionRequest({{ $session->id }})"
+                                            <button type="button" wire:click="openCancelModal({{ $session->id }})"
                                                 class="inline-flex items-center justify-center w-8 h-8 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 dark:hover:text-gray-300 transition-colors"
                                                 title="Отменить запрос на удаление">
                                                 <x-heroicon-o-arrow-uturn-left class="w-4 h-4" />
@@ -219,7 +212,8 @@
                                 class="fi-textarea mt-1 block w-full rounded-lg border-none bg-white py-1.5 text-base text-gray-950 outline-none transition duration-75 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-primary-600 disabled:text-gray-500 disabled:[-webkit-text-fill-color:theme(colors.gray.500)] disabled:placeholder:[-webkit-text-fill-color:theme(colors.gray.400)] dark:bg-white/5 dark:text-white dark:placeholder:text-gray-500 dark:disabled:text-gray-400 dark:disabled:[-webkit-text-fill-color:theme(colors.gray.400)] dark:disabled:placeholder:[-webkit-text-fill-color:theme(colors.gray.500)] sm:text-sm sm:leading-6 ring-1 ring-inset ring-gray-950/10 dark:ring-white/20"></textarea>
                             @error('deletionReason')
                                 <p class="fi-fo-field-wrp-error-message mt-1 text-sm text-danger-600 dark:text-danger-400">
-                                    {{ $message }}</p>
+                                    {{ $message }}
+                                </p>
                             @enderror
                         </div>
 
@@ -229,6 +223,54 @@
                                 Отменить
                             </x-filament::button>
                             <x-filament::button color="primary" wire:click="submitDeletionRequest">
+                                Подтвердить
+                            </x-filament::button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    {{-- Cancel Confirmation Modal --}}
+    @if($showCancelModal)
+        <div class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+            <div class="flex min-h-full items-center justify-center p-4">
+                {{-- Backdrop --}}
+                <div class="fixed inset-0 bg-gray-500/75 dark:bg-gray-900/75 transition-opacity"
+                    wire:click="closeCancelModal"></div>
+
+                {{-- Modal panel --}}
+                <div
+                    class="relative transform overflow-hidden rounded-xl bg-white dark:bg-gray-900 text-left shadow-xl transition-all w-full max-w-md">
+                    {{-- Close button --}}
+                    <div class="absolute right-0 top-0 pr-4 pt-4">
+                        <button type="button" wire:click="closeCancelModal"
+                            class="rounded-lg p-1 text-gray-400 hover:text-gray-500 dark:hover:text-gray-300">
+                            <x-heroicon-o-x-mark class="h-5 w-5" />
+                        </button>
+                    </div>
+
+                    <div class="p-6">
+                        {{-- Icon --}}
+                        <div
+                            class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-warning-100 dark:bg-warning-500/20 mb-4">
+                            <x-heroicon-o-exclamation-triangle class="h-6 w-6 text-warning-600 dark:text-warning-400" />
+                        </div>
+
+                        {{-- Header --}}
+                        <div class="text-center">
+                            <h3 class="text-lg font-semibold text-gray-950 dark:text-white" id="modal-title">
+                                Отменить запрос на удаление?
+                            </h3>
+                        </div>
+
+                        {{-- Footer --}}
+                        <div class="mt-6 flex justify-center gap-3">
+                            <x-filament::button color="gray" wire:click="closeCancelModal">
+                                Отмена
+                            </x-filament::button>
+                            <x-filament::button color="primary" wire:click="confirmCancelDeletion">
                                 Подтвердить
                             </x-filament::button>
                         </div>

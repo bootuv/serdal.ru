@@ -18,6 +18,10 @@ class SessionHistory extends Component
     public ?int $deletionSessionId = null;
     public string $deletionReason = '';
 
+    // Cancel confirmation modal state
+    public bool $showCancelModal = false;
+    public ?int $cancelSessionId = null;
+
     public function mount(int $roomId, ?string $viewUrl = null)
     {
         $this->roomId = $roomId;
@@ -94,9 +98,21 @@ class SessionHistory extends Component
         $this->closeDeletionModal();
     }
 
-    public function cancelDeletionRequest(int $sessionId)
+    public function openCancelModal(int $sessionId)
     {
-        $session = MeetingSession::find($sessionId);
+        $this->cancelSessionId = $sessionId;
+        $this->showCancelModal = true;
+    }
+
+    public function closeCancelModal()
+    {
+        $this->showCancelModal = false;
+        $this->cancelSessionId = null;
+    }
+
+    public function confirmCancelDeletion()
+    {
+        $session = MeetingSession::find($this->cancelSessionId);
 
         if ($session && $session->deletion_requested_at) {
             $session->update([
@@ -109,6 +125,8 @@ class SessionHistory extends Component
                 'message' => 'Запрос на удаление отменён',
             ]);
         }
+
+        $this->closeCancelModal();
     }
 
     public function render()
