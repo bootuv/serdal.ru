@@ -2,6 +2,8 @@
 
 namespace App\Filament\App\Resources\MeetingSessionResource\Pages;
 
+use App\Filament\Actions\CancelSessionDeletionHeaderAction;
+use App\Filament\Actions\RequestSessionDeletionHeaderAction;
 use App\Filament\App\Resources\MeetingSessionResource;
 use Filament\Resources\Pages\ViewRecord;
 
@@ -19,5 +21,16 @@ class ViewMeetingSession extends ViewRecord
     public function getHeading(): string
     {
         return $this->record->room->name ?? 'Отчет о вебинаре';
+    }
+
+    protected function getHeaderActions(): array
+    {
+        return [
+            RequestSessionDeletionHeaderAction::makeForRecord(
+                $this->record,
+                fn() => $this->redirect($this->getResource()::getUrl('index'))
+            ),
+            CancelSessionDeletionHeaderAction::makeForRecord($this->record),
+        ];
     }
 }

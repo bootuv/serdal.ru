@@ -24,6 +24,22 @@
         $stats = $record->getStudentAttendance();
     @endphp
 
+    @if($record->deletion_requested_at)
+        <div
+            class="mb-6 p-4 bg-warning-50 dark:bg-warning-950 border border-warning-200 dark:border-warning-800 rounded-lg">
+            <div class="flex items-start gap-3">
+                <x-heroicon-o-exclamation-triangle
+                    class="w-5 h-5 text-warning-600 dark:text-warning-400 flex-shrink-0 mt-0.5" />
+                <div>
+                    <h3 class="font-medium text-warning-800 dark:text-warning-200">Запрос на удаление</h3>
+                    <p class="mt-1 text-sm text-warning-700 dark:text-warning-300">{{ $record->deletion_reason }}</p>
+                    <p class="mt-2 text-xs text-warning-600 dark:text-warning-400">Запрос отправлен:
+                        {{ $record->deletion_requested_at->format('d.m.Y H:i') }}</p>
+                </div>
+            </div>
+        </div>
+    @endif
+
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <x-filament::section>
             <div class="text-xl font-bold">{{ $record->started_at?->format('d.m.Y H:i') ?? '-' }}</div>

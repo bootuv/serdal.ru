@@ -146,7 +146,8 @@ class MeetingSessionResource extends Resource
             ->persistFiltersInSession()
             ->searchable()
             ->actions([
-                //
+                \App\Filament\Actions\RequestSessionDeletionAction::make(),
+                \App\Filament\Actions\CancelSessionDeletionAction::make(),
             ])
             ->bulkActions([
                 //

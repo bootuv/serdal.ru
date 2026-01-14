@@ -21,6 +21,8 @@ class MeetingSession extends Model
         'analytics_data',
         'settings_snapshot',
         'pricing_snapshot',
+        'deletion_requested_at',
+        'deletion_reason',
     ];
 
     protected $casts = [
@@ -29,6 +31,7 @@ class MeetingSession extends Model
         'analytics_data' => 'array',
         'settings_snapshot' => 'array',
         'pricing_snapshot' => 'array',
+        'deletion_requested_at' => 'datetime',
     ];
 
     public function user()

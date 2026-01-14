@@ -25,6 +25,17 @@ class MeetingSessionResource extends Resource
 
     protected static ?string $pluralModelLabel = 'История сессий';
 
+    public static function getNavigationBadge(): ?string
+    {
+        $count = MeetingSession::whereNotNull('deletion_requested_at')->count();
+        return $count > 0 ? (string) $count : null;
+    }
+
+    public static function getNavigationBadgeColor(): ?string
+    {
+        return 'warning';
+    }
+
     public static function form(Form $form): Form
     {
         return $form
@@ -127,6 +138,12 @@ class MeetingSessionResource extends Resource
                     })
                     ->money('RUB')
                     ->toggleable(),
+                Tables\Columns\TextColumn::make('deletion_reason')
+                    ->label('Причина удаления')
+                    ->limit(30)
+                    ->tooltip(fn(MeetingSession $record) => $record->deletion_reason)
+                    ->toggleable(isToggledHiddenByDefault: true)
+                    ->searchable(),
             ])
             ->defaultSort('started_at', 'desc')
             ->filters([
@@ -146,12 +163,28 @@ class MeetingSessionResource extends Resource
                         'running' => 'Активна',
                         'completed' => 'Завершена',
                     ]),
+                Tables\Filters\Filter::make('deletion_requested')
+                    ->label('Запрос на удаление')
+                    ->query(fn($query) => $query->whereNotNull('deletion_requested_at'))
+                    ->indicator('Запрос на удаление'),
             ])
             ->filtersLayout(Tables\Enums\FiltersLayout::Dropdown)
             ->persistFiltersInSession()
             ->searchable()
             ->actions([
-                Tables\Actions\DeleteAction::make(),
+                Tables\Actions\Action::make('deletionRequested')
+                    ->label('')
+                    ->tooltip(fn(MeetingSession $record) => "Запрос на удаление: {$record->deletion_reason}")
+                    ->icon('heroicon-o-exclamation-triangle')
+                    ->color('warning')
+                    ->url(fn(MeetingSession $record) => MeetingSessionResource::getUrl('view', ['record' => $record]))
+                    ->visible(fn(MeetingSession $record) => !is_null($record->deletion_requested_at)),
+
+                Tables\Actions\DeleteAction::make()
+                    ->label('')
+                    ->tooltip('Удалить')
+                    ->icon('heroicon-o-trash')
+                    ->color('gray'),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
