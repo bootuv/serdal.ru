@@ -29,15 +29,22 @@ class StudentPerformanceChart extends ChartWidget
         }
 
         $stats = $this->calculateStats($student);
+        $offset = 40; // Offset to create visual "hole" for avatar
+        $minVisible = 70; // Minimum value so 0% data is clearly visible beyond mask
+
+        // Add offset to values; for 0% use minVisible so it still shows slightly
+        $attendance = $stats['attendance'] > 0 ? $stats['attendance'] + $offset : $minVisible;
+        $discipline = $stats['discipline'] > 0 ? $stats['discipline'] + $offset : $minVisible;
+        $knowledge = $stats['knowledge'] > 0 ? $stats['knowledge'] + $offset : $minVisible;
 
         return [
             'datasets' => [
                 [
                     'label' => 'Успеваемость',
                     'data' => [
-                        $stats['attendance'],
-                        $stats['discipline'],
-                        $stats['knowledge'],
+                        $attendance,
+                        $discipline,
+                        $knowledge,
                     ],
                     'backgroundColor' => [
                         'rgba(59, 130, 246, 0.8)', // Blue (Attendance)
@@ -49,7 +56,7 @@ class StudentPerformanceChart extends ChartWidget
                         'rgb(16, 185, 129)',
                         'rgb(245, 158, 11)',
                     ],
-                    'borderWidth' => 0, // No borders looks cleaner like the reference
+                    'borderWidth' => 0,
                 ],
             ],
             'labels' => ['Посещаемость', 'Дисциплина (ДЗ)', 'Качество знаний'],
@@ -66,46 +73,27 @@ class StudentPerformanceChart extends ChartWidget
         return [
             'scales' => [
                 'r' => [
-                    'min' => 0,
-                    'max' => 100,
-                    'ticks' => [
-                        'display' => false, // No numbers
-                    ],
-                    'grid' => [
-                        'display' => true, // Circular grid (rings) ON
-                        'color' => 'rgba(0, 0, 0, 0.05)',
-                    ],
-                    'angleLines' => [
-                        'display' => false, // No spokes
-                    ],
-                    'pointLabels' => [
-                        'display' => false, // Hide labels on the chart (we have legend below)
-                    ],
+                    'min' => 40,
+                    'max' => 140,
+                    'ticks' => ['display' => false],
+                    'grid' => ['display' => true, 'color' => 'rgba(0, 0, 0, 0.05)'],
+                    'angleLines' => ['display' => false],
+                    'pointLabels' => ['display' => false],
                 ],
-                'x' => [
-                    'display' => false, // Ensure no X axis
-                ],
-                'y' => [
-                    'display' => false, // Ensure no Y axis
-                ],
+                'x' => ['display' => false],
+                'y' => ['display' => false],
             ],
             'maintainAspectRatio' => true,
             'aspectRatio' => 1,
-            'layout' => [
-                'padding' => 0,
-            ],
+            'layout' => ['padding' => 0],
             'plugins' => [
-                'legend' => [
-                    'display' => false, // Hide internal legend to keep chart centered
-                ],
+                'legend' => ['display' => false],
                 'tooltip' => [
                     'callbacks' => [
-                        'label' => "function(context) { return context.label + ': ' + Math.round(context.raw) + '%'; }",
+                        'label' => "function(context) { return context.label + ': ' + Math.round(context.raw - 40) + '%'; }",
                     ],
                 ],
             ],
-            'cutout' => '30%', // Make space in center? PolarArea doesn't support cutout natively like Doughnut.
-            // But we can just overlay.
         ];
     }
 

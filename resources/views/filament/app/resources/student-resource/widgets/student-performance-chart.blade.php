@@ -5,6 +5,7 @@
     $heading = $this->getHeading();
     $description = $this->getDescription();
     $filters = $this->getFilters();
+    $avatarUrl = $this->record?->avatar_url;
 @endphp
 
 <x-filament-widgets::widget class="fi-wi-chart">
@@ -23,65 +24,81 @@
             </x-slot>
         @endif
 
-        <div @if ($pollingInterval = $this->getPollingInterval()) wire:poll.{{ $pollingInterval }}="updateChartData"
-        @endif class="relative flex justify-center items-center">
-            <div @if (FilamentView::hasSpaMode()) x-load="visible" @else x-load @endif
-                x-load-src="{{ \Filament\Support\Facades\FilamentAsset::getAlpineComponentSrc('chart', 'filament/widgets') }}"
-                wire:ignore x-data="chart({
-                            cachedData: @js($this->getCachedData()),
-                            options: @js($this->getOptions()),
-                            type: @js($this->getType()),
-                        })" @class([
-                            match ($color) {
-                                'gray' => null,
-                                default => 'fi-color-custom',
-                            },
-                            is_string($color) ? "fi-color-{$color}" : null,
-                            'w-full max-w-[300px]', // Constrain width to ensure it stays a managed square
-                        ])>
-                <canvas x-ref="canvas" @if ($maxHeight = $this->getMaxHeight()) style="max-height: {{ $maxHeight }}"
-                @endif></canvas>
+        <div @if ($pollingInterval = $this->getPollingInterval()) wire:poll.{{ $pollingInterval }}="updateChartData" @endif
+            class="flex justify-center items-center">
+            {{-- Chart wrapper with relative positioning for avatar overlay --}}
+            <div class="relative w-full max-w-[300px]">
+                <div
+                    @if (FilamentView::hasSpaMode()) x-load="visible" @else x-load @endif
+                    x-load-src="{{ \Filament\Support\Facades\FilamentAsset::getAlpineComponentSrc('chart', 'filament/widgets') }}"
+                    wire:ignore
+                    x-data="chart({
+                        cachedData: @js($this->getCachedData()),
+                        options: @js($this->getOptions()),
+                        type: @js($this->getType()),
+                    })"
+                    @class([
+                        match ($color) {
+                            'gray' => null,
+                            default => 'fi-color-custom',
+                        },
+                        is_string($color) ? "fi-color-{$color}" : null,
+                        'w-full',
+                    ])
+                >
+                    <canvas
+                        x-ref="canvas"
+                        @if ($maxHeight = $this->getMaxHeight())
+                            style="max-height: {{ $maxHeight }}"
+                        @endif
+                    ></canvas>
 
-                <span x-ref="backgroundColorElement" @class([
-                    match ($color) {
-                        'gray' => 'text-gray-100 dark:text-gray-800',
-                        default => 'text-custom-50 dark:text-custom-400/10',
-                    },
-                ]) @style([
-    \Filament\Support\get_color_css_variables(
-        $color,
-        shades: [50, 400],
-        alias: 'widgets::chart-widget.background',
-    ) => $color !== 'gray',
-])></span>
+                    <span x-ref="backgroundColorElement" @class([
+                        match ($color) {
+                            'gray' => 'text-gray-100 dark:text-gray-800',
+                            default => 'text-custom-50 dark:text-custom-400/10',
+                        },
+                    ]) @style([
+                        \Filament\Support\get_color_css_variables(
+                            $color,
+                            shades: [50, 400],
+                            alias: 'widgets::chart-widget.background',
+                        ) => $color !== 'gray',
+                    ])></span>
 
-                <span x-ref="borderColorElement" @class([
-                    match ($color) {
-                        'gray' => 'text-gray-400',
-                        default => 'text-custom-500 dark:text-custom-400',
-                    },
-                ]) @style([
-    \Filament\Support\get_color_css_variables(
-        $color,
-        shades: [400, 500],
-        alias: 'widgets::chart-widget.border',
-    ) => $color !== 'gray',
-])></span>
+                    <span x-ref="borderColorElement" @class([
+                        match ($color) {
+                            'gray' => 'text-gray-400',
+                            default => 'text-custom-500 dark:text-custom-400',
+                        },
+                    ]) @style([
+                        \Filament\Support\get_color_css_variables(
+                            $color,
+                            shades: [400, 500],
+                            alias: 'widgets::chart-widget.border',
+                        ) => $color !== 'gray',
+                    ])></span>
 
-                <span x-ref="gridColorElement" class="text-gray-200 dark:text-gray-800"></span>
+                    <span x-ref="gridColorElement" class="text-gray-200 dark:text-gray-800"></span>
 
-                <span x-ref="textColorElement" class="text-gray-500 dark:text-gray-400"></span>
-            </div>
-
-            {{-- Avatar Overlay --}}
-            @if($this->record)
-                <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    {{-- Adjust size based on chart size if possible, or fixed size. The design shows small avatar in
-                    center. --}}
-                    <img src="{{ $this->record->avatar_url }}"
-                        class="w-16 h-16 rounded-full border-2 border-white dark:border-gray-800 shadow-md object-cover bg-white">
+                    <span x-ref="textColorElement" class="text-gray-500 dark:text-gray-400"></span>
                 </div>
-            @endif
+
+                {{-- White Circle Overlay with Avatar inside --}}
+                <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <div 
+                        class="bg-white dark:bg-gray-900 rounded-full shadow-sm flex items-center justify-center"
+                        style="width: 26%; aspect-ratio: 1/1;"
+                    >
+                        @if($avatarUrl)
+                            <img
+                                src="{{ $avatarUrl }}"
+                                class="w-[85%] h-[85%] rounded-full object-cover bg-gray-100"
+                            >
+                        @endif
+                    </div>
+                </div>
+            </div>
         </div>
 
         {{-- Custom Legend --}}
