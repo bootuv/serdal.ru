@@ -1,4 +1,4 @@
-<x-filament-panels::page>
+<x-filament-panels::page class="[&_.grid.flex-1.auto-cols-fr.gap-y-8]:!gap-y-4">
     @php
         $currentMonth = request()->get('month', now()->format('Y-m'));
         $filterType = request()->get('type', 'all');
@@ -35,13 +35,13 @@
     </div>
 
     {{-- Calendar --}}
-    <x-filament::section>
+    <x-filament::section class="[&_.fi-section-content]:!p-2">
         <x-slot name="heading">
-            <div class="flex items-center justify-between w-full">
+            <div class="flex flex-col md:flex-row items-center justify-between gap-4 md:gap-0 w-full">
                 <h2 class="text-xl font-bold capitalize">
                     {{ $date->locale('ru')->isoFormat('MMMM YYYY') }}
                 </h2>
-                <div class="flex items-center gap-2">
+                <div class="flex items-center gap-2 w-full md:w-auto justify-between md:justify-start">
                     <x-filament::button
                         tag="a"
                         :href="'?month=' . $date->copy()->subMonth()->format('Y-m') . '&type=' . $filterType"
@@ -49,7 +49,7 @@
                         size="sm"
                         icon="heroicon-m-chevron-left"
                         icon-position="before">
-                        Предыдущий
+                        <span class="hidden md:inline">Предыдущий</span>
                     </x-filament::button>
                     
                     <x-filament::button
@@ -66,18 +66,17 @@
                         size="sm"
                         icon="heroicon-m-chevron-right"
                         icon-position="after">
-                        Следующий
+                        <span class="hidden md:inline">Следующий</span>
                     </x-filament::button>
                 </div>
             </div>
         </x-slot>
 
-        <div class="p-6">
-            <div style="border-left-width: 1px;"
-                class="grid grid-cols-7 gap-0 border-t border-l border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+        <div class="overflow-x-auto">
+            <div style="min-width: 800px;"
+                class="grid grid-cols-7 gap-px bg-gray-200 dark:bg-gray-700 overflow-hidden">
                 @foreach(['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'] as $day)
-                    <div style="border-right-width: 1px;"
-                        class="bg-gray-100 dark:bg-gray-900 px-3 py-3 text-center border-b border-r border-gray-200 dark:border-gray-700">
+                    <div class="bg-gray-50 dark:bg-gray-900 px-3 py-3 text-center">
                         <span class="text-sm font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
                             {{ $day }}
                         </span>
@@ -93,8 +92,7 @@
                         $dayEvents = $eventsByDate->get($dateKey, collect());
                     @endphp
 
-                    <div style="border-right-width: 1px;"
-                        class="relative bg-white dark:bg-gray-800 p-2 border-b border-r border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition {{ !$isCurrentMonth ? 'bg-gray-50/50 dark:bg-gray-900/50' : '' }}">
+                    <div class="relative bg-white dark:bg-gray-800 p-2 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition {{ !$isCurrentMonth ? 'bg-gray-50/50 dark:bg-gray-900/50' : '' }}">
                         <div class="flex items-center justify-center mb-1">
                             <span
                                 class="inline-flex items-center justify-center w-6 h-6 text-xs font-normal rounded-full {{ $isToday ? 'bg-primary-600 text-white' : ($isCurrentMonth ? 'text-gray-900 dark:text-white' : 'text-gray-400 dark:text-gray-600') }}">
