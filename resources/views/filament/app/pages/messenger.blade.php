@@ -1,7 +1,10 @@
 <x-filament-panels::page>
     <div class="flex flex-col md:flex-row gap-3" style="height: calc(100vh - 10rem);">
         {{-- Список чатов --}}
-        <div class="md:flex-shrink-0 flex flex-col" style="min-width: 400px;">
+        <div @class([
+            'md:flex-shrink-0 flex flex-col px-3 pt-0 pb-6 md:p-0',
+            'hidden md:flex' => $mobileShowChat,
+        ]) style="min-width: 400px;">
             <x-filament::section class="flex-1 flex flex-col">
                 <x-slot name="heading">
                     <div class="flex items-center justify-between w-full">
@@ -96,7 +99,14 @@
         </div>
 
         {{-- Область чата --}}
-        <div class="flex-1 min-w-0 flex flex-col">
+        <div @class([
+            'flex-1 min-w-0 flex flex-col',
+            'hidden' => !$mobileShowChat,
+            'md:flex' => true,
+            'fixed inset-0 z-50 bg-gray-50 dark:bg-gray-950 p-4' => $mobileShowChat,
+            'md:relative md:inset-auto md:z-auto md:bg-transparent md:p-0' => $mobileShowChat,
+        ]) x-on:close-mobile-chat.window="$wire.backToList()">
+
             @if($supportChatSelected)
                 <livewire:support-chat-component :support-chat="$supportChat" :key="'support-chat-' . $supportChat->id" />
             @elseif($selectedRoom)

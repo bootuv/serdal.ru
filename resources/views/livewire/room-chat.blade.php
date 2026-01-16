@@ -52,6 +52,13 @@
             {{-- Заголовок чата --}}
             <div
                 class="px-6 py-4 border-b border-gray-200 dark:border-white/10 flex items-center gap-3 bg-white dark:bg-gray-900 z-10">
+                <div class="md:hidden mr-1">
+                    <button type="button" 
+                        x-on:click="$dispatch('close-mobile-chat')"
+                        class="p-2 -ml-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                        <x-heroicon-m-arrow-left class="w-6 h-6" />
+                    </button>
+                </div>
                 <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg"
                     style="background-color: {{ $room->avatar_bg_color }}; color: {{ $room->avatar_text_color }}">
                     {{ mb_substr($room->name, 0, 1) }}

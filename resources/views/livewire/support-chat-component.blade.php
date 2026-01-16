@@ -50,6 +50,13 @@
         <div class="flex-1 flex flex-col bg-white dark:bg-gray-900 ring-1 ring-gray-950/5 dark:ring-white/10 rounded-xl overflow-hidden">
             {{-- Заголовок чата --}}
             <div class="px-6 py-4 border-b border-gray-200 dark:border-white/10 flex items-center gap-3 bg-white dark:bg-gray-900 z-10">
+                <div class="md:hidden mr-1">
+                    <button type="button" 
+                        x-on:click="$dispatch('close-mobile-chat')"
+                        class="p-2 -ml-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                        <x-heroicon-m-arrow-left class="w-6 h-6" />
+                    </button>
+                </div>
                 @if($isAdmin)
                     {{-- Для админа показываем аватарку пользователя --}}
                     <x-filament::avatar :src="$supportChat->user->avatar_url" :alt="$supportChat->user->name" size="lg" />

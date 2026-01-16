@@ -57,12 +57,18 @@ class Messenger extends Page
 
     public ?int $selectedRoomId = null;
     public bool $supportChatSelected = false;
+    public bool $mobileShowChat = false;
 
     public function mount(): void
     {
         // Можно передать room_id через query параметр
         $this->selectedRoomId = request()->query('room');
         $this->supportChatSelected = request()->query('support') === '1';
+
+        // Если выбран чат через query параметр, показываем его на мобильных
+        if ($this->selectedRoomId || $this->supportChatSelected) {
+            $this->mobileShowChat = true;
+        }
     }
 
     public function getViewData(): array
@@ -147,12 +153,19 @@ class Messenger extends Page
     {
         $this->selectedRoomId = $roomId;
         $this->supportChatSelected = false;
+        $this->mobileShowChat = true;
     }
 
     public function selectSupportChat(): void
     {
         $this->selectedRoomId = null;
         $this->supportChatSelected = true;
+        $this->mobileShowChat = true;
+    }
+
+    public function backToList(): void
+    {
+        $this->mobileShowChat = false;
     }
 
     public function getListeners()

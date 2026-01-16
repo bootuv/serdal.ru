@@ -52,10 +52,16 @@ class AdminMessenger extends Page
     }
 
     public ?int $selectedChatId = null;
+    public bool $mobileShowChat = false;
 
     public function mount(): void
     {
         $this->selectedChatId = request()->query('chat');
+
+        // Если выбран чат через query параметр, показываем его на мобильных
+        if ($this->selectedChatId) {
+            $this->mobileShowChat = true;
+        }
     }
 
     public function getViewData(): array
@@ -97,6 +103,12 @@ class AdminMessenger extends Page
     public function selectChat(int $chatId): void
     {
         $this->selectedChatId = $chatId;
+        $this->mobileShowChat = true;
+    }
+
+    public function backToList(): void
+    {
+        $this->mobileShowChat = false;
     }
 
     public function getListeners()
