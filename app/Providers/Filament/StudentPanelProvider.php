@@ -63,11 +63,11 @@ class StudentPanelProvider extends PanelProvider
             ->discoverResources(in: app_path('Filament/Student/Resources'), for: 'App\\Filament\\Student\\Resources')
             ->discoverPages(in: app_path('Filament/Student/Pages'), for: 'App\\Filament\\Student\\Pages')
             ->pages([
-                Pages\Dashboard::class,
+                // Custom Dashboard is auto-discovered from Pages directory
             ])
             ->discoverWidgets(in: app_path('Filament/Student/Widgets'), for: 'App\\Filament\\Student\\Widgets')
             ->widgets([
-                \App\Filament\Widgets\DashboardWelcomeOverview::class,
+                // Widgets are manually placed in dashboard.blade.php
             ])
             ->middleware([
                 EncryptCookies::class,

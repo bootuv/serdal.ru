@@ -8,6 +8,8 @@ class DashboardWelcomeOverview extends Widget
 {
     protected static string $view = 'filament.widgets.dashboard-welcome-overview';
 
+    protected static ?int $sort = -1;
+
     protected int|string|array $columnSpan = 'full';
 
     public static function canView(): bool
@@ -15,3 +17,4 @@ class DashboardWelcomeOverview extends Widget
         return \Filament\Facades\Filament::getCurrentPanel()->getId() !== 'admin';
     }
 }
+
