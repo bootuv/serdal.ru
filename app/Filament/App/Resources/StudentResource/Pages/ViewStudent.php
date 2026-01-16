@@ -18,6 +18,11 @@ class ViewStudent extends ViewRecord
 {
     protected static string $resource = StudentResource::class;
 
+    public function getTitle(): string
+    {
+        return 'Профиль ученика';
+    }
+
     protected function getHeaderActions(): array
     {
         return [
@@ -74,24 +79,34 @@ class ViewStudent extends ViewRecord
     {
         return $infolist
             ->schema([
-                Infolists\Components\Section::make('Профиль ученика')
+                Infolists\Components\Section::make()
                     ->columns([
                         'sm' => 1,
-                        'md' => 4, // 1 col for avatar + charts, 3 cols for info ?? Or 4 cols total
+                        'md' => 4,
                     ])
                     ->schema([
+                        // Left: Avatar only (1 column)
                         Infolists\Components\Group::make()
                             ->columnSpan(['md' => 1])
                             ->schema([
-                                Infolists\Components\View::make('filament.app.resources.student-resource.pages.student-profile-sidebar')
-                                    ->viewData([
-                                        'record' => $this->record,
-                                    ]),
+                                Infolists\Components\ImageEntry::make('avatar_url')
+                                    ->hiddenLabel()
+                                    ->circular()
+                                    ->width(160)
+                                    ->height(160),
                             ]),
 
+                        // Right: Name, subtitle, and profile data (3 columns)
                         Infolists\Components\Group::make()
                             ->columnSpan(['md' => 3])
                             ->schema([
+                                // Name and subtitle (full width)
+                                Infolists\Components\TextEntry::make('name')
+                                    ->hiddenLabel()
+                                    ->size(Infolists\Components\TextEntry\TextEntrySize::Large)
+                                    ->weight(\Filament\Support\Enums\FontWeight::Bold),
+
+                                // Profile data in grid
                                 Infolists\Components\Grid::make(3)
                                     ->schema([
                                         Infolists\Components\TextEntry::make('email')
@@ -103,11 +118,6 @@ class ViewStudent extends ViewRecord
                                             ->label('Дата регистрации')
                                             ->dateTime('d.m.Y'),
                                     ]),
-
-                                // Placeholder for Chart Widget (we'll render it via a custom view entry or section)
-                                // Actually, widgets are better placed in getHeaderWidgets or getFooterWidgets.
-                                // But we want it inside the layout?
-                                // Let's use getHeaderWidgets() for the chart and place it on top or side.
                             ]),
                     ]),
 
@@ -120,7 +130,7 @@ class ViewStudent extends ViewRecord
                             ->schema([
                                 Infolists\Components\Section::make('Статистика посещаемости')
                                     ->schema([
-                                        Infolists\Components\Grid::make(4)
+                                        Infolists\Components\Grid::make(3)
                                             ->schema([
                                                 Infolists\Components\TextEntry::make('total_sessions')
                                                     ->label('Всего уроков')
@@ -133,20 +143,12 @@ class ViewStudent extends ViewRecord
                                                     ->label('Пропущено')
                                                     ->state(fn(User $record) => $this->getVisitsStats($record)['missed'])
                                                     ->color('danger'),
-                                                Infolists\Components\TextEntry::make('attendance_rate')
-                                                    ->label('Процент посещаемости')
-                                                    ->state(function (User $record) {
-                                                        $stats = $this->getVisitsStats($record);
-                                                        return number_format($stats['rate'], 1) . '%';
-                                                    })
-                                                    ->badge()
-                                                    ->color(fn($state) => (float) $state > 80 ? 'success' : ((float) $state > 50 ? 'warning' : 'danger')),
                                             ]),
                                     ]),
 
                                 Infolists\Components\Section::make('Домашние задания')
                                     ->schema([
-                                        Infolists\Components\Grid::make(4)
+                                        Infolists\Components\Grid::make(3)
                                             ->schema([
                                                 Infolists\Components\TextEntry::make('total_homeworks')
                                                     ->label('Назначено ДЗ')
@@ -159,11 +161,15 @@ class ViewStudent extends ViewRecord
                                                     ->label('Просрочено')
                                                     ->state(fn(User $record) => $this->getHomeworkStats($record)['overdue'])
                                                     ->color('danger'),
-                                                Infolists\Components\TextEntry::make('average_grade')
-                                                    ->label('Средний балл')
-                                                    ->state(fn(User $record) => $this->getHomeworkStats($record)['average_grade'])
-                                                    ->badge()
-                                                    ->color('info'),
+                                            ]),
+                                    ]),
+
+                                Infolists\Components\Section::make('История посещений')
+                                    ->collapsed()
+                                    ->schema([
+                                        Infolists\Components\View::make('filament.app.resources.student-resource.pages.attendance-history')
+                                            ->viewData([
+                                                'history' => $this->getAttendanceHistory($this->record),
                                             ]),
                                     ]),
                             ]),
@@ -315,5 +321,66 @@ class ViewStudent extends ViewRecord
             'overdue' => $overdue,
             'average_grade' => $gradesCount > 0 ? round($gradesSum / $gradesCount) : '—',
         ];
+    }
+
+    protected function getAttendanceHistory(User $student): array
+    {
+        $teacherId = auth()->id();
+
+        $sessions = MeetingSession::whereHas('room', function ($q) use ($teacherId) {
+            $q->where('user_id', $teacherId);
+        })
+            ->where('status', 'completed')
+            ->orderBy('ended_at', 'desc')
+            ->get();
+
+        $history = [];
+        $studentIdStr = (string) $student->id;
+
+        foreach ($sessions as $session) {
+            $room = $session->room;
+            if (!$room || !$room->participants->contains($student->id)) {
+                continue;
+            }
+
+            $isAttended = false;
+            $activityScore = 0;
+
+            $analytics = $session->analytics_data ?? [];
+            $participants = $analytics['participants'] ?? [];
+
+            // Check pricing_snapshot first
+            if (isset($session->pricing_snapshot['participants'])) {
+                foreach ($session->pricing_snapshot['participants'] as $p) {
+                    if (($p['user_id'] ?? '') == $studentIdStr && ($p['attended'] ?? false)) {
+                        $isAttended = true;
+                        break;
+                    }
+                }
+            }
+
+            // Get activity score from analytics
+            foreach ($participants as $p) {
+                if (($p['user_id'] ?? '') == $studentIdStr) {
+                    $isAttended = true;
+                    // Calculate activity score: (Talk Time (m) * 2) + (Messages * 1) + (Emoji * 1) + (Raise Hand * 2)
+                    $talkMinutes = ($p['talking_time'] ?? 0) / 60;
+                    $rawScore = ($talkMinutes * 2) + ($p['message_count'] ?? 0) + ($p['emoji_count'] ?? 0) + (($p['raise_hand_count'] ?? 0) * 2);
+                    $activityScore = min(10, round($rawScore));
+                    break;
+                }
+            }
+
+            $history[] = [
+                'session_id' => $session->id,
+                'room_id' => $room->id,
+                'room_name' => $room->name ?? 'Урок',
+                'date' => $session->ended_at?->format('d.m.Y H:i') ?? '-',
+                'attended' => $isAttended,
+                'activity_score' => $activityScore,
+            ];
+        }
+
+        return $history;
     }
 }

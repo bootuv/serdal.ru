@@ -6,23 +6,35 @@
     $description = $this->getDescription();
     $filters = $this->getFilters();
     $avatarUrl = $this->record?->avatar_url;
+    
+    // Get stats for legend
+    $chartData = $this->getCachedData();
+    $offset = 40;
+    $minVisible = 70;
+    $rawData = $chartData['datasets'][0]['data'] ?? [0, 0, 0];
+    
+    // Convert back to actual percentages
+    $attendance = $rawData[0] == $minVisible ? 0 : max(0, $rawData[0] - $offset);
+    $discipline = $rawData[1] == $minVisible ? 0 : max(0, $rawData[1] - $offset);
+    $knowledge = $rawData[2] == $minVisible ? 0 : max(0, $rawData[2] - $offset);
+    
+    // Overall score (average of three metrics)
+    $overallScore = round(($attendance + $discipline + $knowledge) / 3);
 @endphp
 
 <x-filament-widgets::widget class="fi-wi-chart">
     <x-filament::section :description="$description" :heading="$heading">
-        @if ($filters)
-            <x-slot name="headerEnd">
-                <x-filament::input.wrapper inline-prefix wire:target="filter" class="w-max sm:-my-2">
-                    <x-filament::input.select inline-prefix wire:model.live="filter">
-                        @foreach ($filters as $value => $label)
-                            <option value="{{ $value }}">
-                                {{ $label }}
-                            </option>
-                        @endforeach
-                    </x-filament::input.select>
-                </x-filament::input.wrapper>
-            </x-slot>
-        @endif
+        <x-slot name="headerEnd">
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold
+                @if($overallScore >= 80) bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100
+                @elseif($overallScore >= 60) bg-yellow-100 text-yellow-800 dark:bg-yellow-800 dark:text-yellow-100
+                @elseif($overallScore >= 40) bg-orange-100 text-orange-800 dark:bg-orange-800 dark:text-orange-100
+                @else bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100
+                @endif
+            ">
+                {{ $overallScore }}%
+            </span>
+        </x-slot>
 
         <div @if ($pollingInterval = $this->getPollingInterval()) wire:poll.{{ $pollingInterval }}="updateChartData" @endif
             class="flex justify-center items-center">
@@ -101,19 +113,28 @@
             </div>
         </div>
 
-        {{-- Custom Legend --}}
-        <div class="flex flex-wrap justify-center gap-4 mt-4 text-sm text-gray-500 dark:text-gray-400">
-            <div class="flex items-center gap-2">
-                <span class="w-3 h-3 rounded-full" style="background-color: rgb(59, 130, 246);"></span>
-                <span>Посещаемость</span>
+        {{-- Custom Legend with percentages --}}
+        <div class="mt-4 text-sm text-gray-600 dark:text-gray-400 divide-y divide-gray-100 dark:divide-gray-700">
+            <div class="flex items-center justify-between py-2">
+                <div class="flex items-center gap-2">
+                    <span class="w-3 h-3 rounded-full" style="background-color: rgb(59, 130, 246);"></span>
+                    <span>Посещаемость</span>
+                </div>
+                <strong class="text-gray-900 dark:text-gray-100">{{ $attendance }}%</strong>
             </div>
-            <div class="flex items-center gap-2">
-                <span class="w-3 h-3 rounded-full" style="background-color: rgb(16, 185, 129);"></span>
-                <span>Дисциплина (ДЗ)</span>
+            <div class="flex items-center justify-between py-2">
+                <div class="flex items-center gap-2">
+                    <span class="w-3 h-3 rounded-full" style="background-color: rgb(16, 185, 129);"></span>
+                    <span>Дисциплина (ДЗ)</span>
+                </div>
+                <strong class="text-gray-900 dark:text-gray-100">{{ $discipline }}%</strong>
             </div>
-            <div class="flex items-center gap-2">
-                <span class="w-3 h-3 rounded-full" style="background-color: rgb(245, 158, 11);"></span>
-                <span>Качество знаний</span>
+            <div class="flex items-center justify-between py-2">
+                <div class="flex items-center gap-2">
+                    <span class="w-3 h-3 rounded-full" style="background-color: rgb(245, 158, 11);"></span>
+                    <span>Качество знаний</span>
+                </div>
+                <strong class="text-gray-900 dark:text-gray-100">{{ $knowledge }}%</strong>
             </div>
         </div>
     </x-filament::section>
