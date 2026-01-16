@@ -287,7 +287,7 @@ class HomeworkResource extends Resource
 
                 Tables\Columns\TextColumn::make('deadline')
                     ->label('Срок сдачи')
-                    ->formatStateUsing(fn($state) => $state ? $state->translatedFormat('j F, H:i') : null)
+                    ->formatStateUsing(fn($state) => format_datetime($state))
                     ->sortable()
                     ->color(fn(Homework $record) => $record->is_overdue ? 'danger' : null),
 
@@ -298,7 +298,7 @@ class HomeworkResource extends Resource
 
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Создано')
-                    ->dateTime('d.m.Y')
+                    ->formatStateUsing(fn($state) => format_date($state))
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])

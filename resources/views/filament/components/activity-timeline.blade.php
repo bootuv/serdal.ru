@@ -34,7 +34,7 @@
                         {{ $activity->label }}
                     </p>
                     <div class="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                        <span>{{ $activity->created_at->format('d.m.Y H:i') }}</span>
+                        <span>{{ format_datetime($activity->created_at) }}</span>
                         @if($activity->user)
                             <span>•</span>
                             <span>{{ $activity->user->name }}</span>

@@ -152,11 +152,11 @@ class ViewHomeworkSubmission extends ViewRecord
 
                         Infolists\Components\TextEntry::make('submitted_at')
                             ->label('Дата сдачи')
-                            ->formatStateUsing(fn($state) => $state?->translatedFormat('j F, H:i')),
+                            ->formatStateUsing(fn($state) => format_datetime($state)),
 
                         Infolists\Components\TextEntry::make('homework.deadline')
                             ->label('Дедлайн')
-                            ->formatStateUsing(fn($state) => $state?->translatedFormat('j F, H:i'))
+                            ->formatStateUsing(fn($state) => format_datetime($state))
                             ->placeholder('—')
                             ->color(fn() => $this->record->homework->deadline &&
                                 $this->record->submitted_at &&

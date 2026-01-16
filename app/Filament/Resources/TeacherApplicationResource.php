@@ -80,7 +80,7 @@ class TeacherApplicationResource extends Resource
             ->columns([
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Дата')
-                    ->dateTime()
+                    ->formatStateUsing(fn($state) => format_datetime($state))
                     ->sortable()
                     ->toggleable(),
                 Tables\Columns\TextColumn::make('full_name') // Accessor from Model

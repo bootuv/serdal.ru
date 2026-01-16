@@ -181,7 +181,7 @@ class ViewHomework extends ViewRecord
 
                         Infolists\Components\TextEntry::make('deadline')
                             ->label('Срок сдачи')
-                            ->formatStateUsing(fn($state) => $state ? $state->translatedFormat('j F, H:i') : null)
+                            ->formatStateUsing(fn($state) => format_datetime($state))
                             ->placeholder('Без ограничений')
                             ->color(fn(Homework $record) => $record->is_overdue ? 'danger' : null),
 
@@ -215,7 +215,7 @@ class ViewHomework extends ViewRecord
 
                         Infolists\Components\TextEntry::make('submission_submitted_at')
                             ->label('Дата сдачи')
-                            ->getStateUsing(fn() => $submission?->submitted_at?->translatedFormat('j F, H:i'))
+                            ->getStateUsing(fn() => format_datetime($submission?->submitted_at))
                             ->placeholder('—'),
 
                         Infolists\Components\TextEntry::make('submission_grade')

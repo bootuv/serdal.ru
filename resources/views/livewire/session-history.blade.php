@@ -53,7 +53,7 @@
                                     <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
                                 @endif
                                 <td class="px-4 py-3 text-gray-900 dark:text-white font-medium whitespace-nowrap">
-                                    {{ $session->started_at->format('d.m.Y H:i') }}
+                                    {{ format_datetime($session->started_at) }}
                                 </td>
                                 @if(auth()->user()->role === \App\Models\User::ROLE_STUDENT)
                                     <td class="px-4 py-3 whitespace-nowrap">

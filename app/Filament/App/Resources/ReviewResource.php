@@ -68,7 +68,7 @@ class ReviewResource extends Resource
                     ->toggleable(),
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Дата')
-                    ->dateTime('d.m.Y H:i')
+                    ->formatStateUsing(fn($state) => format_datetime($state))
                     ->toggleable(),
                 Tables\Columns\IconColumn::make('is_reported')
                     ->label('Жалоба отправлена')
@@ -100,7 +100,7 @@ class ReviewResource extends Resource
                                     ->columnSpanFull(),
                                 \Filament\Infolists\Components\TextEntry::make('created_at')
                                     ->label('Дата')
-                                    ->formatStateUsing(fn($state) => \Carbon\Carbon::parse($state)->format('d.m.Y H:i')),
+                                    ->formatStateUsing(fn($state) => format_datetime($state)),
                             ])
                             ->columns(1),
                     ])

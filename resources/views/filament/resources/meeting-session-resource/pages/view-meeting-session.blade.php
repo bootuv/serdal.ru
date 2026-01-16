@@ -34,7 +34,8 @@
                     <h3 class="font-medium text-warning-800 dark:text-warning-200">Запрос на удаление</h3>
                     <p class="mt-1 text-sm text-warning-700 dark:text-warning-300">{{ $record->deletion_reason }}</p>
                     <p class="mt-2 text-xs text-warning-600 dark:text-warning-400">Запрос отправлен:
-                        {{ $record->deletion_requested_at->format('d.m.Y H:i') }}</p>
+                        {{ format_datetime($record->deletion_requested_at) }}
+                    </p>
                 </div>
             </div>
         </div>
@@ -42,12 +43,12 @@
 
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <x-filament::section>
-            <div class="text-xl font-bold">{{ $record->started_at?->format('d.m.Y H:i') ?? '-' }}</div>
+            <div class="text-xl font-bold">{{ format_datetime($record->started_at) ?? '-' }}</div>
             <div class="text-sm text-gray-500">Начало</div>
         </x-filament::section>
 
         <x-filament::section>
-            <div class="text-xl font-bold">{{ $record->ended_at?->format('d.m.Y H:i') ?? '-' }}</div>
+            <div class="text-xl font-bold">{{ format_datetime($record->ended_at) ?? '-' }}</div>
             <div class="text-sm text-gray-500">Конец</div>
         </x-filament::section>
 

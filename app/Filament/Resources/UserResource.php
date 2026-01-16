@@ -193,7 +193,7 @@ class UserResource extends Resource
                     ->toggleable(),
                 TextColumn::make('created_at')
                     ->label('Создан')
-                    ->date('d.m.Y')
+                    ->formatStateUsing(fn($state) => format_date($state))
                     ->toggleable(),
             ])
             ->filters([

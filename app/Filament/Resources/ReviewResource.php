@@ -90,7 +90,7 @@ class ReviewResource extends Resource
                     ->toggleable(),
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Дата')
-                    ->dateTime('d.m.Y H:i')
+                    ->formatStateUsing(fn($state) => format_datetime($state))
                     ->toggleable(),
                 Tables\Columns\IconColumn::make('is_rejected')
                     ->label('Отклонен')

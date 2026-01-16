@@ -57,7 +57,7 @@ class ViewHomework extends ViewRecord
 
                         Infolists\Components\TextEntry::make('deadline')
                             ->label('Срок сдачи')
-                            ->formatStateUsing(fn($state) => $state ? $state->translatedFormat('j F, H:i') : null)
+                            ->formatStateUsing(fn($state) => format_datetime($state))
                             ->placeholder('—')
                             ->color(fn(Homework $record) => $record->is_overdue ? 'danger' : null)
                             ->columnSpan(1),

@@ -116,7 +116,7 @@ class ViewStudent extends ViewRecord
                                             ->default('-'),
                                         Infolists\Components\TextEntry::make('created_at')
                                             ->label('Дата регистрации')
-                                            ->dateTime('d.m.Y'),
+                                            ->formatStateUsing(fn($state) => format_date($state)),
                                     ]),
                             ]),
                     ]),
@@ -375,7 +375,7 @@ class ViewStudent extends ViewRecord
                 'session_id' => $session->id,
                 'room_id' => $room->id,
                 'room_name' => $room->name ?? 'Урок',
-                'date' => $session->ended_at?->format('d.m.Y H:i') ?? '-',
+                'date' => format_datetime($session->ended_at) ?? '-',
                 'attended' => $isAttended,
                 'activity_score' => $activityScore,
             ];

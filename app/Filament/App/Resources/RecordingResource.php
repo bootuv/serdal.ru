@@ -51,8 +51,7 @@ class RecordingResource extends Resource
                     ->searchable(),
                 Tables\Columns\TextColumn::make('start_time')
                     ->label('Начало')
-                    ->dateTime()
-                    ->timezone('Europe/Moscow')
+                    ->formatStateUsing(fn($state) => format_datetime(\Carbon\Carbon::parse($state)->setTimezone('Europe/Moscow')))
                     ->sortable()
                     ->toggleable(),
                 Tables\Columns\TextColumn::make('participants')

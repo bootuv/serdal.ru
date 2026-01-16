@@ -73,8 +73,7 @@ class MeetingSessionResource extends Resource
                     ->toggleable(),
                 Tables\Columns\TextColumn::make('started_at')
                     ->label('Дата')
-                    ->dateTime('d.m.Y H:i')
-                    ->timezone('Europe/Moscow')
+                    ->formatStateUsing(fn($state) => format_datetime(\Carbon\Carbon::parse($state)->setTimezone('Europe/Moscow')))
                     ->sortable()
                     ->toggleable(),
                 Tables\Columns\TextColumn::make('duration')

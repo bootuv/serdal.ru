@@ -52,7 +52,7 @@ class RecordingResource extends Resource
                     ->searchable(),
                 Tables\Columns\TextColumn::make('start_time')
                     ->label('Начало')
-                    ->dateTime()
+                    ->formatStateUsing(fn($state) => format_datetime($state))
                     ->sortable()
                     ->toggleable(),
                 Tables\Columns\TextColumn::make('participants')
