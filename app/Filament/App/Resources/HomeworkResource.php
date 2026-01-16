@@ -52,7 +52,7 @@ class HomeworkResource extends Resource
                                         // Установить default max_score при смене типа
                                         $defaultScore = match ($state) {
                                             Homework::TYPE_HOMEWORK => 10,
-                                            Homework::TYPE_EXAM, Homework::TYPE_PRACTICE, Homework::TYPE_EGE => 100,
+                                            Homework::TYPE_EXAM, Homework::TYPE_PRACTICE => 100,
                                             default => 10,
                                         };
                                         $set('max_score', $defaultScore);
@@ -71,7 +71,6 @@ class HomeworkResource extends Resource
                             ->visible(fn(Forms\Get $get) => in_array($get('type'), [
                                 Homework::TYPE_EXAM,
                                 Homework::TYPE_PRACTICE,
-                                Homework::TYPE_EGE,
                             ])),
 
                         Forms\Components\RichEditor::make('description')
@@ -233,26 +232,11 @@ class HomeworkResource extends Resource
                     ->sortable()
                     ->limit(40),
 
-                Tables\Columns\TextColumn::make('type')
+                Tables\Columns\TextColumn::make('type_label')
                     ->label('Тип')
-                    ->formatStateUsing(function (Homework $record) {
-                        // Цвета в стиле Filament "soft" (светлый фон, темный текст, обводка)
-                        $style = match ($record->type) {
-                            Homework::TYPE_HOMEWORK => 'background-color: #f9fafb; color: #374151; border: 1px solid #e5e7eb;', // Gray-50, Gray-700, Ring-200
-                            Homework::TYPE_EXAM => 'background-color: #fef2f2; color: #b91c1c; border: 1px solid #fecaca;', // Red-50, Red-700, Ring-200
-                            Homework::TYPE_PRACTICE => 'background-color: #fff7ed; color: #c2410c; border: 1px solid #fed7aa;', // Orange-50, Orange-700, Ring-200
-                            Homework::TYPE_EGE => 'background-color: #ecfdf5; color: #047857; border: 1px solid #a7f3d0;', // Emerald-50, Emerald-700, Ring-200
-                            default => 'background-color: #f9fafb; color: #374151; border: 1px solid #e5e7eb;',
-                        };
-
-                        return \Illuminate\Support\Facades\Blade::render('
-                            <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-medium whitespace-nowrap" style="' . $style . '">
-                                <x-filament::icon icon="' . $record->type_icon . '" class="w-4 h-4" />
-                                <span>' . $record->type_label . '</span>
-                            </div>
-                        ');
-                    })
-                    ->html(),
+                    ->badge()
+                    ->color(fn(Homework $record): string => $record->type_color)
+                    ->icon(fn(Homework $record): string => $record->type_icon),
 
                 Tables\Columns\TextColumn::make('room.name')
                     ->label('Урок')
@@ -303,7 +287,7 @@ class HomeworkResource extends Resource
 
                 Tables\Columns\TextColumn::make('deadline')
                     ->label('Срок сдачи')
-                    ->dateTime('d.m.Y H:i')
+                    ->formatStateUsing(fn($state) => $state ? $state->translatedFormat('j F, H:i') : null)
                     ->sortable()
                     ->color(fn(Homework $record) => $record->is_overdue ? 'danger' : null),
 

@@ -34,6 +34,12 @@ class HomeworkResource extends Resource
                     ->sortable()
                     ->limit(50),
 
+                Tables\Columns\TextColumn::make('type_label')
+                    ->label('Тип')
+                    ->badge()
+                    ->color(fn(Homework $record): string => $record->type_color)
+                    ->icon(fn(Homework $record): string => $record->type_icon),
+
                 Tables\Columns\TextColumn::make('teacher.name')
                     ->label('Учитель')
                     ->sortable(),
@@ -45,7 +51,7 @@ class HomeworkResource extends Resource
 
                 Tables\Columns\TextColumn::make('deadline')
                     ->label('Срок сдачи')
-                    ->dateTime('d.m.Y H:i')
+                    ->formatStateUsing(fn($state) => $state ? $state->translatedFormat('j F, H:i') : null)
                     ->sortable()
                     ->color(fn(Homework $record) => $record->is_overdue ? 'danger' : null),
 
@@ -130,7 +136,7 @@ class HomeworkResource extends Resource
             ])
             ->defaultSort('created_at', 'desc')
             ->actions([
-                Tables\Actions\ViewAction::make(),
+                //
             ])
             ->emptyStateHeading('Нет домашних заданий')
             ->emptyStateDescription('Когда учитель назначит вам домашнее задание, оно появится здесь')

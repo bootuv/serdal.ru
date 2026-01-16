@@ -21,7 +21,6 @@ class Homework extends Model
     const TYPE_HOMEWORK = 'homework';
     const TYPE_EXAM = 'exam';
     const TYPE_PRACTICE = 'practice';
-    const TYPE_EGE = 'ege';
 
     protected $fillable = [
         'teacher_id',
@@ -51,7 +50,6 @@ class Homework extends Model
             self::TYPE_HOMEWORK => 'Домашнее задание',
             self::TYPE_EXAM => 'Экзамен',
             self::TYPE_PRACTICE => 'Пробник ЕГЭ',
-            self::TYPE_EGE => 'ЕГЭ',
         ];
     }
 
@@ -72,7 +70,6 @@ class Homework extends Model
             self::TYPE_HOMEWORK => 'heroicon-o-clipboard-document-list',
             self::TYPE_EXAM => 'heroicon-o-academic-cap',
             self::TYPE_PRACTICE => 'heroicon-o-document-text',
-            self::TYPE_EGE => 'heroicon-o-trophy',
             default => 'heroicon-o-clipboard-document-list',
         };
     }
@@ -86,7 +83,6 @@ class Homework extends Model
             self::TYPE_HOMEWORK => 'gray',
             self::TYPE_EXAM => 'danger',
             self::TYPE_PRACTICE => 'warning',
-            self::TYPE_EGE => 'success',
             default => 'gray',
         };
     }
@@ -98,9 +94,7 @@ class Homework extends Model
     {
         return match ($this->type) {
             self::TYPE_HOMEWORK => 10,
-            self::TYPE_EXAM => 100,
-            self::TYPE_PRACTICE => 100,
-            self::TYPE_EGE => 100,
+            self::TYPE_EXAM, self::TYPE_PRACTICE => 100,
             default => 10,
         };
     }
@@ -124,7 +118,7 @@ class Homework extends Model
 
         return match ($this->type) {
             self::TYPE_HOMEWORK => (string) $grade,
-            self::TYPE_EXAM, self::TYPE_PRACTICE, self::TYPE_EGE => "{$grade}/{$this->effective_max_score}",
+            self::TYPE_EXAM, self::TYPE_PRACTICE => "{$grade}/{$this->effective_max_score}",
             default => (string) $grade,
         };
     }
@@ -136,7 +130,7 @@ class Homework extends Model
     {
         return match ($this->type) {
             self::TYPE_HOMEWORK => 'Оценка',
-            self::TYPE_EXAM, self::TYPE_PRACTICE, self::TYPE_EGE => 'Баллы',
+            self::TYPE_EXAM, self::TYPE_PRACTICE => 'Баллы',
             default => 'Оценка',
         };
     }

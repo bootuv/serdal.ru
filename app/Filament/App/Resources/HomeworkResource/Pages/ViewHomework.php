@@ -43,6 +43,13 @@ class ViewHomework extends ViewRecord
                             ->label('Название')
                             ->columnSpan(1),
 
+                        Infolists\Components\TextEntry::make('type_label')
+                            ->label('Тип')
+                            ->badge()
+                            ->color(fn(Homework $record): string => $record->type_color)
+                            ->icon(fn(Homework $record): string => $record->type_icon)
+                            ->columnSpan(1),
+
                         Infolists\Components\TextEntry::make('room.name')
                             ->label('Урок')
                             ->placeholder('Не привязано')
@@ -50,7 +57,7 @@ class ViewHomework extends ViewRecord
 
                         Infolists\Components\TextEntry::make('deadline')
                             ->label('Срок сдачи')
-                            ->dateTime('d.m.Y H:i')
+                            ->formatStateUsing(fn($state) => $state ? $state->translatedFormat('j F, H:i') : null)
                             ->placeholder('—')
                             ->color(fn(Homework $record) => $record->is_overdue ? 'danger' : null)
                             ->columnSpan(1),

@@ -54,7 +54,7 @@
                                 </x-filament::badge>
                             </td>
                             <td class="py-3 px-3 text-gray-600 dark:text-gray-400">
-                                {{ $submission?->submitted_at?->format('d.m.Y H:i') ?? '—' }}
+                                {{ $submission?->submitted_at?->translatedFormat('j F, H:i') ?? '—' }}
                             </td>
                             <td class="py-3 px-3">
                                 @if($submission?->grade !== null)
