@@ -46,6 +46,8 @@ class ListRecordings extends ListRecords
                 $response = \JoisarJignesh\Bigbluebutton\Facades\Bigbluebutton::getRecordings(['state' => 'any']);
                 $recs = collect($response);
 
+                \Log::info('BBB Sync: Raw response count', ['count' => $recs->count(), 'user_room_ids' => $userRoomIds]);
+
                 // Collect BBB record IDs for cleanup comparison
                 $bbbRecordIds = [];
 
@@ -54,6 +56,7 @@ class ListRecordings extends ListRecords
                     // Only import if it belongs to one of our rooms
                     if (in_array($r['meetingID'], $userRoomIds)) {
                         $bbbRecordIds[] = $r['recordID'];
+                        \Log::info('BBB Sync: Found recording', ['recordID' => $r['recordID'], 'meetingID' => $r['meetingID']]);
 
                         \App\Models\Recording::updateOrCreate(
                             ['record_id' => $r['recordID']],
@@ -71,7 +74,15 @@ class ListRecordings extends ListRecords
                     }
                 }
 
+                \Log::info('BBB Sync: IDs from BBB', ['bbbRecordIds' => $bbbRecordIds]);
+
                 // Delete local recordings that no longer exist on BBB
+                $toDelete = \App\Models\Recording::whereIn('meeting_id', $userRoomIds)
+                    ->whereNotIn('record_id', $bbbRecordIds)
+                    ->pluck('record_id');
+
+                \Log::info('BBB Sync: Recordings to delete', ['toDelete' => $toDelete->toArray()]);
+
                 \App\Models\Recording::whereIn('meeting_id', $userRoomIds)
                     ->whereNotIn('record_id', $bbbRecordIds)
                     ->delete();
