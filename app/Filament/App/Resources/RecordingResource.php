@@ -170,9 +170,21 @@ class RecordingResource extends Resource
                             $response = Bigbluebutton::deleteRecordings(['recordID' => $record->record_id]);
                             \Log::info('BBB Delete Recording Response', ['record_id' => $record->record_id, 'response' => $response]);
 
-                            // Check if deletion was successful
-                            if (!$response || (is_object($response) && method_exists($response, 'isDeleted') && !$response->isDeleted())) {
-                                throw new \Exception('BBB не подтвердил удаление записи');
+                            // Handle response - notFound means already deleted, which is OK
+                            if ($response instanceof \Illuminate\Support\Collection) {
+                                $messageKey = $response->get('messageKey');
+                                $returnCode = $response->get('returncode');
+
+                                // notFound = already deleted on BBB, proceed with local delete
+                                if ($messageKey === 'notFound') {
+                                    \Log::info('Recording not found on BBB, proceeding with local delete', ['record_id' => $record->record_id]);
+                                    return;
+                                }
+
+                                // SUCCESS = deleted successfully
+                                if ($returnCode === 'SUCCESS') {
+                                    return;
+                                }
                             }
                         } catch (\Exception $e) {
                             \Log::error('BBB Delete Recording Error', ['record_id' => $record->record_id, 'error' => $e->getMessage()]);
