@@ -43,7 +43,7 @@ class ListRecordings extends ListRecords
             $userRoomIds = \App\Models\Room::where('user_id', auth()->id())->pluck('meeting_id')->filter()->toArray();
 
             if (!empty($userRoomIds)) {
-                $response = \JoisarJignesh\Bigbluebutton\Facades\Bigbluebutton::getRecordings(['state' => 'any']);
+                $response = \JoisarJignesh\Bigbluebutton\Facades\Bigbluebutton::getRecordings(['state' => 'published']);
                 $recs = collect($response);
 
                 \Log::info('BBB Sync: Raw response count', ['count' => $recs->count(), 'user_room_ids' => $userRoomIds]);
