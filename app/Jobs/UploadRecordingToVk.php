@@ -45,6 +45,11 @@ class UploadRecordingToVk implements ShouldQueue
 
         // Get video URL from recording
         $videoUrl = $this->recording->url;
+
+        // Fix BBB URL to point to actual file if it's the video format
+        if ($videoUrl && str_contains($videoUrl, '/playback/video/')) {
+            $videoUrl = rtrim($videoUrl, '/') . '/video-0.m4v';
+        }
         if (empty($videoUrl)) {
             Log::warning('VK Video: No video URL for recording', [
                 'recording_id' => $this->recording->id,
