@@ -61,6 +61,7 @@ class User extends Authenticatable implements FilamentUser
         'is_profile_completed',
         'push_reminder_at',
         'push_reminder_count',
+        'vk_album_id',
     ];
 
     /**

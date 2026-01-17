@@ -19,6 +19,9 @@ class Recording extends Model
         'participants',
         'url',
         'raw_data',
+        'vk_video_id',
+        'vk_video_url',
+        'vk_uploaded_at',
     ];
 
     protected $casts = [
@@ -26,6 +29,7 @@ class Recording extends Model
         'start_time' => 'datetime',
         'end_time' => 'datetime',
         'raw_data' => 'array',
+        'vk_uploaded_at' => 'datetime',
     ];
 
     public function room()

@@ -58,7 +58,7 @@ class ListRecordings extends ListRecords
                         $bbbRecordIds[] = $r['recordID'];
                         \Log::info('BBB Sync: Found recording', ['recordID' => $r['recordID'], 'meetingID' => $r['meetingID']]);
 
-                        \App\Models\Recording::updateOrCreate(
+                        $recording = \App\Models\Recording::updateOrCreate(
                             ['record_id' => $r['recordID']],
                             [
                                 'meeting_id' => $r['meetingID'],
@@ -71,6 +71,16 @@ class ListRecordings extends ListRecords
                                 'raw_data' => $r,
                             ]
                         );
+
+                        // Dispatch VK upload if enabled and not yet uploaded
+                        $vkAutoUpload = \App\Models\Setting::where('key', 'vk_auto_upload')->value('value') === '1';
+                        if ($vkAutoUpload && !$recording->vk_video_id && $recording->url) {
+                            $room = \App\Models\Room::where('meeting_id', $r['meetingID'])->first();
+                            if ($room && $room->user) {
+                                \App\Jobs\UploadRecordingToVk::dispatch($recording, $room->user);
+                                \Log::info('VK Upload: Dispatched job', ['recording_id' => $recording->id, 'teacher' => $room->user->name]);
+                            }
+                        }
                     }
                 }
 

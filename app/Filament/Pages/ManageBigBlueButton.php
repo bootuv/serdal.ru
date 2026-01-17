@@ -39,6 +39,9 @@ class ManageBigBlueButton extends Page implements HasForms
             'webcams_only_for_moderator' => Setting::where('key', 'bbb_webcams_only_for_moderator')->value('value') === '1',
             'max_participants' => Setting::where('key', 'bbb_max_participants')->value('value') ?? 0,
             'duration' => Setting::where('key', 'bbb_duration')->value('value') ?? 0,
+            'vk_access_token' => Setting::where('key', 'vk_access_token')->value('value'),
+            'vk_group_id' => Setting::where('key', 'vk_group_id')->value('value'),
+            'vk_auto_upload' => Setting::where('key', 'vk_auto_upload')->value('value') === '1',
         ]);
     }
 
@@ -93,6 +96,23 @@ class ManageBigBlueButton extends Page implements HasForms
                             ->default(0)
                             ->helperText('0 = неограничено'),
                     ]),
+                Section::make('VK Video')
+                    ->description('Автоматический экспорт записей в VK Video')
+                    ->schema([
+                        \Filament\Forms\Components\Toggle::make('vk_auto_upload')
+                            ->label('Автозагрузка в VK')
+                            ->helperText('Автоматически загружать записи в VK Video'),
+                        TextInput::make('vk_access_token')
+                            ->label('VK Access Token')
+                            ->password()
+                            ->revealable()
+                            ->maxLength(500)
+                            ->helperText('Токен с правами video'),
+                        TextInput::make('vk_group_id')
+                            ->label('ID группы VK')
+                            ->numeric()
+                            ->helperText('ID закрытой группы для хранения записей'),
+                    ]),
             ])
             ->statePath('data');
     }
@@ -119,6 +139,11 @@ class ManageBigBlueButton extends Page implements HasForms
         Setting::updateOrCreate(['key' => 'bbb_webcams_only_for_moderator'], ['value' => $data['webcams_only_for_moderator'] ? '1' : '0']);
         Setting::updateOrCreate(['key' => 'bbb_max_participants'], ['value' => $data['max_participants'] ?? 0]);
         Setting::updateOrCreate(['key' => 'bbb_duration'], ['value' => $data['duration'] ?? 0]);
+
+        // VK Video settings
+        Setting::updateOrCreate(['key' => 'vk_access_token'], ['value' => $data['vk_access_token']]);
+        Setting::updateOrCreate(['key' => 'vk_group_id'], ['value' => $data['vk_group_id']]);
+        Setting::updateOrCreate(['key' => 'vk_auto_upload'], ['value' => $data['vk_auto_upload'] ? '1' : '0']);
 
         Notification::make()
             ->title('Настройки сохранены')

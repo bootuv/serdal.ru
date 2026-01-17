@@ -148,6 +148,32 @@ class RecordingResource extends Resource
                         }
                         return false;
                     }),
+                Tables\Actions\Action::make('vk_video')
+                    ->label('VK Video')
+                    ->icon('heroicon-o-video-camera')
+                    ->url(fn(Recording $record) => $record->vk_video_url)
+                    ->openUrlInNewTab()
+                    ->visible(fn(Recording $record) => !empty($record->vk_video_url))
+                    ->color('info'),
+                Tables\Actions\Action::make('upload_to_vk')
+                    ->label('Загрузить в VK')
+                    ->icon('heroicon-o-cloud-arrow-up')
+                    ->action(function (Recording $record) {
+                        $room = \App\Models\Room::where('meeting_id', $record->meeting_id)->first();
+                        if ($room && $room->user) {
+                            \App\Jobs\UploadRecordingToVk::dispatch($record, $room->user);
+                            \Filament\Notifications\Notification::make()
+                                ->title('Загрузка в VK')
+                                ->body('Запись добавлена в очередь на загрузку')
+                                ->success()
+                                ->send();
+                        }
+                    })
+                    ->visible(fn(Recording $record) => empty($record->vk_video_url) && !empty($record->url))
+                    ->requiresConfirmation()
+                    ->modalHeading('Загрузить в VK Video?')
+                    ->modalDescription('Запись будет загружена в VK Video в фоновом режиме.')
+                    ->color('gray'),
                 Tables\Actions\DeleteAction::make()
                     ->before(function (Recording $record) {
                         // Delete from BBB First
