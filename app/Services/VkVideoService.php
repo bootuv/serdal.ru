@@ -29,16 +29,17 @@ class VkVideoService
             return null;
         }
 
+        $tempPath = null;
+
         try {
-            // Step 1: Get upload URL via video.save
+            // Step 1: Get upload URL via video.save (WITHOUT link parameter for direct upload)
             $saveParams = [
                 'access_token' => $this->accessToken,
                 'v' => $this->apiVersion,
                 'name' => mb_substr($name, 0, 128),
                 'description' => mb_substr($description, 0, 5000),
-                'is_private' => 0, // Will be accessible by link
+                'is_private' => 0, // Public
                 'wallpost' => 0, // Don't post to wall
-                'link' => $videoUrl, // External video URL
             ];
 
             if ($this->groupId) {
@@ -68,12 +69,46 @@ class VkVideoService
                 return null;
             }
 
-            // Step 2: Send POST to upload URL (for external link, just ping it)
-            $uploadResponse = Http::post($uploadUrl);
+            // Step 2: Download the video file locally
+            Log::info('VK Video: Downloading video file...', ['url' => $videoUrl]);
+
+            // Create a temp file
+            $tempFile = 'vk_upload_' . uniqid() . '.mp4';
+            $tempPath = storage_path('app/temp/' . $tempFile);
+
+            // Ensure temp directory exists
+            if (!file_exists(dirname($tempPath))) {
+                mkdir(dirname($tempPath), 0755, true);
+            }
+
+            // Download using sink to save directly to file implies minimal memory usage
+            $dlResponse = Http::sink($tempPath)->get($videoUrl);
+
+            if ($dlResponse->failed()) {
+                Log::error('VK Video: Failed to download video file', ['status' => $dlResponse->status()]);
+                return null;
+            }
+
+            Log::info('VK Video: File downloaded, uploading to VK...', ['size' => filesize($tempPath)]);
+
+            // Step 3: Upload file to VK
+            $uploadResponse = Http::attach(
+                'video_file',
+                fopen($tempPath, 'r'),
+                'video.mp4'
+            )->post($uploadUrl);
+
+            $uploadData = $uploadResponse->json();
+
+            if (isset($uploadData['error']) || isset($uploadData['error_code'])) {
+                Log::error('VK Video: Upload failed', ['response' => $uploadData]);
+                return null;
+            }
 
             Log::info('VK Video: Upload complete', [
                 'video_id' => $videoId,
                 'owner_id' => $ownerId,
+                'response' => $uploadData
             ]);
 
             // Build VK video URL
@@ -86,8 +121,13 @@ class VkVideoService
             ];
 
         } catch (\Exception $e) {
-            Log::error('VK Video: Exception', ['message' => $e->getMessage()]);
+            Log::error('VK Video: Exception', ['message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
             return null;
+        } finally {
+            // Cleanup temp file
+            if ($tempPath && file_exists($tempPath)) {
+                @unlink($tempPath);
+            }
         }
     }
 
