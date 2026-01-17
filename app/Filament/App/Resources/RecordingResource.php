@@ -167,12 +167,17 @@ class RecordingResource extends Resource
                                 }
                             }
 
-                            Bigbluebutton::deleteRecordings(['recordID' => $record->record_id]);
+                            $response = Bigbluebutton::deleteRecordings(['recordID' => $record->record_id]);
+                            \Log::info('BBB Delete Recording Response', ['record_id' => $record->record_id, 'response' => $response]);
+
+                            // Check if deletion was successful
+                            if (!$response || (is_object($response) && method_exists($response, 'isDeleted') && !$response->isDeleted())) {
+                                throw new \Exception('BBB не подтвердил удаление записи');
+                            }
                         } catch (\Exception $e) {
-                            // Log error but allow DB delete or halt?
-                            // Halt to prevent de-sync
+                            \Log::error('BBB Delete Recording Error', ['record_id' => $record->record_id, 'error' => $e->getMessage()]);
                             Notification::make()->title('Ошибка удаления с сервера BBB')->body($e->getMessage())->danger()->send();
-                            // throw $e; // Prevent DB delete
+                            throw $e; // Prevent DB delete to keep in sync
                         }
                     }),
             ])
