@@ -46,10 +46,15 @@ class ListRecordings extends ListRecords
                 $response = \JoisarJignesh\Bigbluebutton\Facades\Bigbluebutton::getRecordings(['state' => 'any']);
                 $recs = collect($response);
 
+                // Collect BBB record IDs for cleanup comparison
+                $bbbRecordIds = [];
+
                 foreach ($recs as $rec) {
                     $r = (array) $rec;
                     // Only import if it belongs to one of our rooms
                     if (in_array($r['meetingID'], $userRoomIds)) {
+                        $bbbRecordIds[] = $r['recordID'];
+
                         \App\Models\Recording::updateOrCreate(
                             ['record_id' => $r['recordID']],
                             [
@@ -65,6 +70,11 @@ class ListRecordings extends ListRecords
                         );
                     }
                 }
+
+                // Delete local recordings that no longer exist on BBB
+                \App\Models\Recording::whereIn('meeting_id', $userRoomIds)
+                    ->whereNotIn('record_id', $bbbRecordIds)
+                    ->delete();
             }
         } catch (\Throwable $e) {
             // Silent fail or log
