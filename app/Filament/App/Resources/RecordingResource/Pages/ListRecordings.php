@@ -17,6 +17,15 @@ class ListRecordings extends ListRecords
         ];
     }
 
+    public function getListeners(): array
+    {
+        return [
+            "echo:recordings,.recording.updated" => '$refresh',
+            "echo:recordings,recording.updated" => '$refresh',
+            "echo:recordings,RecordingUpdated" => '$refresh',
+        ];
+    }
+
     public function mount(): void
     {
         try {
@@ -107,9 +116,11 @@ class ListRecordings extends ListRecords
 
                 // Delete local recordings that no longer exist on BBB
                 // BUT keep recordings that were already uploaded to VK (intentionally deleted from BBB)
+                // AND keep placeholder recordings (recently created, not yet on BBB)
                 $toDelete = \App\Models\Recording::whereIn('meeting_id', $userRoomIds)
                     ->whereNotIn('record_id', $bbbRecordIds)
                     ->whereNull('vk_video_id') // Don't delete if already uploaded to VK
+                    ->where('record_id', 'not like', '%-placeholder-%') // Don't delete placeholders
                     ->pluck('record_id');
 
                 \Log::info('BBB Sync: Recordings to delete', ['toDelete' => $toDelete->toArray()]);
@@ -117,6 +128,7 @@ class ListRecordings extends ListRecords
                 \App\Models\Recording::whereIn('meeting_id', $userRoomIds)
                     ->whereNotIn('record_id', $bbbRecordIds)
                     ->whereNull('vk_video_id')
+                    ->where('record_id', 'not like', '%-placeholder-%')
                     ->delete();
             }
         } catch (\Throwable $e) {

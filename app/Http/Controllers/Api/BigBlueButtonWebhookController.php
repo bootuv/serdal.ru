@@ -161,6 +161,11 @@ class BigBlueButtonWebhookController extends Controller
                 ]);
             }
         }
+
+        // Cleanup placeholders
+        \App\Models\Recording::where('meeting_id', $meetingId)
+            ->where('record_id', 'like', '%-placeholder-%')
+            ->delete();
     }
 
     /**
@@ -427,7 +432,10 @@ class BigBlueButtonWebhookController extends Controller
         // Create placeholder recording regardless of session status
         // We'll create it with empty URL - it will be updated when publish_ended comes
         if ($room) {
-            $internalMeetingId = $data['data']['attributes']['meeting']['internal-meeting-id'] ?? null;
+            // Get internal meeting ID from session (saved in handleMeetingCreated) or extract from raw data
+            $internalMeetingId = $session->internal_meeting_id
+                ?? ($data['data']['attributes']['meeting']['internal-meeting-id'] ?? null)
+                ?? ($data['core']['body']['meetingId'] ?? null);
 
             // Check if recording already exists for this meeting (within last 30 minutes)
             $existingRecording = \App\Models\Recording::where('meeting_id', $meetingId)
@@ -435,17 +443,20 @@ class BigBlueButtonWebhookController extends Controller
                 ->first();
 
             if (!$existingRecording && $internalMeetingId) {
-                \App\Models\Recording::create([
+                $recording = \App\Models\Recording::create([
                     'meeting_id' => $meetingId,
                     'record_id' => $internalMeetingId . '-placeholder-' . time(),
                     'name' => $room->name ?? 'Запись урока',
                     'published' => false,
-                    'start_time' => now()->subMinutes(5), // Approximate
+                    'start_time' => $session?->started_at ?? now()->subMinutes(5),
                     'end_time' => now(),
-                    'participants' => 0,
+                    'participants' => $session?->participant_count ?? 0,
                     'url' => null, // Will be filled when publish_ended comes
                 ]);
-                Log::info("BBB Webhook: Created placeholder recording for {$meetingId}");
+                Log::info("BBB Webhook: Created placeholder recording for {$meetingId}", ['recording_id' => $recording->id]);
+
+                // Broadcast update to refresh recordings list in real-time
+                \App\Events\RecordingUpdated::dispatch($recording);
             }
         }
     }

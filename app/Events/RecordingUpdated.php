@@ -39,6 +39,7 @@ class RecordingUpdated implements ShouldBroadcast
     {
         return [
             new PrivateChannel('recordings.' . $this->meetingId),
+            new Channel('recordings'), // Public channel for list page updates
         ];
     }
 
