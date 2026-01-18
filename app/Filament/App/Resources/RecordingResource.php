@@ -59,49 +59,62 @@ class RecordingResource extends Resource
                     ->numeric()
                     ->sortable()
                     ->toggleable(),
-                Tables\Columns\TextColumn::make('status')
+                Tables\Columns\TextColumn::make('status_label')
                     ->label('Статус')
+                    ->badge()
                     ->getStateUsing(function (Recording $record) {
                         if (!empty($record->vk_video_url)) {
-                            // Uploaded to VK - show "Посмотреть" button linking to view page
-                            $viewUrl = static::getUrl('view', ['record' => $record]);
-                            return '<a href="' . $viewUrl . '" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>Посмотреть</a>';
+                            return 'Готово';
                         } elseif (!empty($record->url)) {
-                            // If recent (< 24 hours), show uploading
-                            if ($record->start_time && \Carbon\Carbon::parse($record->start_time)->gt(now()->subHours(2))) {
-                                return '<span class="inline-flex items-center gap-1.5 text-info-600"><svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/></svg>Отправка в VK...</span>';
-                            } else {
-                                // Old recording, sync'd but not uploaded - show "Available on BBB"
-                                return '<a href="' . $record->url . '" target="_blank" class="inline-flex items-center gap-1.5 text-gray-500 hover:text-primary-600 hover:underline"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>Открыть в BBB</a>';
-                            }
+                            // Has BBB URL but not yet on VK
+                            return 'Отправка в VK';
                         } else {
                             // Processing by BBB
-                            return '<span class="inline-flex items-center gap-1.5 text-warning-600"><svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/></svg>Обработка...</span>';
+                            return 'Обработка';
                         }
                     })
-                    ->html(),
+                    ->colors([
+                        'success' => 'Готово',
+                        'info' => 'Отправка в VK',
+                        'warning' => 'Обработка',
+                    ])
+                    ->icons([
+                        'heroicon-m-check-circle' => 'Готово',
+                        'heroicon-m-arrow-path' => 'Отправка в VK',
+                        'heroicon-m-clock' => 'Обработка',
+                    ]),
             ])
             ->filters([])
             ->searchable()
             ->defaultSort('start_time', 'desc')
             ->actions([
+                Tables\Actions\Action::make('view')
+                    ->label('Посмотреть')
+                    ->icon('heroicon-m-play')
+                    ->color('success')
+                    ->url(fn(Recording $record) => static::getUrl('view', ['record' => $record]))
+                    ->visible(fn(Recording $record) => !empty($record->vk_video_url)),
+
+                Tables\Actions\Action::make('open_bbb')
+                    ->label('Открыть в BBB')
+                    ->icon('heroicon-m-arrow-top-right-on-square')
+                    ->color('gray')
+                    ->url(fn(Recording $record) => $record->url)
+                    ->openUrlInNewTab()
+                    ->visible(fn(Recording $record) => empty($record->vk_video_url) && !empty($record->url)),
+
                 Tables\Actions\DeleteAction::make()
                     ->before(function (Recording $record) {
                         // Delete from BBB First
                         try {
-                            // Configure BBB
-                            $user = auth()->user();
-                            if ($user->bbb_url && $user->bbb_secret) {
+                            // Configure BBB from global settings
+                            $globalUrl = \App\Models\Setting::where('key', 'bbb_url')->value('value');
+                            $globalSecret = \App\Models\Setting::where('key', 'bbb_secret')->value('value');
+                            if ($globalUrl && $globalSecret) {
                                 config([
-                                    'bigbluebutton.BBB_SERVER_BASE_URL' => $user->bbb_url,
-                                    'bigbluebutton.BBB_SECURITY_SALT' => $user->bbb_secret,
+                                    'bigbluebutton.BBB_SERVER_BASE_URL' => $globalUrl,
+                                    'bigbluebutton.BBB_SECURITY_SALT' => $globalSecret,
                                 ]);
-                            } else {
-                                $globalUrl = \App\Models\Setting::where('key', 'bbb_url')->value('value');
-                                $globalSecret = \App\Models\Setting::where('key', 'bbb_secret')->value('value');
-                                if ($globalUrl && $globalSecret) {
-                                    config(['bigbluebutton.BBB_SERVER_BASE_URL' => $globalUrl, 'bigbluebutton.BBB_SECURITY_SALT' => $globalSecret]);
-                                }
                             }
 
                             \Log::info('Attempting to delete recording from BBB', [

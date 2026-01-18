@@ -116,14 +116,38 @@ class VkVideoService
             // Build VK video URL
             $vkVideoUrl = "https://vk.com/video{$ownerId}_{$videoId}";
 
-            // Get access_key from the original save response (needed for embedding private videos)
-            $accessKey = $data['response']['access_key'] ?? null;
+            // Get access_key from the original save response (API key)
+            $apiAccessKey = $data['response']['access_key'] ?? null;
+            $finalKey = $apiAccessKey;
+
+            // Fetch correct embed hash via video.get (required for iframe)
+            try {
+                // Short pause to ensure availability
+                sleep(1);
+
+                $hashResponse = Http::get('https://api.vk.com/method/video.get', [
+                    'access_token' => $this->accessToken,
+                    'v' => $this->apiVersion,
+                    'videos' => "{$ownerId}_{$videoId}",
+                    'count' => 1
+                ]);
+                $hashData = $hashResponse->json();
+
+                $playerUrl = $hashData['response']['items'][0]['player'] ?? '';
+                if (preg_match('/hash=([a-f0-9]+)/', $playerUrl, $matches)) {
+                    $embedHash = $matches[1];
+                    $finalKey = $embedHash; // Use embed hash instead of API key
+                    Log::info('VK Video: Retrieved embed hash', ['hash' => $embedHash]);
+                }
+            } catch (\Exception $e) {
+                Log::warning('VK Video: Failed to fetch embed hash', ['error' => $e->getMessage()]);
+            }
 
             return [
                 'video_id' => $videoId,
                 'owner_id' => $ownerId,
                 'url' => $vkVideoUrl,
-                'access_key' => $accessKey,
+                'access_key' => $finalKey,
             ];
 
         } catch (\Exception $e) {

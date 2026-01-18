@@ -90,7 +90,8 @@ class UploadRecordingToVk implements ShouldQueue
             ]);
 
             // Broadcast recording update for real-time UI refresh
-            \App\Events\RecordingUpdated::dispatch($this->recording->fresh());
+            // TODO: Create RecordingUpdated event if needed
+            // \App\Events\RecordingUpdated::dispatch($this->recording->fresh());
 
             Log::info('VK Video: Recording uploaded successfully', [
                 'recording_id' => $this->recording->id,
@@ -101,8 +102,23 @@ class UploadRecordingToVk implements ShouldQueue
             // Check if we should delete from BBB
             if (Setting::where('key', 'vk_delete_after_upload')->value('value') === '1') {
                 try {
-                    Log::info('VK Video: Deleting recording from BBB', ['record_id' => $this->recording->record_id]);
-                    Bigbluebutton::deleteRecordings(['recordID' => $this->recording->record_id]);
+                    // Configure BBB credentials from global settings
+                    $globalUrl = Setting::where('key', 'bbb_url')->value('value');
+                    $globalSecret = Setting::where('key', 'bbb_secret')->value('value');
+                    if ($globalUrl && $globalSecret) {
+                        config([
+                            'bigbluebutton.BBB_SERVER_BASE_URL' => $globalUrl,
+                            'bigbluebutton.BBB_SECURITY_SALT' => $globalSecret,
+                        ]);
+                    }
+
+                    Log::info('VK Video: Deleting recording from BBB', [
+                        'record_id' => $this->recording->record_id,
+                        'bbb_url' => config('bigbluebutton.BBB_SERVER_BASE_URL')
+                    ]);
+
+                    $deleteResponse = Bigbluebutton::deleteRecordings(['recordID' => $this->recording->record_id]);
+                    Log::info('VK Video: BBB delete response', ['response' => $deleteResponse]);
                 } catch (\Exception $e) {
                     Log::error('VK Video: Failed to delete recording from BBB', [
                         'record_id' => $this->recording->record_id,

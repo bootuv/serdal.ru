@@ -43,16 +43,12 @@ class RecordingResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('meeting_id')
-                    ->label('ID Встречи')
-                    ->searchable()
-                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('name')
                     ->label('Название')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('start_time')
                     ->label('Начало')
-                    ->formatStateUsing(fn($state) => format_datetime($state))
+                    ->formatStateUsing(fn($state) => format_datetime(\Carbon\Carbon::parse($state)->setTimezone('Europe/Moscow')))
                     ->sortable()
                     ->toggleable(),
                 Tables\Columns\TextColumn::make('participants')
@@ -60,15 +56,30 @@ class RecordingResource extends Resource
                     ->numeric()
                     ->sortable()
                     ->toggleable(),
-                Tables\Columns\IconColumn::make('published')
-                    ->label('Опубликовано')
-                    ->boolean()
-                    ->toggleable(),
+                Tables\Columns\TextColumn::make('status_label')
+                    ->label('Статус')
+                    ->badge()
+                    ->getStateUsing(function (Recording $record) {
+                        if (!empty($record->vk_video_url)) {
+                            return 'Готово';
+                        } elseif (!empty($record->url)) {
+                            return 'Отправка в VK';
+                        } else {
+                            return 'Обработка';
+                        }
+                    })
+                    ->colors([
+                        'success' => 'Готово',
+                        'info' => 'Отправка в VK',
+                        'warning' => 'Обработка',
+                    ])
+                    ->icons([
+                        'heroicon-m-check-circle' => 'Готово',
+                        'heroicon-m-arrow-path' => 'Отправка в VK',
+                        'heroicon-m-clock' => 'Обработка',
+                    ]),
             ])
-            ->filters([
-                Tables\Filters\TernaryFilter::make('published')
-                    ->label('Опубликовано'),
-            ])
+            ->filters([])
             ->filtersLayout(Tables\Enums\FiltersLayout::Dropdown)
             ->persistFiltersInSession()
             ->searchable()
@@ -127,12 +138,21 @@ class RecordingResource extends Resource
             ])
             ->defaultSort('start_time', 'desc')
             ->actions([
-                Tables\Actions\Action::make('play')
-                    ->label('Смотреть')
-                    ->icon('heroicon-o-play')
+                Tables\Actions\Action::make('view')
+                    ->label('Посмотреть')
+                    ->icon('heroicon-m-play')
+                    ->color('success')
+                    ->url(fn(Recording $record) => static::getUrl('view', ['record' => $record]))
+                    ->visible(fn(Recording $record) => !empty($record->vk_video_url)),
+
+                Tables\Actions\Action::make('open_bbb')
+                    ->label('Открыть в BBB')
+                    ->icon('heroicon-m-arrow-top-right-on-square')
+                    ->color('gray')
                     ->url(fn(Recording $record) => $record->url)
                     ->openUrlInNewTab()
-                    ->visible(fn(Recording $record) => !empty($record->url)),
+                    ->visible(fn(Recording $record) => empty($record->vk_video_url) && !empty($record->url)),
+
                 Tables\Actions\DeleteAction::make()
                     ->before(function (Recording $record) {
                         try {
@@ -167,6 +187,7 @@ class RecordingResource extends Resource
     {
         return [
             'index' => Pages\ListRecordings::route('/'),
+            'view' => Pages\ViewRecording::route('/{record}'),
         ];
     }
 }

@@ -52,60 +52,49 @@ class RecordingResource extends Resource
                     ->numeric()
                     ->sortable()
                     ->toggleable(),
-                Tables\Columns\IconColumn::make('published')
-                    ->label('Опубликовано')
-                    ->boolean()
-                    ->toggleable(),
+                Tables\Columns\TextColumn::make('status_label')
+                    ->label('Статус')
+                    ->badge()
+                    ->getStateUsing(function (Recording $record) {
+                        if (!empty($record->vk_video_url)) {
+                            return 'Готово';
+                        } elseif (!empty($record->url)) {
+                            return 'Отправка в VK';
+                        } else {
+                            return 'Обработка';
+                        }
+                    })
+                    ->colors([
+                        'success' => 'Готово',
+                        'info' => 'Отправка в VK',
+                        'warning' => 'Обработка',
+                    ])
+                    ->icons([
+                        'heroicon-m-check-circle' => 'Готово',
+                        'heroicon-m-arrow-path' => 'Отправка в VK',
+                        'heroicon-m-clock' => 'Обработка',
+                    ]),
             ])
-            ->filters([
-                Tables\Filters\TernaryFilter::make('published')
-                    ->label('Опубликовано'),
-            ])
+            ->filters([])
             ->filtersLayout(Tables\Enums\FiltersLayout::Dropdown)
             ->persistFiltersInSession()
             ->searchable()
             ->defaultSort('start_time', 'desc')
             ->actions([
-                Tables\Actions\Action::make('play')
-                    ->label('Смотреть')
-                    ->icon('heroicon-o-play')
+                Tables\Actions\Action::make('view')
+                    ->label('Посмотреть')
+                    ->icon('heroicon-m-play')
+                    ->color('success')
+                    ->url(fn(Recording $record) => static::getUrl('view', ['record' => $record]))
+                    ->visible(fn(Recording $record) => !empty($record->vk_video_url)),
+
+                Tables\Actions\Action::make('open_bbb')
+                    ->label('Открыть в BBB')
+                    ->icon('heroicon-m-arrow-top-right-on-square')
+                    ->color('gray')
                     ->url(fn(Recording $record) => $record->url)
                     ->openUrlInNewTab()
-                    ->visible(fn(Recording $record) => !empty($record->url)),
-                Tables\Actions\Action::make('download')
-                    ->label('Скачать MP4')
-                    ->icon('heroicon-o-arrow-down-tray')
-                    ->url(function (Recording $record) {
-                        // Extract MP4 URL from raw_data
-                        if (!empty($record->raw_data['playback']['format'])) {
-                            $formats = $record->raw_data['playback']['format'];
-                            // Handle single format or array of formats
-                            if (!isset($formats[0])) {
-                                $formats = [$formats];
-                            }
-                            foreach ($formats as $format) {
-                                if (isset($format['type']) && $format['type'] === 'video' && isset($format['url'])) {
-                                    return $format['url'];
-                                }
-                            }
-                        }
-                        return null;
-                    })
-                    ->openUrlInNewTab()
-                    ->visible(function (Recording $record) {
-                        if (!empty($record->raw_data['playback']['format'])) {
-                            $formats = $record->raw_data['playback']['format'];
-                            if (!isset($formats[0])) {
-                                $formats = [$formats];
-                            }
-                            foreach ($formats as $format) {
-                                if (isset($format['type']) && $format['type'] === 'video') {
-                                    return true;
-                                }
-                            }
-                        }
-                        return false;
-                    }),
+                    ->visible(fn(Recording $record) => empty($record->vk_video_url) && !empty($record->url)),
             ])
             ->bulkActions([]);
     }
@@ -114,6 +103,7 @@ class RecordingResource extends Resource
     {
         return [
             'index' => Pages\ListRecordings::route('/'),
+            'view' => Pages\ViewRecording::route('/{record}'),
         ];
     }
 
@@ -127,6 +117,13 @@ class RecordingResource extends Resource
             ->pluck('meeting_id')
             ->filter();
 
-        return parent::getEloquentQuery()->whereIn('meeting_id', $studentRoomMeetingIds);
+        return parent::getEloquentQuery()
+            ->whereIn('meeting_id', $studentRoomMeetingIds)
+            // Only show recordings with VK video OR fresh recordings (< 2 hours)
+            // This hides stale/deleted recordings that haven't been cleaned up
+            ->where(function (Builder $query) {
+                $query->whereNotNull('vk_video_url')
+                    ->orWhere('start_time', '>', now()->subHours(2));
+            });
     }
 }
