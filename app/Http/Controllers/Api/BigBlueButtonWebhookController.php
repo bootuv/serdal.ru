@@ -78,10 +78,81 @@ class BigBlueButtonWebhookController extends Controller
                 $this->handleUserRaiseHand($data);
             } elseif ($type === 'poll-started' || $type === 'poll-stopped') {
                 $this->handlePoll($data, $type);
+            } elseif ($type === 'publish_ended') {
+                $this->handlePublishEnded($data);
             }
         }
 
         return response()->json(['status' => 'ok']);
+    }
+
+    /**
+     * Handle recording published event - triggers VK upload
+     */
+    protected function handlePublishEnded(array $data)
+    {
+        $payload = $data['payload'] ?? $data;
+
+        $recordId = $payload['record_id'] ?? null;
+        $meetingId = $payload['external_meeting_id'] ?? null;
+        $playback = $payload['playback'] ?? [];
+        $metadata = $payload['metadata'] ?? [];
+
+        if (!$recordId || !$meetingId) {
+            Log::warning('BBB Webhook (publish_ended): Missing record_id or meeting_id', ['data' => $data]);
+            return;
+        }
+
+        $videoUrl = $playback['link'] ?? null;
+        $duration = $playback['duration'] ?? 0;
+        $meetingName = $metadata['meetingName'] ?? 'Запись урока';
+        $startTime = isset($payload['start_time']) ? \Carbon\Carbon::createFromTimestampMs($payload['start_time']) : now();
+        $endTime = isset($payload['end_time']) ? \Carbon\Carbon::createFromTimestampMs($payload['end_time']) : now();
+
+        Log::info('BBB Webhook (publish_ended): Processing recording', [
+            'record_id' => $recordId,
+            'meeting_id' => $meetingId,
+            'video_url' => $videoUrl
+        ]);
+
+        // Find the room to get the teacher
+        $room = \App\Models\Room::where('meeting_id', $meetingId)->first();
+
+        if (!$room) {
+            Log::warning('BBB Webhook (publish_ended): Room not found', ['meeting_id' => $meetingId]);
+            return;
+        }
+
+        // Create or update the recording in our database
+        $recording = \App\Models\Recording::updateOrCreate(
+            ['record_id' => $recordId],
+            [
+                'room_id' => $room->id,
+                'name' => $meetingName,
+                'url' => $videoUrl,
+                'duration' => (int) ($duration / 1000), // Convert ms to seconds
+                'start_time' => $startTime,
+                'end_time' => $endTime,
+                'is_published' => true,
+            ]
+        );
+
+        Log::info('BBB Webhook (publish_ended): Recording saved', ['recording_id' => $recording->id]);
+
+        // Check if VK auto-upload is enabled
+        $vkAutoUpload = \App\Models\Setting::where('key', 'vk_auto_upload')->value('value') === '1';
+
+        if ($vkAutoUpload && !$recording->vk_video_id && $recording->url) {
+            $teacher = $room->user; // Room owner is the teacher
+
+            if ($teacher) {
+                \App\Jobs\UploadRecordingToVk::dispatch($recording, $teacher);
+                Log::info('BBB Webhook (publish_ended): VK upload job dispatched', [
+                    'recording_id' => $recording->id,
+                    'teacher' => $teacher->name
+                ]);
+            }
+        }
     }
 
     protected function getMeetingId(array $data)
@@ -261,15 +332,43 @@ class BigBlueButtonWebhookController extends Controller
                 'meeting_name' => $room->name ?? 'Unknown',
             ]);
 
+            // Get internal meeting ID for recording lookup
+            $internalMeetingId = $session->internal_meeting_id ?? ($data['data']['attributes']['meeting']['internal-meeting-id'] ?? null);
+
             $session->update([
                 'ended_at' => now(),
                 'status' => 'completed',
                 'participant_count' => $participantCount,
                 'analytics_data' => $analytics,
-                'internal_meeting_id' => $session->internal_meeting_id ?? ($data['data']['attributes']['meeting']['internal-meeting-id'] ?? null),
+                'internal_meeting_id' => $internalMeetingId,
                 'pricing_snapshot' => $session->capturePricingSnapshot(),
             ]);
             Log::info("BBB Webhook: Session {$session->id} marked as completed with $participantCount participants.");
+
+            // Create placeholder recording if recording was likely enabled
+            // We'll create it with empty URL - it will be updated when publish_ended comes
+            if ($room && $internalMeetingId) {
+                $recordId = $internalMeetingId; // BBB uses internal meeting ID as base for record_id
+
+                // Check if recording already exists
+                $existingRecording = \App\Models\Recording::where('meeting_id', $meetingId)
+                    ->where('start_time', '>=', now()->subMinutes(30))
+                    ->first();
+
+                if (!$existingRecording) {
+                    \App\Models\Recording::create([
+                        'meeting_id' => $meetingId,
+                        'record_id' => $recordId . '-placeholder-' . time(),
+                        'name' => $room->name ?? 'Запись урока',
+                        'published' => false,
+                        'start_time' => $session->started_at,
+                        'end_time' => now(),
+                        'participants' => $participantCount,
+                        'url' => null, // Will be filled when publish_ended comes
+                    ]);
+                    Log::info("BBB Webhook: Created placeholder recording for {$meetingId}");
+                }
+            }
         } else {
             Log::info("BBB Webhook: No running session found for meeting $meetingId");
         }

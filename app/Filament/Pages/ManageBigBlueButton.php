@@ -42,6 +42,7 @@ class ManageBigBlueButton extends Page implements HasForms
             'vk_access_token' => Setting::where('key', 'vk_access_token')->value('value'),
             'vk_group_id' => Setting::where('key', 'vk_group_id')->value('value'),
             'vk_auto_upload' => Setting::where('key', 'vk_auto_upload')->value('value') === '1',
+            'vk_delete_after_upload' => Setting::where('key', 'vk_delete_after_upload')->value('value') === '1',
         ]);
     }
 
@@ -102,6 +103,9 @@ class ManageBigBlueButton extends Page implements HasForms
                         \Filament\Forms\Components\Toggle::make('vk_auto_upload')
                             ->label('Автозагрузка в VK')
                             ->helperText('Автоматически загружать записи в VK Video'),
+                        \Filament\Forms\Components\Toggle::make('vk_delete_after_upload')
+                            ->label('Удалять с BBB после загрузки')
+                            ->helperText('Удалять оригинал записи с сервера BBB после успешной загрузки в VK'),
                         TextInput::make('vk_access_token')
                             ->label('VK Access Token')
                             ->password()
@@ -144,6 +148,7 @@ class ManageBigBlueButton extends Page implements HasForms
         Setting::updateOrCreate(['key' => 'vk_access_token'], ['value' => $data['vk_access_token']]);
         Setting::updateOrCreate(['key' => 'vk_group_id'], ['value' => $data['vk_group_id']]);
         Setting::updateOrCreate(['key' => 'vk_auto_upload'], ['value' => $data['vk_auto_upload'] ? '1' : '0']);
+        Setting::updateOrCreate(['key' => 'vk_delete_after_upload'], ['value' => $data['vk_delete_after_upload'] ? '1' : '0']);
 
         Notification::make()
             ->title('Настройки сохранены')

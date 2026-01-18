@@ -11,6 +11,8 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
+use App\Models\Setting;
+use JoisarJignesh\Bigbluebutton\Facades\Bigbluebutton;
 
 class UploadRecordingToVk implements ShouldQueue
 {
@@ -86,11 +88,26 @@ class UploadRecordingToVk implements ShouldQueue
                 'vk_uploaded_at' => now(),
             ]);
 
+
+
             Log::info('VK Video: Recording uploaded successfully', [
                 'recording_id' => $this->recording->id,
                 'vk_video_id' => $result['video_id'],
                 'vk_url' => $result['url'],
             ]);
+
+            // Check if we should delete from BBB
+            if (Setting::where('key', 'vk_delete_after_upload')->value('value') === '1') {
+                try {
+                    Log::info('VK Video: Deleting recording from BBB', ['record_id' => $this->recording->record_id]);
+                    Bigbluebutton::deleteRecordings(['recordID' => $this->recording->record_id]);
+                } catch (\Exception $e) {
+                    Log::error('VK Video: Failed to delete recording from BBB', [
+                        'record_id' => $this->recording->record_id,
+                        'message' => $e->getMessage()
+                    ]);
+                }
+            }
         } else {
             Log::error('VK Video: Failed to upload recording', [
                 'recording_id' => $this->recording->id,

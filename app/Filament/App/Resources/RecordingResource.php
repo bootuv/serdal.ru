@@ -59,126 +59,31 @@ class RecordingResource extends Resource
                     ->numeric()
                     ->sortable()
                     ->toggleable(),
-                Tables\Columns\IconColumn::make('published')
-                    ->label('Опубликовано')
-                    ->boolean()
-                    ->toggleable(),
-                Tables\Columns\TextColumn::make('download')
-                    ->label('Скачать')
+                Tables\Columns\TextColumn::make('status')
+                    ->label('Статус')
                     ->getStateUsing(function (Recording $record) {
-                        // Check if MP4 is available
-                        $mp4Url = null;
-                        $presentationUrl = null;
-
-                        if (!empty($record->raw_data['playback']['format'])) {
-                            $formats = $record->raw_data['playback']['format'];
-                            if (!isset($formats[0])) {
-                                $formats = [$formats];
-                            }
-                            foreach ($formats as $format) {
-                                if (isset($format['type']) && $format['type'] === 'video' && isset($format['url'])) {
-                                    $mp4Url = $format['url'];
-                                    break;
-                                } elseif (isset($format['type']) && $format['type'] === 'presentation' && isset($format['url'])) {
-                                    $presentationUrl = $format['url'];
-                                }
-                            }
-                        }
-
-                        if ($mp4Url) {
-                            return '<a href="' . $mp4Url . '" target="_blank" class="text-primary-600 hover:underline">Скачать MP4</a>';
-                        } elseif ($presentationUrl) {
-                            return '<span class="text-amber-600">MP4 недоступен</span>';
+                        if (!empty($record->vk_video_url)) {
+                            // Uploaded to VK - show "Посмотреть" button
+                            return '<a href="' . $record->vk_video_url . '" target="_blank" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>Посмотреть</a>';
+                        } elseif (!empty($record->url)) {
+                            // BBB processed, uploading to VK
+                            return '<span class="inline-flex items-center gap-1.5 text-info-600"><svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/></svg>Отправка в VK...</span>';
                         } else {
-                            return '<span class="text-gray-500">Обработка...</span>';
+                            // Processing by BBB
+                            return '<span class="inline-flex items-center gap-1.5 text-warning-600"><svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/></svg>Обработка...</span>';
                         }
                     })
-                    ->html()
-                    ->toggleable(),
+                    ->html(),
             ])
-            ->filters([
-                Tables\Filters\TernaryFilter::make('published')
-                    ->label('Опубликовано'),
-            ])
-            ->filtersLayout(Tables\Enums\FiltersLayout::Dropdown)
-            ->persistFiltersInSession()
+            ->filters([])
             ->searchable()
-            ->headerActions([
-                // Sync happens in ListPages mount
-            ])
             ->defaultSort('start_time', 'desc')
             ->actions([
-                Tables\Actions\Action::make('play')
-                    ->label('Смотреть')
-                    ->icon('heroicon-o-play')
-                    ->url(fn(Recording $record) => $record->url)
-                    ->openUrlInNewTab()
-                    ->visible(fn(Recording $record) => !empty($record->url)),
-                Tables\Actions\Action::make('download')
-                    ->label('Скачать MP4')
-                    ->icon('heroicon-o-arrow-down-tray')
-                    ->url(function (Recording $record) {
-                        // Extract MP4 URL from raw_data
-                        if (!empty($record->raw_data['playback']['format'])) {
-                            $formats = $record->raw_data['playback']['format'];
-                            // Handle single format or array of formats
-                            if (!isset($formats[0])) {
-                                $formats = [$formats];
-                            }
-                            foreach ($formats as $format) {
-                                if (isset($format['type']) && $format['type'] === 'video' && isset($format['url'])) {
-                                    return $format['url'];
-                                }
-                            }
-                        }
-                        return null;
-                    })
-                    ->openUrlInNewTab()
-                    ->visible(function (Recording $record) {
-                        if (!empty($record->raw_data['playback']['format'])) {
-                            $formats = $record->raw_data['playback']['format'];
-                            if (!isset($formats[0])) {
-                                $formats = [$formats];
-                            }
-                            foreach ($formats as $format) {
-                                if (isset($format['type']) && $format['type'] === 'video') {
-                                    return true;
-                                }
-                            }
-                        }
-                        return false;
-                    }),
-                Tables\Actions\Action::make('vk_video')
-                    ->label('VK Video')
-                    ->icon('heroicon-o-video-camera')
-                    ->url(fn(Recording $record) => $record->vk_video_url)
-                    ->openUrlInNewTab()
-                    ->visible(fn(Recording $record) => !empty($record->vk_video_url))
-                    ->color('info'),
-                Tables\Actions\Action::make('upload_to_vk')
-                    ->label('Загрузить в VK')
-                    ->icon('heroicon-o-cloud-arrow-up')
-                    ->action(function (Recording $record) {
-                        $room = \App\Models\Room::where('meeting_id', $record->meeting_id)->first();
-                        if ($room && $room->user) {
-                            \App\Jobs\UploadRecordingToVk::dispatch($record, $room->user);
-                            \Filament\Notifications\Notification::make()
-                                ->title('Загрузка в VK')
-                                ->body('Запись добавлена в очередь на загрузку')
-                                ->success()
-                                ->send();
-                        }
-                    })
-                    ->visible(fn(Recording $record) => empty($record->vk_video_url) && !empty($record->url))
-                    ->requiresConfirmation()
-                    ->modalHeading('Загрузить в VK Video?')
-                    ->modalDescription('Запись будет загружена в VK Video в фоновом режиме.')
-                    ->color('gray'),
                 Tables\Actions\DeleteAction::make()
                     ->before(function (Recording $record) {
                         // Delete from BBB First
                         try {
-                            // Configure BBB (Similar logic to Sync - Refactor ideally)
+                            // Configure BBB
                             $user = auth()->user();
                             if ($user->bbb_url && $user->bbb_secret) {
                                 config([
@@ -196,26 +101,17 @@ class RecordingResource extends Resource
                             $response = Bigbluebutton::deleteRecordings(['recordID' => $record->record_id]);
                             \Log::info('BBB Delete Recording Response', ['record_id' => $record->record_id, 'response' => $response]);
 
-                            // Handle response - notFound means already deleted, which is OK
                             if ($response instanceof \Illuminate\Support\Collection) {
                                 $messageKey = $response->get('messageKey');
                                 $returnCode = $response->get('returncode');
 
-                                // notFound = already deleted on BBB, proceed with local delete
-                                if ($messageKey === 'notFound') {
-                                    \Log::info('Recording not found on BBB, proceeding with local delete', ['record_id' => $record->record_id]);
-                                    return;
-                                }
-
-                                // SUCCESS = deleted successfully
-                                if ($returnCode === 'SUCCESS') {
+                                if ($messageKey === 'notFound' || $returnCode === 'SUCCESS') {
                                     return;
                                 }
                             }
                         } catch (\Exception $e) {
                             \Log::error('BBB Delete Recording Error', ['record_id' => $record->record_id, 'error' => $e->getMessage()]);
-                            Notification::make()->title('Ошибка удаления с сервера BBB')->body($e->getMessage())->danger()->send();
-                            throw $e; // Prevent DB delete to keep in sync
+                            // Don't throw - allow local delete even if BBB delete fails
                         }
                     }),
             ])

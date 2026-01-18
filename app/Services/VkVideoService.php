@@ -32,18 +32,20 @@ class VkVideoService
         $tempPath = null;
 
         try {
-            // Step 1: Get upload URL via video.save (WITHOUT link parameter for direct upload)
+            // Step 1: Get upload URL via video.save
             $saveParams = [
                 'access_token' => $this->accessToken,
                 'v' => $this->apiVersion,
                 'name' => mb_substr($name, 0, 128),
                 'description' => mb_substr($description, 0, 5000),
-                'is_private' => 0, // Public
                 'wallpost' => 0, // Don't post to wall
             ];
 
             if ($this->groupId) {
                 $saveParams['group_id'] = $this->groupId;
+                // For groups: 'by_link' (3) = "Доступно тем, у кого есть ссылка"
+                $saveParams['privacy_view'] = 'by_link';
+                $saveParams['privacy_comment'] = 'all';
             }
 
             if ($albumId) {

@@ -87,14 +87,17 @@ class ListRecordings extends ListRecords
                 \Log::info('BBB Sync: IDs from BBB', ['bbbRecordIds' => $bbbRecordIds]);
 
                 // Delete local recordings that no longer exist on BBB
+                // BUT keep recordings that were already uploaded to VK (they were intentionally deleted from BBB)
                 $toDelete = \App\Models\Recording::whereIn('meeting_id', $userRoomIds)
                     ->whereNotIn('record_id', $bbbRecordIds)
+                    ->whereNull('vk_video_id') // Don't delete if already uploaded to VK
                     ->pluck('record_id');
 
                 \Log::info('BBB Sync: Recordings to delete', ['toDelete' => $toDelete->toArray()]);
 
                 \App\Models\Recording::whereIn('meeting_id', $userRoomIds)
                     ->whereNotIn('record_id', $bbbRecordIds)
+                    ->whereNull('vk_video_id') // Don't delete if already uploaded to VK
                     ->delete();
             }
         } catch (\Throwable $e) {
