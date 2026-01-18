@@ -59,7 +59,8 @@ class BigBlueButtonWebhookController extends Controller
 
             Log::info("BBB Webhook: Detected event type: " . ($type ?? 'unknown'), ['data' => $data]);
 
-            if ($type === 'meeting-ended') {
+            if ($type === 'meeting-ended' || $type === 'MeetingEndedEvtMsg' || $type === 'meeting_ended') {
+                Log::info('BBB Webhook: Handling meeting-ended event', ['type' => $type]);
                 $this->handleMeetingEnded($data);
             } elseif ($type === 'user-joined') {
                 $this->handleUserJoined($data);
@@ -430,7 +431,7 @@ class BigBlueButtonWebhookController extends Controller
 
     protected function handleUserRaiseHand(array $data)
     {
-        $this->updateParticipantStat($data, function (&$participant) {
+        $this->updateParticipantStat($data, function (&$participant) use ($data) {
             $isRaised = false;
             if (isset($data['data']['attributes']['user']['raise-hand'])) {
                 $isRaised = $data['data']['attributes']['user']['raise-hand'];

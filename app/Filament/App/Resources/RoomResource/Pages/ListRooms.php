@@ -21,6 +21,8 @@ class ListRooms extends ListRecords
     {
         return [
             "echo:rooms,.room.status.updated" => '$refresh',
+            "echo:rooms,room.status.updated" => '$refresh',
+            "echo:rooms,RoomStatusUpdated" => '$refresh',
         ];
     }
 
