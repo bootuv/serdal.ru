@@ -16,4 +16,13 @@ class ListRecordings extends ListRecords
             Actions\CreateAction::make(),
         ];
     }
+
+    public function getListeners(): array
+    {
+        return [
+            "echo:recordings,.recording.updated" => '$refresh',
+            "echo:recordings,recording.updated" => '$refresh',
+            "echo:recordings,RecordingUpdated" => '$refresh',
+        ];
+    }
 }

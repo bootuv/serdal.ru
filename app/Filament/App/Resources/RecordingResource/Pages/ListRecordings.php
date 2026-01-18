@@ -93,6 +93,11 @@ class ListRecordings extends ListRecords
                             ]
                         );
 
+                        // Cleanup placeholder if exists for this meeting (since we just got the real one)
+                        \App\Models\Recording::where('meeting_id', $r['meetingID'])
+                            ->where('record_id', 'like', '%-placeholder-%')
+                            ->delete();
+
                         // Dispatch VK upload if enabled and not yet uploaded
                         // ONLY for new recordings (start_time within last 24 hours)
                         // This prevents re-uploading old legacy recordings on every page refresh

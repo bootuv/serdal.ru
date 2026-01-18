@@ -15,4 +15,13 @@ class ListRecordings extends ListRecords
             // No actions for students
         ];
     }
+
+    public function getListeners(): array
+    {
+        return [
+            "echo:recordings,.recording.updated" => '$refresh',
+            "echo:recordings,recording.updated" => '$refresh',
+            "echo:recordings,RecordingUpdated" => '$refresh',
+        ];
+    }
 }

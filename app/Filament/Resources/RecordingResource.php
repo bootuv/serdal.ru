@@ -119,6 +119,11 @@ class RecordingResource extends Resource
                                         'raw_data' => $r,
                                     ]
                                 );
+
+                                // Cleanup placeholder if exists for this meeting
+                                Recording::where('meeting_id', $r['meetingID'])
+                                    ->where('record_id', 'like', '%-placeholder-%')
+                                    ->delete();
                                 $count++;
                             }
 
