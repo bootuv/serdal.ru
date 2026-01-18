@@ -59,7 +59,7 @@ class BigBlueButtonWebhookController extends Controller
 
             Log::info("BBB Webhook: Detected event type: " . ($type ?? 'unknown'), ['data' => $data]);
 
-            if ($type === 'meeting-ended' || $type === 'MeetingEndedEvtMsg' || $type === 'meeting_ended') {
+            if ($type === 'meeting-ended' || $type === 'MeetingEndedEvtMsg' || $type === 'meeting_ended' || $type === 'MeetingDestroyedEvtMsg') {
                 Log::info('BBB Webhook: Handling meeting-ended event', ['type' => $type]);
                 $this->handleMeetingEnded($data);
             } elseif ($type === 'user-joined') {
