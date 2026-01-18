@@ -51,6 +51,8 @@ class BigBlueButtonWebhookController extends Controller
             $type = null;
             if (isset($data['data']['id'])) {
                 $type = $data['data']['id']; // New format: data.id
+            } elseif (isset($data['envelope']['name'])) {
+                $type = $data['envelope']['name']; // BBB 2.6+ format
             } elseif (isset($data['type'])) {
                 $type = $data['type'];
             } elseif (isset($data['header']['name'])) {
