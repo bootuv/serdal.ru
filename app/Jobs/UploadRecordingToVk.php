@@ -85,10 +85,12 @@ class UploadRecordingToVk implements ShouldQueue
             $this->recording->update([
                 'vk_video_id' => $result['video_id'],
                 'vk_video_url' => $result['url'],
+                'vk_access_key' => $result['access_key'] ?? null,
                 'vk_uploaded_at' => now(),
             ]);
 
-
+            // Broadcast recording update for real-time UI refresh
+            \App\Events\RecordingUpdated::dispatch($this->recording->fresh());
 
             Log::info('VK Video: Recording uploaded successfully', [
                 'recording_id' => $this->recording->id,

@@ -139,6 +139,9 @@ class BigBlueButtonWebhookController extends Controller
 
         Log::info('BBB Webhook (publish_ended): Recording saved', ['recording_id' => $recording->id]);
 
+        // Broadcast recording update
+        \App\Events\RecordingUpdated::dispatch($recording);
+
         // Check if VK auto-upload is enabled
         $vkAutoUpload = \App\Models\Setting::where('key', 'vk_auto_upload')->value('value') === '1';
 
@@ -344,33 +347,33 @@ class BigBlueButtonWebhookController extends Controller
                 'pricing_snapshot' => $session->capturePricingSnapshot(),
             ]);
             Log::info("BBB Webhook: Session {$session->id} marked as completed with $participantCount participants.");
-
-            // Create placeholder recording if recording was likely enabled
-            // We'll create it with empty URL - it will be updated when publish_ended comes
-            if ($room && $internalMeetingId) {
-                $recordId = $internalMeetingId; // BBB uses internal meeting ID as base for record_id
-
-                // Check if recording already exists
-                $existingRecording = \App\Models\Recording::where('meeting_id', $meetingId)
-                    ->where('start_time', '>=', now()->subMinutes(30))
-                    ->first();
-
-                if (!$existingRecording) {
-                    \App\Models\Recording::create([
-                        'meeting_id' => $meetingId,
-                        'record_id' => $recordId . '-placeholder-' . time(),
-                        'name' => $room->name ?? 'Запись урока',
-                        'published' => false,
-                        'start_time' => $session->started_at,
-                        'end_time' => now(),
-                        'participants' => $participantCount,
-                        'url' => null, // Will be filled when publish_ended comes
-                    ]);
-                    Log::info("BBB Webhook: Created placeholder recording for {$meetingId}");
-                }
-            }
         } else {
             Log::info("BBB Webhook: No running session found for meeting $meetingId");
+        }
+
+        // Create placeholder recording regardless of session status
+        // We'll create it with empty URL - it will be updated when publish_ended comes
+        if ($room) {
+            $internalMeetingId = $data['data']['attributes']['meeting']['internal-meeting-id'] ?? null;
+
+            // Check if recording already exists for this meeting (within last 30 minutes)
+            $existingRecording = \App\Models\Recording::where('meeting_id', $meetingId)
+                ->where('start_time', '>=', now()->subMinutes(30))
+                ->first();
+
+            if (!$existingRecording && $internalMeetingId) {
+                \App\Models\Recording::create([
+                    'meeting_id' => $meetingId,
+                    'record_id' => $internalMeetingId . '-placeholder-' . time(),
+                    'name' => $room->name ?? 'Запись урока',
+                    'published' => false,
+                    'start_time' => now()->subMinutes(5), // Approximate
+                    'end_time' => now(),
+                    'participants' => 0,
+                    'url' => null, // Will be filled when publish_ended comes
+                ]);
+                Log::info("BBB Webhook: Created placeholder recording for {$meetingId}");
+            }
         }
     }
 

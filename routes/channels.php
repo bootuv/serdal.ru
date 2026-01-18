@@ -41,3 +41,12 @@ Broadcast::channel('support-chat.{chatId}', function ($user, $chatId) {
     // Все админы имеют доступ ко всем чатам поддержки
     return $user->role === \App\Models\User::ROLE_ADMIN;
 });
+
+// Канал для обновлений записей - доступен владельцу комнаты
+Broadcast::channel('recordings.{meetingId}', function ($user, $meetingId) {
+    $room = \App\Models\Room::where('meeting_id', $meetingId)->first();
+    if (!$room) {
+        return false;
+    }
+    return $room->user_id === $user->id;
+});

@@ -116,10 +116,14 @@ class VkVideoService
             // Build VK video URL
             $vkVideoUrl = "https://vk.com/video{$ownerId}_{$videoId}";
 
+            // Get access_key from the original save response (needed for embedding private videos)
+            $accessKey = $data['response']['access_key'] ?? null;
+
             return [
                 'video_id' => $videoId,
                 'owner_id' => $ownerId,
                 'url' => $vkVideoUrl,
+                'access_key' => $accessKey,
             ];
 
         } catch (\Exception $e) {

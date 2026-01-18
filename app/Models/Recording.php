@@ -21,6 +21,7 @@ class Recording extends Model
         'raw_data',
         'vk_video_id',
         'vk_video_url',
+        'vk_access_key',
         'vk_uploaded_at',
     ];
 
