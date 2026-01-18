@@ -183,7 +183,7 @@ class RoomController extends Controller
                         Bigbluebutton::hooksCreate([
                             'meetingID' => $room->meeting_id,
                             'callbackURL' => $webhookUrl,
-                            'getRaw' => true, // We want all events
+                            'getRaw' => false, // Use processed format with external-meeting-id
                         ]);
                         \Illuminate\Support\Facades\Log::info('BBB Webhook: Registered successfully.', ['url' => $webhookUrl]);
                     }
