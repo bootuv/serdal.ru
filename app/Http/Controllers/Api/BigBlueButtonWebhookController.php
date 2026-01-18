@@ -64,18 +64,20 @@ class BigBlueButtonWebhookController extends Controller
             if ($type === 'meeting-ended' || $type === 'MeetingEndedEvtMsg' || $type === 'meeting_ended' || $type === 'MeetingDestroyedEvtMsg') {
                 Log::info('BBB Webhook: Handling meeting-ended event', ['type' => $type]);
                 $this->handleMeetingEnded($data);
-            } elseif ($type === 'user-joined') {
+            } elseif ($type === 'MeetingCreatedEvtMsg') {
+                Log::info('BBB Webhook: Handling meeting-created event');
+                $this->handleMeetingCreated($data);
+            } elseif ($type === 'user-joined' || $type === 'UserJoinedMeetingEvtMsg') {
                 $this->handleUserJoined($data);
-            } elseif ($type === 'user-left') {
+            } elseif ($type === 'user-left' || $type === 'UserLeftMeetingEvtMsg') {
                 $this->handleUserLeft($data);
-            } elseif ($type === 'user-audio-voice-enabled' || $type === 'user-audio-voice-disabled') {
+            } elseif ($type === 'user-audio-voice-enabled' || $type === 'user-audio-voice-disabled' || $type === 'UserJoinedVoiceConfToClientEvtMsg') {
                 $this->handleUserAudio($data, $type);
             } elseif ($type === 'user-cam-broadcast-started' || $type === 'user-cam-broadcast-stopped') {
                 $this->handleUserCam($data, $type);
             } elseif ($type === 'chat-group-message-sent') {
                 $this->handleChatMessage($data);
-            } elseif ($type === 'user-emoji-changed') { // or user-reaction-emoji-changed depending on version, generic catch?
-                // Note: 'user-emoji-changed' is standard.
+            } elseif ($type === 'user-emoji-changed') {
                 $this->handleUserEmoji($data);
             } elseif ($type === 'user-raise-hand-changed') {
                 $this->handleUserRaiseHand($data);
@@ -161,20 +163,88 @@ class BigBlueButtonWebhookController extends Controller
         }
     }
 
+    /**
+     * Handle meeting created event - stores internal/external ID mapping
+     */
+    protected function handleMeetingCreated(array $data)
+    {
+        $props = $data['core']['body']['props'] ?? [];
+        $meetingProp = $props['meetingProp'] ?? [];
+
+        $externalId = $meetingProp['extId'] ?? null;
+        $internalId = $meetingProp['intId'] ?? null;
+
+        if (!$externalId || !$internalId) {
+            Log::warning('BBB Webhook (meeting-created): Missing meeting IDs', ['data' => $data]);
+            return;
+        }
+
+        Log::info("BBB Webhook: Meeting created - ext: $externalId, int: $internalId");
+
+        // Find the room by external ID (our meeting_id)
+        $room = Room::where('meeting_id', $externalId)->first();
+
+        if (!$room) {
+            Log::warning("BBB Webhook (meeting-created): Room not found for $externalId");
+            return;
+        }
+
+        // Find or create session and store internal meeting ID
+        $session = MeetingSession::where('room_id', $room->id)
+            ->where('status', 'running')
+            ->orderByDesc('started_at')
+            ->first();
+
+        if ($session) {
+            $session->update(['internal_meeting_id' => $internalId]);
+            Log::info("BBB Webhook: Session {$session->id} updated with internal_meeting_id: $internalId");
+        } else {
+            Log::info("BBB Webhook: No running session found for room {$room->id}");
+        }
+    }
+
     protected function getMeetingId(array $data)
     {
-        // Try new format first (data.attributes.meeting.external-meeting-id)
+        // Try processed format first (data.attributes.meeting.external-meeting-id)
         if (isset($data['data']['attributes']['meeting']['external-meeting-id'])) {
             return $data['data']['attributes']['meeting']['external-meeting-id'];
         }
 
-        // Fallbacks
-        return $data['meetingId'] ?? ($data['core']['body']['meetingId'] ?? null);
+        // Try raw format - extract external ID from routing
+        if (isset($data['core']['body']['props']['meetingProp']['extId'])) {
+            return $data['core']['body']['props']['meetingProp']['extId'];
+        }
+
+        // For raw events with only internal meeting ID, look up external ID from session
+        $internalId = $data['core']['body']['meetingId'] ?? ($data['envelope']['routing']['meetingId'] ?? ($data['core']['header']['meetingId'] ?? null));
+        if ($internalId) {
+            // Try to find session by internal meeting ID
+            $session = MeetingSession::where('internal_meeting_id', $internalId)
+                ->orderByDesc('started_at')
+                ->first();
+            if ($session) {
+                return $session->meeting_id;
+            }
+        }
+
+        // Last resort fallback
+        return $data['meetingId'] ?? null;
     }
 
     protected function getSession($meetingId)
     {
-        return MeetingSession::where('meeting_id', $meetingId)
+        // Try to find by external meeting ID first
+        $session = MeetingSession::where('meeting_id', $meetingId)
+            ->where('status', 'running')
+            ->orderByDesc('started_at')
+            ->first();
+
+        if ($session) {
+            return $session;
+        }
+
+        // If not found, try by internal meeting ID
+        return MeetingSession::where('internal_meeting_id', $meetingId)
             ->where('status', 'running')
             ->orderByDesc('started_at')
             ->first();
