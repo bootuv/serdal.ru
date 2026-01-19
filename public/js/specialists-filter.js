@@ -45,6 +45,8 @@ class SpecialistsFilter {
             const toggle = filter.querySelector('.filter-select');
             const dropdown = filter.querySelector('.dropdown-list');
 
+            if (!toggle || !dropdown) return;
+
             toggle.addEventListener('click', () => {
                 const isOpen = dropdown.classList.contains('w--open');
                 this.closeAllDropdowns();
@@ -89,11 +91,15 @@ class SpecialistsFilter {
 
     updateFilterUI(filterType) {
         const filter = document.getElementById(filterType === 'user_type' ? 'format' : filterType + 's');
+        if (!filter) return;
+
         const filterCounter = filter.querySelector('.filter-counter');
         const filterSize = this.filters[filterType].size;
 
-        filterCounter.textContent = filterSize;
-        filterCounter.style.display = filterSize > 0 ? 'block' : 'none';
+        if (filterCounter) {
+            filterCounter.textContent = filterSize;
+            filterCounter.style.display = filterSize > 0 ? 'block' : 'none';
+        }
 
         if (filterSize > 0) {
             filter.classList.add('active-filter', 'selected');
@@ -103,6 +109,8 @@ class SpecialistsFilter {
     }
 
     updateURL() {
+        if (!document.getElementById('specialists-list')) return;
+
         const url = new URL(window.location.href);
         const urlParams = new URLSearchParams();
 
