@@ -2,34 +2,40 @@
 
 @section('content')
   <section class="header home">
-    <a href="/" aria-current="page" class="logo-wrapper w-inline-block w--current"><img src="images/Logo.svg" loading="lazy" width="Auto" height="32" alt="" class="logo"></a>
+    <a href="/" aria-current="page" class="logo-wrapper w-inline-block w--current"><img src="images/Logo.svg"
+        loading="lazy" width="Auto" height="32" alt="" class="logo"></a>
     <div class="menu-wrapper">
       <div class="main-menu">
         <a href="#" target="_blank" class="p24">О нас</a>
         <a href="{{ route('reviews') }}" class="p24">Отзывы</a>
         <a href="https://room.serdal.ru/signin" target="_blank" class="p24">Войти</a>
       </div>
-      <div data-w-id="a8ac7203-c22a-a2cb-1d14-2d129698914f" class="burger-menu-wrapper"><img src="images/burger.svg" loading="lazy" width="32" height="32" alt="" class="burger-menu"></div>
+      <div data-w-id="a8ac7203-c22a-a2cb-1d14-2d129698914f" class="burger-menu-wrapper"><img src="images/burger.svg"
+          loading="lazy" width="32" height="32" alt="" class="burger-menu"></div>
     </div>
   </section>
   <section class="intro-wrapper">
     <div class="intro">
       <div class="video-background-section">
         <div class="video-wrapper">
-          <div class="video-embed w-embed w-iframe"><iframe src="https://player.vimeo.com/video/1005192725?background=1&quality=1080p" width="100%" height="100%" frameborder="0" allow="autoplay; fullscreen" allowfullscreen=""></iframe></div>
+          <div class="video-embed w-embed w-iframe"><iframe
+              src="https://player.vimeo.com/video/1005192725?background=1&quality=1080p" width="100%" height="100%"
+              frameborder="0" allow="autoplay; fullscreen" allowfullscreen=""></iframe></div>
         </div>
       </div>
       <div class="video-gradient"></div>
       <div class="title-block">
         <div class="title-description">
           <h1 class="h1 white-text">Онлайн репетиторы в Ингушетии</h1>
-          <div class="p30 white-text">Первая интерактивная онлайн-платформа профессиональных репетиторов и менторов в Ингушетии.</div>
+          <div class="p30 white-text">Первая интерактивная онлайн-платформа профессиональных репетиторов и менторов в
+            Ингушетии.</div>
         </div>
       </div>
       <div class="main-actions">
         <a href="#specialists" class="main-button search-tutor w-button">Найти специалиста</a>
         <a data-w-id="79cbc6fb-829e-0080-5bfd-8999f35ce137" href="#" class="trailer-button w-inline-block">
-          <div class="button-play"><img src="images/thumb.png" loading="lazy" width="76" height="76" alt="" class="trailer-button-thumb"><img src="images/play.svg" loading="lazy" alt="" class="play-icon">
+          <div class="button-play"><img src="images/thumb.png" loading="lazy" width="76" height="76" alt=""
+              class="trailer-button-thumb"><img src="images/play.svg" loading="lazy" alt="" class="play-icon">
             <div class="dark-opacity"></div>
           </div>
           <div class="trailet-button-text">Трейлер</div>
@@ -40,16 +46,16 @@
   <section class="directions-row">
     <ul role="list" class="directions">
       @foreach(App\Models\Direct::all() as $direct)
-      <li class="direction">
-        <div class="p30">{{ $direct->name }}</div>
-      </li>
-      @endforeach 
+        <li class="direction">
+          <div class="p30">{{ $direct->name }}</div>
+        </li>
+      @endforeach
       {{-- Дублирование вывода записей --}}
       @foreach(App\Models\Direct::all() as $direct)
-      <li class="direction">
-        <div class="p30">{{ $direct->name }}</div>
-      </li>
-      @endforeach 
+        <li class="direction">
+          <div class="p30">{{ $direct->name }}</div>
+        </li>
+      @endforeach
     </ul>
   </section>
   <section class="steps_wrapper">
@@ -57,21 +63,24 @@
       <h1 class="step-count">1</h1>
       <div class="step-text">
         <h3 class="h3">Выберите специалиста</h3>
-        <p class="p24">У нас вы найдете самых опытных преподавателей Ингушетии с большим стажем и отличной профессиональной репутацией.</p>
+        <p class="p24">У нас вы найдете самых опытных преподавателей Ингушетии с большим стажем и отличной
+          профессиональной репутацией.</p>
       </div>
     </div>
     <div class="step">
       <h1 class="step-count">2</h1>
       <div class="step-text">
         <h3 class="h3">Свяжитесь<br>с ним</h3>
-        <p class="p24">На странице специалиста вы можете найти контакты, через которые можно связаться с ним, обсудить детали и записаться на занятия.</p>
+        <p class="p24">На странице специалиста вы можете найти контакты, через которые можно связаться с ним, обсудить
+          детали и записаться на занятия.</p>
       </div>
     </div>
     <div class="step">
       <h1 class="step-count">3</h1>
       <div class="step-text">
         <h3 class="h3">Приходите на онлайн занятия</h3>
-        <p class="p24">Учитесь не выходя из дома. На нашей онлайн-платформе занятия не уступают по качеству живым урокам в классе, а где-то даже превосходят.</p>
+        <p class="p24">Учитесь не выходя из дома. На нашей онлайн-платформе занятия не уступают по качеству живым урокам в
+          классе, а где-то даже превосходят.</p>
       </div>
     </div>
   </section>
@@ -106,7 +115,8 @@
             <div class="dropdown-list-wrapper">
               @foreach(App\Models\Direct::all() as $direct)
                 <label class="p24 dropdown-list-item w-dropdown-link">
-                  <input type="checkbox" class="filter-checkbox" data-filter-type="direct" data-value="{{ $direct->id }}"> {{ $direct->name }}
+                  <input type="checkbox" class="filter-checkbox" data-filter-type="direct" data-value="{{ $direct->id }}">
+                  {{ $direct->name }}
                 </label>
               @endforeach
             </div>
@@ -122,7 +132,8 @@
             <div class="dropdown-list-wrapper">
               @foreach(App\Models\Subject::all() as $subject)
                 <label class="p24 dropdown-list-item w-dropdown-link">
-                  <input type="checkbox" class="filter-checkbox" data-filter-type="subject" data-value="{{ $subject->id }}"> {{ $subject->name }}
+                  <input type="checkbox" class="filter-checkbox" data-filter-type="subject" data-value="{{ $subject->id }}">
+                  {{ $subject->name }}
                 </label>
               @endforeach
             </div>
@@ -134,23 +145,65 @@
             <div class="p24 filter-name">Классы</div>
             <div class="filter-icon w-icon-dropdown-toggle"></div>
           </div>
-            <nav class="dropdown-list w-dropdown-list">
-              <div class="dropdown-list-wrapper">
+          <nav class="dropdown-list w-dropdown-list">
+            <div class="dropdown-list-wrapper">
               @foreach(['preschool' => 'Дошкольники', 1 => '1 класс', 2 => '2 класс', 3 => '3 класс', 4 => '4 класс', 5 => '5 класс', 6 => '6 класс', 7 => '7 класс', 8 => '8 класс', 9 => '9 класс', 10 => '10 класс', 11 => '11 класс', 'adults' => 'Взрослые'] as $value => $label)
                 <label class="p24 dropdown-list-item w-dropdown-link">
-                  <input type="checkbox" class="filter-checkbox" data-filter-type="grade" data-value="{{ $value }}"> {{ $label }}
+                  <input type="checkbox" class="filter-checkbox" data-filter-type="grade" data-value="{{ $value }}">
+                  {{ $label }}
                 </label>
               @endforeach
-              </div>
-            </nav>
+            </div>
+          </nav>
         </div>
       </div>
     </div>
     <div class="specialists-list" id="specialists-list">
-      @foreach($specialists as $specialist) 
+      @foreach($specialists as $specialist)
         @include('partials.specialist-item', ['specialist' => $specialist])
       @endforeach
     </div>
     <div id="load-trigger" data-offset="20" style="height: 1px;"></div>
   </section>
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      const trailerBtn = document.querySelector('.trailer-button');
+      const popupWrapper = document.querySelector('.popup-wrapper');
+      const closeBtn = document.querySelector('.close-button');
+      const closeZone = document.querySelector('.close-click-zone');
+
+      if (trailerBtn && popupWrapper) {
+        const iframe = popupWrapper.querySelector('iframe');
+        let initialSrc = '';
+
+        if (iframe) {
+            initialSrc = iframe.src;
+        }
+
+        trailerBtn.addEventListener('click', function (e) {
+          e.preventDefault();
+          if (iframe && initialSrc) {
+             const separator = initialSrc.includes('?') ? '&' : '?';
+             iframe.src = initialSrc + separator + 'autoplay=1';
+          }
+          popupWrapper.style.display = 'flex';
+        });
+
+        const closePopup = function () {
+          popupWrapper.style.display = 'none';
+          if (iframe && initialSrc) {
+            iframe.src = initialSrc;
+          }
+        };
+
+        if (closeBtn) {
+          closeBtn.addEventListener('click', closePopup);
+        }
+
+        if (closeZone) {
+          closeZone.addEventListener('click', closePopup);
+        }
+      }
+    });
+  </script>
 @endsection
