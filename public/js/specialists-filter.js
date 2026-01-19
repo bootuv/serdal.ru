@@ -20,7 +20,14 @@ class SpecialistsFilter {
         const urlParams = new URLSearchParams(url.search);
 
         Object.keys(this.filters).forEach(filterType => {
-            const values = urlParams.getAll(filterType);
+            // Пробуем получить массив (key[])
+            let values = urlParams.getAll(filterType + '[]');
+
+            // Обратная совместимость: если нет [], пробуем без них (хотя PHP увидит только последнее)
+            if (values.length === 0) {
+                values = urlParams.getAll(filterType);
+            }
+
             values.forEach(value => this.filters[filterType].add(value));
             this.updateFilterUI(filterType);
         });
@@ -83,10 +90,10 @@ class SpecialistsFilter {
         const filter = document.getElementById(filterType === 'user_type' ? 'format' : filterType + 's');
         const filterCounter = filter.querySelector('.filter-counter');
         const filterSize = this.filters[filterType].size;
-        
+
         filterCounter.textContent = filterSize;
         filterCounter.style.display = filterSize > 0 ? 'block' : 'none';
-        
+
         if (filterSize > 0) {
             filter.classList.add('active-filter', 'selected');
         } else {
@@ -99,7 +106,7 @@ class SpecialistsFilter {
         const urlParams = new URLSearchParams();
 
         Object.entries(this.filters).forEach(([filterType, values]) => {
-            values.forEach(value => urlParams.append(filterType, value));
+            values.forEach(value => urlParams.append(filterType + '[]', value));
         });
 
         url.search = urlParams.toString();

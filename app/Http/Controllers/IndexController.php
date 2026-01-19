@@ -14,22 +14,30 @@ class IndexController extends Controller
             ->where('is_active', true);
 
         if ($request->has('user_type')) {
-            $queryBuilder->where('role', $request['user_type']);
+            $types = (array) $request->input('user_type');
+            $queryBuilder->whereIn('role', $types);
         }
 
         if ($request->has('grade')) {
-            $queryBuilder->where('grade', 'LIKE', "%" . $request['grade'] . "%");
+            $grades = (array) $request->input('grade');
+            $queryBuilder->where(function ($q) use ($grades) {
+                foreach ($grades as $grade) {
+                    $q->orWhere('grade', 'LIKE', "%" . $grade . "%");
+                }
+            });
         }
 
         if ($request->has('direct')) {
-            $queryBuilder->whereHas('directs', function ($query) use ($request) {
-                $query->where('directs.id', $request['direct']);
+            $directs = (array) $request->input('direct');
+            $queryBuilder->whereHas('directs', function ($query) use ($directs) {
+                $query->whereIn('directs.id', $directs);
             });
         }
 
         if ($request->has('subject')) {
-            $queryBuilder->whereHas('subjects', function ($query) use ($request) {
-                $query->where('subjects.id', $request['subject']);
+            $subjects = (array) $request->input('subject');
+            $queryBuilder->whereHas('subjects', function ($query) use ($subjects) {
+                $query->whereIn('subjects.id', $subjects);
             });
         }
 
