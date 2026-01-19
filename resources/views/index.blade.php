@@ -14,6 +14,15 @@
           loading="lazy" width="32" height="32" alt="" class="burger-menu"></div>
     </div>
   </section>
+  <style>
+    .filters-wrapper {
+      pointer-events: none;
+    }
+
+    .filters {
+      pointer-events: auto;
+    }
+  </style>
   <section class="intro-wrapper">
     <div class="intro">
       <div class="video-background-section">
@@ -177,14 +186,14 @@
         let initialSrc = '';
 
         if (iframe) {
-            initialSrc = iframe.src;
+          initialSrc = iframe.src;
         }
 
         trailerBtn.addEventListener('click', function (e) {
           e.preventDefault();
           if (iframe && initialSrc) {
-             const separator = initialSrc.includes('?') ? '&' : '?';
-             iframe.src = initialSrc + separator + 'autoplay=1';
+            const separator = initialSrc.includes('?') ? '&' : '?';
+            iframe.src = initialSrc + separator + 'autoplay=1';
           }
           popupWrapper.style.display = 'flex';
         });

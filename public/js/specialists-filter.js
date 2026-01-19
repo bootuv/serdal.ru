@@ -114,12 +114,14 @@ class SpecialistsFilter {
         window.history.pushState({}, '', url);
     }
 
-    async fetchFilteredResults(append = false) {
+    async fetchFilteredResults(append = false, offset = null) {
         try {
             const url = new URL(window.location.href);
 
             if (!append) {
                 url.searchParams.set('offset', 0);
+            } else if (offset !== null) {
+                url.searchParams.set('offset', offset);
             }
 
             const response = await fetch(url, {
@@ -184,30 +186,7 @@ class SpecialistsFilter {
 
         const offset = parseInt(loadTrigger.getAttribute('data-offset'));
 
-        // Update URL to reflect current offset for the fetch
-        const url = new URL(window.location.href);
-        url.searchParams.set('offset', offset);
-
-        // We do NOT want to pushState for infinite scroll offsets usually, to avoid polluting history
-        // But we need to pass it to fetchFilteredResults
-
-        // Let's modify how we call fetch.
-        // Actually, we can just update the window URL strictly for the fetch call inside the method
-        // or pass url as arg.
-
-        // Let's update internal state/URL object passed to fetch
-        // Refactoring fetchFilteredResults to take URL or constructed params is better.
-        // For now, let's just temporarily modify the history state? No.
-
-        // Let's pass the offset via the URL object in fetchFilteredResults
-        // But fetchFilteredResults reads window.location.href.
-        // We should change that dependency.
-
-        // Let's update fetchFilteredResults to read form URL but override offset.
-
-        // Hacky but works: 
-        window.history.replaceState({}, '', url); // Update URL without pushing
-        this.fetchFilteredResults(true);
+        this.fetchFilteredResults(true, offset);
     }
 }
 
