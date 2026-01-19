@@ -18,11 +18,25 @@
     type="text/javascript">WebFont.load({ google: { families: ["Inter:regular,500,600,italic:cyrillic,latin"] } });</script>
   <script
     type="text/javascript">!function (o, c) { var n = c.documentElement, t = " w-mod-"; n.className += t + "js", ("ontouchstart" in o || o.DocumentTouch && c instanceof DocumentTouch) && (n.className += t + "touch") }(window, document);</script>
-  <link href="images/favicon.ico" rel="shortcut icon" type="image/x-icon">
-  <link href="images/webclip.png" rel="apple-touch-icon">
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
 
-<body class="body">
+<body class="body" x-data="{ mobileMenuOpen: false }">
+  <section
+    class="header {{ Request::is('/') ? 'home' : (Route::currentRouteName() == 'tutors.show' ? 'tutor-page' : 'underline') }}">
+    <a href="/" class="logo-wrapper w-inline-block"><img src="/images/Logo.svg" loading="lazy" width="Auto" height="32"
+        alt="" class="logo"></a>
+    <div class="menu-wrapper">
+      <div class="main-menu">
+        <a href="#" target="_blank" class="p24">О нас</a>
+        <a href="{{ route('reviews') }}" class="p24">Отзывы</a>
+        <a href="https://room.serdal.ru/signin" target="_blank" class="p24">Войти</a>
+      </div>
+      <div @click="mobileMenuOpen = true" class="burger-menu-wrapper"><img src="/images/burger.svg" loading="lazy"
+          width="32" height="32" alt="" class="burger-menu"></div>
+    </div>
+  </section>
+
   @yield('content')
   <section class="footer">
     <div class="p18 copyright">© {{ date('Y') }} Serdal</div>
@@ -45,20 +59,17 @@
     <div class="close-button">Закрыть</div>
     <div data-w-id="43e43230-fe7b-3950-1162-acc7201c2860" class="close-click-zone"></div>
   </div>
-  <div class="mobile-menu-wrapper">
-    <div data-w-id="f715a21e-d358-986f-0868-b5b89a81cdc7" class="mobile-menu-close-zone"></div>
-    <div
-      style="-webkit-transform:translate3d(300px, 0, 0) scale3d(1, 1, 1) rotateX(0) rotateY(0) rotateZ(0) skew(0, 0);-moz-transform:translate3d(300px, 0, 0) scale3d(1, 1, 1) rotateX(0) rotateY(0) rotateZ(0) skew(0, 0);-ms-transform:translate3d(300px, 0, 0) scale3d(1, 1, 1) rotateX(0) rotateY(0) rotateZ(0) skew(0, 0);transform:translate3d(300px, 0, 0) scale3d(1, 1, 1) rotateX(0) rotateY(0) rotateZ(0) skew(0, 0)"
-      class="mobile-menu">
-      <div data-w-id="f715a21e-d358-986f-0868-b5b89a81cdc9" class="menu-close"><img src="images/close.svg"
-          loading="lazy" alt=""></div>
+  <div class="mobile-menu-wrapper" :class="{ 'open': mobileMenuOpen }">
+    <div @click="mobileMenuOpen = false" class="mobile-menu-close-zone"></div>
+    <div class="mobile-menu">
+      <div @click="mobileMenuOpen = false" class="menu-close"><img src="/images/close.svg" loading="lazy" alt=""></div>
       <div class="mobile-menu-litems">
         <a href="#" target="_blank" class="p30">О нас</a>
         <a href="{{ route('reviews') }}" class="p30">Отзывы</a>
         <a href="https://room.serdal.ru/signin" target="_blank" class="p30">Войти</a>
       </div>
     </div>
-    <div style="opacity:0" class="mobile-menu-bg"></div>
+    <div class="mobile-menu-bg"></div>
   </div>
   <script src="https://d3e54v103j8qbb.cloudfront.net/js/jquery-3.5.1.min.dc5e7f18c8.js?site=668d4be20ae6c2fa4bba833d"
     type="text/javascript" integrity="sha256-9/aliU8dGd2tb6OSsuzixeV4y/faTqgFtohetphbbj0="

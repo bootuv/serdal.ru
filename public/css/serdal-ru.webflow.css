@@ -1891,3 +1891,36 @@ a {
     margin-top: 10px;
   }
 }
+
+/* Mobile Menu Logic */
+.mobile-menu-wrapper {
+  display: flex !important;
+  visibility: hidden;
+  transition: visibility 0.3s step-end;
+}
+
+.mobile-menu-wrapper.open {
+  visibility: visible;
+  transition: visibility 0s step-start;
+}
+
+.mobile-menu {
+  transform: translate3d(100%, 0, 0);
+  transition: transform 0.3s ease;
+}
+
+.mobile-menu-wrapper.open .mobile-menu {
+  transform: translate3d(0px, 0px, 0px) scale3d(1, 1, 1) rotateX(0deg) rotateY(0deg) rotateZ(0deg) skew(0deg, 0deg);
+  transform-style: preserve-3d;
+}
+
+.mobile-menu-bg,
+.mobile-menu-close-zone {
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.mobile-menu-wrapper.open .mobile-menu-bg,
+.mobile-menu-wrapper.open .mobile-menu-close-zone {
+  opacity: 1;
+}

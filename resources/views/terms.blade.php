@@ -10,19 +10,7 @@
 @endsection
 
 @section('content')
-    <section class="header underline">
-        <a href="/" class="logo-wrapper w-inline-block"><img src="/images/Logo.svg" loading="lazy" width="Auto" height="32"
-                alt="" class="logo"></a>
-        <div class="menu-wrapper">
-            <div class="main-menu">
-                <a href="#" target="_blank" class="p24">О нас</a>
-                <a href="{{ route('reviews') }}" class="p24">Отзывы</a>
-                <a href="https://room.serdal.ru/signin" target="_blank" class="p24">Войти</a>
-            </div>
-            <div data-w-id="a8ac7203-c22a-a2cb-1d14-2d129698914f" class="burger-menu-wrapper"><img src="/images/burger.svg"
-                    loading="lazy" width="32" height="32" alt="" class="burger-menu"></div>
-        </div>
-    </section>
+
 
     <section class="page-title-section">
         <h1 class="h1">Условия использования</h1>
