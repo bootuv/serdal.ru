@@ -1,11 +1,10 @@
 <!DOCTYPE html>
-<html data-wf-page="668d4be20ae6c2fa4bba8346" data-wf-site="668d4be20ae6c2fa4bba833d" lang="ru">
+<html lang="ru">
 
 <head>
   <meta charset="utf-8">
   <title>@yield('title', 'Serdal')</title>
   <meta content="width=device-width, initial-scale=1" name="viewport">
-  <meta content="Webflow" name="generator">
   @yield('meta')
   <meta property="og:site_name" content="Serdal">
   <meta property="og:locale" content="ru_RU">
@@ -66,7 +65,6 @@
     crossorigin="anonymous"></script>
   <script src="js/webflow.js" type="text/javascript"></script>
   <script src="js/specialists-filter.js" type="text/javascript"></script>
-  <script src="js/bundle.v1.0.0.js" type="text/javascript"></script>
   <script>
     var autoStopperBtn = document.querySelectorAll('.auto-stopper');
     for (var i = 0; i < autoStopperBtn.length; i++) {
