@@ -1849,3 +1849,47 @@ a {
     padding-right: 16px;
   }
 }
+
+.footer {
+  padding: 40px 5%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.footer-menu {
+  display: flex;
+  gap: 30px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.footer-menu a {
+  text-decoration: none;
+  transition: opacity 0.2s;
+}
+
+.footer-menu a:hover {
+  opacity: 0.8;
+}
+
+@media screen and (max-width: 767px) {
+  .footer {
+    flex-direction: column-reverse;
+    padding-top: 40px;
+    padding-bottom: 40px;
+    gap: 30px;
+  }
+
+  .footer-menu {
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+  }
+
+  .copyright {
+    margin-top: 10px;
+  }
+}

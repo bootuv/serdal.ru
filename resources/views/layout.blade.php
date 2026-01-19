@@ -30,7 +30,7 @@
       <a href="#" class="white-text p18">О нас</a>
       <a href="{{ route('reviews') }}" class="white-text p18">Отзывы</a>
       <a href="{{ route('privacy') }}" class="white-text p18">Конфиденциальность</a>
-      <a href="{{ route('terms') }}" class="white-text p18">Условия использования</a>
+      <a href="{{ route('terms') }}" class="white-text p18">Условия</a>
       <a href="mailto:info@serdal.ru" class="white-text p18">info@serdal.ru</a>
     </div>
   </section>
