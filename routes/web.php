@@ -11,6 +11,7 @@ Route::get('/', [IndexController::class, 'index']);
 
 
 Route::get('/reviews', [PageController::class, 'reviewsPage'])->name('reviews');
+Route::get('/reviews/load-more', [PageController::class, 'loadMoreReviews'])->name('reviews.load-more');
 Route::get('/privacy', [PageController::class, 'privacyPage'])->name('privacy');
 Route::get('/terms', [PageController::class, 'termsPage'])->name('terms');
 

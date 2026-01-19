@@ -16,7 +16,7 @@
   </section>
   <section class="page-title-section">
     <h1 class="h1">Отзывы</h1>
-    <p class="p30 page-descriptions">Учителя, менторы и ученики рассказывают о своем опыте преподавания и обучения на
+    <p class="p30 page-descriptions">Учителя и ученики рассказывают о своем опыте преподавания и обучения на
       нашей платформе, делятся впечатлениями от образовательного процесса.</p>
   </section>
   <div class="content reviews-content">
@@ -31,61 +31,87 @@
         <a href="#" class="tab w-inline-block" data-filter="tutor">
           <div class="p24">Преподаватели</div>
         </a>
-        <a href="#" class="tab w-inline-block" data-filter="mentor">
-          <div class="p24">Менторы</div>
-        </a>
       </div>
     </div>
-    <div r-masonry-gap="16" r-masonry-layout="1" r-masonry-column-min="500" class="reviews">
+    <div class="reviews" id="reviews-container">
       @foreach($reviews as $review)
-        @if($review->user->role === App\Models\User::ROLE_STUDENT)
-          <div class="review-item" data-role="student">
-            <div class="review-item-user">
-              <img src="{{ $review->user->avatarUrl }}" loading="lazy" alt="" class="list-item-userpic">
-              <div class="list-item-name-bio">
-                <div class="user-type">{{ $review->user->displayRole }}</div>
-                <div class="p24-medium">{{ $review->user->name }}</div>
-              </div>
-            </div>
-            <p class="p24">{{ $review->text }}</p>
-          </div>
-        @endif
+        @include('partials.review-item', ['review' => $review])
       @endforeach
     </div>
+
+    @if($hasMore)
+      <div id="load-trigger" data-offset="20" style="height: 1px;"></div>
+    @endif
   </div>
 
   <script>
     document.addEventListener('DOMContentLoaded', function () {
       const tabs = document.querySelectorAll('.tab[data-filter]');
-      const reviewItems = document.querySelectorAll('.review-item[data-role]');
+      const container = document.getElementById('reviews-container');
+      const loadTrigger = document.getElementById('load-trigger');
+      let currentFilter = 'all';
 
+      // Функция применения фильтра
+      const applyFilter = () => {
+        const reviewItems = container.querySelectorAll('.review-item[data-role]');
+        reviewItems.forEach(item => {
+          const role = item.getAttribute('data-role');
+          if (currentFilter === 'all' || currentFilter === 'student') {
+            item.style.display = role === 'student' ? '' : 'none';
+          } else {
+            item.style.display = 'none';
+          }
+        });
+      };
+
+      // Tab filtering
       tabs.forEach(tab => {
         tab.addEventListener('click', function (e) {
           e.preventDefault();
-
-          // Убираем активный класс со всех табов
           tabs.forEach(t => t.classList.remove('active'));
-          // Добавляем активный класс к текущему табу
           this.classList.add('active');
-
-          const filter = this.getAttribute('data-filter');
-
-          reviewItems.forEach(item => {
-            const role = item.getAttribute('data-role');
-
-            if (filter === 'all') {
-              // "Все отзывы" - показываем только учеников (т.к. преподаватели и менторы не реализованы)
-              item.style.display = role === 'student' ? '' : 'none';
-            } else if (filter === 'student') {
-              // Ученики
-              item.style.display = role === 'student' ? '' : 'none';
-            } else {
-              // Преподаватели и Менторы - пока пусто
-              item.style.display = 'none';
-            }
-          });
+          currentFilter = this.getAttribute('data-filter');
+          applyFilter();
         });
       });
+
+      // Infinite scroll
+      if (loadTrigger) {
+        let isLoading = false;
+
+        const loadMore = () => {
+          if (isLoading) return;
+          isLoading = true;
+
+          const offset = parseInt(loadTrigger.getAttribute('data-offset'));
+
+          fetch(`/reviews/load-more?offset=${offset}`)
+            .then(response => response.json())
+            .then(data => {
+              container.insertAdjacentHTML('beforeend', data.html);
+              applyFilter(); // Применяем фильтр к новым элементам
+
+              if (data.hasMore) {
+                loadTrigger.setAttribute('data-offset', offset + 20);
+                isLoading = false;
+              } else {
+                loadTrigger.remove();
+              }
+            })
+            .catch(err => {
+              console.error('Error loading reviews:', err);
+              isLoading = false;
+            });
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+          if (entries[0].isIntersecting) {
+            loadMore();
+          }
+        }, { rootMargin: '200px' });
+
+        observer.observe(loadTrigger);
+      }
     });
   </script>
 @endsection
