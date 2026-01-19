@@ -121,26 +121,43 @@ class VkVideoService
             $finalKey = $apiAccessKey;
 
             // Fetch correct embed hash via video.get (required for iframe)
-            try {
-                // Short pause to ensure availability
-                sleep(1);
+            // Access key from save() is NOT compatible with iframe, so we MUST get the hash.
+            // Retry a few times as the video might not be immediately available.
+            $attempts = 0;
+            $maxAttempts = 3;
+            $embedHash = null;
 
-                $hashResponse = Http::get('https://api.vk.com/method/video.get', [
-                    'access_token' => $this->accessToken,
-                    'v' => $this->apiVersion,
-                    'videos' => "{$ownerId}_{$videoId}",
-                    'count' => 1
-                ]);
-                $hashData = $hashResponse->json();
+            while ($attempts < $maxAttempts && !$embedHash) {
+                $attempts++;
+                sleep(2); // Wait 2s between attempts
 
-                $playerUrl = $hashData['response']['items'][0]['player'] ?? '';
-                if (preg_match('/hash=([a-f0-9]+)/', $playerUrl, $matches)) {
-                    $embedHash = $matches[1];
-                    $finalKey = $embedHash; // Use embed hash instead of API key
-                    Log::info('VK Video: Retrieved embed hash', ['hash' => $embedHash]);
+                try {
+                    $hashResponse = Http::get('https://api.vk.com/method/video.get', [
+                        'access_token' => $this->accessToken,
+                        'v' => $this->apiVersion,
+                        'videos' => "{$ownerId}_{$videoId}",
+                        'count' => 1
+                    ]);
+                    $hashData = $hashResponse->json();
+
+                    $playerUrl = $hashData['response']['items'][0]['player'] ?? '';
+                    if (preg_match('/hash=([a-f0-9]+)/', $playerUrl, $matches)) {
+                        $embedHash = $matches[1];
+                        Log::info('VK Video: Retrieved embed hash', ['hash' => $embedHash]);
+                    }
+                } catch (\Exception $e) {
+                    Log::warning('VK Video: Failed to fetch embed hash attempt ' . $attempts, ['error' => $e->getMessage()]);
                 }
-            } catch (\Exception $e) {
-                Log::warning('VK Video: Failed to fetch embed hash', ['error' => $e->getMessage()]);
+            }
+
+            if ($embedHash) {
+                $finalKey = $embedHash;
+            } else {
+                Log::error('VK Video: Could not retrieve embed hash after ' . $maxAttempts . ' attempts. Video might not play.');
+                // Fallback to API Key is risky as it often doesn't work for iframe, but better than nothing?
+                // Actually, user experience shows API key breaks iframe (Video not found).
+                // But we keep it as a last resort or maybe clear it?
+                // Let's keep existing behavior but log error.
             }
 
             return [
