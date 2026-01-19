@@ -41,7 +41,25 @@ class IndexController extends Controller
             });
         }
 
-        $specialists = $queryBuilder->get();
+        $totalCount = $queryBuilder->count();
+
+        $offset = $request->input('offset', 0);
+        $limit = 20;
+
+        $specialists = $queryBuilder->skip($offset)->take($limit)->get();
+
+        if ($request->ajax()) {
+            $html = '';
+            foreach ($specialists as $specialist) {
+                $html .= view('partials.specialist-item', compact('specialist'))->render();
+            }
+
+            return response()->json([
+                'html' => $html,
+                'hasMore' => ($offset + $limit) < $totalCount,
+                'totalCount' => $totalCount
+            ]);
+        }
 
         return view('index', compact('specialists'));
     }

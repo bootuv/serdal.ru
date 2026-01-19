@@ -13,6 +13,7 @@ class SpecialistsFilter {
         this.initializeFromURL();
         this.setupEventListeners();
         this.setupDropdowns();
+        this.setupInfiniteScroll();
     }
 
     initializeFromURL() {
@@ -113,18 +114,100 @@ class SpecialistsFilter {
         window.history.pushState({}, '', url);
     }
 
-    async fetchFilteredResults() {
+    async fetchFilteredResults(append = false) {
         try {
             const url = new URL(window.location.href);
-            const response = await fetch(url);
-            const text = await response.text();
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(text, 'text/html');
-            const newSpecialistsList = doc.getElementById('specialists-list');
-            document.getElementById('specialists-list').innerHTML = newSpecialistsList.innerHTML;
+
+            if (!append) {
+                url.searchParams.set('offset', 0);
+            }
+
+            const response = await fetch(url, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                }
+            });
+
+            const data = await response.json();
+
+            const listContainer = document.getElementById('specialists-list');
+            const loadTrigger = document.getElementById('load-trigger');
+
+            if (!append) {
+                listContainer.innerHTML = data.html;
+                if (loadTrigger) {
+                    loadTrigger.setAttribute('data-offset', 20);
+                    if (!document.body.contains(loadTrigger)) {
+                        listContainer.after(loadTrigger);
+                    }
+                    this.setupInfiniteScroll();
+                }
+            } else {
+                listContainer.insertAdjacentHTML('beforeend', data.html);
+            }
+
+            if (loadTrigger) {
+                if (data.hasMore) {
+                    const usedOffset = parseInt(url.searchParams.get('offset')) || 0;
+                    loadTrigger.setAttribute('data-offset', usedOffset + 20);
+                } else {
+                    loadTrigger.remove();
+                }
+            }
+
         } catch (error) {
             console.error('Error fetching filtered results:', error);
         }
+    }
+
+    setupInfiniteScroll() {
+        // Reuse logic or create new
+        const loadTrigger = document.getElementById('load-trigger');
+        if (!loadTrigger) return;
+
+        // Disconnect old observer if exists? 
+        if (this.observer) this.observer.disconnect();
+
+        this.observer = new IntersectionObserver((entries) => {
+            if (entries[0].isIntersecting) {
+                this.loadMore();
+            }
+        }, { rootMargin: '200px' });
+
+        this.observer.observe(loadTrigger);
+    }
+
+    loadMore() {
+        const loadTrigger = document.getElementById('load-trigger');
+        if (!loadTrigger) return;
+
+        const offset = parseInt(loadTrigger.getAttribute('data-offset'));
+
+        // Update URL to reflect current offset for the fetch
+        const url = new URL(window.location.href);
+        url.searchParams.set('offset', offset);
+
+        // We do NOT want to pushState for infinite scroll offsets usually, to avoid polluting history
+        // But we need to pass it to fetchFilteredResults
+
+        // Let's modify how we call fetch.
+        // Actually, we can just update the window URL strictly for the fetch call inside the method
+        // or pass url as arg.
+
+        // Let's update internal state/URL object passed to fetch
+        // Refactoring fetchFilteredResults to take URL or constructed params is better.
+        // For now, let's just temporarily modify the history state? No.
+
+        // Let's pass the offset via the URL object in fetchFilteredResults
+        // But fetchFilteredResults reads window.location.href.
+        // We should change that dependency.
+
+        // Let's update fetchFilteredResults to read form URL but override offset.
+
+        // Hacky but works: 
+        window.history.replaceState({}, '', url); // Update URL without pushing
+        this.fetchFilteredResults(true);
     }
 }
 
