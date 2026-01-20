@@ -429,36 +429,9 @@ class BigBlueButtonWebhookController extends Controller
             Log::info("BBB Webhook: No running session found for meeting $meetingId");
         }
 
-        // Create placeholder recording regardless of session status
-        // We'll create it with empty URL - it will be updated when publish_ended comes
-        if ($room) {
-            // Get internal meeting ID from session (saved in handleMeetingCreated) or extract from raw data
-            $internalMeetingId = $session->internal_meeting_id
-                ?? ($data['data']['attributes']['meeting']['internal-meeting-id'] ?? null)
-                ?? ($data['core']['body']['meetingId'] ?? null);
-
-            // Check if recording already exists for this meeting (within last 30 minutes)
-            $existingRecording = \App\Models\Recording::where('meeting_id', $meetingId)
-                ->where('start_time', '>=', now()->subMinutes(30))
-                ->first();
-
-            if (!$existingRecording && $internalMeetingId) {
-                $recording = \App\Models\Recording::create([
-                    'meeting_id' => $meetingId,
-                    'record_id' => $internalMeetingId . '-placeholder-' . time(),
-                    'name' => $room->name ?? 'Запись урока',
-                    'published' => false,
-                    'start_time' => $session?->started_at ?? now()->subMinutes(5),
-                    'end_time' => now(),
-                    'participants' => $session?->participant_count ?? 0,
-                    'url' => null, // Will be filled when publish_ended comes
-                ]);
-                Log::info("BBB Webhook: Created placeholder recording for {$meetingId}", ['recording_id' => $recording->id]);
-
-                // Broadcast update to refresh recordings list in real-time
-                \App\Events\RecordingUpdated::dispatch($recording);
-            }
-        }
+        // Placeholder creation removed:
+        // We shouldn't create placeholders blindly because we don't know if the session was recorded.
+        // Real recordings will be created via publish_ended webhook or sync job.
     }
 
     protected function handleUserAudio(array $data, string $type)
