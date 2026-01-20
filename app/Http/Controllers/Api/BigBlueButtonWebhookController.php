@@ -87,17 +87,12 @@ class BigBlueButtonWebhookController extends Controller
                 $this->handlePublishEnded($data);
             } elseif (
                 in_array($type, [
-                    'rap-archive-started',
-                    'rap-archive-ended',
-                    'rap-sanitizer-started',
-                    'rap-sanitizer-ended',
                     'rap-process-started',
                     'rap-process-ended',
                     'rap-publish-started',
                     // Also catch events without prefix (seen in logs)
-                    'archive_started',
+                    // We REMOVED archive_started and sanity_started because they trigger even for non-recorded sessions
                     'process_started',
-                    'sanity_started',
                     'publish_started',
                     'post_publish_started',
                 ])
