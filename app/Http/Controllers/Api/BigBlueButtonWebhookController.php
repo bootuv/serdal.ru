@@ -85,10 +85,97 @@ class BigBlueButtonWebhookController extends Controller
                 $this->handlePoll($data, $type);
             } elseif ($type === 'publish_ended') {
                 $this->handlePublishEnded($data);
+            } elseif (
+                in_array($type, [
+                    'rap-archive-started',
+                    'rap-archive-ended',
+                    'rap-sanitizer-started',
+                    'rap-sanitizer-ended',
+                    'rap-process-started',
+                    'rap-process-ended',
+                    'rap-publish-started'
+                ])
+            ) {
+                $this->handleRecordingProcessingStarted($data, $type);
             }
         }
 
         return response()->json(['status' => 'ok']);
+    }
+
+    /**
+     * Handle recording processing events (RAP)
+     * This creates a placeholder "Processing" recording entry ONLY if a recording is actually being processed.
+     */
+    protected function handleRecordingProcessingStarted(array $data, string $type)
+    {
+        Log::info("BBB Webhook: RAP event received: $type", ['data' => $data]);
+
+        $recordId = $data['data']['attributes']['record_id']
+            ?? $data['data']['attributes']['meeting']['internal-meeting-id']
+            ?? $data['record_id']
+            ?? null;
+
+        if (!$recordId) {
+            Log::warning("BBB Webhook ($type): Could not extract record_id");
+            return;
+        }
+
+        // Try to find existing recording (real or placeholder)
+        $recording = \App\Models\Recording::where('record_id', $recordId)
+            ->orWhere('record_id', 'like', $recordId . '%') // Match placeholders with suffixes
+            ->first();
+
+        if ($recording) {
+            // Recording already exists, nothing to do (maybe update status log if we had one)
+            return;
+        }
+
+        // If no recording exists, it means this is a new recording being processed.
+        // We should create a placeholder now.
+
+        // We need meeting_id (external) to link to room
+        // Usually record_id = internal_meeting_id.
+        // We can look up the session by internal_meeting_id
+        $session = \App\Models\MeetingSession::where('internal_meeting_id', $recordId)
+            ->orderByDesc('started_at')
+            ->first();
+
+        $meetingId = $session?->meeting_id;
+        $room = null;
+
+        if ($meetingId) {
+            $room = \App\Models\Room::where('meeting_id', $meetingId)->first();
+        } else {
+            // Fallback: try to find any room where this might belong (risky without map)
+            // But usually internalId contains part of externalId or we can't do much.
+            Log::warning("BBB Webhook ($type): Could not find session for record_id $recordId");
+            return;
+        }
+
+        if (!$room) {
+            Log::warning("BBB Webhook ($type): Room not found for meeting_id $meetingId");
+            return;
+        }
+
+        // Create PLACEHOLDER
+        // Note: we use the raw record_id (internal ID) as the record_id for now.
+        // When publish_ended comes, it might update it or we delete this one.
+        // Ideally we store it as a placeholder.
+
+        $newRecording = \App\Models\Recording::create([
+            'meeting_id' => $meetingId,
+            'record_id' => $recordId, // This is the real internal ID, acceptable for now
+            'name' => $room->name ?? 'Запись урока',
+            'published' => false,
+            'start_time' => $session?->started_at ?? now(),
+            'end_time' => now(),
+            'participants' => $session?->participant_count ?? 0,
+            'url' => null, // Empty URL triggers "Processing" state in UI
+        ]);
+
+        Log::info("BBB Webhook ($type): Created placeholder recording", ['recording_id' => $newRecording->id]);
+        \App\Events\RecordingUpdated::dispatch($newRecording);
     }
 
     /**
