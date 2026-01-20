@@ -119,6 +119,7 @@ class BigBlueButtonWebhookController extends Controller
 
         $recordId = $data['data']['attributes']['record_id']
             ?? $data['data']['attributes']['meeting']['internal-meeting-id']
+            ?? $data['payload']['record_id'] // Correct path for RAP events
             ?? $data['record_id']
             ?? null;
 
@@ -148,19 +149,23 @@ class BigBlueButtonWebhookController extends Controller
             ->first();
 
         $meetingId = $session?->meeting_id;
+
+        // Try to get external meeting ID from payload if session didn't give it
+        if (!$meetingId) {
+            $meetingId = $data['data']['attributes']['meeting']['external-meeting-id']
+                ?? $data['payload']['external_meeting_id']
+                ?? null;
+        }
+
         $room = null;
 
         if ($meetingId) {
             $room = \App\Models\Room::where('meeting_id', $meetingId)->first();
-        } else {
-            // Fallback: try to find any room where this might belong (risky without map)
-            // But usually internalId contains part of externalId or we can't do much.
-            Log::warning("BBB Webhook ($type): Could not find session for record_id $recordId");
-            return;
         }
 
         if (!$room) {
-            Log::warning("BBB Webhook ($type): Room not found for meeting_id $meetingId");
+            // Fallback: try to find any room where this might belong (risky without map)
+            Log::warning("BBB Webhook ($type): Could not find session or room for record_id $recordId");
             return;
         }
 
