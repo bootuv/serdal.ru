@@ -93,7 +93,13 @@ class BigBlueButtonWebhookController extends Controller
                     'rap-sanitizer-ended',
                     'rap-process-started',
                     'rap-process-ended',
-                    'rap-publish-started'
+                    'rap-publish-started',
+                    // Also catch events without prefix (seen in logs)
+                    'archive_started',
+                    'process_started',
+                    'sanity_started',
+                    'publish_started',
+                    'post_publish_started',
                 ])
             ) {
                 $this->handleRecordingProcessingStarted($data, $type);
