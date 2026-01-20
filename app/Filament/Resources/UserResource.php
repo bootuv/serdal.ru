@@ -149,6 +149,22 @@ class UserResource extends Resource
                     TextInput::make('telegram')->label('Telegram'),
                 ])->columns(2)->columnSpanFull(),
 
+                Forms\Components\Section::make('Финансы')
+                    ->schema([
+                        TextInput::make('commission_rate')
+                            ->label('Индивидуальная комиссия (%)')
+                            ->helperText(function () {
+                                $global = \App\Models\Setting::where('key', 'teacher_commission')->value('value') ?? 10;
+                                return "Если не указано, используется глобальная настройка ($global%)";
+                            })
+                            ->numeric()
+                            ->minValue(0)
+                            ->maxValue(100)
+                            ->suffix('%'),
+                    ])
+                    ->visible(fn(Forms\Get $get) => in_array($get('role'), [User::ROLE_TUTOR, User::ROLE_MENTOR]))
+                    ->columnSpanFull(),
+
             ]);
     }
 

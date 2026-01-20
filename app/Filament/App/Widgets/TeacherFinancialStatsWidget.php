@@ -185,13 +185,16 @@ class TeacherFinancialStatsWidget extends Widget implements HasForms
             }
         }
 
-        $commission = $totalEarnings * 0.10;
+        $user = Auth::user();
+        $commissionPercent = $user->commission_rate ?? \App\Models\Setting::where('key', 'teacher_commission')->value('value') ?? 10;
+        $commission = $totalEarnings * ($commissionPercent / 100);
         $payable = $totalEarnings - $commission;
 
         return [
             'totalEarnings' => $totalEarnings,
             'commission' => $commission,
             'payable' => $payable,
+            'commissionPercent' => $commissionPercent,
         ];
     }
 

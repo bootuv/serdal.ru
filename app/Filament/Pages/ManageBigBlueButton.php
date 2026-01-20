@@ -4,6 +4,7 @@ namespace App\Filament\Pages;
 
 use App\Models\Setting;
 use Filament\Forms\Components\Section;
+use Filament\Forms\Components\Tabs;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
 use Filament\Notifications\Notification;
@@ -17,9 +18,11 @@ class ManageBigBlueButton extends Page implements HasForms
 
     protected static ?string $navigationIcon = 'heroicon-o-cog';
 
-    protected static ?string $navigationLabel = 'Настройки BBB';
+    protected static ?string $navigationLabel = 'Настройки';
 
-    protected static ?string $title = 'Настройки BigBlueButton';
+    protected static ?string $title = 'Настройки';
+
+    protected static ?string $slug = 'settings';
 
     protected static ?int $navigationSort = 10;
 
@@ -43,6 +46,7 @@ class ManageBigBlueButton extends Page implements HasForms
             'vk_group_id' => Setting::where('key', 'vk_group_id')->value('value'),
             'vk_auto_upload' => Setting::where('key', 'vk_auto_upload')->value('value') === '1',
             'vk_delete_after_upload' => Setting::where('key', 'vk_delete_after_upload')->value('value') === '1',
+            'teacher_commission' => Setting::where('key', 'teacher_commission')->value('value') ?? 10,
         ]);
     }
 
@@ -50,73 +54,95 @@ class ManageBigBlueButton extends Page implements HasForms
     {
         return $form
             ->schema([
-                Section::make('Глобальные настройки')
-                    ->description('Эти настройки будут использоваться по умолчанию, если у пользователя не указаны собственные.')
-                    ->schema([
-                        TextInput::make('bbb_url')
-                            ->label('URL сервера (Server Base URL)')
-                            ->placeholder('https://bbb.example.com/bigbluebutton/')
-                            ->helperText('Слэш в конце обязателен.')
-                            ->url()
-                            ->maxLength(255),
-                        TextInput::make('bbb_secret')
-                            ->label('Секретный ключ (Shared Secret)')
-                            ->password()
-                            ->revealable()
-                            ->maxLength(255),
-                    ]),
-                Section::make('Расширенные настройки')
-                    ->description('Настройки по умолчанию для всех вебинаров.')
-                    ->schema([
-                        \Filament\Forms\Components\Toggle::make('record')
-                            ->label('Запись встреч')
-                            ->default(true)
-                            ->helperText('Записывать встречи по умолчанию'),
-                        \Filament\Forms\Components\Toggle::make('auto_start_recording')
-                            ->label('Автостарт записи')
-                            ->default(true)
-                            ->helperText('Автоматически начинать запись'),
-                        \Filament\Forms\Components\Toggle::make('allow_start_stop_recording')
-                            ->label('Разрешить старт/стоп записи')
-                            ->default(true)
-                            ->helperText('Разрешить участникам управлять записью'),
-                        \Filament\Forms\Components\Toggle::make('mute_on_start')
-                            ->label('Выключить микрофоны при входе')
-                            ->helperText('Отключить микрофоны при входе'),
-                        \Filament\Forms\Components\Toggle::make('webcams_only_for_moderator')
-                            ->label('Вебкамеры только у модератора')
-                            ->helperText('Только модератор может включать камеру'),
-                        TextInput::make('max_participants')
-                            ->label('Макс. участников')
-                            ->numeric()
-                            ->default(0)
-                            ->helperText('0 = неограничено'),
-                        TextInput::make('duration')
-                            ->label('Длительность (мин)')
-                            ->numeric()
-                            ->default(0)
-                            ->helperText('0 = неограничено'),
-                    ]),
-                Section::make('VK Video')
-                    ->description('Автоматический экспорт записей в VK Video')
-                    ->schema([
-                        \Filament\Forms\Components\Toggle::make('vk_auto_upload')
-                            ->label('Автозагрузка в VK')
-                            ->helperText('Автоматически загружать записи в VK Video'),
-                        \Filament\Forms\Components\Toggle::make('vk_delete_after_upload')
-                            ->label('Удалять с BBB после загрузки')
-                            ->helperText('Удалять оригинал записи с сервера BBB после успешной загрузки в VK'),
-                        TextInput::make('vk_access_token')
-                            ->label('VK Access Token')
-                            ->password()
-                            ->revealable()
-                            ->maxLength(500)
-                            ->helperText('Токен с правами video'),
-                        TextInput::make('vk_group_id')
-                            ->label('ID группы VK')
-                            ->numeric()
-                            ->helperText('ID закрытой группы для хранения записей'),
-                    ]),
+                Tabs::make('Settings')
+                    ->tabs([
+                        Tabs\Tab::make('BigBlueButton')
+                            ->schema([
+                                Section::make('Глобальные настройки')
+                                    ->description('Эти настройки будут использоваться по умолчанию, если у пользователя не указаны собственные.')
+                                    ->schema([
+                                        TextInput::make('bbb_url')
+                                            ->label('URL сервера (Server Base URL)')
+                                            ->placeholder('https://bbb.example.com/bigbluebutton/')
+                                            ->helperText('Слэш в конце обязателен.')
+                                            ->url()
+                                            ->maxLength(255),
+                                        TextInput::make('bbb_secret')
+                                            ->label('Секретный ключ (Shared Secret)')
+                                            ->password()
+                                            ->revealable()
+                                            ->maxLength(255),
+                                    ]),
+                                Section::make('Расширенные настройки')
+                                    ->description('Настройки по умолчанию для всех вебинаров.')
+                                    ->schema([
+                                        \Filament\Forms\Components\Toggle::make('record')
+                                            ->label('Запись встреч')
+                                            ->default(true)
+                                            ->helperText('Записывать встречи по умолчанию'),
+                                        \Filament\Forms\Components\Toggle::make('auto_start_recording')
+                                            ->label('Автостарт записи')
+                                            ->default(true)
+                                            ->helperText('Автоматически начинать запись'),
+                                        \Filament\Forms\Components\Toggle::make('allow_start_stop_recording')
+                                            ->label('Разрешить старт/стоп записи')
+                                            ->default(true)
+                                            ->helperText('Разрешить участникам управлять записью'),
+                                        \Filament\Forms\Components\Toggle::make('mute_on_start')
+                                            ->label('Выключить микрофоны при входе')
+                                            ->helperText('Отключить микрофоны при входе'),
+                                        \Filament\Forms\Components\Toggle::make('webcams_only_for_moderator')
+                                            ->label('Вебкамеры только у модератора')
+                                            ->helperText('Только модератор может включать камеру'),
+                                        TextInput::make('max_participants')
+                                            ->label('Макс. участников')
+                                            ->numeric()
+                                            ->default(0)
+                                            ->helperText('0 = неограничено'),
+                                        TextInput::make('duration')
+                                            ->label('Длительность (мин)')
+                                            ->numeric()
+                                            ->default(0)
+                                            ->helperText('0 = неограничено'),
+                                    ]),
+                            ]),
+                        Tabs\Tab::make('VK Video')
+                            ->schema([
+                                Section::make('VK Video')
+                                    ->description('Автоматический экспорт записей в VK Video')
+                                    ->schema([
+                                        \Filament\Forms\Components\Toggle::make('vk_auto_upload')
+                                            ->label('Автозагрузка в VK')
+                                            ->helperText('Автоматически загружать записи в VK Video'),
+                                        \Filament\Forms\Components\Toggle::make('vk_delete_after_upload')
+                                            ->label('Удалять с BBB после загрузки')
+                                            ->helperText('Удалять оригинал записи с сервера BBB после успешной загрузки в VK'),
+                                        TextInput::make('vk_access_token')
+                                            ->label('VK Access Token')
+                                            ->password()
+                                            ->revealable()
+                                            ->maxLength(500)
+                                            ->helperText('Токен с правами video'),
+                                        TextInput::make('vk_group_id')
+                                            ->label('ID группы VK')
+                                            ->numeric()
+                                            ->helperText('ID закрытой группы для хранения записей'),
+                                    ]),
+                            ]),
+                        Tabs\Tab::make('Финансы')
+                            ->schema([
+                                TextInput::make('teacher_commission')
+                                    ->label('Комиссия платформы (%)')
+                                    ->numeric()
+                                    ->default(10)
+                                    ->suffix('%')
+                                    ->required()
+                                    ->minValue(0)
+                                    ->maxValue(100)
+                                    ->helperText('Процент, который удерживается с учителей за каждый урок.'),
+                            ]),
+                    ])
+                    ->persistTabInQueryString()
             ])
             ->statePath('data');
     }
@@ -149,6 +175,9 @@ class ManageBigBlueButton extends Page implements HasForms
         Setting::updateOrCreate(['key' => 'vk_group_id'], ['value' => $data['vk_group_id']]);
         Setting::updateOrCreate(['key' => 'vk_auto_upload'], ['value' => $data['vk_auto_upload'] ? '1' : '0']);
         Setting::updateOrCreate(['key' => 'vk_delete_after_upload'], ['value' => $data['vk_delete_after_upload'] ? '1' : '0']);
+
+        // Finance settings
+        Setting::updateOrCreate(['key' => 'teacher_commission'], ['value' => $data['teacher_commission'] ?? 10]);
 
         Notification::make()
             ->title('Настройки сохранены')

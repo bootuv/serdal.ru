@@ -1,6 +1,6 @@
 <x-filament-widgets::widget>
     <x-filament::section heading="Финансовая статистика"
-        description='Расчет ведется с учетом типа оплаты урока. Для "Помесячной оплаты" учитываются все проведенные уроки, для "Поурочной" – только посещенные учениками. Комиссия платформы составляет 10%.'>
+        description='Расчет ведется с учетом типа оплаты урока. Для "Помесячной оплаты" учитываются все проведенные уроки, для "Поурочной" – только посещенные учениками. Комиссия платформы составляет {{ $commissionPercent }}%.'>
         {{ $this->form }}
 
         <div class="mt-6 grid gap-4 grid-cols-1 md:grid-cols-3">
@@ -15,7 +15,7 @@
 
             <div class="p-4 bg-gray-50 dark:bg-gray-900 rounded-xl ring-1 ring-gray-950/5 dark:ring-white/10">
                 <div class="text-sm font-medium text-gray-500 dark:text-gray-400">
-                    Комиссия Serdal (10%)
+                    Комиссия Serdal ({{ $commissionPercent }}%)
                 </div>
                 <div class="mt-2 text-3xl font-bold text-danger-600 dark:text-danger-500">
                     -{{ number_format($commission, 0, '.', ' ') }} ₽

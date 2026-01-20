@@ -62,6 +62,7 @@ class User extends Authenticatable implements FilamentUser
         'push_reminder_at',
         'push_reminder_count',
         'vk_album_id',
+        'commission_rate',
     ];
 
     /**
@@ -87,6 +88,7 @@ class User extends Authenticatable implements FilamentUser
             'grade' => 'json',
             'google_token_expires_at' => 'datetime',
             'push_reminder_at' => 'datetime',
+            'commission_rate' => 'integer',
         ];
     }
 
