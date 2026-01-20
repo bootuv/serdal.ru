@@ -38,7 +38,7 @@
                 </div>
             </div>
         @else
-            <div class="bg-white dark:bg-gray-900 rounded-xl shadow-sm p-12 text-center">
+            <div class="bg-white dark:bg-gray-900 rounded-xl shadow-sm p-12 py-24 text-center">
                 <div
                     class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-warning-100 dark:bg-warning-900/20 mb-4">
                     <x-heroicon-o-clock class="w-8 h-8 text-warning-600" />
@@ -47,7 +47,7 @@
                     Видео ещё обрабатывается
                 </h3>
                 <p class="text-gray-500 dark:text-gray-400">
-                    Запись загружается в VK Video. Обычно это занимает 1-2 минуты.
+                    Запись загружается в VK Video. Обычно это занимает до 30 минут.
                 </p>
             </div>
         @endif
