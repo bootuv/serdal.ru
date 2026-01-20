@@ -175,11 +175,14 @@ class BigBlueButtonWebhookController extends Controller
         // Ideally we store it as a placeholder.
 
         // Create PLACEHOLDER
-        // We MUST append '-placeholder' suffix so ListRecordings.php logic doesn't delete it
-        // (It deletes anything not in BBB list unless it has this suffix)
+        // We MUST match ListRecordings.php logic: ->where('record_id', 'not like', '%-placeholder-%')
+        // So we need something that contains "-placeholder-"
+
+        $placeholderId = $recordId . '-placeholder-' . time();
+
         $newRecording = \App\Models\Recording::create([
             'meeting_id' => $meetingId,
-            'record_id' => $recordId . '-placeholder',
+            'record_id' => $placeholderId,
             'name' => $room->name ?? 'Запись урока',
             'published' => false,
             'start_time' => $session?->started_at ?? now(),
