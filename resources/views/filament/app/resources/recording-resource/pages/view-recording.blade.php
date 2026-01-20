@@ -38,7 +38,7 @@
                 </div>
             </div>
         @else
-            <div class="bg-white dark:bg-gray-900 rounded-xl shadow-sm px-12 py-24 text-center">
+            <div class="bg-white dark:bg-gray-900 rounded-xl shadow-sm text-center" style="padding: 6rem 3rem;">
                 <div
                     class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-warning-100 dark:bg-warning-900/20 mb-4">
                     <x-heroicon-o-clock class="w-8 h-8 text-warning-600" />
