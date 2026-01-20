@@ -260,18 +260,28 @@ class BigBlueButtonWebhookController extends Controller
      */
     protected function handleMeetingCreated(array $data)
     {
+        // Try Legacy Format
         $props = $data['core']['body']['props'] ?? [];
         $meetingProp = $props['meetingProp'] ?? [];
 
         $externalId = $meetingProp['extId'] ?? null;
         $internalId = $meetingProp['intId'] ?? null;
+        $record = $meetingProp['record'] ?? null;
+
+        // Try New Format (if legacy failed)
+        if ((!$externalId || !$internalId) && isset($data['data']['attributes']['meeting'])) {
+            $m = $data['data']['attributes']['meeting'];
+            $externalId = $m['external-meeting-id'] ?? $externalId;
+            $internalId = $m['internal-meeting-id'] ?? $internalId;
+            $record = $m['record'] ?? $record;
+        }
 
         if (!$externalId || !$internalId) {
             Log::warning('BBB Webhook (meeting-created): Missing meeting IDs', ['data' => $data]);
             return;
         }
 
-        Log::info("BBB Webhook: Meeting created - ext: $externalId, int: $internalId");
+        Log::info("BBB Webhook: Meeting created - ext: $externalId, int: $internalId, record: " . ($record ? 'yes' : 'no'));
 
         // Find the room by external ID (our meeting_id)
         $room = Room::where('meeting_id', $externalId)->first();
@@ -288,8 +298,14 @@ class BigBlueButtonWebhookController extends Controller
             ->first();
 
         if ($session) {
-            $session->update(['internal_meeting_id' => $internalId]);
-            Log::info("BBB Webhook: Session {$session->id} updated with internal_meeting_id: $internalId");
+            $analytics = $session->analytics_data ?? [];
+            $analytics['record_prop'] = $record ?? false;
+
+            $session->update([
+                'internal_meeting_id' => $internalId,
+                'analytics_data' => $analytics
+            ]);
+            Log::info("BBB Webhook: Session {$session->id} updated with internal_meeting_id: $internalId (record={$analytics['record_prop']})");
         } else {
             Log::info("BBB Webhook: No running session found for room {$room->id}");
         }
@@ -516,9 +532,44 @@ class BigBlueButtonWebhookController extends Controller
             Log::info("BBB Webhook: No running session found for meeting $meetingId");
         }
 
-        // Placeholder creation removed:
-        // We shouldn't create placeholders blindly because we don't know if the session was recorded.
-        // Real recordings will be created via publish_ended webhook or sync job.
+        // Check if recording was enabled for this session
+        // We look at analytics_data where we stored 'record_prop' from meeting-created event
+        // OR we check if we have any RAP events (which we might miss), so we fallback to the prop.
+        $wasRecordingEnabled = $session->analytics_data['record_prop'] ?? false;
+
+        // If recording was enabled, create a placeholder "Processing"
+        // This is a fallback because RAP events are not arriving for some reason.
+        if ($room && $wasRecordingEnabled) {
+            // Get internal meeting ID
+            $internalMeetingId = $session->internal_meeting_id
+                ?? ($data['data']['attributes']['meeting']['internal-meeting-id'] ?? null)
+                ?? ($data['core']['body']['meetingId'] ?? null);
+
+            // Check if recording already exists
+            $existingRecording = \App\Models\Recording::where('meeting_id', $meetingId)
+                ->where('start_time', '>=', now()->subMinutes(30))
+                ->first();
+
+            if (!$existingRecording && $internalMeetingId) {
+                // Check if we already have a placeholder (just in case)
+                $existingPlaceholder = \App\Models\Recording::where('record_id', $internalMeetingId . '-placeholder')->first();
+
+                if (!$existingPlaceholder) {
+                    $recording = \App\Models\Recording::create([
+                        'meeting_id' => $meetingId,
+                        'record_id' => $internalMeetingId . '-placeholder', // Fixed ID to avoid duplicates
+                        'name' => $room->name ?? 'Запись урока',
+                        'published' => false,
+                        'start_time' => $session?->started_at ?? now()->subMinutes(5),
+                        'end_time' => now(),
+                        'participants' => $session?->participant_count ?? 0,
+                        'url' => null,
+                    ]);
+                    Log::info("BBB Webhook: Created placeholder recording (enabled via prop)", ['recording_id' => $recording->id]);
+                    \App\Events\RecordingUpdated::dispatch($recording);
+                }
+            }
+        }
     }
 
     protected function handleUserAudio(array $data, string $type)
