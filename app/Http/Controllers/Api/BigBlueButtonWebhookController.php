@@ -174,9 +174,12 @@ class BigBlueButtonWebhookController extends Controller
         // When publish_ended comes, it might update it or we delete this one.
         // Ideally we store it as a placeholder.
 
+        // Create PLACEHOLDER
+        // We MUST append '-placeholder' suffix so ListRecordings.php logic doesn't delete it
+        // (It deletes anything not in BBB list unless it has this suffix)
         $newRecording = \App\Models\Recording::create([
             'meeting_id' => $meetingId,
-            'record_id' => $recordId, // This is the real internal ID, acceptable for now
+            'record_id' => $recordId . '-placeholder',
             'name' => $room->name ?? 'Запись урока',
             'published' => false,
             'start_time' => $session?->started_at ?? now(),
