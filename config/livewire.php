@@ -64,7 +64,7 @@ return [
     */
 
     'temporary_file_upload' => [
-        'disk' => 's3',        // Use S3 for temp uploads to ensure consistency across environments
+        'disk' => 'local',        // Use local for temp uploads to avoid S3 prefix issues
 
         'rules' => ['max:204800'],  // 200 MB max file size (in KB)
         'directory' => null,   // Example: 'tmp'                      | Default: 'livewire-tmp'
