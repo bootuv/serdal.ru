@@ -179,7 +179,7 @@ class User extends Authenticatable implements FilamentUser
     public function avatarUrl(): Attribute
     {
         return Attribute::make(
-            get: fn() => $this->avatar ? Storage::disk('public')->url($this->avatar) : asset('images/default-avatar.png'),
+            get: fn() => $this->avatar ? Storage::disk('s3')->url($this->avatar) : asset('images/default-avatar.png'),
         );
     }
 
@@ -326,7 +326,7 @@ class User extends Authenticatable implements FilamentUser
 
         static::deleting(function ($user) {
             if ($user->avatar) {
-                Storage::disk('public')->delete($user->avatar);
+                Storage::disk('s3')->delete($user->avatar);
             }
 
             // Удаляем комнаты (soft delete, затем force delete в обсервере комнаты, если нужно)
