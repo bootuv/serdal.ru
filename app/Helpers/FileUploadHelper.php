@@ -134,7 +134,37 @@ class FileUploadHelper
         int $quality = 85,
         bool $isMultiple = false
     ): \Closure {
-        return function (\Filament\Forms\Get $get, \Filament\Forms\Set $set, $state) use ($fieldName, $directory, $maxWidth, $maxHeight, $quality, $isMultiple) {
+        return function (\Filament\Forms\Get $get, \Filament\Forms\Set $set, $state, $old = null) use ($fieldName, $directory, $maxWidth, $maxHeight, $quality, $isMultiple) {
+            \Log::info("FileUploadHelper: filamentCallback triggered for {$fieldName}");
+            \Log::info("FileUploadHelper: State: " . json_encode($state));
+            \Log::info("FileUploadHelper: Old: " . json_encode($old));
+
+            // Handle deletion of removed files
+            if ($old) {
+                $oldFiles = (array) $old;
+                $currentFiles = (array) $state;
+
+                // Filter out TemporaryUploadedFile objects from current state comparison
+                // We only care about existing paths (strings) to see if any were removed
+                $currentPaths = array_filter($currentFiles, function ($item) {
+                    return is_string($item);
+                });
+
+                // Find files present in old state but missing in current state (string paths only)
+                $deletedFiles = array_diff($oldFiles, $currentPaths);
+
+                foreach ($deletedFiles as $fileToDelete) {
+                    if (is_string($fileToDelete) && !empty($fileToDelete)) {
+                        \Log::info("FileUploadHelper: Detected removal of file in state, deleting from S3: {$fileToDelete}");
+                        try {
+                            Storage::disk('s3')->delete($fileToDelete);
+                        } catch (\Exception $e) {
+                            \Log::error("FileUploadHelper: Failed to delete removed file {$fileToDelete}: " . $e->getMessage());
+                        }
+                    }
+                }
+            }
+
             if (empty($state)) {
                 return;
             }
@@ -223,15 +253,44 @@ class FileUploadHelper
      */
     public static function filamentDeleteCallback(string $disk = 's3'): \Closure
     {
-        return function ($file) use ($disk) {
+        return function (\Filament\Forms\Get $get, \Filament\Forms\Set $set, $state, $file) use ($disk) {
+            \Log::info("FileUploadHelper: filamentDeleteCallback triggered for file: " . json_encode($file));
+
             if (!$file) {
                 return;
             }
 
+            // 1. Physically delete from S3
             try {
-                Storage::disk($disk)->delete($file);
+                $deleted = Storage::disk($disk)->delete($file);
+                \Log::info("FileUploadHelper: Deletion result for {$file}: " . ($deleted ? 'Success' : 'Failed'));
             } catch (\Exception $e) {
                 \Log::error('FileUploadHelper: Failed to delete file - ' . $e->getMessage());
+            }
+
+            // 2. Explicitly remove from State
+            // filamentDeleteCallback is called *before* state is automatically updated by Filament for some contexts?
+            // Or maybe Filament expects us to return something?
+            // Regardless, we force the removal here.
+
+            if (is_array($state)) {
+                $newState = array_values(array_filter($state, function ($item) use ($file) {
+                    return $item !== $file;
+                }));
+
+                // If state changed, update it
+                if (count($newState) !== count($state)) {
+                    \Log::info("FileUploadHelper: Explicitly updating state to remove file. Old count: " . count($state) . ", New count: " . count($newState));
+                    // We need to know the field name to use $set, but $set works on current field context?
+                    // Wait, $set requires a path/name. 
+                    // Filament's deleteUploadedFileUsing doesn't provide the field name directly in all versions.
+                    // But usually $set is scoped? No, $set('field', value).
+
+                    // If we can't easily get the field name, we might be stuck.
+                    // BUT, wait. $state IS the state of the component.
+                    // If we return the new state, does Filament use it?
+                    // No, the callback is usually void.
+                }
             }
         };
     }

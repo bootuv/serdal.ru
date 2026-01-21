@@ -295,7 +295,7 @@ class RoomResource extends Resource
                         'image/png',
                     ])
                     ->maxSize(204800) // 200MB in KB
-                    ->directory('presentations')
+                    ->maxSize(204800) // 200MB in KB
                     ->live()
                     ->afterStateUpdated(\App\Helpers\FileUploadHelper::filamentCallback('presentations', 'presentations', 1920, 1080, 85, true))
                     ->deleteUploadedFileUsing(\App\Helpers\FileUploadHelper::filamentDeleteCallback())
