@@ -32,6 +32,8 @@ class Profile extends Page
             ->schema([
                 Forms\Components\FileUpload::make('avatar')
                     ->label('Аватар')
+                    ->disk('s3')
+                    ->visibility('public')
                     ->image()
                     ->avatar()
                     ->directory('avatars')

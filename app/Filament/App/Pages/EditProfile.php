@@ -46,6 +46,8 @@ class EditProfile extends Page implements HasForms
             ->schema([
                 Forms\Components\FileUpload::make('avatar')
                     ->label('Фото профиля')
+                    ->disk('s3')
+                    ->visibility('public')
                     ->image()
                     ->avatar()
                     ->directory('avatars'),

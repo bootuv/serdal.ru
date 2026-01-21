@@ -45,6 +45,8 @@ class UserResource extends Resource
             ->schema([
                 FileUpload::make('avatar')
                     ->label('Фото профиля')
+                    ->disk('s3')
+                    ->visibility('public')
                     ->image()
                     ->avatar()
                     ->directory('avatars'),

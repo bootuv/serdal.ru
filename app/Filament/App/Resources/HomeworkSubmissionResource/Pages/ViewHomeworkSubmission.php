@@ -110,6 +110,9 @@ class ViewHomeworkSubmission extends ViewRecord
 
                     Forms\Components\FileUpload::make('feedback_attachments')
                         ->label('Прикрепить файлы')
+                        ->disk('s3')
+                        ->visibility('public')
+                        ->directory('feedback-attachments')
                         ->multiple()
                         ->maxSize(51200)
                         ->columnSpanFull(),

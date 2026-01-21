@@ -41,6 +41,8 @@ class RoomResource extends Resource
                     ->dehydrated(),
                 Forms\Components\FileUpload::make('presentations')
                     ->label('Презентации')
+                    ->disk('s3')
+                    ->visibility('public')
                     ->multiple()
                     ->acceptedFileTypes([
                         'application/pdf',

@@ -57,6 +57,8 @@ class Onboarding extends Page implements HasForms, HasTable
                     ->schema([
                         Forms\Components\FileUpload::make('avatar')
                             ->label('Фото профиля')
+                            ->disk('s3')
+                            ->visibility('public')
                             ->image()
                             ->avatar()
                             ->imageEditor()
