@@ -36,60 +36,13 @@ class SupportChatComponent extends Component
      */
     public function updatedAttachments()
     {
-        foreach ($this->attachments as $index => $file) {
-            // Пропускаем уже обработанные файлы
-            if (isset($this->processedAttachments[$index])) {
-                continue;
-            }
-
-            $mimeType = $file->getMimeType();
-            $originalName = $file->getClientOriginalName();
-
-            // Проверяем, является ли файл изображением (не GIF)
-            if (str_starts_with($mimeType, 'image/') && !str_contains($mimeType, 'gif')) {
-                try {
-                    // Читаем содержимое файла пока он ещё доступен
-                    $imageContent = $file->get();
-
-                    if ($imageContent) {
-                        $image = Image::read($imageContent);
-
-                        // Уменьшаем только если изображение больше HD
-                        $image->scaleDown(self::MAX_IMAGE_WIDTH, self::MAX_IMAGE_HEIGHT);
-
-                        // Генерируем имя файла
-                        $extension = $file->getClientOriginalExtension() ?: 'jpg';
-                        $filename = 'support-attachments/' . uniqid() . '_' . time() . '.' . $extension;
-
-                        // Сохраняем в S3
-                        $encodedImage = $image->encodeByExtension($extension, quality: 85);
-                        Storage::disk('s3')->put($filename, (string) $encodedImage, 'public');
-
-                        // Сохраняем данные об обработанном файле
-                        $this->processedAttachments[$index] = [
-                            'path' => $filename,
-                            'name' => $originalName,
-                            'type' => $mimeType,
-                            'size' => strlen((string) $encodedImage),
-                            'processed' => true,
-                        ];
-                        continue;
-                    }
-                } catch (\Exception $e) {
-                    \Log::error('Image resize failed during upload: ' . $e->getMessage());
-                }
-            }
-
-            // Для не-изображений или при ошибке обработки - сохраняем как есть
-            $path = $file->storePublicly('support-attachments', 's3');
-            $this->processedAttachments[$index] = [
-                'path' => $path,
-                'name' => $originalName,
-                'type' => $mimeType,
-                'size' => $file->getSize(),
-                'processed' => false,
-            ];
-        }
+        $this->processedAttachments = \App\Helpers\FileUploadHelper::processChatAttachments(
+            $this->attachments,
+            $this->processedAttachments,
+            'support-attachments',
+            self::MAX_IMAGE_WIDTH,
+            self::MAX_IMAGE_HEIGHT
+        );
     }
 
     public function mount(?SupportChat $supportChat = null)
@@ -373,6 +326,10 @@ class SupportChatComponent extends Component
 
     public function removeAttachment($index)
     {
+        if (isset($this->processedAttachments[$index])) {
+            \App\Helpers\FileUploadHelper::deleteChatAttachment($this->processedAttachments[$index]);
+        }
+
         unset($this->attachments[$index]);
         unset($this->processedAttachments[$index]);
         $this->attachments = array_values($this->attachments);

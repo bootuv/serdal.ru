@@ -356,10 +356,39 @@
                 {{-- Превью прикрепленных файлов --}}
                 @if(count($attachments) > 0)
                     <div class="mb-4 space-y-2">
+                        {{-- DEBUD: Remove after fix --}}
+                        {{-- @dump($processedAttachments) --}}
+
                         @foreach($attachments as $index => $file)
                             <div class="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-lg ring-1 ring-gray-200 dark:ring-gray-700">
-                                @if(str_starts_with($file->getMimeType(), 'image/'))
-                                    <img src="{{ $file->temporaryUrl() }}"
+                                @php
+                                    $processed = $processedAttachments[$index] ?? null;
+                                    $imageUrl = null;
+                                    $isImage = false;
+
+                                    if ($processed && isset($processed['path'])) {
+                                        // If processed, rely on stored metadata
+                                        $type = $processed['type'] ?? '';
+                                        $isImage = str_starts_with($type, 'image/');
+                                        if ($isImage) {
+                                            $imageUrl = Storage::disk('s3')->url($processed['path']);
+                                        }
+                                    } else {
+                                        // If not processed yet (or failed), try temporary file
+                                        try {
+                                             $type = $file->getMimeType();
+                                             $isImage = str_starts_with($type, 'image/');
+                                             if ($isImage && method_exists($file, 'temporaryUrl')) {
+                                                 $imageUrl = $file->temporaryUrl();
+                                             }
+                                        } catch (\Exception $e) {
+                                            $isImage = false;
+                                        }
+                                    }
+                                @endphp
+
+                                @if($isImage && $imageUrl)
+                                    <img src="{{ $imageUrl }}"
                                         class="h-10 w-10 object-cover rounded flex-shrink-0" />
                                 @else
                                     <div class="h-10 w-10 flex items-center justify-center rounded bg-gray-100 dark:bg-gray-700 flex-shrink-0">
