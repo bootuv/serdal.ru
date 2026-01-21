@@ -17,6 +17,11 @@ class CreateRoom extends CreateRecord
         $data['moderator_pw'] = Str::random(8);
         $data['attendee_pw'] = Str::random(8);
 
+        // Default type to 'pending' if not set (no participants selected)
+        if (empty($data['type'])) {
+            $data['type'] = 'pending';
+        }
+
         // Fix start_date for one-time schedules
         if (isset($data['schedules'])) {
             foreach ($data['schedules'] as &$schedule) {
@@ -41,7 +46,11 @@ class CreateRoom extends CreateRecord
 
         // Determine type based on actual participant count after relationship is synced
         $participantCount = $this->record->participants()->count();
-        $type = $participantCount > 1 ? 'group' : 'individual';
+        $type = match (true) {
+            $participantCount === 0 => 'pending',
+            $participantCount === 1 => 'individual',
+            default => 'group',
+        };
         $this->record->update(['type' => $type]);
 
         // Notify all assigned participants about the new lesson

@@ -149,7 +149,11 @@ class EditRoom extends EditRecord
         // Determine type based on actual participant count after relationship is synced
         $this->record->refresh();
         $participantCount = $this->record->participants()->count();
-        $type = $participantCount > 1 ? 'group' : 'individual';
+        $type = match (true) {
+            $participantCount === 0 => 'pending',
+            $participantCount === 1 => 'individual',
+            default => 'group',
+        };
         $this->record->updateQuietly(['type' => $type]);
 
         // Get the new participant IDs from form data

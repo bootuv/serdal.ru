@@ -99,13 +99,14 @@ class TeacherFinancialStatsWidget extends Widget implements HasForms
 
         $userId = Auth::id();
 
-        // Fetch sessions in range
+        // Fetch sessions in range (only sessions where room has participants)
         $sessions = MeetingSession::query()
             ->where('user_id', $userId)
             ->whereBetween('started_at', [
                 Carbon::parse($start)->startOfDay(),
                 Carbon::parse($end)->endOfDay()
             ])
+            ->whereHas('room.participants') // Exclude sessions without assigned students
             ->with(['room.participants', 'room.user.lessonTypes']) // Eager load for calculations
             ->get();
 
