@@ -91,9 +91,11 @@ class ImportGreenlightData extends Command
                 if ($this->dryRun) {
                     $this->components->task("[DRY] Update password for {$glUser->email}", fn() => true);
                 } else {
-                    // Directly set password_digest (bcrypt compatible)
-                    $lmsUser->timestamps = false;
-                    $lmsUser->update(['password' => $glUser->password_digest]);
+                    // Use raw DB update to bypass Laravel's 'hashed' cast
+                    // which would double-hash the already-hashed password
+                    DB::table('users')
+                        ->where('id', $lmsUser->id)
+                        ->update(['password' => $glUser->password_digest]);
                 }
 
                 $this->passwordsUpdated++;
