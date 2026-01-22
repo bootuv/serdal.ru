@@ -112,6 +112,20 @@ return [
             // 'trust_server_certificate' => env('DB_TRUST_SERVER_CERTIFICATE', 'false'),
         ],
 
+        'greenlight' => [
+            'driver' => 'pgsql',
+            'host' => env('GREENLIGHT_DB_HOST', '127.0.0.1'),
+            'port' => env('GREENLIGHT_DB_PORT', '5433'),
+            'database' => env('GREENLIGHT_DB_DATABASE', 'greenlight-v3-production'),
+            'username' => env('GREENLIGHT_DB_USERNAME', 'postgres'),
+            'password' => env('GREENLIGHT_DB_PASSWORD', ''),
+            'charset' => 'utf8',
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'search_path' => 'public',
+            'sslmode' => 'prefer',
+        ],
+
     ],
 
     /*
@@ -147,7 +161,7 @@ return [
 
         'options' => [
             'cluster' => env('REDIS_CLUSTER', 'redis'),
-            'prefix' => env('REDIS_PREFIX', Str::slug(env('APP_NAME', 'laravel'), '_').'_database_'),
+            'prefix' => env('REDIS_PREFIX', Str::slug(env('APP_NAME', 'laravel'), '_') . '_database_'),
         ],
 
         'default' => [

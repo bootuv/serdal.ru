@@ -51,6 +51,7 @@ class Room extends Model
     }
 
     protected $fillable = [
+        'greenlight_id',
         'user_id',
         'name',
         'type',
