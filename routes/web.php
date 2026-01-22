@@ -17,6 +17,9 @@ Route::get('/terms', [PageController::class, 'termsPage'])->name('terms');
 
 // Unified login - redirect to admin panel login
 Route::get('/login', fn() => redirect('/admin/login'))->name('login');
+
+// Teacher choice page - choose between new LMS and old Greenlight
+Route::get('/welcome', fn() => view('welcome-choice'))->name('teacher.choice');
 Route::get('/application', \App\Livewire\BecomeTutorPage::class)->name('become-tutor');
 
 // Invitation Registration

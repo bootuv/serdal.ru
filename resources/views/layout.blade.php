@@ -30,7 +30,7 @@
       <div class="main-menu">
         <a href="#" target="_blank" class="p24">О нас</a>
         <a href="{{ route('reviews') }}" class="p24">Отзывы</a>
-        <a href="https://room.serdal.ru/signin" target="_blank" class="p24">Войти</a>
+        <a href="/welcome" target="_blank" class="p24">Войти</a>
       </div>
       <div @click="mobileMenuOpen = true" class="burger-menu-wrapper"><img src="/images/burger.svg" loading="lazy"
           width="32" height="32" alt="" class="burger-menu"></div>
@@ -66,7 +66,7 @@
       <div class="mobile-menu-litems">
         <a href="#" target="_blank" class="p30">О нас</a>
         <a href="{{ route('reviews') }}" class="p30">Отзывы</a>
-        <a href="https://room.serdal.ru/signin" target="_blank" class="p30">Войти</a>
+        <a href="/welcome" target="_blank" class="p30">Войти</a>
       </div>
     </div>
     <div class="mobile-menu-bg"></div>
