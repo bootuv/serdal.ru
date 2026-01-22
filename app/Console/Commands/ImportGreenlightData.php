@@ -92,10 +92,12 @@ class ImportGreenlightData extends Command
                     $this->components->task("[DRY] Update password for {$glUser->email}", fn() => true);
                 } else {
                     // Use raw DB update to bypass Laravel's 'hashed' cast
-                    // which would double-hash the already-hashed password
+                    // Convert Rails bcrypt $2a$ prefix to PHP $2y$ prefix
+                    $password = str_replace('$2a$', '$2y$', $glUser->password_digest);
+
                     DB::table('users')
                         ->where('id', $lmsUser->id)
-                        ->update(['password' => $glUser->password_digest]);
+                        ->update(['password' => $password]);
                 }
 
                 $this->passwordsUpdated++;
