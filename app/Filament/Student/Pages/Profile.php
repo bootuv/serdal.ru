@@ -57,6 +57,7 @@ class Profile extends Page
                     ->label('Пароль')
                     ->password()
                     ->revealable()
+                    ->autocomplete('new-password')
                     ->maxLength(255)
                     ->dehydrated(fn($state) => filled($state))
                     ->dehydrateStateUsing(fn($state) => bcrypt($state))
@@ -129,6 +130,11 @@ class Profile extends Page
         }
 
         $user->update($data);
+
+        // If password was updated, we must re-login to keep session
+        if (isset($data['password'])) {
+            \Illuminate\Support\Facades\Auth::login($user);
+        }
 
         Notification::make()
             ->success()
