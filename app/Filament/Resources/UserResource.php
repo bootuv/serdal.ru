@@ -49,9 +49,9 @@ class UserResource extends Resource
                     ->visibility('public')
                     ->image()
                     ->avatar()
+                    ->imageEditor()
                     ->directory('avatars')
                     ->live()
-                    ->afterStateUpdated(\App\Helpers\FileUploadHelper::filamentCallback('avatar', 'avatars', 640, 640))
                     ->deleteUploadedFileUsing(\App\Helpers\FileUploadHelper::filamentDeleteCallback()),
                 Forms\Components\Group::make([
                     TextInput::make('last_name')

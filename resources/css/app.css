@@ -120,3 +120,19 @@
     background-color: #ef4444 !important; /* Red-500 */
     color: #ffffff !important;
 }
+/* Hide numeric inputs in the file upload editor sidebar (Global) */
+.fi-fo-file-upload-editor-window .grid:has(input[type="number"]) {
+    display: none !important;
+}
+
+/* Fallback for Safari/older browsers */
+.fi-fo-file-upload-editor-window .fi-fo-section-content > .grid {
+        display: none !important;
+}
+
+/* Specifically hide the numeric inputs if grid selector fails */
+.fi-fo-file-upload-editor-window input[type="number"],
+.fi-fo-file-upload-editor-window input[type="number"] + label,
+.fi-fo-file-upload-editor-window label:has(+ input[type="number"]) {
+    display: none !important;
+}

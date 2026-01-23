@@ -36,9 +36,9 @@ class Profile extends Page
                     ->visibility('public')
                     ->image()
                     ->avatar()
+                    ->imageEditor()
                     ->directory('avatars')
                     ->live()
-                    ->afterStateUpdated(\App\Helpers\FileUploadHelper::filamentCallback('avatar', 'avatars', 640, 640))
                     ->deleteUploadedFileUsing(\App\Helpers\FileUploadHelper::filamentDeleteCallback())
                     ->columnSpanFull(),
 
@@ -109,6 +109,17 @@ class Profile extends Page
     public function save(): void
     {
         $data = $this->form->getState();
+
+        // Process Avatar
+        if (isset($data['avatar'])) {
+            $processed = \App\Helpers\FileUploadHelper::processFiles(
+                $data['avatar'],
+                'avatars',
+                640,
+                640
+            );
+            $data['avatar'] = $processed[0] ?? null;
+        }
 
         $user = auth()->user();
 

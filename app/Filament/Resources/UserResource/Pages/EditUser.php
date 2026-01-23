@@ -21,4 +21,20 @@ class EditUser extends EditRecord
     {
         return $this->getResource()::getUrl('index');
     }
+
+    protected function mutateFormDataBeforeSave(array $data): array
+    {
+        // Process Avatar
+        if (isset($data['avatar'])) {
+            $processed = \App\Helpers\FileUploadHelper::processFiles(
+                $data['avatar'],
+                'avatars',
+                640,
+                640
+            );
+            $data['avatar'] = $processed[0] ?? null;
+        }
+
+        return $data;
+    }
 }

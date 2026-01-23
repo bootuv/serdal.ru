@@ -50,9 +50,9 @@ class EditProfile extends Page implements HasForms
                     ->visibility('public')
                     ->image()
                     ->avatar()
+                    ->imageEditor()
                     ->directory('avatars')
                     ->live()
-                    ->afterStateUpdated(\App\Helpers\FileUploadHelper::filamentCallback('avatar', 'avatars', 640, 640))
                     ->deleteUploadedFileUsing(\App\Helpers\FileUploadHelper::filamentDeleteCallback()),
                 Forms\Components\Group::make([
                     Forms\Components\TextInput::make('last_name')
@@ -122,6 +122,18 @@ class EditProfile extends Page implements HasForms
     {
         $data = $this->form->getState();
         $user = auth()->user();
+
+        // Process Avatar
+        if (isset($data['avatar'])) {
+            $processed = \App\Helpers\FileUploadHelper::processFiles(
+                $data['avatar'],
+                'avatars',
+                640,
+                640
+            );
+            // Since maxFiles is 1 (default), take the first one or null
+            $data['avatar'] = $processed[0] ?? null;
+        }
 
         // Extract relationships
         $subjects = $data['subjects'] ?? [];

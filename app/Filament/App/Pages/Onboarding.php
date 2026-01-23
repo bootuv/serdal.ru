@@ -62,10 +62,8 @@ class Onboarding extends Page implements HasForms, HasTable
                             ->image()
                             ->avatar()
                             ->imageEditor()
-                            ->circleCropper()
                             ->directory('avatars')
                             ->live()
-                            ->afterStateUpdated(\App\Helpers\FileUploadHelper::filamentCallback('avatar', 'avatars', 640, 640))
                             ->deleteUploadedFileUsing(\App\Helpers\FileUploadHelper::filamentDeleteCallback()),
 
                         Forms\Components\Grid::make(3)
@@ -206,6 +204,17 @@ class Onboarding extends Page implements HasForms, HasTable
                 ->danger()
                 ->send();
             return;
+        }
+
+        // Process Avatar
+        if (isset($data['avatar'])) {
+            $processed = \App\Helpers\FileUploadHelper::processFiles(
+                $data['avatar'],
+                'avatars',
+                640,
+                640
+            );
+            $data['avatar'] = $processed[0] ?? null;
         }
 
         $user->update([

@@ -183,6 +183,11 @@ class User extends Authenticatable implements FilamentUser
         );
     }
 
+    public function getFilamentAvatarUrl(): ?string
+    {
+        return $this->avatarUrl;
+    }
+
     public function scopeIsSpecialist(Builder $query): Builder
     {
         return $query->whereIn('role', [User::ROLE_MENTOR, User::ROLE_TUTOR]);
