@@ -162,15 +162,15 @@ class StudentPerformanceChart extends ChartWidget
             ->get();
 
         $totalHomeworks = $homeworks->count();
-        $submittedHomeworks = 0;
+        $missingHomeworks = 0;
         $gradesSum = 0;
         $gradesCount = 0;
 
         foreach ($homeworks as $homework) {
             $submission = $homework->submissions->first();
-            if ($submission && $submission->submitted_at) {
-                $submittedHomeworks++;
+            $isSubmitted = $submission && $submission->submitted_at;
 
+            if ($isSubmitted) {
                 if ($submission->grade !== null) {
                     $max = $homework->effective_max_score;
                     if ($max > 0) {
@@ -178,10 +178,12 @@ class StudentPerformanceChart extends ChartWidget
                         $gradesCount++;
                     }
                 }
+            } elseif ($homework->is_overdue) {
+                $missingHomeworks++;
             }
         }
 
-        $disciplineRate = $totalHomeworks > 0 ? ($submittedHomeworks / $totalHomeworks) * 100 : 0;
+        $disciplineRate = $totalHomeworks > 0 ? (($totalHomeworks - $missingHomeworks) / $totalHomeworks) * 100 : 0;
 
         // 3. Knowledge Quality (Average Grade)
         $knowledgeRate = $gradesCount > 0 ? ($gradesSum / $gradesCount) : 0;

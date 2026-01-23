@@ -19,20 +19,24 @@
     $knowledge = $rawData[2] == $minVisible ? 0 : max(0, $rawData[2] - $offset);
     
     // Overall score (average of three metrics)
-    $overallScore = round(($attendance + $discipline + $knowledge) / 3);
+    // Overall score (average of non-zero metrics)
+    $metrics = array_filter([$attendance, $discipline, $knowledge], fn($val) => $val > 0);
+    $count = count($metrics);
+    $overallScore = $count > 0 ? round(array_sum($metrics) / $count) : null;
 @endphp
 
 <x-filament-widgets::widget class="fi-wi-chart">
     <x-filament::section :description="$description" :heading="$heading">
         <x-slot name="headerEnd">
             <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold
-                @if($overallScore >= 80) bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100
+                @if($overallScore === null) bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100
+                @elseif($overallScore >= 80) bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100
                 @elseif($overallScore >= 60) bg-yellow-100 text-yellow-800 dark:bg-yellow-800 dark:text-yellow-100
                 @elseif($overallScore >= 40) bg-orange-100 text-orange-800 dark:bg-orange-800 dark:text-orange-100
                 @else bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100
                 @endif
             ">
-                {{ $overallScore }}%
+                {{ $overallScore ?? '—' }}{{ $overallScore !== null ? '%' : '' }}
             </span>
         </x-slot>
 
@@ -120,21 +124,21 @@
                     <span class="w-3 h-3 rounded-full" style="background-color: rgb(59, 130, 246);"></span>
                     <span>Посещаемость</span>
                 </div>
-                <strong class="text-gray-900 dark:text-gray-100">{{ $attendance }}%</strong>
+                <strong class="text-gray-900 dark:text-gray-100">{{ $attendance > 0 ? $attendance . '%' : '—' }}</strong>
             </div>
             <div class="flex items-center justify-between py-2">
                 <div class="flex items-center gap-2">
                     <span class="w-3 h-3 rounded-full" style="background-color: rgb(16, 185, 129);"></span>
                     <span>Дисциплина (ДЗ)</span>
                 </div>
-                <strong class="text-gray-900 dark:text-gray-100">{{ $discipline }}%</strong>
+                <strong class="text-gray-900 dark:text-gray-100">{{ $discipline > 0 ? $discipline . '%' : '—' }}</strong>
             </div>
             <div class="flex items-center justify-between py-2">
                 <div class="flex items-center gap-2">
                     <span class="w-3 h-3 rounded-full" style="background-color: rgb(245, 158, 11);"></span>
                     <span>Качество знаний</span>
                 </div>
-                <strong class="text-gray-900 dark:text-gray-100">{{ $knowledge }}%</strong>
+                <strong class="text-gray-900 dark:text-gray-100">{{ $knowledge > 0 ? $knowledge . '%' : '—' }}</strong>
             </div>
         </div>
     </x-filament::section>
