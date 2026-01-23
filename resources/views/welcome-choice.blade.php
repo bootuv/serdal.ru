@@ -246,7 +246,7 @@
         </div>
 
         <div class="welcome-footer">
-            <p>Вопросы? Напишите нам: <a href="mailto:support@serdal.ru">support@serdal.ru</a></p>
+            <p>Есть вопросы? Напишите нам: <a href="mailto:info@serdal.ru">info@serdal.ru</a></p>
         </div>
     </div>
 </body>
