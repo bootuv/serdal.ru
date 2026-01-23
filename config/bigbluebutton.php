@@ -14,6 +14,12 @@ return [
     'hash_algorithm' => 'sha1',
 
     /**
+     * Force uploading presentations even on localhost/127.0.0.1
+     * Useful if you have a local BBB server or a tunnel
+     */
+    'force_local_presentations' => env('BBB_FORCE_LOCAL_PRESENTATIONS', false),
+
+    /**
      * For Multiple BigBlueButton Server Configurations
      * For Each server you must be specify salt and url with define server name
      * Note : if you want to used multiple server configuration you must specify servername.

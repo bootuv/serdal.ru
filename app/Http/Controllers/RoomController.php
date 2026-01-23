@@ -104,9 +104,9 @@ class RoomController extends Controller
                 ]);
 
                 // Only upload presentations if not running on localhost
-                // On production with a public domain, presentations will be uploaded automatically
                 $appUrl = config('app.url');
                 $isLocalhost = str_contains($appUrl, '127.0.0.1') || str_contains($appUrl, 'localhost');
+                $forceLocalPresentations = config('bigbluebutton.force_local_presentations', env('BBB_FORCE_LOCAL_PRESENTATIONS', false));
 
                 // Prepare presentation URLs
                 $presentationUrls = [];
@@ -120,38 +120,50 @@ class RoomController extends Controller
                     ];
                 }
 
-                if (!$isLocalhost) {
-                    // Add user-uploaded presentations (only on production)
-                    if (!empty($presentationFiles)) {
-                        foreach ($room->presentations as $path) {
-                            $fullPath = storage_path('app/public/' . $path);
-                            if (file_exists($fullPath)) {
-                                $presentationUrls[] = [
-                                    'link' => url('storage/' . $path),
-                                    'fileName' => basename($path),
-                                ];
-                            }
+                // Add user-uploaded presentations
+                if (!empty($presentationFiles)) {
+                    foreach ($room->presentations as $path) {
+                        // Use Storage facade to check existence and get URL
+                        // This works for both 'local' (public disk) and 's3' drivers transparently
+                        if (\Illuminate\Support\Facades\Storage::exists($path)) {
+                            $presentationUrls[] = [
+                                'link' => \Illuminate\Support\Facades\Storage::url($path),
+                                'fileName' => basename($path),
+                            ];
                         }
                     }
+                }
 
+                // Determine if we should send presentations
+                $shouldSendPresentations = !$isLocalhost || $forceLocalPresentations;
+                // Exception: If we are using S3 (or any cloud driver), we ALWAYS send presentations
+                // because cloud URLs are globally accessible even if the app triggers creation from localhost.
+                if (config('filesystems.default') !== 'local' && config('filesystems.default') !== 'public') {
+                    $shouldSendPresentations = true;
+                }
+
+                if ($shouldSendPresentations) {
                     // Add presentations to create params if any exist
-                    if (!empty($presentationUrls) && !$isLocalhost) {
-                        // Only send presentations on production (BBB can't access localhost URLs)
+                    if (!empty($presentationUrls)) {
                         $createParams['presentation'] = $presentationUrls;
 
                         \Illuminate\Support\Facades\Log::info('Creating BBB meeting with presentations', [
                             'meetingID' => $room->meeting_id,
                             'presentation_count' => count($presentationUrls),
                             'presentations' => array_column($presentationUrls, 'fileName'),
-                        ]);
-                    } else if ($isLocalhost) {
-                        \Illuminate\Support\Facades\Log::info('Skipping presentations on localhost', [
-                            'meetingID' => $room->meeting_id,
-                            'reason' => 'BBB server cannot access localhost URLs',
-                            'note' => 'Presentations will work automatically on production with public domain',
-                            'prepared_files' => array_column($presentationUrls, 'fileName'),
+                            'is_localhost' => $isLocalhost,
+                            'forced' => $forceLocalPresentations,
+                            'filesystem' => config('filesystems.default')
                         ]);
                     }
+                } else {
+                    \Illuminate\Support\Facades\Log::info('Skipping presentations on localhost', [
+                        'meetingID' => $room->meeting_id,
+                        'reason' => 'BBB server cannot access localhost URLs',
+                        'note' => 'Presentations will work automatically on production with public domain',
+                        'prepared_files' => array_column($presentationUrls, 'fileName'),
+                        'tip' => 'Set BBB_FORCE_LOCAL_PRESENTATIONS=true in .env to override'
+                    ]);
                 }
 
                 $response = Bigbluebutton::create($createParams);
