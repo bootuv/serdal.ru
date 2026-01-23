@@ -87,6 +87,7 @@ class UserResource extends Resource
                     ->label('Пароль')
                     ->password()
                     ->revealable()
+                    ->autocomplete('new-password')
                     ->maxLength(255)
                     ->dehydrated(fn($state) => filled($state))
                     ->dehydrateStateUsing(fn($state) => bcrypt($state))

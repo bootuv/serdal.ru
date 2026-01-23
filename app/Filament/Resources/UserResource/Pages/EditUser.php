@@ -37,4 +37,13 @@ class EditUser extends EditRecord
 
         return $data;
     }
+
+    protected function afterSave(): void
+    {
+        // If the user edited their own profile, we need to re-login to keep the session
+        // especially if the password was changed
+        if ($this->record->id === auth()->id()) {
+            \Illuminate\Support\Facades\Auth::login($this->record);
+        }
+    }
 }

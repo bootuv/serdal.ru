@@ -78,6 +78,17 @@ class EditProfile extends Page implements HasForms
                     ->disabled()
                     ->columnSpanFull(),
 
+                Forms\Components\TextInput::make('password')
+                    ->label('Новый пароль')
+                    ->password()
+                    ->revealable()
+                    ->autocomplete('new-password')
+                    ->maxLength(255)
+                    ->dehydrated(fn($state) => filled($state))
+                    ->dehydrateStateUsing(fn($state) => bcrypt($state))
+                    ->helperText('Оставьте пустым, если не хотите менять пароль')
+                    ->columnSpanFull(),
+
 
                 Forms\Components\Select::make('subjects')
                     ->label('Предметы')
@@ -143,11 +154,21 @@ class EditProfile extends Page implements HasForms
         unset($data['subjects']);
         unset($data['directs']);
 
+        // Remove password if empty (double check, though dehydrated handles this usually)
+        if (empty($data['password'])) {
+            unset($data['password']);
+        }
+
         $user->update($data);
 
         // Sync relationships
         $user->subjects()->sync($subjects);
         $user->directs()->sync($directs);
+
+        // If password was updated, we must re-login to keep session
+        if (isset($data['password'])) {
+            \Illuminate\Support\Facades\Auth::login($user);
+        }
 
         \Filament\Notifications\Notification::make()
             ->title('Профиль обновлен')
