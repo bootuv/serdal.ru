@@ -37,7 +37,7 @@ class Profile extends Page
                     ->image()
                     ->avatar()
                     ->imageEditor()
-                    ->directory('avatars')
+                    ->directory(fn() => 'avatars/' . auth()->id())
                     ->live()
                     ->deleteUploadedFileUsing(\App\Helpers\FileUploadHelper::filamentDeleteCallback())
                     ->columnSpanFull(),

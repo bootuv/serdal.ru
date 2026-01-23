@@ -50,7 +50,7 @@ class UserResource extends Resource
                     ->image()
                     ->avatar()
                     ->imageEditor()
-                    ->directory('avatars')
+                    ->directory(fn($record) => 'avatars/' . ($record->id ?? 'new'))
                     ->live()
                     ->deleteUploadedFileUsing(\App\Helpers\FileUploadHelper::filamentDeleteCallback()),
                 Forms\Components\Group::make([

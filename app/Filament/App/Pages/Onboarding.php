@@ -62,7 +62,7 @@ class Onboarding extends Page implements HasForms, HasTable
                             ->image()
                             ->avatar()
                             ->imageEditor()
-                            ->directory('avatars')
+                            ->directory(fn() => 'avatars/' . auth()->id())
                             ->live()
                             ->deleteUploadedFileUsing(\App\Helpers\FileUploadHelper::filamentDeleteCallback()),
 

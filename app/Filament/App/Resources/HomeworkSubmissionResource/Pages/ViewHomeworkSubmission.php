@@ -112,7 +112,7 @@ class ViewHomeworkSubmission extends ViewRecord
                         ->label('Прикрепить файлы')
                         ->disk('s3')
                         ->visibility('public')
-                        ->directory('feedback-attachments')
+                        ->directory(fn() => 'feedback-attachments/' . auth()->id())
                         ->multiple()
                         ->maxSize(51200)
                         ->live()

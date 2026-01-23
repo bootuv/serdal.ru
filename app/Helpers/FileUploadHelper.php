@@ -62,14 +62,18 @@ class FileUploadHelper
             $extension = strtolower($file->getClientOriginalExtension()) ?: 'jpg';
             $isImage = str_starts_with($mimeType, 'image/') && !str_contains($mimeType, 'gif');
 
-            $newPath = $directory . '/' . uniqid() . '_' . time() . '.' . $extension;
+            // Organize by user ID if authenticated
+            $userId = auth()->id() ?? 'system';
+            $finalDirectory = $directory . '/' . $userId;
+
+            $newPath = $finalDirectory . '/' . uniqid() . '_' . time() . '.' . $extension;
 
             if ($isImage && $maxWidth > 0 && $maxHeight > 0) {
                 // Process image: resize and compress
                 $path = self::processImage($file, $newPath, $maxWidth, $maxHeight, $quality);
             } else {
                 // Store file as-is
-                Storage::disk('s3')->putFileAs($directory, $file, basename($newPath), 'public');
+                Storage::disk('s3')->putFileAs($finalDirectory, $file, basename($newPath), 'public');
                 $path = $newPath;
             }
 
@@ -82,7 +86,7 @@ class FileUploadHelper
 
             // Fallback: try to store without processing
             try {
-                $path = $file->store($directory, 's3');
+                $path = $file->store($finalDirectory, 's3');
                 $file->delete();
                 return $path;
             } catch (\Exception $e2) {

@@ -51,7 +51,7 @@ class EditProfile extends Page implements HasForms
                     ->image()
                     ->avatar()
                     ->imageEditor()
-                    ->directory('avatars')
+                    ->directory(fn() => 'avatars/' . auth()->id())
                     ->live()
                     ->deleteUploadedFileUsing(\App\Helpers\FileUploadHelper::filamentDeleteCallback()),
                 Forms\Components\Group::make([

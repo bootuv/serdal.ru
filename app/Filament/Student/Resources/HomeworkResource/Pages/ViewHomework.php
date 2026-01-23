@@ -53,7 +53,7 @@ class ViewHomework extends ViewRecord
                         ->label('Прикрепить файлы')
                         ->multiple()
                         ->disk('s3')
-                        ->directory('homework-submissions')
+                        ->directory(fn() => 'homework-submissions/' . auth()->id())
                         ->visibility('public')
                         ->acceptedFileTypes([
                             'application/pdf',

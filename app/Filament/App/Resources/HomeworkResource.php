@@ -148,7 +148,7 @@ class HomeworkResource extends Resource
                             ->label('Файлы задания')
                             ->multiple()
                             ->disk('s3')
-                            ->directory('homework-attachments')
+                            ->directory(fn() => 'homework-attachments/' . auth()->id())
                             ->visibility('public')
                             ->acceptedFileTypes([
                                 'application/pdf',
