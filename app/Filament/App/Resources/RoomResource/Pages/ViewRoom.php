@@ -403,14 +403,33 @@ class ViewRoom extends ViewRecord
                                 $html = '<div class="space-y-2">';
                                 foreach ($presentations as $file) {
                                     $filename = basename($file);
+                                    $url = \Illuminate\Support\Facades\Storage::disk('s3')->url($file);
+                                    $size = 0;
+                                    try {
+                                        $size = \Illuminate\Support\Facades\Storage::disk('s3')->size($file);
+                                    } catch (\Exception $e) {
+                                    }
+
+                                    // Format size
+                                    $units = ['B', 'KB', 'MB', 'GB'];
+                                    $pow = floor(($size ? log($size) : 0) / log(1024));
+                                    $pow = min($pow, count($units) - 1);
+                                    $size /= (1 << (10 * $pow));
+                                    $displaySize = round($size, 1) . ' ' . $units[$pow];
+
                                     $html .= sprintf(
-                                        '<div class="flex items-center gap-2 bg-gray-50 dark:bg-gray-800 rounded-lg px-3 py-2">
+                                        '<a href="%s" target="_blank" class="flex items-center gap-2 bg-gray-50 dark:bg-gray-800 rounded-lg px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
                                             <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                                             </svg>
-                                            <span class="text-sm">%s</span>
-                                        </div>',
-                                        e($filename)
+                                            <div class="flex flex-col">
+                                                <span class="text-sm font-medium text-gray-700 dark:text-gray-200">%s</span>
+                                                <span class="text-xs text-gray-500">%s</span>
+                                            </div>
+                                        </a>',
+                                        e($url),
+                                        e($filename),
+                                        $displaySize
                                     );
                                 }
                                 $html .= '</div>';
