@@ -22,5 +22,8 @@
     {{-- Full width widgets below --}}
     <div class="mt-6 space-y-6">
         @livewire(\App\Filament\Student\Widgets\StudentTeachersWidget::class)
+        @if(\App\Filament\Student\Widgets\StudentFormerTeachersWidget::canView())
+            @livewire(\App\Filament\Student\Widgets\StudentFormerTeachersWidget::class)
+        @endif
     </div>
 </x-filament-panels::page>

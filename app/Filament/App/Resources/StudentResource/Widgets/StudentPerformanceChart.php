@@ -170,6 +170,12 @@ class StudentPerformanceChart extends ChartWidget
             $submission = $homework->submissions->first();
             $isSubmitted = $submission && $submission->submitted_at;
 
+            // If submission exists but status is 'revision_requested' AND it is overdue, it counts as missing
+            if ($isSubmitted && $submission->status === 'revision_requested' && $homework->is_overdue) {
+                $missingHomeworks++;
+                continue;
+            }
+
             if ($isSubmitted) {
                 if ($submission->grade !== null) {
                     $max = $homework->effective_max_score;
@@ -179,6 +185,7 @@ class StudentPerformanceChart extends ChartWidget
                     }
                 }
             } elseif ($homework->is_overdue) {
+                // If not submitted AND overdue -> missing
                 $missingHomeworks++;
             }
         }

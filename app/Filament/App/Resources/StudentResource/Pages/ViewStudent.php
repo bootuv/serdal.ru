@@ -296,12 +296,13 @@ class ViewStudent extends ViewRecord
 
             if ($submission && $submission->submitted_at) {
                 $submitted++;
-                if ($submission->grade !== null) {
-                    // Normalize grade to 100-scale? Or just average raw?
-                    // Let's normalize to 100 scale for average_grade metrics usually.
-                    // But for display, maybe just raw average if scales are consistent?
-                    // Homework model has effective_max_score
 
+                // If submission is on revision and deadline passed, count as overdue
+                if ($submission->status === 'revision_requested' && $homework->is_overdue) {
+                    $overdue++;
+                }
+
+                if ($submission->grade !== null) {
                     $max = $homework->effective_max_score;
                     if ($max > 0) {
                         $gradesSum += ($submission->grade / $max) * 100;

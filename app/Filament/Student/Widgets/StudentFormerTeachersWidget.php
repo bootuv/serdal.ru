@@ -93,6 +93,7 @@ class StudentFormerTeachersWidget extends BaseWidget
 
             ])
             ->paginated(false)
+            ->emptyStateHeading('У вас нет бывших учителей')
             ->recordUrl(fn(User $record): string => route('tutors.show', ['username' => $record->username]))
             ->actions([
                 Tables\Actions\Action::make('leave_review')
