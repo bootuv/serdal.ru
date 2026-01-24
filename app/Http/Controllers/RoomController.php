@@ -235,6 +235,17 @@ class RoomController extends Controller
         }
     }
 
+    public function joinAsGuest(Request $request, Room $room)
+    {
+        $data = $request->validate([
+            'name' => 'required|string|max:255',
+        ]);
+
+        session(['guest_name' => $data['name']]);
+
+        return redirect()->route('rooms.join', $room);
+    }
+
     public function join(Room $room)
     {
         // Ideally checking running state, or letting BBB handle "meeting not found"
@@ -262,20 +273,38 @@ class RoomController extends Controller
 
         try {
             if (!Bigbluebutton::isMeetingRunning(['meetingID' => $room->meeting_id])) {
-                return back()->with('error', 'Занятие еще не началось или уже завершено.');
+                // If the user came from a "guest login" page or link, giving a simpler error is nicer
+                // But back() is fine typically.
+                return redirect('/')->with('error', 'Занятие еще не началось или уже завершено.');
+                // return back()->with('error', 'Занятие еще не началось или уже завершено.');
             }
 
-            $password = $room->user_id === auth()->id() ? $room->moderator_pw : $room->attendee_pw;
+            // Determine User Identity
+            if (auth()->check()) {
+                $userName = auth()->user()->name;
+                $password = $room->user_id === auth()->id() ? $room->moderator_pw : $room->attendee_pw;
+                $userID = (string) auth()->id();
+                $avatarURL = auth()->user()->avatar ? asset('storage/' . auth()->user()->avatar) : null;
+            } elseif (session()->has('guest_name')) {
+                $userName = session('guest_name');
+                $password = $room->attendee_pw;
+                // Generate a consistent guest ID based on session
+                $userID = 'guest_' . substr(session()->getId(), 0, 10);
+                $avatarURL = null;
+            } else {
+                // Not authenticated and no guest name -> redirect to guest login
+                return view('rooms.guest-login', compact('room'));
+            }
 
             // Note: logoutURL is set at meeting creation time (in start method)
             // The redirect is the same for all users of this meeting
             return redirect()->to(
                 Bigbluebutton::join([
                     'meetingID' => $room->meeting_id,
-                    'userName' => auth()->user()->name,
+                    'userName' => $userName,
                     'password' => $password,
-                    'userID' => (string) auth()->id(),
-                    'avatarURL' => auth()->user()->avatar ? asset('storage/' . auth()->user()->avatar) : null,
+                    'userID' => $userID,
+                    'avatarURL' => $avatarURL,
                 ])
             );
         } catch (\Exception $e) {
@@ -284,7 +313,7 @@ class RoomController extends Controller
                 'error' => $e->getMessage(),
             ]);
 
-            return back()->with('error', 'Не удалось подключиться к занятию. Пожалуйста, попробуйте позже.');
+            return redirect('/')->with('error', 'Не удалось подключиться к занятию. Пожалуйста, попробуйте позже.');
         }
     }
 

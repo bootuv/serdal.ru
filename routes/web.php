@@ -27,7 +27,7 @@ Route::get('/register/invite', \App\Livewire\RegisterInvitedStudent::class)->nam
 
 Route::middleware(['auth'])->group(function () {
     Route::get('/rooms/{room}/start', [RoomController::class, 'start'])->name('rooms.start');
-    Route::get('/rooms/{room}/join', [RoomController::class, 'join'])->name('rooms.join');
+    // Route::get('/rooms/{room}/join', [RoomController::class, 'join'])->name('rooms.join'); // Moved to public
     Route::get('/rooms/{room}/stop', [RoomController::class, 'stop'])->name('rooms.stop');
 
     // Session logout redirect - handles different roles after BBB session ends
@@ -47,3 +47,7 @@ Route::middleware(['auth'])->group(function () {
 });
 
 Route::get('/{username}', [PageController::class, 'tutorPage'])->name('tutors.show');
+
+// Public Room Access
+Route::get('/rooms/{room}/join', [RoomController::class, 'join'])->name('rooms.join');
+Route::post('/rooms/{room}/join/guest', [RoomController::class, 'joinAsGuest'])->name('rooms.join.guest');
