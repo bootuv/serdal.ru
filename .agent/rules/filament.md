@@ -2,4 +2,4 @@
 trigger: always_on
 ---
 
-Используй строго компоненты и стили Filament для консистентности интерфейсов. Отходи от библиотеки только в самом крайнем случае
+Use Filament components and styles strictly for interface consistency.
