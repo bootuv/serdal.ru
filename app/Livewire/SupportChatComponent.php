@@ -19,7 +19,7 @@ class SupportChatComponent extends Component
     private const MAX_IMAGE_HEIGHT = 1080;
 
     public ?SupportChat $supportChat = null;
-    public string $newMessage = '';
+    public ?string $newMessage = '';
     public $messages = [];
     public bool $isAdmin = false;
     public bool $showUserCard = false;
@@ -166,7 +166,7 @@ class SupportChatComponent extends Component
         // Use provided content or fall back to newMessage property
         $messageContent = $content !== null ? $content : $this->newMessage;
 
-        if (!$this->supportChat || (trim($messageContent) === '' && empty($this->attachments))) {
+        if (!$this->supportChat || (trim($messageContent ?? '') === '' && empty($this->attachments))) {
             return;
         }
 
@@ -196,7 +196,7 @@ class SupportChatComponent extends Component
         $message = SupportMessage::create([
             'support_chat_id' => $this->supportChat->id,
             'user_id' => $user->id,
-            'content' => trim($messageContent),
+            'content' => trim($messageContent ?? ''),
             'attachments' => !empty($attachmentsData) ? $attachmentsData : null,
         ]);
 

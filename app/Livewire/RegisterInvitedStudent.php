@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Hash;
 use Livewire\Component;
 use Livewire\Attributes\Layout;
 use Illuminate\Auth\Events\Registered;
+use Livewire\Attributes\Locked;
 
 class RegisterInvitedStudent extends Component
 {
@@ -19,6 +20,7 @@ class RegisterInvitedStudent extends Component
     public $phone;
     public $password;
     public $password_confirmation;
+    #[Locked]
     public $teacher_id;
 
     public $step = 1;

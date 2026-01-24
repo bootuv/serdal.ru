@@ -28,7 +28,7 @@ class RoomChat extends Component implements HasActions, HasForms
     private const MAX_IMAGE_HEIGHT = 1080;
 
     public ?Room $room = null;
-    public string $newMessage = '';
+    public ?string $newMessage = '';
     public $messages = [];
     public $attachments = [];
     public $processedAttachments = []; // Обработанные вложения с путями в S3
@@ -167,7 +167,7 @@ class RoomChat extends Component implements HasActions, HasForms
         // Use provided content or fall back to newMessage property
         $messageContent = $content !== null ? $content : $this->newMessage;
 
-        if (!$this->room || (trim($messageContent) === '' && empty($this->attachments))) {
+        if (!$this->room || (trim($messageContent ?? '') === '' && empty($this->attachments))) {
             return;
         }
 
@@ -197,7 +197,7 @@ class RoomChat extends Component implements HasActions, HasForms
         $message = Message::create([
             'room_id' => $this->room->id,
             'user_id' => $user->id,
-            'content' => trim($messageContent),
+            'content' => trim($messageContent ?? ''),
             'attachments' => !empty($attachmentsData) ? $attachmentsData : null,
         ]);
 

@@ -111,7 +111,9 @@ class ViewRoom extends ViewRecord
 
                                 TextEntry::make('type')
                                     ->label('Тип')
-                                    ->formatStateUsing(function (string $state) {
+                                    ->formatStateUsing(function (?string $state) {
+                                        if (!$state)
+                                            return null;
                                         $text = match ($state) {
                                             'individual' => 'Индивидуальное',
                                             'group' => 'Групповое',
