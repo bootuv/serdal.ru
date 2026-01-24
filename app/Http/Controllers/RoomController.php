@@ -68,7 +68,7 @@ class RoomController extends Controller
 
                 $inviteUrl = route('rooms.join', $room);
                 $welcomeMsg = $room->welcome_msg ?: "Добро пожаловать на занятие <b>{$room->name}</b>!<br>Пожалуйста, проверьте работу микрофона и динамиков.";
-                $finalWelcomeMsg = $welcomeMsg . "<br><br>Пригласительная ссылка:<br><a href='{$inviteUrl}' target='_blank'>{$inviteUrl}</a>";
+                $finalWelcomeMsg = $welcomeMsg . "<br><br>Пригласить гостей по ссылке:<br><a href='{$inviteUrl}' target='_blank'>{$inviteUrl}</a>";
 
                 $createParams = [
                     'meetingID' => $room->meeting_id,
