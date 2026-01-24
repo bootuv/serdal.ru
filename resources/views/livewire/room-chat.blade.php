@@ -539,45 +539,43 @@
                         <x-heroicon-o-paper-clip class="w-5 h-5" />
                     </label>
 
-                    <div style="height: 36px; flex-grow: 1;">
-                        <style>
-                            #chat-message-input:focus {
-                                outline: none !important;
-                                --tw-ring-color: transparent !important;
-                                border-color: #F97316 !important;
-                                box-shadow: 0 0 0 1px #F97316 !important;
+                    <style>
+                        #chat-message-input:focus {
+                            outline: none !important;
+                            --tw-ring-color: transparent !important;
+                            border-color: #F97316 !important;
+                            box-shadow: 0 0 0 1px #F97316 !important;
+                        }
+                        .chat-message-dropdown, 
+                        .chat-message-dropdown .fi-dropdown-panel,
+                        .fi-dropdown-panel {
+                            width: auto !important;
+                            min-width: max-content !important;
+                            max-width: max-content !important;
+                            z-index: 100000 !important;
+                        }
+                        
+                        /* Heavy artillery for hover visibility */
+                        @media (min-width: 768px) {
+                            .chat-action-trigger {
+                                opacity: 0 !important;
                             }
-                            .chat-message-dropdown, 
-                            .chat-message-dropdown .fi-dropdown-panel,
-                            .fi-dropdown-panel {
-                                width: auto !important;
-                                min-width: max-content !important;
-                                max-width: max-content !important;
-                                z-index: 100000 !important;
+                            .message-row:hover .chat-action-trigger {
+                                opacity: 1 !important;
                             }
-                            
-                            /* Heavy artillery for hover visibility */
-                            @media (min-width: 768px) {
-                                .chat-action-trigger {
-                                    opacity: 0 !important;
-                                }
-                                .message-row:hover .chat-action-trigger {
-                                    opacity: 1 !important;
-                                }
-                            }
-                        </style>
-                        <textarea wire:model="newMessage" 
-                            id="chat-message-input"
-                            x-ref="messageInput"
-                            x-effect="tmp='{{ rand() }}'; $wire.newMessage; $nextTick(() => { $el.style.height = 'auto'; $el.style.height = $el.scrollHeight + 'px'; $el.style.overflowY = ($el.scrollHeight > 100) ? 'auto' : 'hidden'; })"
-                            x-on:input="$el.style.height = 'auto'; $el.style.height = $el.scrollHeight + 'px'; $el.style.overflowY = ($el.scrollHeight > 100) ? 'auto' : 'hidden';"
-                            placeholder="{{ $editingMessageId ? 'Редактировать сообщение...' : 'Напишите сообщение...' }}"
-                            class="w-full text-sm bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 rounded-lg resize-none overflow-hidden"
-                            style="border: 1px solid #e5e7eb; min-height: 36px; max-height: 100px;"
-                            rows="1" 
-                            @keydown.enter.prevent="if(!$event.shiftKey) submitMessage()"
-                            @paste="handlePaste($event)"></textarea>
-                    </div>
+                        }
+                    </style>
+                    <textarea wire:model="newMessage" 
+                        id="chat-message-input"
+                        x-ref="messageInput"
+                        x-effect="tmp='{{ rand() }}'; $wire.newMessage; $nextTick(() => { $el.style.height = 'auto'; $el.style.height = $el.scrollHeight + 'px'; $el.style.overflowY = ($el.scrollHeight > 100) ? 'auto' : 'hidden'; })"
+                        x-on:input="$el.style.height = 'auto'; $el.style.height = $el.scrollHeight + 'px'; $el.style.overflowY = ($el.scrollHeight > 100) ? 'auto' : 'hidden';"
+                        placeholder="{{ $editingMessageId ? 'Редактировать сообщение...' : 'Напишите сообщение...' }}"
+                        class="flex-1 block w-full text-sm bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 rounded-lg resize-none overflow-hidden focus:ring-0"
+                        style="border: 1px solid #e5e7eb; min-height: 36px; max-height: 100px; padding-top: 7px !important; padding-bottom: 7px !important; line-height: 20px !important;"
+                        rows="1" 
+                        @keydown.enter.prevent="if(!$event.shiftKey) submitMessage()"
+                        @paste="handlePaste($event)"></textarea>
 
                     <button type="submit" 
                         class="flex shrink-0 items-center justify-center rounded-lg shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-primary-600 focus:ring-offset-2"
