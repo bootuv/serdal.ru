@@ -66,12 +66,16 @@ class RoomController extends Controller
                     'duration' => (int) (\App\Models\Setting::where('key', 'bbb_duration')->value('value') ?? 0),
                 ];
 
+                $inviteUrl = route('rooms.join', $room);
+                $welcomeMsg = $room->welcome_msg ?: "Добро пожаловать на занятие <b>{$room->name}</b>!<br>Пожалуйста, проверьте работу микрофона и динамиков.";
+                $finalWelcomeMsg = $welcomeMsg . "<br><br>Пригласительная ссылка:<br><a href='{$inviteUrl}' target='_blank'>{$inviteUrl}</a>";
+
                 $createParams = [
                     'meetingID' => $room->meeting_id,
                     'meetingName' => $room->name,
                     'attendeePW' => $room->attendee_pw,
                     'moderatorPW' => $room->moderator_pw,
-                    'welcome' => $room->welcome ?? '',
+                    'welcome' => $finalWelcomeMsg,
 
                     // Apply global settings
                     'record' => $globalSettings['record'],
