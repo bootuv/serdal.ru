@@ -201,7 +201,11 @@ class MeetingSessionResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()->with(['room.participants']);
+        return parent::getEloquentQuery()->with([
+            'room.participants',
+            'room.user.lessonTypes',
+            'user',
+        ]);
     }
 
     public static function getPages(): array

@@ -663,6 +663,7 @@ class RoomResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()
+            ->with(['user', 'participants'])
             ->withoutGlobalScopes([
                 SoftDeletingScope::class,
             ]);
