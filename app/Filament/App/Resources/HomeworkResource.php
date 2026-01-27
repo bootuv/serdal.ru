@@ -108,18 +108,31 @@ class HomeworkResource extends Resource
                             }),
 
                         Forms\Components\Select::make('students')
+                            ->key(fn(Forms\Get $get) => 'students_' . $get('room_id'))
                             ->label('Ученики')
                             ->relationship(
                                 'students',
                                 'name',
-                                function (Builder $query) {
-                                    // Показывать только учеников текущего учителя
+                                function (Builder $query, Forms\Get $get) {
+                                    $userId = auth()->id();
+                                    // Показывать учеников текущего учителя или учеников выбранного урока
                                     $query->where('role', 'student')
-                                        ->whereHas('teachers', function ($q) {
-                                        $q->where('teacher_student.teacher_id', auth()->id());
+                                        ->where(function ($q) use ($userId, $get) {
+                                        $q->whereHas('teachers', function ($q) use ($userId) {
+                                            $q->where('teacher_student.teacher_id', $userId);
+                                        });
+
+                                        // Если выбран урок, показываем также его участников
+                                        $roomId = $get('room_id');
+                                        if ($roomId) {
+                                            $q->orWhereHas('assignedRooms', function ($q) use ($roomId) {
+                                                $q->where('rooms.id', $roomId);
+                                            });
+                                        }
                                     });
                                 }
                             )
+                            ->optionsLimit(500)
                             ->multiple()
                             ->searchable(['name', 'email'])
                             ->preload()
