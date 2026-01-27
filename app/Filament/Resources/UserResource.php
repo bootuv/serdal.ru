@@ -47,6 +47,7 @@ class UserResource extends Resource
                     ->label('Фото профиля')
                     ->disk('s3')
                     ->visibility('public')
+                    ->fetchFileInformation(false)
                     ->image()
                     ->avatar()
                     ->imageEditor()
@@ -116,11 +117,13 @@ class UserResource extends Resource
                     ->label('Предметы')
                     ->multiple()
                     ->relationship('subjects', 'name')
+                    ->preload()
                     ->columnSpanFull(),
                 Select::make('directs')
                     ->label('Направления')
                     ->multiple()
                     ->relationship('directs', 'name')
+                    ->preload()
                     ->columnSpanFull(),
                 Select::make('grade')
                     ->label('Классы')

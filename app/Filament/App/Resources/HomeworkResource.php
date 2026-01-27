@@ -150,6 +150,8 @@ class HomeworkResource extends Resource
                             ->disk('s3')
                             ->directory(fn() => 'homework-attachments/' . auth()->id())
                             ->visibility('public')
+                            // Optimization: Do not check file existence/metadata on S3 during load
+                            ->fetchFileInformation(false)
                             ->acceptedFileTypes([
                                 'application/pdf',
                                 'application/msword',

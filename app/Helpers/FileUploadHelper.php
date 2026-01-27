@@ -77,6 +77,14 @@ class FileUploadHelper
                 $path = $newPath;
             }
 
+            // Cache file size to avoid S3 calls on view
+            try {
+                $size = $file->getSize(); // Get size from temp file
+                \Illuminate\Support\Facades\Cache::put("file_size_{$path}", $size, 86400 * 30);
+            } catch (\Exception $e) {
+                // If getting size fails, we can try S3 size later or just ignore
+            }
+
             // Delete temporary file
             $file->delete();
 
@@ -240,9 +248,12 @@ class FileUploadHelper
                     'path' => $path,
                     'name' => $originalName,
                     'type' => $mimeType,
-                    'size' => Storage::disk('s3')->size($path),
+                    'size' => $size = Storage::disk('s3')->size($path),
                     'processed' => true,
                 ];
+
+                // Cache the size for future display
+                \Illuminate\Support\Facades\Cache::put("file_size_{$path}", $size, 86400 * 30); // 30 days
             }
         }
 

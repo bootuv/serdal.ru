@@ -209,7 +209,13 @@ class Room extends Model
     {
         // 1. Check student-specific price
         if ($studentId) {
-            $participant = $this->participants()->where('user_id', $studentId)->first();
+            // Optimization: Use loaded collection if available to avoid N+1 queries
+            if ($this->relationLoaded('participants')) {
+                $participant = $this->participants->firstWhere('id', $studentId);
+            } else {
+                $participant = $this->participants()->where('user_id', $studentId)->first();
+            }
+
             if ($participant && $participant->pivot->custom_price !== null) {
                 return $participant->pivot->custom_price;
             }

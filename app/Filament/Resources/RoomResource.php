@@ -578,8 +578,7 @@ class RoomResource extends Resource
                 Tables\Filters\SelectFilter::make('user')
                     ->label('Владелец')
                     ->relationship('user', 'name')
-                    ->searchable()
-                    ->preload(),
+                    ->searchable(),
                 Tables\Filters\SelectFilter::make('type')
                     ->label('Тип')
                     ->options([
@@ -593,7 +592,6 @@ class RoomResource extends Resource
             ->filtersLayout(Tables\Enums\FiltersLayout::Dropdown)
             ->persistFiltersInSession()
             ->searchable()
-            ->defaultSort('created_at', 'desc')
             ->actions([
                 Tables\Actions\Action::make('start')
                     ->label('Начать')
@@ -618,13 +616,19 @@ class RoomResource extends Resource
                             return false;
                         }
 
-                        // Hide if user has another running meeting
-                        $hasOtherRunningMeeting = Room::where('user_id', auth()->id())
-                            ->where('is_running', true)
-                            ->where('id', '!=', $record->id)
-                            ->exists();
+                        // Optimization: Cache the running room check to avoid N+1 queries
+                        static $runningRoomId = null;
+                        static $checked = false;
 
-                        return !$hasOtherRunningMeeting;
+                        if (!$checked) {
+                            $runningRoomId = Room::where('user_id', auth()->id())
+                                ->where('is_running', true)
+                                ->value('id');
+                            $checked = true;
+                        }
+
+                        // If there is a running room and it is NOT this one, then hide start
+                        return !($runningRoomId && $runningRoomId !== $record->id);
                     }),
                 Tables\Actions\Action::make('stop')
                     ->label('Остановить')
@@ -663,7 +667,10 @@ class RoomResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()
-            ->with(['user', 'participants'])
+            ->with([
+                'user:id,name,avatar',
+                'participants:id,name,avatar,email,username'
+            ])
             ->withoutGlobalScopes([
                 SoftDeletingScope::class,
             ]);

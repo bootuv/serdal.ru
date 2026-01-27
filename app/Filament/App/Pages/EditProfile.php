@@ -33,6 +33,7 @@ class EditProfile extends Page implements HasForms
     public function mount(): void
     {
         $user = auth()->user();
+
         $this->form->fill([
             ...$user->attributesToArray(),
             'subjects' => $user->subjects->pluck('id')->toArray(),
@@ -48,6 +49,9 @@ class EditProfile extends Page implements HasForms
                     ->label('Фото профиля')
                     ->disk('s3')
                     ->visibility('public')
+                    // Optimization: Do not check file existence/metadata on S3 during load
+                    // This prevents slow synchronous calls. Speed up page load.
+                    ->fetchFileInformation(false)
                     ->image()
                     ->avatar()
                     ->imageEditor()
@@ -135,15 +139,18 @@ class EditProfile extends Page implements HasForms
         $user = auth()->user();
 
         // Process Avatar
-        if (isset($data['avatar'])) {
+        // Check if avatar is set and not empty (it will be empty if user didn't upload new one)
+        if (!empty($data['avatar'])) {
             $processed = \App\Helpers\FileUploadHelper::processFiles(
                 $data['avatar'],
                 'avatars',
                 640,
                 640
             );
-            // Since maxFiles is 1 (default), take the first one or null
             $data['avatar'] = $processed[0] ?? null;
+        } else {
+            // If empty, unset it to preserve existing avatar
+            unset($data['avatar']);
         }
 
         // Extract relationships

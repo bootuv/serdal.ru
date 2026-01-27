@@ -5,6 +5,8 @@ namespace App\Filament\App\Resources\RoomResource\Pages;
 use App\Filament\App\Resources\RoomResource;
 use Filament\Actions;
 use Filament\Resources\Pages\ListRecords;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
 
 class ListRooms extends ListRecords
 {
@@ -28,79 +30,30 @@ class ListRooms extends ListRecords
 
     public function mount(): void
     {
-        // 1. Configure BBB
-        $user = auth()->user();
-        if ($user->bbb_url && $user->bbb_secret) {
-            config([
-                'bigbluebutton.BBB_SERVER_BASE_URL' => $user->bbb_url,
-                'bigbluebutton.BBB_SECURITY_SALT' => $user->bbb_secret,
-            ]);
+        $start = microtime(true);
+        Log::info("[App] ListRooms::mount STARTED at " . $start);
+
+        // Optimization: Throttle BBB sync to run at most once every 10 seconds per user
+        // We key by user_id because users might use different servers (custom BBB keys)
+        $userId = auth()->id();
+        $cacheKey = "bbb_sync_throttle_{$userId}";
+        $lastSync = Cache::get($cacheKey, 0);
+        $shouldSync = time() - $lastSync > 10;
+
+        Log::info("[App] ListRooms::mount Check Sync: " . (microtime(true) - $start) . "s. Should sync: " . ($shouldSync ? 'YES' : 'NO'));
+
+        if ($shouldSync) {
+            Cache::put($cacheKey, time(), 60);
+
+            // Dispatch background job to sync status without blocking response
+            Log::info("[App] Dispatching SyncUserBbbStatus job");
+            // Standard dispatch to DB queue (Worker is running, so it will be picked up async)
+            \App\Jobs\SyncUserBbbStatus::dispatch($userId);
         } else {
-            $globalUrl = \App\Models\Setting::where('key', 'bbb_url')->value('value');
-            $globalSecret = \App\Models\Setting::where('key', 'bbb_secret')->value('value');
-            if ($globalUrl && $globalSecret) {
-                config([
-                    'bigbluebutton.BBB_SERVER_BASE_URL' => $globalUrl,
-                    'bigbluebutton.BBB_SECURITY_SALT' => $globalSecret,
-                ]);
-            }
-        }
-
-        // 2. Fetch Running Meetings
-        // Bigbluebutton::all() returns a Collection of meetings
-        try {
-            $response = \JoisarJignesh\Bigbluebutton\Facades\Bigbluebutton::all();
-            \Illuminate\Support\Facades\Log::info('BBB Sync Response (App):', ['response' => $response]);
-            $meetings = collect($response);
-
-            $runningMeetingIds = [];
-            if ($meetings->count() > 0) {
-                foreach ($meetings as $meeting) {
-                    if (isset($meeting['meetingID'])) {
-                        $runningMeetingIds[] = $meeting['meetingID'];
-                    }
-                }
-            }
-
-            // 3. Update Database for THIS USER
-            // Set running = true for matches
-            \App\Models\Room::where('user_id', $user->id)
-                ->whereIn('meeting_id', $runningMeetingIds)
-                ->update(['is_running' => true]);
-
-            // Detect rooms that JUST stopped (were running, now not)
-            $stoppedRooms = \App\Models\Room::where('user_id', $user->id)
-                ->where('is_running', true)
-                ->whereNotIn('meeting_id', $runningMeetingIds)
-                ->get();
-
-            foreach ($stoppedRooms as $room) {
-                // Close session
-                $session = \App\Models\MeetingSession::where('room_id', $room->id)
-                    ->where('meeting_id', $room->meeting_id)
-                    ->where('status', 'running')
-                    ->orderByDesc('started_at')
-                    ->first();
-
-                if ($session) {
-                    $session->update([
-                        'ended_at' => now(),
-                        'status' => 'completed',
-                        'pricing_snapshot' => $session->capturePricingSnapshot(),
-                    ]);
-                }
-
-                $room->update(['is_running' => false]);
-            }
-
-        } catch (\Throwable $e) {
-            \Filament\Notifications\Notification::make()
-                ->title('BBB Sync Error')
-                ->body($e->getMessage())
-                ->danger()
-                ->send();
+            Log::info("[App] ListRooms::mount Sync Skipped (Throttled)");
         }
 
         parent::mount();
+        Log::info("[App] ListRooms::mount FINISHED at " . (microtime(true) - $start) . "s");
     }
 }

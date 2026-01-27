@@ -17,6 +17,23 @@ class ViewRoom extends ViewRecord
 {
     protected static string $resource = RoomResource::class;
 
+    public function mount(int|string $record): void
+    {
+        // Optimization: Throttle BBB sync
+        $userId = auth()->id();
+        $cacheKey = "bbb_view_student_sync_throttle_{$userId}";
+        $lastSync = \Illuminate\Support\Facades\Cache::get($cacheKey, 0);
+        $shouldSync = time() - $lastSync > 10;
+
+        if ($shouldSync) {
+            \Illuminate\Support\Facades\Cache::put($cacheKey, time(), 60);
+            \Illuminate\Support\Facades\Log::info("[Student] ViewRoom Dispatching SyncGlobalBbbStatus");
+            \App\Jobs\SyncGlobalBbbStatus::dispatch();
+        }
+
+        parent::mount($record);
+    }
+
     public function getTitle(): string
     {
         return $this->record->name;
@@ -25,6 +42,20 @@ class ViewRoom extends ViewRecord
     public function getHeading(): string
     {
         return $this->record->name;
+    }
+
+    public function getListeners(): array
+    {
+        return [
+            "echo:rooms,.room.status.updated" => 'refreshRoomStatus',
+            "echo:rooms,room.status.updated" => 'refreshRoomStatus',
+            "echo:rooms,RoomStatusUpdated" => 'refreshRoomStatus',
+        ];
+    }
+
+    public function refreshRoomStatus(): void
+    {
+        $this->record->refresh();
     }
 
     protected function getHeaderActions(): array

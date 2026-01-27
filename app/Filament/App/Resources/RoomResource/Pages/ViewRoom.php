@@ -18,6 +18,22 @@ class ViewRoom extends ViewRecord
 {
     protected static string $resource = RoomResource::class;
 
+    public function mount(int|string $record): void
+    {
+        // Optimization: Throttle BBB sync
+        $userId = auth()->id();
+        $cacheKey = "bbb_view_sync_throttle_{$userId}";
+        $lastSync = \Illuminate\Support\Facades\Cache::get($cacheKey, 0);
+        $shouldSync = time() - $lastSync > 10;
+
+        if ($shouldSync) {
+            \Illuminate\Support\Facades\Cache::put($cacheKey, time(), 60);
+            \App\Jobs\SyncUserBbbStatus::dispatch($userId);
+        }
+
+        parent::mount($record);
+    }
+
     public function getTitle(): string
     {
         return $this->record->name;
@@ -93,10 +109,15 @@ class ViewRoom extends ViewRecord
     public function getListeners(): array
     {
         return [
-            "echo:rooms,.room.status.updated" => '$refresh',
-            "echo:rooms,room.status.updated" => '$refresh',
-            "echo:rooms,RoomStatusUpdated" => '$refresh',
+            "echo:rooms,.room.status.updated" => 'refreshRoomStatus',
+            "echo:rooms,room.status.updated" => 'refreshRoomStatus',
+            "echo:rooms,RoomStatusUpdated" => 'refreshRoomStatus',
         ];
+    }
+
+    public function refreshRoomStatus(): void
+    {
+        $this->record->refresh();
     }
 
     public function infolist(Infolist $infolist): Infolist
@@ -406,18 +427,26 @@ class ViewRoom extends ViewRecord
                                 foreach ($presentations as $file) {
                                     $filename = basename($file);
                                     $url = \Illuminate\Support\Facades\Storage::disk('s3')->url($file);
-                                    $size = 0;
-                                    try {
-                                        $size = \Illuminate\Support\Facades\Storage::disk('s3')->size($file);
-                                    } catch (\Exception $e) {
-                                    }
 
-                                    // Format size
-                                    $units = ['B', 'KB', 'MB', 'GB'];
-                                    $pow = floor(($size ? log($size) : 0) / log(1024));
-                                    $pow = min($pow, count($units) - 1);
-                                    $size /= (1 << (10 * $pow));
-                                    $displaySize = round($size, 1) . ' ' . $units[$pow];
+                                    // Get size from cache or skip
+                                    $size = \Illuminate\Support\Facades\Cache::get("file_size_{$file}");
+                                    $sizeDisplay = '';
+
+                                    if ($size) {
+                                        $units = ['B', 'KB', 'MB', 'GB'];
+                                        $pow = floor(($size ? log($size) : 0) / log(1024));
+                                        $pow = min($pow, count($units) - 1);
+                                        $size /= (1 << (10 * $pow));
+                                        $sizeDisplay = round($size, 1) . ' ' . $units[$pow];
+                                    } else {
+                                        // Self-healing: if size is missing, dispatch job to cache it
+                                        // Prevent duplicate dispatch with a short lock
+                                        $lockKey = "dispatch_size_fetch_{$file}";
+                                        if (!\Illuminate\Support\Facades\Cache::has($lockKey)) {
+                                            \Illuminate\Support\Facades\Cache::put($lockKey, 1, 60);
+                                            \App\Jobs\CachePresentationSize::dispatch($file);
+                                        }
+                                    }
 
                                     $html .= sprintf(
                                         '<a href="%s" target="_blank" class="flex items-center gap-2 bg-gray-50 dark:bg-gray-800 rounded-lg px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
@@ -431,7 +460,7 @@ class ViewRoom extends ViewRecord
                                         </a>',
                                         e($url),
                                         e($filename),
-                                        $displaySize
+                                        $sizeDisplay
                                     );
                                 }
                                 $html .= '</div>';

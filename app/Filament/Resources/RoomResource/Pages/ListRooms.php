@@ -5,6 +5,8 @@ namespace App\Filament\Resources\RoomResource\Pages;
 use App\Filament\Resources\RoomResource;
 use Filament\Actions;
 use Filament\Resources\Pages\ListRecords;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
 
 class ListRooms extends ListRecords
 {
@@ -28,62 +30,29 @@ class ListRooms extends ListRecords
 
     public function mount(): void
     {
-        // 1. Configure Global BBB Settings
-        $globalUrl = \App\Models\Setting::where('key', 'bbb_url')->value('value');
-        $globalSecret = \App\Models\Setting::where('key', 'bbb_secret')->value('value');
-        if ($globalUrl && $globalSecret) {
-            config([
-                'bigbluebutton.BBB_SERVER_BASE_URL' => $globalUrl,
-                'bigbluebutton.BBB_SECURITY_SALT' => $globalSecret,
-            ]);
-        }
+        $start = microtime(true);
+        Log::info("ListRooms::mount STARTED at " . $start);
 
-        // 2. Fetch Running Meetings from GLOBAL server
-        try {
-            \Illuminate\Support\Facades\Log::info('BBB Sync Config URL (Admin): ' . config('bigbluebutton.BBB_SERVER_BASE_URL'));
-            $response = \JoisarJignesh\Bigbluebutton\Facades\Bigbluebutton::all();
-            \Illuminate\Support\Facades\Log::info('BBB Sync Response (Admin):', ['response' => $response]);
-            $meetings = collect($response); // Ensure collection
+        // Optimization: Throttle BBB sync to run at most once every 10 seconds per user
+        $userId = auth()->id();
+        $cacheKey = "bbb_sync_throttle_{$userId}";
+        $lastSync = Cache::get($cacheKey, 0);
+        $shouldSync = time() - $lastSync > 10;
 
-            $runningMeetingIds = [];
-            if ($meetings->count() > 0) {
-                foreach ($meetings as $meeting) {
-                    // Wrapper might return array of array or array of objects, usually array from XmlToArray
-                    $m = (array) $meeting;
-                    if (isset($m['meetingID'])) {
-                        $runningMeetingIds[] = $m['meetingID'];
-                    }
-                }
-            }
+        Log::info("ListRooms::mount Check Sync: " . (microtime(true) - $start) . "s. Should sync: " . ($shouldSync ? 'YES' : 'NO'));
 
-            // 3. Update Database for Users on Default Server
-            // bbb_url is NULL OR empty OR matches global URL
-            $targetUserIds = \App\Models\User::query()
-                ->whereNull('bbb_url')
-                ->orWhere('bbb_url', '')
-                ->when($globalUrl, function ($q) use ($globalUrl) {
-                    $q->orWhere('bbb_url', $globalUrl);
-                })
-                ->pluck('id');
+        if ($shouldSync) {
+            Cache::put($cacheKey, time(), 60);
 
-            // running = true
-            \App\Models\Room::whereIn('user_id', $targetUserIds)
-                ->whereIn('meeting_id', $runningMeetingIds)
-                ->update(['is_running' => true]);
+            // Dispatch background job (Async via Queue)
+            Log::info("Dispatching SyncGlobalBbbStatus job");
+            \App\Jobs\SyncGlobalBbbStatus::dispatch();
 
-            // running = false
-            \App\Models\Room::whereIn('user_id', $targetUserIds)
-                ->whereNotIn('meeting_id', $runningMeetingIds)
-                ->update(['is_running' => false]);
-
-        } catch (\Throwable $e) {
-            \Filament\Notifications\Notification::make()
-                ->title('Admin Sync Error')
-                ->body($e->getMessage())
-                ->warning()
-                ->send();
+        } else {
+            Log::info("ListRooms::mount Sync Skipped (Throttled)");
         }
 
         parent::mount();
+        Log::info("ListRooms::mount FINISHED at " . (microtime(true) - $start) . "s");
     }
 }

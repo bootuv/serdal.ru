@@ -34,6 +34,8 @@ class Profile extends Page
                     ->label('Аватар')
                     ->disk('s3')
                     ->visibility('public')
+                    // Optimization: Do not check file existence/metadata on S3 during load
+                    ->fetchFileInformation(false)
                     ->image()
                     ->avatar()
                     ->imageEditor()

@@ -55,6 +55,8 @@ class ViewHomework extends ViewRecord
                         ->disk('s3')
                         ->directory(fn() => 'homework-submissions/' . auth()->id())
                         ->visibility('public')
+                        // Optimization: Do not check file existence/metadata on S3 during load
+                        ->fetchFileInformation(false)
                         ->acceptedFileTypes([
                             'application/pdf',
                             'application/msword',

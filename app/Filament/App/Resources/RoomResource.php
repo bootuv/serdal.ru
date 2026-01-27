@@ -43,6 +43,8 @@ class RoomResource extends Resource
                     ->label('Презентации')
                     ->disk('s3')
                     ->visibility('public')
+                    // Optimization: Do not check file existence/metadata on S3 during load
+                    ->fetchFileInformation(false)
                     ->multiple()
                     ->acceptedFileTypes([
                         'application/pdf',
@@ -587,13 +589,19 @@ class RoomResource extends Resource
                             return false;
                         }
 
-                        // Hide if user has another running meeting
-                        $hasOtherRunningMeeting = Room::where('user_id', auth()->id())
-                            ->where('is_running', true)
-                            ->where('id', '!=', $record->id)
-                            ->exists();
+                        // Optimization: Cache the running room check to avoid N+1 queries
+                        static $runningRoomId = null;
+                        static $checked = false;
 
-                        return !$hasOtherRunningMeeting;
+                        if (!$checked) {
+                            $runningRoomId = Room::where('user_id', auth()->id())
+                                ->where('is_running', true)
+                                ->value('id');
+                            $checked = true;
+                        }
+
+                        // If there is a running room and it is NOT this one, then hide start
+                        return !($runningRoomId && $runningRoomId !== $record->id);
                     }),
 
                 Tables\Actions\Action::make('join')
@@ -643,6 +651,9 @@ class RoomResource extends Resource
     {
         return parent::getEloquentQuery()
             ->where('user_id', auth()->id())
+            ->with([
+                'participants:id,name,avatar,email,username'
+            ])
             ->withoutGlobalScopes([
                 SoftDeletingScope::class,
             ]);

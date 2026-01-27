@@ -25,43 +25,12 @@ class ListMeetingSessions extends ListRecords
 
     protected function syncRunningSessions(): void
     {
-        $runningSessions = \App\Models\MeetingSession::where('status', 'running')
-            ->where('user_id', auth()->id())
-            ->get();
-
-        foreach ($runningSessions as $session) {
-            try {
-                // Apply BBB config from room owner (current user)
-                $this->applyBBBConfig($session->room);
-
-                // Check if meeting is still running
-                $isRunning = \JoisarJignesh\Bigbluebutton\Facades\Bigbluebutton::isMeetingRunning([
-                    'meetingID' => $session->meeting_id
-                ]);
-
-                if (!$isRunning) {
-                    // Meeting ended, update session with pricing snapshot
-                    $session->update([
-                        'status' => 'completed',
-                        'ended_at' => now(),
-                        'pricing_snapshot' => $session->capturePricingSnapshot(),
-                    ]);
-
-                    // Also update room status
-                    $session->room->update(['is_running' => false]);
-
-                    \Illuminate\Support\Facades\Log::info('Session auto-completed via sync', [
-                        'session_id' => $session->id,
-                        'meeting_id' => $session->meeting_id,
-                    ]);
-                }
-            } catch (\Exception $e) {
-                // Log error but continue with other sessions
-                \Illuminate\Support\Facades\Log::warning('BBB sync failed for session', [
-                    'session_id' => $session->id,
-                    'error' => $e->getMessage(),
-                ]);
-            }
+        // Optimization: Run sync in background to avoid page load delay
+        // Throttle to run max once every 30 seconds per user
+        $cacheKey = 'sync_sessions_app_throttle_' . auth()->id();
+        if (!\Illuminate\Support\Facades\Cache::has($cacheKey)) {
+            \Illuminate\Support\Facades\Cache::put($cacheKey, true, 30);
+            \App\Jobs\SyncMeetingSessions::dispatch(auth()->id());
         }
     }
 

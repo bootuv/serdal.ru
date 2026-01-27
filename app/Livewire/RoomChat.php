@@ -56,6 +56,7 @@ class RoomChat extends Component implements HasActions, HasForms
     {
         $this->room = $room;
         if ($room) {
+            $this->room->loadMissing('participants');
             $this->markAsRead();
             $this->loadMessages();
         }
@@ -148,6 +149,7 @@ class RoomChat extends Component implements HasActions, HasForms
 
         // Проверяем доступ к комнате
         $room = Room::where('id', $roomId)
+            ->with(['participants'])
             ->where(function ($query) use ($user) {
                 $query->where('user_id', $user->id)
                     ->orWhereHas('participants', fn($q) => $q->where('user_id', $user->id));
@@ -174,8 +176,9 @@ class RoomChat extends Component implements HasActions, HasForms
         $user = auth()->user();
 
         // Проверяем доступ
+        // Проверяем доступ (Optimized: use loaded collection)
         $hasAccess = $this->room->user_id === $user->id
-            || $this->room->participants()->where('user_id', $user->id)->exists();
+            || $this->room->participants->contains('id', $user->id);
 
         if (!$hasAccess) {
             return;

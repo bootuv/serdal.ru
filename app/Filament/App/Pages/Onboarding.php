@@ -59,6 +59,8 @@ class Onboarding extends Page implements HasForms, HasTable
                             ->label('Фото профиля')
                             ->disk('s3')
                             ->visibility('public')
+                            // Optimization: Do not check file existence/metadata on S3 during load
+                            ->fetchFileInformation(false)
                             ->image()
                             ->avatar()
                             ->imageEditor()
