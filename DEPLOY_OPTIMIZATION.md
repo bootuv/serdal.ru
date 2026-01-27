@@ -11,6 +11,23 @@
 ```bash
 sudo apt update
 sudo apt install redis-server
+```
+
+**Важно**: Проверьте версию PHP перед установкой расширения:
+```bash
+php -v
+```
+Если у вас 8.2 — ставьте `php8.2-redis`, если 8.4 — `php8.4-redis`.
+
+```bash
+# Пример для PHP 8.2
+sudo apt install php8.2-redis
+# Или для PHP 8.4
+sudo apt install php8.4-redis
+```
+
+Запустите Redis:
+```bash
 sudo systemctl enable redis-server
 sudo systemctl start redis-server
 ```
