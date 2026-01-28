@@ -36,6 +36,16 @@ class UploadRecordingToVk implements ShouldQueue
             return;
         }
 
+        // Skip non-mp4 format recordings (presentations, etc.)
+        $url = $this->recording->url;
+        if (!$url || !str_contains($url, '/playback/video/')) {
+            Log::info('VK Video: Skipping non-video format recording', [
+                'recording_id' => $this->recording->id,
+                'url' => $url,
+            ]);
+            return;
+        }
+
         // Skip if already uploaded
         if ($this->recording->vk_video_id) {
             Log::info('VK Video: Recording already uploaded', [
