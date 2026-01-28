@@ -58,8 +58,11 @@ class RecordingResource extends Resource
                     ->getStateUsing(function (Recording $record) {
                         if (!empty($record->vk_video_url)) {
                             return 'Готово';
-                        } elseif (!empty($record->url)) {
+                        } elseif (!empty($record->url) && str_contains($record->url, '/playback/video/')) {
                             return 'Отправка в VK';
+                        } elseif (!empty($record->url)) {
+                            // Presentation format - available on BBB
+                            return 'Готово';
                         } else {
                             return 'Обработка';
                         }
