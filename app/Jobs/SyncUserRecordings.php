@@ -89,6 +89,9 @@ class SyncUserRecordings implements ShouldQueue
 
                     $bbbRecordIds[] = $r['recordID'];
 
+                    // Determine best playback URL (prefer video if mp4 exists)
+                    $playbackUrl = $this->getBestPlaybackUrl($r['playback'] ?? []);
+
                     $recording = Recording::updateOrCreate(
                         ['record_id' => $r['recordID']],
                         [
@@ -98,7 +101,7 @@ class SyncUserRecordings implements ShouldQueue
                             'start_time' => $startTime,
                             'end_time' => isset($r['endTime']) ? \Carbon\Carbon::createFromTimestamp($r['endTime'] / 1000) : null,
                             'participants' => $r['participants'] ?? 0,
-                            'url' => isset($r['playback']['format']['url']) ? $r['playback']['format']['url'] : (isset($r['playback']['format'][0]['url']) ? $r['playback']['format'][0]['url'] : null),
+                            'url' => $playbackUrl,
                             'raw_data' => $r,
                         ]
                     );
@@ -137,6 +140,76 @@ class SyncUserRecordings implements ShouldQueue
             Log::error('SyncUserRecordings Error: ' . $e->getMessage(), ['user_id' => $this->user->id]);
             // Re-throw to allow retry? Or just log? 
             // Usually sync jobs can just fail and run again later.
+        }
+    }
+
+    /**
+     * Get the best playback URL from available formats.
+     * Prefers video format only if the mp4 file actually exists.
+     */
+    protected function getBestPlaybackUrl(array $playback): ?string
+    {
+        $formats = $playback['format'] ?? [];
+
+        // Normalize to array of formats
+        if (isset($formats['url'])) {
+            // Single format
+            $formats = [$formats];
+        }
+
+        if (empty($formats)) {
+            return null;
+        }
+
+        $videoUrl = null;
+        $presentationUrl = null;
+
+        foreach ($formats as $format) {
+            $type = $format['type'] ?? '';
+            $url = $format['url'] ?? null;
+
+            if ($type === 'video' && $url) {
+                $videoUrl = $url;
+            } elseif ($type === 'presentation' && $url) {
+                $presentationUrl = $url;
+            }
+        }
+
+        // If we have a video URL, verify the mp4 file exists
+        if ($videoUrl) {
+            $mp4Url = rtrim($videoUrl, '/') . '/video-0.m4v';
+            if ($this->urlExists($mp4Url)) {
+                return $videoUrl;
+            }
+            Log::info('SyncUserRecordings: Video format exists but mp4 file not found', ['video_url' => $videoUrl]);
+        }
+
+        // Fall back to presentation URL or any available URL
+        return $presentationUrl ?? $videoUrl ?? ($formats[0]['url'] ?? null);
+    }
+
+    /**
+     * Check if a URL exists (returns 200 OK).
+     */
+    protected function urlExists(string $url): bool
+    {
+        try {
+            $context = stream_context_create([
+                'http' => [
+                    'method' => 'HEAD',
+                    'timeout' => 5,
+                    'ignore_errors' => true,
+                ],
+                'ssl' => [
+                    'verify_peer' => false,
+                    'verify_peer_name' => false,
+                ],
+            ]);
+
+            $headers = @get_headers($url, 0, $context);
+            return $headers && strpos($headers[0], '200') !== false;
+        } catch (\Throwable $e) {
+            return false;
         }
     }
 }
