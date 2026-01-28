@@ -232,6 +232,7 @@ class BigBlueButtonWebhookController extends Controller
             ['record_id' => $recordId],
             [
                 'room_id' => $room->id,
+                'meeting_id' => $meetingId,
                 'name' => $meetingName,
                 'url' => $videoUrl,
                 'duration' => (int) ($duration / 1000), // Convert ms to seconds
