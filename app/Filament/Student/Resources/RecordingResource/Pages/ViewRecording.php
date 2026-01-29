@@ -21,16 +21,15 @@ class ViewRecording extends Page
     {
         $this->record = $record;
 
-        // Check if student has access to this recording (via room participation)
-        $studentRoomMeetingIds = Room::query()
-            ->whereHas('participants', function (Builder $query) {
-                $query->where('users.id', auth()->id());
-            })
+        // Check if student has access to this recording (via teacher relationship)
+        $teacherIds = auth()->user()->teachers()->pluck('users.id');
+
+        $teacherRoomMeetingIds = Room::whereIn('user_id', $teacherIds)
             ->pluck('meeting_id')
             ->filter()
             ->toArray();
 
-        if (!in_array($record->meeting_id, $studentRoomMeetingIds)) {
+        if (!in_array($record->meeting_id, $teacherRoomMeetingIds)) {
             abort(403);
         }
     }

@@ -115,26 +115,18 @@ class RecordingResource extends Resource
         // Get all teachers of the current student
         $teacherIds = auth()->user()->teachers()->pluck('users.id');
 
-        \Log::info('Student RecordingResource Debug', [
-            'student_id' => auth()->id(),
-            'teacher_ids' => $teacherIds->toArray(),
-        ]);
-
         // Get meeting_ids of all rooms owned by student's teachers
         $teacherRoomMeetingIds = Room::whereIn('user_id', $teacherIds)
             ->pluck('meeting_id')
             ->filter();
 
-        \Log::info('Student RecordingResource Debug - Meeting IDs', [
-            'meeting_ids' => $teacherRoomMeetingIds->toArray(),
-        ]);
-
         return parent::getEloquentQuery()
             ->whereIn('meeting_id', $teacherRoomMeetingIds)
-            // Only show recordings with VK video OR fresh recordings (< 2 hours)
+            // Show recordings with VK video, BBB URL, or fresh recordings (< 2 hours)
             // This hides stale/deleted recordings that haven't been cleaned up
             ->where(function (Builder $query) {
                 $query->whereNotNull('vk_video_url')
+                    ->orWhereNotNull('url')
                     ->orWhere('start_time', '>', now()->subHours(2));
             });
     }
