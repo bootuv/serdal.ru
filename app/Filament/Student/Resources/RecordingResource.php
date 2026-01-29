@@ -112,16 +112,16 @@ class RecordingResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        // Get meeting_ids of rooms where the student is a participant
-        $studentRoomMeetingIds = Room::query()
-            ->whereHas('participants', function (Builder $query) {
-                $query->where('users.id', auth()->id());
-            })
+        // Get all teachers of the current student
+        $teacherIds = auth()->user()->teachers()->pluck('users.id');
+
+        // Get meeting_ids of all rooms owned by student's teachers
+        $teacherRoomMeetingIds = Room::whereIn('user_id', $teacherIds)
             ->pluck('meeting_id')
             ->filter();
 
         return parent::getEloquentQuery()
-            ->whereIn('meeting_id', $studentRoomMeetingIds)
+            ->whereIn('meeting_id', $teacherRoomMeetingIds)
             // Only show recordings with VK video OR fresh recordings (< 2 hours)
             // This hides stale/deleted recordings that haven't been cleaned up
             ->where(function (Builder $query) {
