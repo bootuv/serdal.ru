@@ -134,7 +134,17 @@ class HomeworkResource extends Resource
                         };
                     }),
             ])
-            ->defaultSort('created_at', 'desc')
+            ->modifyQueryUsing(
+                fn($query) => $query
+                    ->addSelect([
+                        'has_pending_review' => \App\Models\HomeworkSubmission::selectRaw('CASE WHEN status = ? AND grade IS NULL THEN 1 ELSE 0 END', [\App\Models\HomeworkSubmission::STATUS_SUBMITTED])
+                            ->whereColumn('homework_id', 'homework.id')
+                            ->where('student_id', auth()->id())
+                            ->limit(1)
+                    ])
+                    ->orderByDesc('has_pending_review')
+                    ->orderByDesc('created_at')
+            )
             ->actions([
                 //
             ])

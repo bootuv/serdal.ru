@@ -274,7 +274,17 @@ class HomeworkResource extends Resource
                 Tables\Filters\TernaryFilter::make('is_visible')
                     ->label('Видимость'),
             ])
-            ->defaultSort('created_at', 'desc')
+            ->modifyQueryUsing(
+                fn($query) => $query
+                    ->withCount([
+                        'submissions as pending_review_count' => function ($query) {
+                            $query->where('status', \App\Models\HomeworkSubmission::STATUS_SUBMITTED)
+                                ->whereNull('grade');
+                        }
+                    ])
+                    ->orderByDesc('pending_review_count')
+                    ->orderByDesc('created_at')
+            )
             ->actions([
                 // Edit button removed from here, available in View page
             ])

@@ -89,7 +89,11 @@ class HomeworkSubmissionResource extends Resource
                         };
                     }),
             ])
-            ->defaultSort('submitted_at', 'desc')
+            ->defaultSort(
+                fn($query) => $query
+                    ->orderByRaw('CASE WHEN grade IS NULL THEN 0 ELSE 1 END')
+                    ->orderBy('submitted_at', 'desc')
+            )
             ->actions([
                 Tables\Actions\ViewAction::make()
                     ->label('Проверить')
