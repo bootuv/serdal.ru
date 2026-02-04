@@ -280,9 +280,16 @@ class HomeworkResource extends Resource
                         'submissions as pending_review_count' => function ($query) {
                             $query->where('status', \App\Models\HomeworkSubmission::STATUS_SUBMITTED)
                                 ->whereNull('grade');
+                        },
+                        'submissions as revision_requested_count' => function ($query) {
+                            $query->where('status', \App\Models\HomeworkSubmission::STATUS_REVISION_REQUESTED);
                         }
                     ])
-                    ->orderByDesc('pending_review_count')
+                    ->orderByRaw('CASE 
+                    WHEN pending_review_count > 0 THEN 0
+                    WHEN revision_requested_count > 0 THEN 1
+                    ELSE 2 
+                END')
                     ->orderByDesc('created_at')
             )
             ->actions([

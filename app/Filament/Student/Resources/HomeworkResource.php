@@ -136,14 +136,17 @@ class HomeworkResource extends Resource
             ])
             ->modifyQueryUsing(
                 fn($query) => $query
-                    ->addSelect([
-                        'has_pending_review' => \App\Models\HomeworkSubmission::selectRaw('CASE WHEN status = ? AND grade IS NULL THEN 1 ELSE 0 END', [\App\Models\HomeworkSubmission::STATUS_SUBMITTED])
-                            ->whereColumn('homework_id', 'homework.id')
-                            ->where('student_id', auth()->id())
-                            ->limit(1)
-                    ])
-                    ->orderByDesc('has_pending_review')
-                    ->orderByDesc('created_at')
+                    ->leftJoin('homework_submissions as hs', function ($join) {
+                        $join->on('hs.homework_id', '=', 'homework.id')
+                            ->where('hs.student_id', '=', auth()->id());
+                    })
+                    ->orderByRaw("CASE 
+                    WHEN hs.status = 'submitted' AND hs.grade IS NULL THEN 0
+                    WHEN hs.status = 'revision_requested' THEN 1
+                    ELSE 2 
+                END")
+                    ->orderByDesc('homework.created_at')
+                    ->select('homework.*')
             )
             ->actions([
                 //
