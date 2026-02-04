@@ -137,7 +137,7 @@ class HomeworkResource extends Resource
             ->modifyQueryUsing(
                 fn($query) => $query
                     ->leftJoin('homework_submissions as hs', function ($join) {
-                        $join->on('hs.homework_id', '=', 'homework.id')
+                        $join->on('hs.homework_id', '=', 'homeworks.id')
                             ->where('hs.student_id', '=', auth()->id());
                     })
                     ->orderByRaw("CASE 
@@ -145,8 +145,8 @@ class HomeworkResource extends Resource
                     WHEN hs.status = 'revision_requested' THEN 1
                     ELSE 2 
                 END")
-                    ->orderByDesc('homework.created_at')
-                    ->select('homework.*')
+                    ->orderByDesc('homeworks.created_at')
+                    ->select('homeworks.*')
             )
             ->actions([
                 //
