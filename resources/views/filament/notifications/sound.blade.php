@@ -1,58 +1,74 @@
 {{-- Notification Sound Script --}}
 <script>
-    let audioUnlocked = false;
-    let pageLoadTime = Date.now();
+    (function () {
+        let audioUnlocked = false;
+        let userHasInteracted = false;
+        let soundEnabled = false;
 
-    // Audio unlock handler
-    function unlockAudio() {
-        if (audioUnlocked) return;
+        // Audio unlock handler - also marks that user has interacted
+        function unlockAudio() {
+            userHasInteracted = true;
 
-        const audio = new Audio('/sounds/notification.mp3');
-        audio.volume = 0;
-        audio.play().then(() => {
-            audio.pause();
-            audioUnlocked = true;
-        }).catch(() => { });
-    }
+            if (audioUnlocked) {
+                // Already unlocked, just enable sound after interaction
+                soundEnabled = true;
+                return;
+            }
 
-    // Unlock audio on first user interaction
-    ['click', 'touchstart', 'keydown'].forEach(event => {
-        document.addEventListener(event, unlockAudio, { once: true, passive: true });
-    });
+            const audio = new Audio('/sounds/notification.mp3');
+            audio.volume = 0;
+            audio.play().then(() => {
+                audio.pause();
+                audioUnlocked = true;
+                soundEnabled = true;
+            }).catch(() => {
+                // Even if audio fails, mark sound as enabled after user interaction
+                soundEnabled = true;
+            });
+        }
 
-    // Observe DOM for new toast notifications
-    const observer = new MutationObserver((mutations) => {
-        // Ignore notifications during initial page load
-        if (Date.now() - pageLoadTime < 2000) return;
+        // Unlock audio on first user interaction
+        ['click', 'touchstart', 'keydown'].forEach(event => {
+            document.addEventListener(event, unlockAudio, { once: true, passive: true });
+        });
 
-        mutations.forEach((mutation) => {
-            mutation.addedNodes.forEach((node) => {
-                // Check if this is a notification element
-                if (node.nodeType === 1 && node.classList?.contains('fi-no-notification')) {
-                    // Toast notifications don't have fi-inline class
-                    // Bell icon notifications have fi-inline class
-                    const isToast = !node.classList.contains('fi-inline');
+        // Observe DOM for new toast notifications
+        const observer = new MutationObserver((mutations) => {
+            // Only play sound if user has interacted with the page
+            // This prevents sound on page load/refresh
+            if (!userHasInteracted || !soundEnabled) return;
 
-                    if (isToast) {
-                        playNotificationSound();
+            mutations.forEach((mutation) => {
+                mutation.addedNodes.forEach((node) => {
+                    // Check if this is a notification element
+                    if (node.nodeType === 1 && node.classList?.contains('fi-no-notification')) {
+                        // Toast notifications don't have fi-inline class
+                        // Bell icon notifications have fi-inline class
+                        const isToast = !node.classList.contains('fi-inline');
+
+                        if (isToast) {
+                            playNotificationSound();
+                        }
                     }
-                }
+                });
             });
         });
-    });
 
-    // Start observing
-    if (document.body) {
-        observer.observe(document.body, { childList: true, subtree: true });
-    }
+        // Start observing
+        if (document.body) {
+            observer.observe(document.body, { childList: true, subtree: true });
+        }
 
-    // Play notification sound
-    function playNotificationSound() {
-        const audio = new Audio('/sounds/notification.mp3');
-        audio.volume = 0.5;
+        // Play notification sound
+        function playNotificationSound() {
+            if (!soundEnabled) return;
 
-        audio.play().catch(() => {
-            // Audio play blocked (user hasn't interacted yet)
-        });
-    }
+            const audio = new Audio('/sounds/notification.mp3');
+            audio.volume = 0.5;
+
+            audio.play().catch(() => {
+                // Audio play blocked
+            });
+        }
+    })();
 </script>
