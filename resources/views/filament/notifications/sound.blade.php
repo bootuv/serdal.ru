@@ -2,29 +2,34 @@
 <script>
     (function () {
         let audioUnlocked = false;
-        let userHasInteracted = false;
         let soundEnabled = false;
+        const pageLoadTime = Date.now();
 
-        // Audio unlock handler - also marks that user has interacted
+        // Audio unlock handler - also enables sound after delay
         function unlockAudio() {
-            userHasInteracted = true;
-
-            if (audioUnlocked) {
-                // Already unlocked, just enable sound after interaction
-                soundEnabled = true;
-                return;
-            }
+            if (audioUnlocked) return;
 
             const audio = new Audio('/sounds/notification.mp3');
             audio.volume = 0;
             audio.play().then(() => {
                 audio.pause();
                 audioUnlocked = true;
-                soundEnabled = true;
+                // Enable sound only after 3 seconds from page load
+                // This prevents sound from playing on notifications that arrive
+                // right after page refresh (e.g., from WebSocket reconnection)
+                enableSoundAfterDelay();
             }).catch(() => {
-                // Even if audio fails, mark sound as enabled after user interaction
-                soundEnabled = true;
+                // Even if audio fails, enable sound after delay
+                enableSoundAfterDelay();
             });
+        }
+
+        function enableSoundAfterDelay() {
+            const timeSinceLoad = Date.now() - pageLoadTime;
+            const delay = Math.max(0, 3000 - timeSinceLoad);
+            setTimeout(() => {
+                soundEnabled = true;
+            }, delay);
         }
 
         // Unlock audio on first user interaction
@@ -34,9 +39,8 @@
 
         // Observe DOM for new toast notifications
         const observer = new MutationObserver((mutations) => {
-            // Only play sound if user has interacted with the page
-            // This prevents sound on page load/refresh
-            if (!userHasInteracted || !soundEnabled) return;
+            // Only play sound if enabled (after page has been loaded for 3+ seconds)
+            if (!soundEnabled) return;
 
             mutations.forEach((mutation) => {
                 mutation.addedNodes.forEach((node) => {
