@@ -129,7 +129,7 @@
                                     {{-- Show Join button for ongoing lessons --}}
                                     <x-filament::button
                                         tag="a"
-                                        :href="route('rooms.join', $event['room_id'])"
+                                        :href="route('rooms.connect', $event['room_id'])"
                                         color="warning"
                                         size="xs"
                                         icon="heroicon-m-arrow-right-on-rectangle"

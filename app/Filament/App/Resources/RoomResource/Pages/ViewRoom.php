@@ -44,6 +44,17 @@ class ViewRoom extends ViewRecord
         return $this->record->name;
     }
 
+    public function copyGuestLinkAction(): \Filament\Actions\Action
+    {
+        return \Filament\Actions\Action::make('copyGuestLink')
+            ->action(function () {
+                \Filament\Notifications\Notification::make()
+                    ->title('Ссылка скопирована')
+                    ->success()
+                    ->send();
+            });
+    }
+
     protected function getHeaderActions(): array
     {
         // Refresh the record to get latest is_running state
@@ -185,6 +196,16 @@ class ViewRoom extends ViewRecord
                                 \Filament\Infolists\Components\ViewEntry::make('next_start')
                                     ->hiddenLabel()
                                     ->view('filament.infolists.next-lesson-status'),
+                            ]),
+
+                        // Guest invite link + Schedule in 2 columns
+                        Grid::make(2)
+                            ->schema([
+                                \Filament\Infolists\Components\ViewEntry::make('guest_invite_link')
+                                    ->view('filament.infolists.entries.guest-invite-link'),
+
+                                \Filament\Infolists\Components\ViewEntry::make('schedule_inline')
+                                    ->view('filament.infolists.entries.schedule-inline'),
                             ]),
                     ]),
 
@@ -341,75 +362,6 @@ class ViewRoom extends ViewRecord
 
                                 return redirect(request()->header('Referer'));
                             }),
-                    ])
-                    ->collapsible(),
-
-                Section::make('Расписание')
-                    ->schema([
-                        TextEntry::make('schedules')
-                            ->label('')
-                            ->getStateUsing(function (Room $record) {
-                                $schedules = $record->schedules;
-                                if ($schedules->isEmpty()) {
-                                    return new HtmlString('<span class="text-gray-400">Расписание не настроено</span>');
-                                }
-
-                                $html = '<div class="space-y-3">';
-                                foreach ($schedules as $schedule) {
-                                    if ($schedule->type === 'once') {
-                                        $datetime = \Carbon\Carbon::parse($schedule->scheduled_at);
-                                        $html .= sprintf(
-                                            '<div class="flex items-center gap-2 bg-blue-50 dark:bg-blue-900/30 rounded-lg px-4 py-3">
-                                                <span class="text-lg">📅</span>
-                                                <div>
-                                                    <span class="font-medium">Одноразовое занятие</span>
-                                                    <span class="text-gray-600 dark:text-gray-400 ml-2">%s</span>
-                                                    <span class="text-sm text-gray-500 ml-2">(%d мин)</span>
-                                                </div>
-                                            </div>',
-                                            $datetime->format('d.m.Y H:i'),
-                                            $schedule->duration_minutes ?? 90
-                                        );
-                                    } else {
-                                        $days = is_array($schedule->recurrence_days)
-                                            ? $schedule->recurrence_days
-                                            : json_decode($schedule->recurrence_days ?? '[]', true);
-
-                                        $dayNames = [
-                                            0 => 'Вс',
-                                            1 => 'Пн',
-                                            2 => 'Вт',
-                                            3 => 'Ср',
-                                            4 => 'Чт',
-                                            5 => 'Пт',
-                                            6 => 'Сб'
-                                        ];
-
-                                        $daysText = collect($days)
-                                            ->map(fn($d) => $dayNames[$d] ?? '')
-                                            ->filter()
-                                            ->join(', ');
-
-                                        $html .= sprintf(
-                                            '<div class="flex items-center gap-2 bg-green-50 dark:bg-green-900/30 rounded-lg px-4 py-3">
-                                                <span class="text-lg">🔄</span>
-                                                <div>
-                                                    <span class="font-medium">Еженедельно</span>
-                                                    <span class="text-gray-600 dark:text-gray-400 ml-2">%s в %s</span>
-                                                    <span class="text-sm text-gray-500 ml-2">(%d мин)</span>
-                                                </div>
-                                            </div>',
-                                            $daysText,
-                                            $schedule->recurrence_time ? substr($schedule->recurrence_time, 0, 5) : '',
-                                            $schedule->duration_minutes ?? 90
-                                        );
-                                    }
-                                }
-                                $html .= '</div>';
-
-                                return new HtmlString($html);
-                            })
-                            ->columnSpanFull(),
                     ])
                     ->collapsible(),
 

@@ -243,14 +243,14 @@ class RoomController extends Controller
 
         session(['guest_name' => $data['name']]);
 
-        return redirect()->route('rooms.join', $room);
+        return redirect()->route('rooms.connect', $room);
     }
 
-    public function join(Room $room)
+    /**
+     * Actually connect to BBB meeting (after Livewire guest join page)
+     */
+    public function connect(Room $room)
     {
-        // Ideally checking running state, or letting BBB handle "meeting not found"
-        // But for better UX, check if running
-
         // Apply Custom BBB Settings if available (from Room owner)
         $owner = $room->user;
         if ($owner && $owner->bbb_url && $owner->bbb_secret) {
@@ -273,10 +273,8 @@ class RoomController extends Controller
 
         try {
             if (!Bigbluebutton::isMeetingRunning(['meetingID' => $room->meeting_id])) {
-                // If the user came from a "guest login" page or link, giving a simpler error is nicer
-                // But back() is fine typically.
-                return redirect('/')->with('error', 'Занятие еще не началось или уже завершено.');
-                // return back()->with('error', 'Занятие еще не началось или уже завершено.');
+                // If meeting not running, redirect to the Livewire join page
+                return redirect()->route('rooms.join', $room);
             }
 
             // Determine User Identity
@@ -292,8 +290,8 @@ class RoomController extends Controller
                 $userID = 'guest_' . substr(session()->getId(), 0, 10);
                 $avatarURL = null;
             } else {
-                // Not authenticated and no guest name -> redirect to guest login
-                return view('rooms.guest-login', compact('room'));
+                // Not authenticated and no guest name -> redirect to guest join page
+                return redirect()->route('rooms.join', $room);
             }
 
             // Note: logoutURL is set at meeting creation time (in start method)
@@ -308,7 +306,7 @@ class RoomController extends Controller
                 ])
             );
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('BBB Error in join()', [
+            \Illuminate\Support\Facades\Log::error('BBB Error in connect()', [
                 'room_id' => $room->id,
                 'error' => $e->getMessage(),
             ]);

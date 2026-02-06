@@ -49,5 +49,6 @@ Route::middleware(['auth'])->group(function () {
 Route::get('/{username}', [PageController::class, 'tutorPage'])->name('tutors.show');
 
 // Public Room Access
-Route::get('/rooms/{room}/join', [RoomController::class, 'join'])->name('rooms.join');
+Route::get('/rooms/{room}/join', \App\Livewire\GuestJoinRoom::class)->name('rooms.join');
+Route::get('/rooms/{room}/connect', [RoomController::class, 'connect'])->name('rooms.connect');
 Route::post('/rooms/{room}/join/guest', [RoomController::class, 'joinAsGuest'])->name('rooms.join.guest');

@@ -70,7 +70,7 @@ class RoomResource extends Resource
             ->actions([
                 Tables\Actions\Action::make('join')
                     ->label('Присоединиться')
-                    ->url(fn(Room $record) => route('rooms.join', $record))
+                    ->url(fn(Room $record) => route('rooms.connect', $record))
                     ->button()
                     ->color('warning')
                     ->icon('heroicon-m-arrow-right-end-on-rectangle')

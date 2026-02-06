@@ -80,7 +80,7 @@ class ViewRoom extends ViewRecord
                 ->label('Присоединиться')
                 ->icon('heroicon-o-user-plus')
                 ->color('warning')
-                ->url(fn() => route('rooms.join', $this->record))
+                ->url(fn() => route('rooms.connect', $this->record))
                 ->openUrlInNewTab()
                 ->visible(fn() => $this->record->is_running),
         ];

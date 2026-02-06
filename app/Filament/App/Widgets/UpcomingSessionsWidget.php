@@ -149,7 +149,7 @@ class UpcomingSessionsWidget extends BaseWidget
                     ->icon('heroicon-o-user-plus')
                     ->button()
                     ->color('warning')
-                    ->url(fn(Room $record) => route('rooms.join', $record))
+                    ->url(fn(Room $record) => route('rooms.connect', $record))
                     ->openUrlInNewTab()
                     ->visible(fn(Room $record) => $record->is_running),
 
