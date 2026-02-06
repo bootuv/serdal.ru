@@ -119,7 +119,7 @@ class ViewRoom extends ViewRecord
             ->schema([
                 Section::make('Основная информация')
                     ->schema([
-                        Grid::make(2)
+                        Grid::make(3)
                             ->schema([
                                 TextEntry::make('user.name')
                                     ->label('Владелец'),
@@ -166,7 +166,8 @@ class ViewRoom extends ViewRecord
 
                                 \Filament\Infolists\Components\ViewEntry::make('schedule_inline')
                                     ->view('filament.infolists.entries.schedule-inline'),
-                            ]),
+                            ])
+                            ->extraAttributes(['class' => 'border-t border-gray-200 dark:border-gray-700 pt-4 mt-2']),
                     ]),
 
                 Section::make('Ученики')
