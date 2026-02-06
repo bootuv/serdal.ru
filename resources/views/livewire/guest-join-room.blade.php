@@ -26,10 +26,11 @@
                             <p class="text-gray-600 dark:text-gray-400 mb-6">
                                 Нажмите кнопку ниже, чтобы присоединиться
                             </p>
-                            <x-filament::button wire:click="joinSession" color="success" size="lg" class="w-full"
-                                icon="heroicon-o-video-camera">
-                                Присоединиться к занятию
-                            </x-filament::button>
+                            <button wire:click="joinSession" type="button"
+                                class="w-full flex justify-center items-center gap-2 px-4 py-3 bg-green-600 hover:bg-green-500 text-white font-semibold rounded-lg shadow-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800">
+                                <x-heroicon-o-video-camera class="w-5 h-5" />
+                                <span>Присоединиться к занятию</span>
+                            </button>
                         @else
                             {{-- Room not started --}}
                             <div
@@ -74,10 +75,11 @@
                         <form wire:submit="submitName" class="space-y-6">
                             {{ $this->form }}
 
-                            <x-filament::button type="submit" color="primary" size="lg" class="w-full"
-                                icon="heroicon-o-arrow-right-on-rectangle">
-                                Войти
-                            </x-filament::button>
+                            <button type="submit"
+                                class="w-full flex justify-center items-center gap-2 px-4 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-lg shadow-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800">
+                                <span>Войти</span>
+                                <x-heroicon-o-arrow-right-on-rectangle class="w-5 h-5" />
+                            </button>
                         </form>
                     </div>
                 @endif
