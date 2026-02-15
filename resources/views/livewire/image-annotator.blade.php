@@ -5,72 +5,74 @@
             @keydown.space.window.prevent="spaceHeld = true" @keyup.space.window="spaceHeld = false; isPanDragging = false">
             {{-- Toolbar --}}
             <div
-                class="absolute top-4 left-1/2 -translate-x-1/2 flex flex-wrap items-center gap-1 sm:gap-2 bg-white dark:bg-gray-800 rounded-lg shadow-lg p-1.5 sm:p-2 z-20 max-w-[95vw]">
+                class="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-0.5 sm:gap-1.5 bg-white dark:bg-gray-800 rounded-lg shadow-lg p-1 sm:p-2 z-20">
                 {{-- Color picker --}}
-                <label class="relative w-6 h-6 cursor-pointer" title="Цвет">
-                    <span class="block w-6 h-6 rounded-full border border-gray-300 dark:border-gray-600 overflow-hidden bg-gradient-to-br from-red-500 via-green-500 to-blue-500"></span>
+                <label class="relative w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center cursor-pointer" title="Цвет">
+                    <span
+                        class="block w-5 h-5 sm:w-6 sm:h-6 rounded-full border border-gray-300 dark:border-gray-600 overflow-hidden bg-gradient-to-br from-red-500 via-green-500 to-blue-500"></span>
                     <input type="color" x-model="color" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
                 </label>
 
                 {{-- Brush sizes --}}
-                <div class="flex items-center gap-0.5 border-l border-gray-200 dark:border-gray-700 pl-1 sm:pl-2">
+                <div class="flex items-center gap-0.5 sm:border-l sm:border-gray-200 sm:dark:border-gray-700 sm:pl-1.5">
                     <template x-for="size in [3, 6, 10, 16]" :key="size">
                         <button @click="lineWidth = size" type="button"
-                            class="w-6 h-6 rounded flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                            class="w-7 h-7 sm:w-8 sm:h-8 rounded flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                             :class="lineWidth === size ? 'bg-gray-100 dark:bg-gray-700' : ''">
-                            <span class="rounded-full" :style="`width: ${Math.max(size, 3)}px; height: ${Math.max(size, 3)}px; background-color: ${color}`"></span>
+                            <span class="rounded-full"
+                                :style="`width: ${Math.max(size, 3)}px; height: ${Math.max(size, 3)}px; background-color: ${color}`"></span>
                         </button>
                     </template>
                 </div>
 
                 {{-- Pan mode toggle + Rotate --}}
-                <div class="flex items-center gap-1 border-l border-gray-200 dark:border-gray-700 pl-1 sm:pl-2">
+                <div class="flex items-center gap-0.5 sm:border-l sm:border-gray-200 sm:dark:border-gray-700 sm:pl-1.5">
                     <button @click="panMode = !panMode" type="button"
                         :class="panMode ? 'bg-primary-500 text-white' : 'text-gray-700 dark:text-gray-300'"
-                        class="w-8 h-8 rounded flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                        class="w-7 h-7 sm:w-8 sm:h-8 rounded flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                         title="Перемещение">
                         <x-heroicon-o-hand-raised class="w-4 h-4" />
                     </button>
                     <button @click="rotateImage(90)" type="button"
-                        class="w-8 h-8 rounded flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700"
+                        class="w-7 h-7 sm:w-8 sm:h-8 rounded flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700"
                         title="Повернуть">
                         <x-heroicon-o-arrow-path class="w-4 h-4" />
                     </button>
                 </div>
 
                 {{-- Zoom controls --}}
-                <div class="flex items-center gap-1 border-l border-gray-200 dark:border-gray-700 pl-1 sm:pl-2">
+                <div class="flex items-center gap-0.5 sm:border-l sm:border-gray-200 sm:dark:border-gray-700 sm:pl-1.5">
                     <button @click="zoomOut()" type="button"
-                        class="w-8 h-8 rounded flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700"
+                        class="w-7 h-7 sm:w-8 sm:h-8 rounded flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700"
                         title="Уменьшить">
                         <x-heroicon-o-minus class="w-4 h-4" />
                     </button>
-                    <span class="text-xs w-12 text-center" x-text="Math.round(zoom * 100) + '%'"></span>
+                    <span class="text-xs w-10 text-center hidden sm:inline" x-text="Math.round(zoom * 100) + '%'"></span>
                     <button @click="zoomIn()" type="button"
-                        class="w-8 h-8 rounded flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700"
+                        class="w-7 h-7 sm:w-8 sm:h-8 rounded flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700"
                         title="Увеличить">
                         <x-heroicon-o-plus class="w-4 h-4" />
                     </button>
                     <button @click="resetZoom()" type="button"
-                        class="w-8 h-8 rounded flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700"
+                        class="w-7 h-7 sm:w-8 sm:h-8 rounded flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700"
                         title="Сбросить">
                         <x-heroicon-o-arrows-pointing-out class="w-4 h-4" />
                     </button>
                 </div>
 
-                {{-- Undo --}}
-                <button @click="undo()" type="button"
-                    class="w-8 h-8 rounded flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700 border-l border-gray-200 dark:border-gray-700 ml-1 pl-2"
-                    title="Отменить">
-                    <x-heroicon-o-arrow-uturn-left class="w-4 h-4" />
-                </button>
-
-                {{-- Clear --}}
-                <button @click="clear()" type="button"
-                    class="w-8 h-8 rounded flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700"
-                    title="Очистить">
-                    <x-heroicon-o-trash class="w-4 h-4" />
-                </button>
+                {{-- Undo + Clear --}}
+                <div class="flex items-center gap-0.5 sm:border-l sm:border-gray-200 sm:dark:border-gray-700 sm:pl-1.5">
+                    <button @click="undo()" type="button"
+                        class="w-7 h-7 sm:w-8 sm:h-8 rounded flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700"
+                        title="Отменить">
+                        <x-heroicon-o-arrow-uturn-left class="w-4 h-4" />
+                    </button>
+                    <button @click="clear()" type="button"
+                        class="w-7 h-7 sm:w-8 sm:h-8 rounded flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700"
+                        title="Очистить">
+                        <x-heroicon-o-trash class="w-4 h-4" />
+                    </button>
+                </div>
             </div>
 
             {{-- Canvas container with zoom/pan --}}
