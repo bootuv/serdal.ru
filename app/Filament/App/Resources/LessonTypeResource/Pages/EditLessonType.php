@@ -10,6 +10,11 @@ class EditLessonType extends EditRecord
 {
     protected static string $resource = LessonTypeResource::class;
 
+    public function getTitle(): string
+    {
+        return 'Редактировать цену';
+    }
+
     protected function getHeaderActions(): array
     {
         return [

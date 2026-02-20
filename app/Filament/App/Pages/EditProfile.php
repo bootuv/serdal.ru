@@ -13,21 +13,21 @@ class EditProfile extends Page implements HasForms
     use InteractsWithForms;
     protected static ?string $navigationIcon = 'heroicon-o-user';
 
-    protected static ?string $navigationLabel = 'Профиль';
+    protected static ?string $navigationLabel = 'Мой профиль';
+
+    protected static ?string $navigationGroup = '';
 
     protected static ?string $title = 'Редактировать профиль';
 
     protected static string $view = 'filament.app.pages.edit-profile';
 
-    protected static ?int $navigationSort = 50;
+    protected static ?int $navigationSort = 100;
 
     public ?array $data = [];
 
     protected function getFooterWidgets(): array
     {
-        return [
-            \App\Filament\App\Widgets\LessonTypesTableWidget::class,
-        ];
+        return [];
     }
 
     public function mount(): void

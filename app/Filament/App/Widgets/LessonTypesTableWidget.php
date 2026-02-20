@@ -9,7 +9,7 @@ use Filament\Widgets\TableWidget as BaseWidget;
 
 class LessonTypesTableWidget extends BaseWidget
 {
-    protected static ?string $heading = 'Типы уроков';
+    protected static ?string $heading = 'Цены';
 
     protected int|string|array $columnSpan = 'full';
 
@@ -24,14 +24,14 @@ class LessonTypesTableWidget extends BaseWidget
         return $table
             ->query(LessonType::query()->where('user_id', auth()->id()))
 
-            ->modelLabel('Тип урока')
-            ->pluralModelLabel('Типы уроков')
-            ->emptyStateHeading('Типы уроков не добавлены')
-            ->emptyStateDescription('Добавьте хотя бы один тип урока для старта.')
+            ->modelLabel('Цена')
+            ->pluralModelLabel('Цены')
+            ->emptyStateHeading('Цены не добавлены')
+            ->emptyStateDescription('Добавьте хотя бы одну цену для старта.')
             ->paginated(false)
             ->columns([
                 Tables\Columns\TextColumn::make('type')
-                    ->label('Тип')
+                    ->label('Тип урока')
                     ->formatStateUsing(fn(string $state): string => match ($state) {
                         LessonType::TYPE_INDIVIDUAL => 'Индивидуальный',
                         LessonType::TYPE_GROUP => 'Групповой',
@@ -52,7 +52,7 @@ class LessonTypesTableWidget extends BaseWidget
                 Tables\Actions\EditAction::make()
                     ->form([
                         \Filament\Forms\Components\Select::make('type')
-                            ->label('Тип')
+                            ->label('Тип урока')
                             ->options([
                                 LessonType::TYPE_INDIVIDUAL => 'Индивидуальный',
                                 LessonType::TYPE_GROUP => 'Групповой',
@@ -94,11 +94,11 @@ class LessonTypesTableWidget extends BaseWidget
                 Tables\Actions\CreateAction::make()
                     ->label('Добавить')
                     ->createAnother(false)
-                    ->modalHeading('Добавить тип урока')
+                    ->modalHeading('Добавить цену')
                     ->visible(fn() => LessonType::where('user_id', auth()->id())->count() < 2)
                     ->form([
                         \Filament\Forms\Components\Select::make('type')
-                            ->label('Тип')
+                            ->label('Тип урока')
                             ->options(function () {
                                 $existingTypes = LessonType::where('user_id', auth()->id())
                                     ->pluck('type')

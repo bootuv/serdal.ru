@@ -117,22 +117,35 @@
 .fi-topbar .fi-badge,
 .fi-topbar .fi-icon-btn-badge,
 .messenger-list-container .fi-badge {
-    background-color: #ef4444 !important; /* Red-500 */
+    background-color: #ef4444 !important;
+    /* Red-500 */
     color: #ffffff !important;
 }
+
 /* Hide numeric inputs in the file upload editor sidebar (Global) */
 .fi-fo-file-upload-editor-window .grid:has(input[type="number"]) {
     display: none !important;
 }
 
 /* Fallback for Safari/older browsers */
-.fi-fo-file-upload-editor-window .fi-fo-section-content > .grid {
-        display: none !important;
+.fi-fo-file-upload-editor-window .fi-fo-section-content>.grid {
+    display: none !important;
 }
 
 /* Specifically hide the numeric inputs if grid selector fails */
 .fi-fo-file-upload-editor-window input[type="number"],
-.fi-fo-file-upload-editor-window input[type="number"] + label,
+.fi-fo-file-upload-editor-window input[type="number"]+label,
 .fi-fo-file-upload-editor-window label:has(+ input[type="number"]) {
     display: none !important;
+}
+
+/* Separator before the profile and settings items in the main sidebar */
+.fi-sidebar-item:has(a[href*="lesson-types"]) {
+    margin-top: 0.5rem !important;
+    padding-top: 0.5rem !important;
+    border-top: 1px solid rgb(229, 231, 235) !important;
+}
+
+.dark .fi-sidebar-item:has(a[href*="lesson-types"]) {
+    border-top-color: rgba(255, 255, 255, 0.1) !important;
 }

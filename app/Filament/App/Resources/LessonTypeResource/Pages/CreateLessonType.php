@@ -10,6 +10,11 @@ class CreateLessonType extends CreateRecord
 {
     protected static string $resource = LessonTypeResource::class;
 
+    public function getTitle(): string
+    {
+        return 'Создать цену';
+    }
+
     protected function mutateFormDataBeforeCreate(array $data): array
     {
         $data['user_id'] = auth()->id();

@@ -60,6 +60,10 @@ class AppPanelProvider extends PanelProvider
                 'teal' => Color::Teal,
                 'orange' => Color::Orange,
             ])
+            ->navigationGroups([
+                \Filament\Navigation\NavigationGroup::make('')
+                    ->extraSidebarAttributes(['class' => 'mt-5 pt-5 border-t border-gray-200 dark:border-white/10']),
+            ])
             ->brandLogo(fn() => asset('images/Logo.svg'))
             ->darkModeBrandLogo(fn() => asset('images/Logo-white.svg'))
             ->brandLogoHeight('2rem')

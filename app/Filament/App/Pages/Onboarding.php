@@ -83,22 +83,22 @@ class Onboarding extends Page implements HasForms, HasTable
     {
         return $table
             ->query(LessonType::query()->where('user_id', Auth::id()))
-            ->heading('Типы уроков')
+            ->heading('Цены')
 
-            ->modelLabel('Тип урока')
-            ->pluralModelLabel('Типы уроков')
-            ->emptyStateHeading('Типы уроков не добавлены')
-            ->emptyStateDescription('Добавьте хотя бы один тип урока для старта.')
+            ->modelLabel('Цена')
+            ->pluralModelLabel('Цены')
+            ->emptyStateHeading('Цены не добавлены')
+            ->emptyStateDescription('Добавьте хотя бы одну цену для старта.')
             ->paginated(false)
             ->headerActions([
                 Tables\Actions\CreateAction::make()
                     ->label('Добавить')
                     ->createAnother(false)
                     ->visible(fn() => LessonType::where('user_id', Auth::id())->count() < 2)
-                    ->modalHeading('Добавить тип урока')
+                    ->modalHeading('Добавить цену')
                     ->form([
                         Forms\Components\Select::make('type')
-                            ->label('Тип')
+                            ->label('Тип урока')
                             ->options(function () {
                                 $existingTypes = LessonType::where('user_id', Auth::id())
                                     ->pluck('type')
@@ -142,7 +142,7 @@ class Onboarding extends Page implements HasForms, HasTable
             ])
             ->columns([
                 Tables\Columns\TextColumn::make('type')
-                    ->label('Название')
+                    ->label('Тип урока')
                     ->formatStateUsing(fn(string $state): string => match ($state) {
                         LessonType::TYPE_INDIVIDUAL => 'Индивидуальный',
                         LessonType::TYPE_GROUP => 'Групповой',
@@ -160,7 +160,7 @@ class Onboarding extends Page implements HasForms, HasTable
             ->actions([
                 Tables\Actions\EditAction::make()->form([
                     Forms\Components\Select::make('type')
-                        ->label('Тип')
+                        ->label('Тип урока')
                         ->options([
                             LessonType::TYPE_INDIVIDUAL => 'Индивидуальный',
                             LessonType::TYPE_GROUP => 'Групповой',
@@ -202,7 +202,7 @@ class Onboarding extends Page implements HasForms, HasTable
         if ($user->lessonTypes()->count() === 0) {
             Notification::make()
                 ->title('Ошибка')
-                ->body('Пожалуйста, добавьте хотя бы один тип урока перед продолжением.')
+                ->body('Пожалуйста, добавьте хотя бы одну цену перед продолжением.')
                 ->danger()
                 ->send();
             return;

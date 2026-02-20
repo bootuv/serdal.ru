@@ -17,25 +17,24 @@ class LessonTypeResource extends Resource
 {
     protected static ?string $model = LessonType::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+    protected static ?string $navigationIcon = 'heroicon-o-banknotes';
 
-    protected static ?string $navigationLabel = 'Типы уроков';
+    protected static ?string $navigationLabel = 'Цены';
 
-    protected static ?string $modelLabel = 'Тип урока';
+    protected static ?string $navigationGroup = '';
 
-    protected static ?string $pluralModelLabel = 'Типы уроков';
+    protected static ?string $modelLabel = 'Цена';
 
-    public static function shouldRegisterNavigation(): bool
-    {
-        return false;
-    }
+    protected static ?string $pluralModelLabel = 'Цены';
+
+    protected static ?int $navigationSort = 90;
 
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
                 Forms\Components\Select::make('type')
-                    ->label('Тип')
+                    ->label('Тип урока')
                     ->options([
                         LessonType::TYPE_INDIVIDUAL => 'Индивидуальный',
                         LessonType::TYPE_GROUP => 'Групповой',
@@ -58,7 +57,7 @@ class LessonTypeResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('type')
-                    ->label('Тип')
+                    ->label('Тип урока')
                     ->formatStateUsing(fn(string $state): string => match ($state) {
                         LessonType::TYPE_INDIVIDUAL => 'Индивидуальный',
                         LessonType::TYPE_GROUP => 'Групповой',

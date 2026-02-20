@@ -14,16 +14,17 @@ class LessonTypesRelationManager extends RelationManager
 {
     protected static string $relationship = 'lessonTypes';
 
-    protected static ?string $title = 'Типы уроков';
-    protected static ?string $modelLabel = 'Тип урока';
-    protected static ?string $pluralModelLabel = 'Типы уроков';
+    protected static ?string $title = 'Цены';
+    protected static ?string $icon = 'heroicon-o-banknotes';
+    protected static ?string $modelLabel = 'Цена';
+    protected static ?string $pluralModelLabel = 'Цены';
 
     public function form(Form $form): Form
     {
         return $form
             ->schema([
                 Forms\Components\Select::make('type')
-                    ->label('Тип')
+                    ->label('Тип урока')
                     ->options([
                         \App\Models\LessonType::TYPE_INDIVIDUAL => 'Индивидуальный',
                         \App\Models\LessonType::TYPE_GROUP => 'Групповой',
@@ -65,14 +66,14 @@ class LessonTypesRelationManager extends RelationManager
     {
         return $table
             ->recordTitleAttribute('type')
-            ->modelLabel('Тип урока')
-            ->pluralModelLabel('Типы уроков')
-            ->emptyStateHeading('Типы уроков не добавлены')
-            ->emptyStateDescription('Добавьте хотя бы один тип урока для старта.')
+            ->modelLabel('Цена')
+            ->pluralModelLabel('Цены')
+            ->emptyStateHeading('Цены не добавлены')
+            ->emptyStateDescription('Добавьте хотя бы одну цену для старта.')
             ->paginated(false)
             ->columns([
                 Tables\Columns\TextColumn::make('type')
-                    ->label('Тип')
+                    ->label('Тип урока')
                     ->formatStateUsing(fn(string $state): string => match ($state) {
                         \App\Models\LessonType::TYPE_INDIVIDUAL => 'Индивидуальный',
                         \App\Models\LessonType::TYPE_GROUP => 'Групповой',
@@ -96,11 +97,11 @@ class LessonTypesRelationManager extends RelationManager
                 Tables\Actions\CreateAction::make()
                     ->label('Добавить')
                     ->createAnother(false)
-                    ->modalHeading('Добавить тип урока')
+                    ->modalHeading('Добавить цену')
                     ->visible(fn() => $this->getOwnerRecord()->lessonTypes()->count() < 2)
                     ->form([
                         Forms\Components\Select::make('type')
-                            ->label('Тип')
+                            ->label('Тип урока')
                             ->options(function () {
                                 $existingTypes = $this->getOwnerRecord()->lessonTypes()->pluck('type')->toArray();
 
