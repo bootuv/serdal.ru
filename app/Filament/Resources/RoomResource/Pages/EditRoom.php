@@ -45,9 +45,6 @@ class EditRoom extends EditRecord
         return $data;
     }
 
-    protected string $originalSchedulesHash = '';
-    protected array $previousParticipantIds = [];
-
     protected function getSchedulesHash(array $schedules): string
     {
         $simplified = array_map(function ($s) {

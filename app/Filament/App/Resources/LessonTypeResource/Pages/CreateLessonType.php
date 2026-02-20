@@ -12,7 +12,7 @@ class CreateLessonType extends CreateRecord
 
     public function getTitle(): string
     {
-        return 'Создать цену';
+        return 'Создать базовую цену';
     }
 
     protected function mutateFormDataBeforeCreate(array $data): array
@@ -24,5 +24,10 @@ class CreateLessonType extends CreateRecord
     protected function getRedirectUrl(): string
     {
         return $this->getResource()::getUrl('index');
+    }
+
+    public static function canCreateAnother(): bool
+    {
+        return false;
     }
 }

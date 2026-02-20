@@ -85,47 +85,7 @@ class MeetingSessionResource extends Resource
                         return $record->started_at->diffForHumans($record->ended_at, true);
                     })
                     ->toggleable(),
-                Tables\Columns\TextColumn::make('session_cost')
-                    ->label('Стоимость занятия')
-                    ->state(function (MeetingSession $record) {
-                        // Use stored pricing snapshot if available (immutable historical data)
-                        if (isset($record->pricing_snapshot['total_cost'])) {
-                            return $record->pricing_snapshot['total_cost'];
-                        }
 
-                        // Fallback to dynamic calculation ONLY for old sessions without snapshot
-                        $room = $record->room;
-                        if (!$room)
-                            return 0;
-
-                        $lessonType = $room->user?->lessonTypes
-                                ?->where('type', $room->type)
-                            ->first();
-                        $paymentType = $lessonType?->payment_type ?? 'per_lesson';
-
-                        $total = 0;
-                        if ($paymentType === 'monthly') {
-                            foreach ($room->participants as $participant) {
-                                $total += $room->getEffectivePrice($participant->id) ?? 0;
-                            }
-                        } else {
-                            $analytics = $record->analytics_data ?? [];
-                            $participantsData = $analytics['participants'] ?? [];
-                            $attendedIds = collect($participantsData)
-                                ->pluck('user_id')
-                                ->map(fn($id) => (string) $id)
-                                ->toArray();
-
-                            foreach ($room->participants as $participant) {
-                                if (in_array((string) $participant->id, $attendedIds)) {
-                                    $total += $room->getEffectivePrice($participant->id) ?? 0;
-                                }
-                            }
-                        }
-                        return $total;
-                    })
-                    ->money('RUB')
-                    ->toggleable(),
             ])
             ->defaultSort('started_at', 'desc')
             ->filters([

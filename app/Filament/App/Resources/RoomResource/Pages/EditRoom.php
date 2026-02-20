@@ -102,16 +102,7 @@ class EditRoom extends EditRecord
         return md5(json_encode($simplified));
     }
 
-    protected function mutateFormDataBeforeSave(array $data): array
-    {
-        // If custom price is disabled, set base_price to null (so it falls back to lesson type price)
-        if (empty($data['custom_price_enabled'])) {
-            $data['base_price'] = null;
-        }
-        unset($data['custom_price_enabled']);
 
-        return $data;
-    }
 
     protected function beforeSave(): void
     {

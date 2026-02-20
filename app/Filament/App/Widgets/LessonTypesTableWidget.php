@@ -9,7 +9,7 @@ use Filament\Widgets\TableWidget as BaseWidget;
 
 class LessonTypesTableWidget extends BaseWidget
 {
-    protected static ?string $heading = 'Цены';
+    protected static ?string $heading = 'Базовые цены';
 
     protected int|string|array $columnSpan = 'full';
 
@@ -24,10 +24,10 @@ class LessonTypesTableWidget extends BaseWidget
         return $table
             ->query(LessonType::query()->where('user_id', auth()->id()))
 
-            ->modelLabel('Цена')
-            ->pluralModelLabel('Цены')
-            ->emptyStateHeading('Цены не добавлены')
-            ->emptyStateDescription('Добавьте хотя бы одну цену для старта.')
+            ->modelLabel('Базовая цена')
+            ->pluralModelLabel('Базовые цены')
+            ->emptyStateHeading('Базовые цены не добавлены')
+            ->emptyStateDescription('Добавьте хотя бы одну базовую цену для старта.')
             ->paginated(false)
             ->columns([
                 Tables\Columns\TextColumn::make('type')
@@ -47,16 +47,28 @@ class LessonTypesTableWidget extends BaseWidget
                         'monthly' => 'Помесячная',
                         default => $state,
                     }),
+                Tables\Columns\TextColumn::make('count_per_week')
+                    ->label('В неделю')
+                    ->suffix(' раз(а)')
+                    ->placeholder('-'),
             ])
             ->actions([
                 Tables\Actions\EditAction::make()
                     ->form([
                         \Filament\Forms\Components\Select::make('type')
                             ->label('Тип урока')
-                            ->options([
-                                LessonType::TYPE_INDIVIDUAL => 'Индивидуальный',
-                                LessonType::TYPE_GROUP => 'Групповой',
-                            ])
+                            ->options(function (?\App\Models\LessonType $record) {
+                                $existingTypesQuery = LessonType::where('user_id', auth()->id());
+                                if ($record) {
+                                    $existingTypesQuery->where('id', '!=', $record->id);
+                                }
+                                $existingTypes = $existingTypesQuery->pluck('type')->toArray();
+                                $types = [
+                                    LessonType::TYPE_INDIVIDUAL => 'Индивидуальный',
+                                    LessonType::TYPE_GROUP => 'Групповой',
+                                ];
+                                return array_diff_key($types, array_flip($existingTypes));
+                            })
                             ->required()
                             ->live()
                             ->afterStateUpdated(function ($state, \Filament\Forms\Set $set) {
@@ -69,7 +81,7 @@ class LessonTypesTableWidget extends BaseWidget
                         \Filament\Forms\Components\Grid::make(2)
                             ->schema([
                                 \Filament\Forms\Components\TextInput::make('price')
-                                    ->label('Цена за урок')
+                                    ->label(fn(\Filament\Forms\Get $get) => $get('payment_type') === 'monthly' ? 'Цена за месяц' : 'Цена за урок')
                                     ->numeric()
                                     ->required()
                                     ->prefix('₽'),
@@ -94,7 +106,7 @@ class LessonTypesTableWidget extends BaseWidget
                 Tables\Actions\CreateAction::make()
                     ->label('Добавить')
                     ->createAnother(false)
-                    ->modalHeading('Добавить цену')
+                    ->modalHeading('Добавить базовую цену')
                     ->visible(fn() => LessonType::where('user_id', auth()->id())->count() < 2)
                     ->form([
                         \Filament\Forms\Components\Select::make('type')
@@ -120,28 +132,31 @@ class LessonTypesTableWidget extends BaseWidget
                                     $set('payment_type', 'monthly');
                                 }
                             }),
-                        \Filament\Forms\Components\Grid::make(2)
-                            ->schema([
-                                \Filament\Forms\Components\TextInput::make('price')
-                                    ->label('Цена за урок')
-                                    ->numeric()
-                                    ->required()
-                                    ->prefix('₽'),
-                                \Filament\Forms\Components\Select::make('payment_type')
-                                    ->label('Тип оплаты')
-                                    ->options([
-                                        'per_lesson' => 'Поурочная оплата',
-                                        'monthly' => 'Помесячная оплата',
-                                    ])
-                                    ->default('per_lesson')
-                                    ->required()
-                                    ->selectablePlaceholder(false),
-                            ]),
+                        \Filament\Forms\Components\Select::make('payment_type')
+                            ->label('Тип оплаты')
+                            ->options([
+                                'per_lesson' => 'Поурочная оплата',
+                                'monthly' => 'Помесячная оплата',
+                            ])
+                            ->default('per_lesson')
+                            ->required()
+                            ->live()
+                            ->selectablePlaceholder(false),
+                        \Filament\Forms\Components\TextInput::make('price')
+                            ->label(fn(\Filament\Forms\Get $get) => $get('payment_type') === 'monthly' ? 'Цена за месяц' : 'Цена за урок')
+                            ->numeric()
+                            ->required()
+                            ->prefix('₽'),
+                        \Filament\Forms\Components\TextInput::make('count_per_week')
+                            ->label('Уроков в неделю')
+                            ->numeric()
+                            ->required(fn(\Filament\Forms\Get $get) => $get('payment_type') === 'monthly')
+                            ->visible(fn(\Filament\Forms\Get $get) => $get('payment_type') === 'monthly'),
                         \Filament\Forms\Components\TextInput::make('duration')
                             ->label('Длительность (мин)')
                             ->numeric()
                             ->required(),
-                    ])
+                    ])->columns(1)
                     ->mutateFormDataUsing(function (array $data): array {
                         $data['user_id'] = auth()->id();
                         return $data;

@@ -140,12 +140,12 @@
 }
 
 /* Separator before the profile and settings items in the main sidebar */
-.fi-sidebar-item:has(a[href*="lesson-types"]) {
+.fi-sidebar-item:has(a[href*="prices"]) {
     margin-top: 0.5rem !important;
     padding-top: 0.5rem !important;
     border-top: 1px solid rgb(229, 231, 235) !important;
 }
 
-.dark .fi-sidebar-item:has(a[href*="lesson-types"]) {
+.dark .fi-sidebar-item:has(a[href*="prices"]) {
     border-top-color: rgba(255, 255, 255, 0.1) !important;
 }

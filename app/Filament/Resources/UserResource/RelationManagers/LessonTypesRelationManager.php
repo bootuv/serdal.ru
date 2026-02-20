@@ -14,10 +14,10 @@ class LessonTypesRelationManager extends RelationManager
 {
     protected static string $relationship = 'lessonTypes';
 
-    protected static ?string $title = 'Цены';
+    protected static ?string $title = 'Базовые цены';
     protected static ?string $icon = 'heroicon-o-banknotes';
-    protected static ?string $modelLabel = 'Цена';
-    protected static ?string $pluralModelLabel = 'Цены';
+    protected static ?string $modelLabel = 'Базовая цена';
+    protected static ?string $pluralModelLabel = 'Базовые цены';
 
     public function form(Form $form): Form
     {
@@ -25,10 +25,18 @@ class LessonTypesRelationManager extends RelationManager
             ->schema([
                 Forms\Components\Select::make('type')
                     ->label('Тип урока')
-                    ->options([
-                        \App\Models\LessonType::TYPE_INDIVIDUAL => 'Индивидуальный',
-                        \App\Models\LessonType::TYPE_GROUP => 'Групповой',
-                    ])
+                    ->options(function (?\App\Models\LessonType $record, \Filament\Resources\RelationManagers\RelationManager $livewire) {
+                        $existingTypesQuery = $livewire->getOwnerRecord()->lessonTypes();
+                        if ($record) {
+                            $existingTypesQuery->where('id', '!=', $record->id);
+                        }
+                        $existingTypes = $existingTypesQuery->pluck('type')->toArray();
+                        $types = [
+                            \App\Models\LessonType::TYPE_INDIVIDUAL => 'Индивидуальный',
+                            \App\Models\LessonType::TYPE_GROUP => 'Групповой',
+                        ];
+                        return array_diff_key($types, array_flip($existingTypes));
+                    })
                     ->required()
                     ->live()
                     ->afterStateUpdated(function ($state, \Filament\Forms\Set $set) {
@@ -38,38 +46,41 @@ class LessonTypesRelationManager extends RelationManager
                             $set('payment_type', 'monthly');
                         }
                     }),
-                Forms\Components\Grid::make(2)
-                    ->schema([
-                        Forms\Components\TextInput::make('price')
-                            ->label('Цена за урок')
-                            ->numeric()
-                            ->required()
-                            ->prefix('₽'),
-                        Forms\Components\Select::make('payment_type')
-                            ->label('Тип оплаты')
-                            ->options([
-                                'per_lesson' => 'Поурочная оплата',
-                                'monthly' => 'Помесячная оплата',
-                            ])
-                            ->default('per_lesson')
-                            ->required()
-                            ->selectablePlaceholder(false),
-                    ]),
+                Forms\Components\Select::make('payment_type')
+                    ->label('Тип оплаты')
+                    ->options([
+                        'per_lesson' => 'Поурочная оплата',
+                        'monthly' => 'Помесячная оплата',
+                    ])
+                    ->default('per_lesson')
+                    ->required()
+                    ->live()
+                    ->selectablePlaceholder(false),
+                Forms\Components\TextInput::make('price')
+                    ->label(fn(\Filament\Forms\Get $get) => $get('payment_type') === 'monthly' ? 'Цена за месяц' : 'Цена за урок')
+                    ->numeric()
+                    ->required()
+                    ->prefix('₽'),
+                Forms\Components\TextInput::make('count_per_week')
+                    ->label('Уроков в неделю')
+                    ->numeric()
+                    ->required(fn(\Filament\Forms\Get $get) => $get('payment_type') === 'monthly')
+                    ->visible(fn(\Filament\Forms\Get $get) => $get('payment_type') === 'monthly'),
                 Forms\Components\TextInput::make('duration')
                     ->label('Длительность (мин)')
                     ->numeric()
                     ->required(),
-            ]);
+            ])->columns(1);
     }
 
     public function table(Table $table): Table
     {
         return $table
             ->recordTitleAttribute('type')
-            ->modelLabel('Цена')
-            ->pluralModelLabel('Цены')
-            ->emptyStateHeading('Цены не добавлены')
-            ->emptyStateDescription('Добавьте хотя бы одну цену для старта.')
+            ->modelLabel('Базовая цена')
+            ->pluralModelLabel('Базовые цены')
+            ->emptyStateHeading('Базовые цены не добавлены')
+            ->emptyStateDescription('Добавьте хотя бы одну базовую цену для старта.')
             ->paginated(false)
             ->columns([
                 Tables\Columns\TextColumn::make('type')
@@ -89,6 +100,10 @@ class LessonTypesRelationManager extends RelationManager
                         'monthly' => 'Помесячная',
                         default => $state,
                     }),
+                Tables\Columns\TextColumn::make('count_per_week')
+                    ->label('В неделю')
+                    ->suffix(' раз(а)')
+                    ->placeholder('-'),
             ])
             ->filters([
                 //
@@ -97,7 +112,7 @@ class LessonTypesRelationManager extends RelationManager
                 Tables\Actions\CreateAction::make()
                     ->label('Добавить')
                     ->createAnother(false)
-                    ->modalHeading('Добавить цену')
+                    ->modalHeading('Добавить базовую цену')
                     ->visible(fn() => $this->getOwnerRecord()->lessonTypes()->count() < 2)
                     ->form([
                         Forms\Components\Select::make('type')
@@ -121,23 +136,26 @@ class LessonTypesRelationManager extends RelationManager
                                     $set('payment_type', 'monthly');
                                 }
                             }),
-                        Forms\Components\Grid::make(2)
-                            ->schema([
-                                Forms\Components\TextInput::make('price')
-                                    ->label('Цена за урок')
-                                    ->numeric()
-                                    ->required()
-                                    ->prefix('₽'),
-                                Forms\Components\Select::make('payment_type')
-                                    ->label('Тип оплаты')
-                                    ->options([
-                                        'per_lesson' => 'Поурочная оплата',
-                                        'monthly' => 'Помесячная оплата',
-                                    ])
-                                    ->default('per_lesson')
-                                    ->required()
-                                    ->selectablePlaceholder(false),
-                            ]),
+                        Forms\Components\Select::make('payment_type')
+                            ->label('Тип оплаты')
+                            ->options([
+                                'per_lesson' => 'Поурочная оплата',
+                                'monthly' => 'Помесячная оплата',
+                            ])
+                            ->default('per_lesson')
+                            ->required()
+                            ->live()
+                            ->selectablePlaceholder(false),
+                        Forms\Components\TextInput::make('price')
+                            ->label(fn(\Filament\Forms\Get $get) => $get('payment_type') === 'monthly' ? 'Цена за месяц' : 'Цена за урок')
+                            ->numeric()
+                            ->required()
+                            ->prefix('₽'),
+                        Forms\Components\TextInput::make('count_per_week')
+                            ->label('Уроков в неделю')
+                            ->numeric()
+                            ->required(fn(\Filament\Forms\Get $get) => $get('payment_type') === 'monthly')
+                            ->visible(fn(\Filament\Forms\Get $get) => $get('payment_type') === 'monthly'),
                         Forms\Components\TextInput::make('duration')
                             ->label('Длительность (мин)')
                             ->numeric()

@@ -12,7 +12,7 @@ class EditLessonType extends EditRecord
 
     public function getTitle(): string
     {
-        return 'Редактировать цену';
+        return 'Редактировать базовую цену';
     }
 
     protected function getHeaderActions(): array

@@ -93,12 +93,12 @@
                       <div class="param-item-data">
                         <div class="price">
                           <div class="p24-medium">{{ $lessonTypeGroup->price }} ₽</div>
-                          <div class="p18">/ в месяц</div>
+                          <div class="p18">{{ $lessonTypeGroup->payment_type === 'monthly' ? '/ в месяц' : '/ за урок' }}</div>
                         </div>
                       </div>
                     </div>
                   @endif
-                  @if($lessonTypeGroup->count_per_week)
+                  @if($lessonTypeGroup->payment_type === 'monthly' && $lessonTypeGroup->count_per_week)
                     <div class="param-list-item">
                       <div class="param-item-label p18">Занятий в неделю</div>
                       <div class="param-item-data">
@@ -133,12 +133,12 @@
                       <div class="param-item-data">
                         <div class="price">
                           <div class="p24-medium">{{ $lessonTypeIndividual->price }} ₽</div>
-                          <div class="p18">/ за урок</div>
+                          <div class="p18">{{ $lessonTypeIndividual->payment_type === 'monthly' ? '/ в месяц' : '/ за урок' }}</div>
                         </div>
                       </div>
                     </div>
                   @endif
-                  @if($lessonTypeIndividual->count_per_week)
+                  @if($lessonTypeIndividual->payment_type === 'monthly' && $lessonTypeIndividual->count_per_week)
                     <div class="param-list-item">
                       <div class="param-item-label p18">Занятий в неделю</div>
                       <div class="param-item-data">
