@@ -97,47 +97,49 @@ class Onboarding extends Page implements HasForms, HasTable
                     ->visible(fn() => LessonType::where('user_id', Auth::id())->count() < 2)
                     ->modalHeading('Добавить базовую цену')
                     ->form([
-                        Forms\Components\Select::make('type')
-                            ->label('Тип урока')
-                            ->options(function () {
-                                $existingTypes = LessonType::where('user_id', Auth::id())
-                                    ->pluck('type')
-                                    ->toArray();
+                        Forms\Components\Grid::make(1)->schema([
+                            Forms\Components\Select::make('type')
+                                ->label('Тип урока')
+                                ->options(function () {
+                                    $existingTypes = LessonType::where('user_id', Auth::id())
+                                        ->pluck('type')
+                                        ->toArray();
 
-                                $types = [
-                                    LessonType::TYPE_INDIVIDUAL => 'Индивидуальный',
-                                    LessonType::TYPE_GROUP => 'Групповой',
-                                ];
+                                    $types = [
+                                        LessonType::TYPE_INDIVIDUAL => 'Индивидуальный',
+                                        LessonType::TYPE_GROUP => 'Групповой',
+                                    ];
 
-                                return array_diff_key($types, array_flip($existingTypes));
-                            })
-                            ->required()
-                            ->live()
-                            ->afterStateUpdated(function ($state, \Filament\Forms\Set $set) {
-                                if ($state === LessonType::TYPE_INDIVIDUAL) {
-                                    $set('payment_type', 'per_lesson');
-                                } elseif ($state === LessonType::TYPE_GROUP) {
-                                    $set('payment_type', 'monthly');
-                                }
-                            }),
-                        Forms\Components\Select::make('payment_type')
-                            ->label('Тип оплаты')
-                            ->options([
-                                'per_lesson' => 'Поурочная оплата',
-                                'monthly' => 'Помесячная оплата',
-                            ])
-                            ->default('per_lesson')
-                            ->required()
-                            ->live()
-                            ->selectablePlaceholder(false),
-                        Forms\Components\TextInput::make('price')->label(fn(\Filament\Forms\Get $get) => $get('payment_type') === 'monthly' ? 'Цена за месяц' : 'Цена за урок')->numeric()->suffix('₽')->required(),
-                        Forms\Components\TextInput::make('count_per_week')
-                            ->label('Уроков в неделю')
-                            ->numeric()
-                            ->required(fn(\Filament\Forms\Get $get) => $get('payment_type') === 'monthly')
-                            ->visible(fn(\Filament\Forms\Get $get) => $get('payment_type') === 'monthly'),
-                        Forms\Components\TextInput::make('duration')->label('Длительность')->numeric()->suffix('мин')->required(),
-                    ])->columns(1)
+                                    return array_diff_key($types, array_flip($existingTypes));
+                                })
+                                ->required()
+                                ->live()
+                                ->afterStateUpdated(function ($state, \Filament\Forms\Set $set) {
+                                    if ($state === LessonType::TYPE_INDIVIDUAL) {
+                                        $set('payment_type', 'per_lesson');
+                                    } elseif ($state === LessonType::TYPE_GROUP) {
+                                        $set('payment_type', 'monthly');
+                                    }
+                                }),
+                            Forms\Components\Select::make('payment_type')
+                                ->label('Тип оплаты')
+                                ->options([
+                                    'per_lesson' => 'Поурочная оплата',
+                                    'monthly' => 'Помесячная оплата',
+                                ])
+                                ->default('per_lesson')
+                                ->required()
+                                ->live()
+                                ->selectablePlaceholder(false),
+                            Forms\Components\TextInput::make('price')->label(fn(\Filament\Forms\Get $get) => $get('payment_type') === 'monthly' ? 'Цена за месяц' : 'Цена за урок')->numeric()->suffix('₽')->required(),
+                            Forms\Components\TextInput::make('count_per_week')
+                                ->label('Уроков в неделю')
+                                ->numeric()
+                                ->required(fn(\Filament\Forms\Get $get) => $get('payment_type') === 'monthly')
+                                ->visible(fn(\Filament\Forms\Get $get) => $get('payment_type') === 'monthly'),
+                            Forms\Components\TextInput::make('duration')->label('Длительность')->numeric()->suffix('мин')->required(),
+                        ]),
+                    ])
                     ->mutateFormDataUsing(function (array $data): array {
                         $data['user_id'] = Auth::id();
                         return $data;
@@ -166,47 +168,49 @@ class Onboarding extends Page implements HasForms, HasTable
             ])
             ->actions([
                 Tables\Actions\EditAction::make()->form([
-                    Forms\Components\Select::make('type')
-                        ->label('Тип урока')
-                        ->options(function (?\App\Models\LessonType $record) {
-                            $existingTypesQuery = LessonType::where('user_id', Auth::id());
-                            if ($record) {
-                                $existingTypesQuery->where('id', '!=', $record->id);
-                            }
-                            $existingTypes = $existingTypesQuery->pluck('type')->toArray();
-                            $types = [
-                                LessonType::TYPE_INDIVIDUAL => 'Индивидуальный',
-                                LessonType::TYPE_GROUP => 'Групповой',
-                            ];
-                            return array_diff_key($types, array_flip($existingTypes));
-                        })
-                        ->required()
-                        ->live()
-                        ->afterStateUpdated(function ($state, \Filament\Forms\Set $set) {
-                            if ($state === LessonType::TYPE_INDIVIDUAL) {
-                                $set('payment_type', 'per_lesson');
-                            } elseif ($state === LessonType::TYPE_GROUP) {
-                                $set('payment_type', 'monthly');
-                            }
-                        }),
-                    Forms\Components\Select::make('payment_type')
-                        ->label('Тип оплаты')
-                        ->options([
-                            'per_lesson' => 'Поурочная оплата',
-                            'monthly' => 'Помесячная оплата',
-                        ])
-                        ->default('per_lesson')
-                        ->required()
-                        ->live()
-                        ->selectablePlaceholder(false),
-                    Forms\Components\TextInput::make('price')->label(fn(\Filament\Forms\Get $get) => $get('payment_type') === 'monthly' ? 'Цена за месяц' : 'Цена за урок')->numeric()->suffix('₽')->required(),
-                    Forms\Components\TextInput::make('count_per_week')
-                        ->label('Уроков в неделю')
-                        ->numeric()
-                        ->required(fn(\Filament\Forms\Get $get) => $get('payment_type') === 'monthly')
-                        ->visible(fn(\Filament\Forms\Get $get) => $get('payment_type') === 'monthly'),
-                    Forms\Components\TextInput::make('duration')->label('Длительность')->numeric()->suffix('мин')->required(),
-                ])->columns(1),
+                    Forms\Components\Grid::make(1)->schema([
+                        Forms\Components\Select::make('type')
+                            ->label('Тип урока')
+                            ->options(function (?\App\Models\LessonType $record) {
+                                $existingTypesQuery = LessonType::where('user_id', Auth::id());
+                                if ($record) {
+                                    $existingTypesQuery->where('id', '!=', $record->id);
+                                }
+                                $existingTypes = $existingTypesQuery->pluck('type')->toArray();
+                                $types = [
+                                    LessonType::TYPE_INDIVIDUAL => 'Индивидуальный',
+                                    LessonType::TYPE_GROUP => 'Групповой',
+                                ];
+                                return array_diff_key($types, array_flip($existingTypes));
+                            })
+                            ->required()
+                            ->live()
+                            ->afterStateUpdated(function ($state, \Filament\Forms\Set $set) {
+                                if ($state === LessonType::TYPE_INDIVIDUAL) {
+                                    $set('payment_type', 'per_lesson');
+                                } elseif ($state === LessonType::TYPE_GROUP) {
+                                    $set('payment_type', 'monthly');
+                                }
+                            }),
+                        Forms\Components\Select::make('payment_type')
+                            ->label('Тип оплаты')
+                            ->options([
+                                'per_lesson' => 'Поурочная оплата',
+                                'monthly' => 'Помесячная оплата',
+                            ])
+                            ->default('per_lesson')
+                            ->required()
+                            ->live()
+                            ->selectablePlaceholder(false),
+                        Forms\Components\TextInput::make('price')->label(fn(\Filament\Forms\Get $get) => $get('payment_type') === 'monthly' ? 'Цена за месяц' : 'Цена за урок')->numeric()->suffix('₽')->required(),
+                        Forms\Components\TextInput::make('count_per_week')
+                            ->label('Уроков в неделю')
+                            ->numeric()
+                            ->required(fn(\Filament\Forms\Get $get) => $get('payment_type') === 'monthly')
+                            ->visible(fn(\Filament\Forms\Get $get) => $get('payment_type') === 'monthly'),
+                        Forms\Components\TextInput::make('duration')->label('Длительность')->numeric()->suffix('мин')->required(),
+                    ]),
+                ]),
                 Tables\Actions\DeleteAction::make(),
             ]);
     }
