@@ -176,7 +176,7 @@
                         <circle cx="12" cy="12" r="10" stroke-width="2" />
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01" />
                     </svg>
-                    <span>Создайте хотя бы один тип урока (индивидуальный или групповой)</span>
+                    <span>Добавьте хотя бы одну базовую цену (индивидуальную или групповую)</span>
                 </li>
                 <li class="pending">
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
