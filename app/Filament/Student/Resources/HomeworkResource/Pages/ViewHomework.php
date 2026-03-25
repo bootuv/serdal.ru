@@ -120,12 +120,6 @@ class ViewHomework extends ViewRecord
                         Infolists\Components\TextEntry::make('teacher.name')
                             ->label('Учитель'),
 
-                        Infolists\Components\TextEntry::make('type_label')
-                            ->label('Тип')
-                            ->badge()
-                            ->color(fn(Homework $record): string => $record->type_color)
-                            ->icon(fn(Homework $record): string => $record->type_icon),
-
                         Infolists\Components\TextEntry::make('room.name')
                             ->label('Урок')
                             ->placeholder('—'),
@@ -171,7 +165,9 @@ class ViewHomework extends ViewRecord
 
                         Infolists\Components\TextEntry::make('submission_grade')
                             ->label('Оценка')
-                            ->getStateUsing(fn() => $submission?->grade)
+                            ->getStateUsing(fn() => $submission?->grade !== null
+                                ? $this->record->formatGrade($submission->grade)
+                                : null)
                             ->placeholder('—')
                             ->size('lg')
                             ->weight('bold')

@@ -88,27 +88,15 @@ class Homework extends Model
     }
 
     /**
-     * Максимальный балл для типа (если не задан вручную)
-     */
-    public function getDefaultMaxScore(): int
-    {
-        return match ($this->type) {
-            self::TYPE_HOMEWORK => 10,
-            self::TYPE_EXAM, self::TYPE_PRACTICE => 100,
-            default => 10,
-        };
-    }
-
-    /**
-     * Получить максимальный балл (используя default если не задан)
+     * Получить максимальный балл
      */
     public function getEffectiveMaxScoreAttribute(): int
     {
-        return $this->max_score ?? $this->getDefaultMaxScore();
+        return $this->max_score ?? 10;
     }
 
     /**
-     * Формат отображения оценки
+     * Формат отображения оценки (всегда дробью)
      */
     public function formatGrade(?int $grade): string
     {
@@ -116,11 +104,7 @@ class Homework extends Model
             return '—';
         }
 
-        return match ($this->type) {
-            self::TYPE_HOMEWORK => (string) $grade,
-            self::TYPE_EXAM, self::TYPE_PRACTICE => "{$grade}/{$this->effective_max_score}",
-            default => (string) $grade,
-        };
+        return "{$grade}/{$this->effective_max_score}";
     }
 
     /**
@@ -128,11 +112,7 @@ class Homework extends Model
      */
     public function getGradeLabelAttribute(): string
     {
-        return match ($this->type) {
-            self::TYPE_HOMEWORK => 'Оценка',
-            self::TYPE_EXAM, self::TYPE_PRACTICE => 'Баллы',
-            default => 'Оценка',
-        };
+        return 'Баллы';
     }
 
     /**

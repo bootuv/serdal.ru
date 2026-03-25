@@ -50,13 +50,23 @@ class ViewHomeworkSubmission extends ViewRecord
                 ->color('primary')
                 ->visible(fn() => $this->record->status !== HomeworkSubmission::STATUS_REVISION_REQUESTED)
                 ->form([
-                    Forms\Components\TextInput::make('grade')
-                        ->label($this->record->homework->grade_label)
+                    Forms\Components\TextInput::make('max_score')
+                        ->label('Максимальный балл')
                         ->numeric()
                         ->required()
                         ->minValue(1)
-                        ->maxValue($this->record->homework->effective_max_score)
-                        ->suffix('/ ' . $this->record->homework->effective_max_score)
+                        ->maxValue(1000)
+                        ->default($this->record->homework->effective_max_score)
+                        ->live()
+                        ->helperText('Изменение обновит максимальный балл для всего задания'),
+
+                    Forms\Components\TextInput::make('grade')
+                        ->label('Балл ученика')
+                        ->numeric()
+                        ->required()
+                        ->minValue(1)
+                        ->maxValue(fn(Forms\Get $get) => (int) $get('max_score') ?: $this->record->homework->effective_max_score)
+                        ->suffix(fn(Forms\Get $get) => '/ ' . ((int) $get('max_score') ?: $this->record->homework->effective_max_score))
                         ->default($this->record->grade),
 
                     Forms\Components\RichEditor::make('feedback')
@@ -72,6 +82,10 @@ class ViewHomeworkSubmission extends ViewRecord
                         ->columnSpanFull(),
                 ])
                 ->action(function (array $data) {
+                    $this->record->homework->update([
+                        'max_score' => $data['max_score'],
+                    ]);
+
                     $this->record->update([
                         'grade' => $data['grade'],
                         'feedback' => $data['feedback'],
@@ -195,6 +209,7 @@ class ViewHomeworkSubmission extends ViewRecord
                     ->schema([
                         Infolists\Components\TextEntry::make('grade')
                             ->label('Оценка')
+                            ->formatStateUsing(fn($state) => $this->record->homework->formatGrade($state))
                             ->size('lg')
                             ->weight('bold')
                             ->color('success'),

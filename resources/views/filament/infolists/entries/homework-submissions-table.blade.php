@@ -59,7 +59,7 @@
                             <td class="py-3 px-3">
                                 @if($submission?->grade !== null)
                                     <span class="font-semibold text-lg text-primary-600 dark:text-primary-400">
-                                        {{ $submission->grade }}
+                                        {{ $homework->formatGrade($submission->grade) }}
                                     </span>
                                 @else
                                     <span class="text-gray-400">—</span>

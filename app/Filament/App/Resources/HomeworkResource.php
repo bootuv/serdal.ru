@@ -41,37 +41,19 @@ class HomeworkResource extends Resource
                                     ->required()
                                     ->maxLength(255),
 
-                                Forms\Components\Select::make('type')
-                                    ->label('Тип')
-                                    ->options(Homework::getTypes())
-                                    ->default(Homework::TYPE_HOMEWORK)
-                                    ->required()
-                                    ->native(false)
-                                    ->live()
-                                    ->afterStateUpdated(function ($state, Forms\Set $set) {
-                                        // Установить default max_score при смене типа
-                                        $defaultScore = match ($state) {
-                                            Homework::TYPE_HOMEWORK => 10,
-                                            Homework::TYPE_EXAM, Homework::TYPE_PRACTICE => 100,
-                                            default => 10,
-                                        };
-                                        $set('max_score', $defaultScore);
-                                    }),
+                                Forms\Components\TextInput::make('max_score')
+                                    ->label('Максимальный балл')
+                                    ->numeric()
+                                    ->default(fn() => \App\Models\Homework::where('teacher_id', auth()->id())
+                                        ->whereNotNull('max_score')
+                                        ->latest()
+                                        ->value('max_score') ?? 10)
+                                    ->minValue(1)
+                                    ->maxValue(1000),
                             ]),
 
-                        Forms\Components\TextInput::make('max_score')
-                            ->label(fn(Forms\Get $get) => match ($get('type')) {
-                                Homework::TYPE_HOMEWORK => 'Максимальная оценка',
-                                default => 'Максимальный балл',
-                            })
-                            ->numeric()
-                            ->default(10)
-                            ->minValue(1)
-                            ->maxValue(1000)
-                            ->visible(fn(Forms\Get $get) => in_array($get('type'), [
-                                Homework::TYPE_EXAM,
-                                Homework::TYPE_PRACTICE,
-                            ])),
+                        Forms\Components\Hidden::make('type')
+                            ->default(Homework::TYPE_HOMEWORK),
 
                         Forms\Components\RichEditor::make('description')
                             ->label('Описание задания')
@@ -195,12 +177,6 @@ class HomeworkResource extends Resource
                     ->searchable()
                     ->sortable()
                     ->limit(40),
-
-                Tables\Columns\TextColumn::make('type_label')
-                    ->label('Тип')
-                    ->badge()
-                    ->color(fn(Homework $record): string => $record->type_color)
-                    ->icon(fn(Homework $record): string => $record->type_icon),
 
                 Tables\Columns\TextColumn::make('room.name')
                     ->label('Урок')

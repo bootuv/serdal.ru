@@ -66,6 +66,9 @@ class HomeworkSubmissionResource extends Resource
 
                 Tables\Columns\TextColumn::make('grade')
                     ->label('Оценка')
+                    ->getStateUsing(fn(HomeworkSubmission $record) => $record->grade !== null
+                        ? $record->homework->formatGrade($record->grade)
+                        : null)
                     ->placeholder('—')
                     ->badge()
                     ->color('success'),

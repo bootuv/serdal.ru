@@ -34,12 +34,6 @@ class HomeworkResource extends Resource
                     ->sortable()
                     ->limit(50),
 
-                Tables\Columns\TextColumn::make('type_label')
-                    ->label('Тип')
-                    ->badge()
-                    ->color(fn(Homework $record): string => $record->type_color)
-                    ->icon(fn(Homework $record): string => $record->type_icon),
-
                 Tables\Columns\TextColumn::make('teacher.name')
                     ->label('Учитель')
                     ->sortable(),
@@ -88,7 +82,10 @@ class HomeworkResource extends Resource
                         $submission = $record->submissions()
                             ->where('student_id', auth()->id())
                             ->first();
-                        return $submission?->grade ?? '—';
+                        if ($submission?->grade === null) {
+                            return '—';
+                        }
+                        return $record->formatGrade($submission->grade);
                     })
                     ->badge()
                     ->color(fn($state) => $state !== '—' ? 'success' : 'gray'),
