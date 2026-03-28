@@ -1,95 +1,84 @@
-# Чеклист для деплоя на продакшн
+# Деплой Serdal
 
-## 1. Загрузка файлов
-- Загрузить все файлы проекта на сервер
-- Убедиться, что загружены новые файлы:
-  - `app/Filament/Pages/Auth/Login.php`
-  - `app/Http/Middleware/CheckUserActive.php`
-  - Миграции в `database/migrations/`
+## Сервер
 
-## 2. Установка зависимостей
+- **Путь**: `/var/www/serdal.ru`
+- **PHP**: 8.4
+- **BBB**: room.serdal.ru
 
-**ВАЖНО:** Если на сервере уже установлены зависимости, выполните:
+## Деплой
+
 ```bash
+cd /var/www/serdal.ru
+
+# 1. Получить изменения
+git pull origin main
+
+# 2. Зависимости (если изменились)
 composer install --no-dev --optimize-autoloader
-```
 
-**Если возникают конфликты версий:**
-```bash
-# Удалить composer.lock и vendor
-rm -rf vendor composer.lock
-
-# Установить заново
-composer install --no-dev --optimize-autoloader --ignore-platform-reqs
-```
-
-**Альтернатива (если есть проблемы с PHP версией):**
-```bash
-composer update --no-dev --optimize-autoloader --with-all-dependencies
-```
-
-## 3. Выполнение миграций
-```bash
+# 3. Миграции (если есть новые)
 php artisan migrate --force
-```
 
-Это добавит поля:
-- `is_active` (для публичности профиля)
-- `is_blocked` (для блокировки авторизации)
-
-## 4. Очистка кеша
-```bash
+# 4. Очистить и пересоздать кэш
 php artisan optimize:clear
 php artisan config:cache
 php artisan route:cache
 php artisan view:cache
+php artisan event:cache
+
+# 5. Перезапустить сервисы
+sudo systemctl restart php8.4-fpm
+sudo systemctl restart serdal-queue.service
+sudo systemctl restart serdal-reverb.service
+sudo systemctl restart serdal-pulse.service
 ```
 
-## 5. Установка прав доступа
+## Сервисы systemd
+
+| Сервис | Назначение |
+|--------|------------|
+| `php8.4-fpm` | PHP-FPM |
+| `serdal-queue.service` | Очередь Laravel (jobs, VK upload) |
+| `serdal-reverb.service` | WebSocket (чат, уведомления) |
+| `serdal-pulse.service` | Мониторинг |
+
+## Проверка статуса
+
+```bash
+sudo systemctl status serdal-queue serdal-reverb serdal-pulse php8.4-fpm
+sudo journalctl -u serdal-queue -f
+tail -f /var/www/serdal.ru/storage/logs/laravel.log
+```
+
+## Права доступа (если нужно)
+
 ```bash
 chmod -R 755 storage bootstrap/cache
 chown -R www-data:www-data storage bootstrap/cache
 ```
 
-## 6. Проверка .env
-Убедитесь, что в `.env` правильно настроены:
-- `APP_URL=https://serdal.ru`
-- `APP_ENV=production`
-- `APP_DEBUG=false`
-
-## 7. Перезапуск сервисов
-```bash
-# Если используется PHP-FPM
-sudo systemctl restart php8.2-fpm
-
-# Если используется очередь
-php artisan queue:restart
-```
-
-## 8. Проверка работоспособности
-- Откройте `/login` - должна открыться форма авторизации
-- Попробуйте войти
-- Проверьте редирект по ролям
-
 ## Возможные проблемы
 
 ### "Unable to find component"
-**Решение:**
 ```bash
 php artisan optimize:clear
 composer dump-autoload
 ```
 
 ### "Too many requests"
-**Решение:**
 ```bash
 php artisan cache:clear
 ```
-Подождите 1 минуту и попробуйте снова.
 
 ### Миграции не применяются
-**Решение:**
 ```bash
 php artisan migrate:status
 php artisan migrate --force
+```
+
+### Конфликт composer.lock
+```bash
+git checkout composer.lock
+composer install --no-dev --optimize-autoloader
 ```
