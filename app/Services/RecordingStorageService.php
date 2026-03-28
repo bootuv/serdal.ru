@@ -82,6 +82,49 @@ class RecordingStorageService
     }
 
     /**
+     * Upload a local file directly to S3
+     */
+    public function uploadLocalFileToS3(string $localFile, string $s3Path): ?string
+    {
+        try {
+            if (!$this->isConfigured()) {
+                return null;
+            }
+
+            Log::info('S3 Local Upload: Starting', ['size' => filesize($localFile), 'path' => $s3Path]);
+
+            $uploaded = Storage::disk('s3')->put(
+                $s3Path,
+                fopen($localFile, 'r'),
+                'public'
+            );
+
+            if (!$uploaded) {
+                Log::error('S3 Local Upload: Failed', ['path' => $s3Path]);
+                return null;
+            }
+
+            // Get public URL
+            $s3Url = rtrim(config('filesystems.disks.s3.url', ''), '/');
+            $root = config('filesystems.disks.s3.root');
+            if ($root) {
+                $s3Url .= '/' . trim($root, '/');
+            }
+            $s3Url .= '/' . ltrim($s3Path, '/');
+
+            Log::info('S3 Local Upload: Success', ['url' => $s3Url]);
+            return $s3Url;
+
+        } catch (\Exception $e) {
+            Log::error('S3 Local Upload: Exception', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            return null;
+        }
+    }
+
+    /**
      * Delete recording from S3
      */
     public function deleteFromS3(string $s3Url): bool
