@@ -23,6 +23,8 @@ class Recording extends Model
         'vk_video_url',
         'vk_access_key',
         'vk_uploaded_at',
+        's3_url',
+        's3_uploaded_at',
     ];
 
     protected $casts = [
@@ -31,10 +33,30 @@ class Recording extends Model
         'end_time' => 'datetime',
         'raw_data' => 'array',
         'vk_uploaded_at' => 'datetime',
+        's3_uploaded_at' => 'datetime',
     ];
 
     public function room()
     {
         return $this->belongsTo(Room::class, 'meeting_id', 'meeting_id');
+    }
+
+    protected static function booted()
+    {
+        static::deleted(function ($recording) {
+            // Delete from S3 if URL exists
+            if (!empty($recording->s3_url)) {
+                try {
+                    $storageService = app(\App\Services\RecordingStorageService::class);
+                    $storageService->deleteFromS3($recording->s3_url);
+                } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::error('Failed to delete S3 recording on model deletion', [
+                        'recording_id' => $recording->id,
+                        's3_url' => $recording->s3_url,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+        });
     }
 }

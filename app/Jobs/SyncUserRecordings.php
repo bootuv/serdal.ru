@@ -111,18 +111,14 @@ class SyncUserRecordings implements ShouldQueue
                         ->where('record_id', 'like', '%-placeholder-%')
                         ->delete();
 
-                    // Dispatch VK upload if enabled and not yet uploaded
-                    $vkAutoUpload = Setting::where('key', 'vk_auto_upload')->value('value') === '1';
+                    // Dispatch S3 upload if enabled and not yet uploaded
+                    $autoUpload = Setting::where('key', 'recording_auto_upload')->value('value') === '1';
                     $isRecent = $recording->start_time && \Carbon\Carbon::parse($recording->start_time)->gt(now()->subHours(2));
 
-                    if ($vkAutoUpload && !$recording->vk_video_id && $recording->url && $isRecent) {
+                    if ($autoUpload && !$recording->s3_url && !$recording->vk_video_id && $recording->url && $isRecent) {
                         $room = Room::where('meeting_id', $r['meetingID'])->first();
                         if ($room && $room->user) {
-                            // Check purely by ID/creation to avoid loop. 
-                            // The existing job handles idempotency? Assume yes or checks vk_video_id.
-                            // We only dispatch if we just created or updated and it's missing vk_video_id.
-                            // To be safe, we rely on the check above.
-                            UploadRecordingToVk::dispatch($recording, $room->user);
+                            UploadRecordingToStorage::dispatch($recording, $room->user);
                         }
                     }
                 }
@@ -133,6 +129,7 @@ class SyncUserRecordings implements ShouldQueue
             Recording::whereIn('meeting_id', $userRoomIds)
                 ->whereNotIn('record_id', $bbbRecordIds)
                 ->whereNull('vk_video_id')
+                ->whereNull('s3_url')
                 ->where('record_id', 'not like', '%-placeholder-%')
                 ->delete();
 

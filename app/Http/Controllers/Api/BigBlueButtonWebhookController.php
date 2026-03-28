@@ -247,15 +247,15 @@ class BigBlueButtonWebhookController extends Controller
         // Broadcast recording update
         \App\Events\RecordingUpdated::dispatch($recording);
 
-        // Check if VK auto-upload is enabled
-        $vkAutoUpload = \App\Models\Setting::where('key', 'vk_auto_upload')->value('value') === '1';
+        // Check if S3 auto-upload is enabled
+        $autoUpload = \App\Models\Setting::where('key', 'recording_auto_upload')->value('value') === '1';
 
-        if ($vkAutoUpload && !$recording->vk_video_id && $recording->url) {
+        if ($autoUpload && !$recording->s3_url && $recording->url) {
             $teacher = $room->user; // Room owner is the teacher
 
             if ($teacher) {
-                \App\Jobs\UploadRecordingToVk::dispatch($recording, $teacher);
-                Log::info('BBB Webhook (publish_ended): VK upload job dispatched', [
+                \App\Jobs\UploadRecordingToStorage::dispatch($recording, $teacher);
+                Log::info('BBB Webhook (publish_ended): Storage upload job dispatched', [
                     'recording_id' => $recording->id,
                     'teacher' => $teacher->name
                 ]);
