@@ -97,14 +97,21 @@ class SyncUserRecordings implements ShouldQueue
                     // Determine best playback URL (prefer video if mp4 exists)
                     $playbackUrl = $this->getBestPlaybackUrl($r['playback'] ?? []);
 
+                    Log::info('SyncUserRecordings: Searching DB for record', ['record_id' => $recordID]);
+                    
                     $recording = Recording::withTrashed()->where('record_id', $recordID)->first();
 
                     if ($recording) {
+                        Log::info('SyncUserRecordings: Found existing record in DB', [
+                            'id' => $recording->id, 
+                            'trashed' => $recording->trashed()
+                        ]);
                         if ($recording->trashed()) {
                             Log::info('SyncUserRecordings: Skipping softly deleted record', ['record_id' => $recordID]);
                             continue;
                         }
                     } else {
+                        Log::warning('SyncUserRecordings: Not found in DB, attempting to insert new', ['record_id' => $recordID]);
                         $recording = new Recording(['record_id' => $recordID]);
                     }
 
@@ -119,7 +126,17 @@ class SyncUserRecordings implements ShouldQueue
                         // Ensure raw_data is a clean array without SimpleXMLElements for JSON cast
                         'raw_data' => json_decode(json_encode($r), true),
                     ]);
-                    $recording->save();
+                    
+                    try {
+                        Log::info('SyncUserRecordings: Saving record', ['record_id' => $recordID, 'exists' => $recording->exists]);
+                        $recording->save();
+                    } catch (\Exception $e) {
+                        Log::error('SyncUserRecordings: Save failed', [
+                            'record_id' => $recordID,
+                            'error' => $e->getMessage()
+                        ]);
+                        throw $e;
+                    }
 
                     // Cleanup placeholder if exists
                     Recording::where('meeting_id', $r['meetingID'])
