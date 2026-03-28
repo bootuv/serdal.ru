@@ -59,12 +59,9 @@ class SyncUserRecordings implements ShouldQueue
                 return;
             }
 
-            // Get both published and processing recordings from BBB
-            // Note: We get ALL recordings and filter in PHP because filtering by multiple meetingIDs 
-            // via simple API call can be tricky depending on API version/wrapper. 
-            // If the wrapper supports array, we could try passing meetingID parameter.
-            // For now, keeping original logic which was getting 'any' state.
-            $response = Bigbluebutton::getRecordings(['state' => 'any']);
+            // Get 'published' and 'processing' recordings from BBB.
+            // Exclude 'deleted' and 'unpublished' so they don't reappear after being removed.
+            $response = Bigbluebutton::getRecordings(['state' => 'published,processing']);
             $recs = collect($response);
 
             Log::info('SyncUserRecordings: Raw response count', ['count' => $recs->count(), 'user_id' => $this->user->id]);
@@ -80,10 +77,10 @@ class SyncUserRecordings implements ShouldQueue
                     $startTime = isset($r['startTime']) ? \Carbon\Carbon::createFromTimestamp($r['startTime'] / 1000) : null;
 
                     // Filter out "zombie" recordings:
-                    // 1. If state is 'deleted'
+                    // 1. If state is 'deleted' or 'unpublished'
                     // 2. If not published AND older than 24 hours (stuck processing)
                     $state = $r['state'] ?? 'unknown';
-                    if ($state === 'deleted' || (!$isPublished && (!$startTime || $startTime->lt(now()->subHours(24))))) {
+                    if (in_array($state, ['deleted', 'unpublished']) || (!$isPublished && (!$startTime || $startTime->lt(now()->subHours(24))))) {
                         continue;
                     }
 
