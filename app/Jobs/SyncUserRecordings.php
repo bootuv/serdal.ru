@@ -89,19 +89,23 @@ class SyncUserRecordings implements ShouldQueue
                     // Determine best playback URL (prefer video if mp4 exists)
                     $playbackUrl = $this->getBestPlaybackUrl($r['playback'] ?? []);
 
-                    $recording = Recording::updateOrCreate(
-                        ['record_id' => $r['recordID']],
-                        [
-                            'meeting_id' => $r['meetingID'],
-                            'name' => $r['name'],
-                            'published' => $isPublished,
-                            'start_time' => $startTime,
-                            'end_time' => isset($r['endTime']) ? \Carbon\Carbon::createFromTimestamp($r['endTime'] / 1000) : null,
-                            'participants' => $r['participants'] ?? 0,
-                            'url' => $playbackUrl ? trim($playbackUrl) : null,
-                            'raw_data' => $r,
-                        ]
-                    );
+                    $recording = Recording::withTrashed()->firstOrNew(['record_id' => $r['recordID']]);
+                    if ($recording->trashed()) {
+                        Log::info('SyncUserRecordings: Skipping softly deleted record', ['record_id' => $r['recordID']]);
+                        continue;
+                    }
+
+                    $recording->fill([
+                        'meeting_id' => $r['meetingID'],
+                        'name' => $r['name'],
+                        'published' => $isPublished,
+                        'start_time' => $startTime,
+                        'end_time' => isset($r['endTime']) ? \Carbon\Carbon::createFromTimestamp($r['endTime'] / 1000) : null,
+                        'participants' => $r['participants'] ?? 0,
+                        'url' => $playbackUrl ? trim($playbackUrl) : null,
+                        'raw_data' => $r,
+                    ]);
+                    $recording->save();
 
                     // Cleanup placeholder if exists
                     Recording::where('meeting_id', $r['meetingID'])
