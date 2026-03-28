@@ -84,7 +84,7 @@ class VkVideoService
             }
 
             // Download using sink to save directly to file implies minimal memory usage
-            $dlResponse = Http::sink($tempPath)->get($videoUrl);
+            $dlResponse = Http::timeout(300)->connectTimeout(30)->sink($tempPath)->get($videoUrl);
 
             if ($dlResponse->failed()) {
                 Log::error('VK Video: Failed to download video file', ['status' => $dlResponse->status()]);
@@ -94,7 +94,7 @@ class VkVideoService
             Log::info('VK Video: File downloaded, uploading to VK...', ['size' => filesize($tempPath)]);
 
             // Step 3: Upload file to VK
-            $uploadResponse = Http::attach(
+            $uploadResponse = Http::timeout(600)->connectTimeout(30)->attach(
                 'video_file',
                 fopen($tempPath, 'r'),
                 'video.mp4'
@@ -102,8 +102,12 @@ class VkVideoService
 
             $uploadData = $uploadResponse->json();
 
-            if (isset($uploadData['error']) || isset($uploadData['error_code'])) {
-                Log::error('VK Video: Upload failed', ['response' => $uploadData]);
+            if ($uploadResponse->failed() || empty($uploadData) || isset($uploadData['error']) || isset($uploadData['error_code'])) {
+                Log::error('VK Video: Upload failed', [
+                    'http_status' => $uploadResponse->status(),
+                    'response' => $uploadData,
+                    'response_body' => $uploadResponse->body(),
+                ]);
                 return null;
             }
 
