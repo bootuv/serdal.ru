@@ -147,7 +147,7 @@ class SyncUserRecordings implements ShouldQueue
                     $autoUpload = Setting::where('key', 'recording_auto_upload')->value('value') === '1';
                     $isRecent = $recording->start_time && \Carbon\Carbon::parse($recording->start_time)->gt(now()->subHours(2));
 
-                    if ($autoUpload && !$recording->s3_url && !$recording->vk_video_id && $recording->url && $isRecent) {
+                    if ($autoUpload && !$recording->s3_url && $recording->url && $isRecent) {
                         $room = Room::where('meeting_id', $r['meetingID'])->first();
                         if ($room && $room->user) {
                             UploadRecordingToStorage::dispatch($recording, $room->user);
@@ -157,10 +157,9 @@ class SyncUserRecordings implements ShouldQueue
             }
 
             // Delete local recordings that no longer exist on BBB
-            // But preserve VK-uploaded ones and recent placeholders
+            // But preserve S3-uploaded ones and recent placeholders
             Recording::whereIn('meeting_id', $userRoomIds)
                 ->whereNotIn('record_id', $bbbRecordIds)
-                ->whereNull('vk_video_id')
                 ->whereNull('s3_url')
                 ->where('record_id', 'not like', '%-placeholder-%')
                 ->delete();

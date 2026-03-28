@@ -47,30 +47,5 @@ class ViewRecording extends Page
         ];
     }
 
-    /**
-     * Get VK embed URL from the video URL
-     */
-    public function getVkEmbedUrl(): ?string
-    {
-        if (empty($this->record->vk_video_url)) {
-            return null;
-        }
 
-        // Parse URL like https://vk.com/video-235411509_456239023
-        if (preg_match('/video(-?\d+)_(\d+)/', $this->record->vk_video_url, $matches)) {
-            $ownerId = $matches[1];
-            $videoId = $matches[2];
-
-            $embedUrl = "https://vk.com/video_ext.php?oid={$ownerId}&id={$videoId}&hd=2&autoplay=0";
-
-            // Add access key for private videos
-            if (!empty($this->record->vk_access_key)) {
-                $embedUrl .= "&hash={$this->record->vk_access_key}";
-            }
-
-            return $embedUrl;
-        }
-
-        return null;
-    }
 }

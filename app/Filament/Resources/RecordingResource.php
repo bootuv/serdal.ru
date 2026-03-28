@@ -60,7 +60,7 @@ class RecordingResource extends Resource
                     ->label('Статус')
                     ->badge()
                     ->getStateUsing(function (Recording $record) {
-                        if (!empty($record->s3_url) || !empty($record->vk_video_url)) {
+                        if (!empty($record->s3_url)) {
                             return 'Готово';
                         } elseif (!empty($record->url) && str_contains($record->url, '/playback/video/')) {
                             return 'Загрузка';
@@ -183,7 +183,7 @@ class RecordingResource extends Resource
                     ->icon('heroicon-m-play')
                     ->color('success')
                     ->url(fn(Recording $record) => static::getUrl('view', ['record' => $record]))
-                    ->visible(fn(Recording $record) => !empty($record->s3_url) || !empty($record->vk_video_url)),
+                    ->visible(fn(Recording $record) => !empty($record->s3_url)),
 
                 Tables\Actions\Action::make('open_bbb')
                     ->label('Открыть в BBB')
@@ -191,7 +191,7 @@ class RecordingResource extends Resource
                     ->color('gray')
                     ->url(fn(Recording $record) => $record->url)
                     ->openUrlInNewTab()
-                    ->visible(fn(Recording $record) => empty($record->s3_url) && empty($record->vk_video_url) && !empty($record->url)),
+                    ->visible(fn(Recording $record) => empty($record->s3_url) && !empty($record->url)),
 
                 Tables\Actions\DeleteAction::make()
                     ->before(function (Recording $record) {

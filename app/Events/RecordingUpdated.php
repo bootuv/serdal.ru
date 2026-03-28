@@ -17,16 +17,16 @@ class RecordingUpdated implements ShouldBroadcast
     public int $recordingId;
     public string $meetingId;
     public string $status;
-    public ?string $vkVideoUrl;
+    public ?string $s3Url;
 
     public function __construct(Recording $recording)
     {
         $this->recordingId = $recording->id;
         $this->meetingId = $recording->meeting_id;
-        $this->vkVideoUrl = $recording->vk_video_url;
+        $this->s3Url = $recording->s3_url;
 
         // Determine status
-        if (!empty($recording->vk_video_url)) {
+        if (!empty($recording->s3_url)) {
             $this->status = 'ready';
         } elseif (!empty($recording->url)) {
             $this->status = 'uploading';

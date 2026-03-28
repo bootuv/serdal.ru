@@ -21,10 +21,6 @@ class Recording extends Model
         'participants',
         'url',
         'raw_data',
-        'vk_video_id',
-        'vk_video_url',
-        'vk_access_key',
-        'vk_uploaded_at',
         's3_url',
         's3_uploaded_at',
     ];
@@ -34,7 +30,6 @@ class Recording extends Model
         'start_time' => 'datetime',
         'end_time' => 'datetime',
         'raw_data' => 'array',
-        'vk_uploaded_at' => 'datetime',
         's3_uploaded_at' => 'datetime',
     ];
 
