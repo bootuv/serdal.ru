@@ -101,7 +101,7 @@ class SyncUserRecordings implements ShouldQueue
                             'start_time' => $startTime,
                             'end_time' => isset($r['endTime']) ? \Carbon\Carbon::createFromTimestamp($r['endTime'] / 1000) : null,
                             'participants' => $r['participants'] ?? 0,
-                            'url' => $playbackUrl,
+                            'url' => $playbackUrl ? trim($playbackUrl) : null,
                             'raw_data' => $r,
                         ]
                     );
