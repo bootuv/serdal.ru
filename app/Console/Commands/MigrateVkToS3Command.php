@@ -54,16 +54,20 @@ class MigrateVkToS3Command extends Command
         $bar = $this->output->createProgressBar($recordings->count());
 
         foreach ($recordings as $recording) {
-            MigrateVkRecordingToS3::dispatch($recording);
+            $this->newLine();
+            $this->info("   Downloading ID " . $recording->id . "...");
+            try {
+                MigrateVkRecordingToS3::dispatchSync($recording);
+            } catch (\Exception $e) {
+                $this->error("Failed on " . $recording->id . ": " . $e->getMessage());
+            }
             $bar->advance();
         }
 
         $bar->finish();
         
         $this->newLine(2);
-        $this->info("Successfully dispatched {$recordings->count()} jobs to the queue.");
-        $this->info("Make sure your queue worker is running: php artisan queue:work --timeout=7200");
-        $this->info("You also need yt-dlp installed on the server.");
+        $this->info("Successfully processed {$recordings->count()} recordings directly in the terminal.");
 
         return 0;
     }

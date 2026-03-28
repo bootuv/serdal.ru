@@ -55,11 +55,20 @@ class MigrateVkRecordingToS3 implements ShouldQueue
         $outputPathPattern = escapeshellarg($tempFilePathPattern);
 
         // Download format explicitly
-        $command = "yt-dlp -f 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best' -o {$outputPathPattern} {$vkUrl}";
+        $command = "yt-dlp --no-cache-dir -f 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best' -o {$outputPathPattern} {$vkUrl}";
         
         Log::info('MigrateVkToS3: Downloading from VK via yt-dlp', ['command' => $command]);
         
-        $output = shell_exec($command . " 2>&1");
+        $output = '';
+        if (app()->runningInConsole()) {
+            echo "\n-> Starting yt-dlp streaming download...\n";
+            passthru($command, $resultCode);
+            if ($resultCode !== 0) {
+                $output = "Command failed with exit code {$resultCode}";
+            }
+        } else {
+            $output = shell_exec($command . " 2>&1");
+        }
         
         // Find the actual exported file (since extension might vary e.g. .mp4, .mkv, .webm)
         $downloadedFiles = glob($tempDir . '/' . $tempFileName . '.*');
