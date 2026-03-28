@@ -71,39 +71,48 @@ class SyncUserRecordings implements ShouldQueue
 
             foreach ($recs as $rec) {
                 $r = (array) $rec;
+                
+                $meetingID = (string) $r['meetingID'];
+                $recordID = (string) $r['recordID'];
+                $name = (string) $r['name'];
+                $publishedStr = (string) ($r['published'] ?? 'false');
+                $state = (string) ($r['state'] ?? 'unknown');
+                $startTimeRaw = (string) ($r['startTime'] ?? '');
+                $endTimeRaw = (string) ($r['endTime'] ?? '');
+
                 // Only import if it belongs to one of our rooms
-                if (in_array($r['meetingID'], $userRoomIds)) {
-                    $isPublished = ($r['published'] === 'true' || $r['published'] === true);
-                    $startTime = isset($r['startTime']) ? \Carbon\Carbon::createFromTimestamp($r['startTime'] / 1000) : null;
+                if (in_array($meetingID, $userRoomIds)) {
+                    $isPublished = ($publishedStr === 'true' || $publishedStr === '1');
+                    $startTime = $startTimeRaw ? \Carbon\Carbon::createFromTimestamp($startTimeRaw / 1000) : null;
 
                     // Filter out "zombie" recordings:
                     // 1. If state is 'deleted' or 'unpublished'
                     // 2. If not published AND older than 24 hours (stuck processing)
-                    $state = $r['state'] ?? 'unknown';
                     if (in_array($state, ['deleted', 'unpublished']) || (!$isPublished && (!$startTime || $startTime->lt(now()->subHours(24))))) {
                         continue;
                     }
 
-                    $bbbRecordIds[] = $r['recordID'];
+                    $bbbRecordIds[] = $recordID;
 
                     // Determine best playback URL (prefer video if mp4 exists)
                     $playbackUrl = $this->getBestPlaybackUrl($r['playback'] ?? []);
 
-                    $recording = Recording::withTrashed()->firstOrNew(['record_id' => $r['recordID']]);
+                    $recording = Recording::withTrashed()->firstOrNew(['record_id' => $recordID]);
                     if ($recording->trashed()) {
-                        Log::info('SyncUserRecordings: Skipping softly deleted record', ['record_id' => $r['recordID']]);
+                        Log::info('SyncUserRecordings: Skipping softly deleted record', ['record_id' => $recordID]);
                         continue;
                     }
 
                     $recording->fill([
-                        'meeting_id' => $r['meetingID'],
-                        'name' => $r['name'],
+                        'meeting_id' => $meetingID,
+                        'name' => $name,
                         'published' => $isPublished,
                         'start_time' => $startTime,
-                        'end_time' => isset($r['endTime']) ? \Carbon\Carbon::createFromTimestamp($r['endTime'] / 1000) : null,
-                        'participants' => $r['participants'] ?? 0,
+                        'end_time' => $endTimeRaw ? \Carbon\Carbon::createFromTimestamp($endTimeRaw / 1000) : null,
+                        'participants' => (int) ((string) ($r['participants'] ?? '0')),
                         'url' => $playbackUrl ? trim($playbackUrl) : null,
-                        'raw_data' => $r,
+                        // Ensure raw_data is a clean array without SimpleXMLElements for JSON cast
+                        'raw_data' => json_decode(json_encode($r), true),
                     ]);
                     $recording->save();
 
