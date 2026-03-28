@@ -72,13 +72,13 @@ class SyncUserRecordings implements ShouldQueue
             foreach ($recs as $rec) {
                 $r = (array) $rec;
                 
-                $meetingID = (string) $r['meetingID'];
-                $recordID = (string) $r['recordID'];
-                $name = (string) $r['name'];
-                $publishedStr = (string) ($r['published'] ?? 'false');
-                $state = (string) ($r['state'] ?? 'unknown');
-                $startTimeRaw = (string) ($r['startTime'] ?? '');
-                $endTimeRaw = (string) ($r['endTime'] ?? '');
+                $meetingID = trim((string) $r['meetingID']);
+                $recordID = trim((string) $r['recordID']);
+                $name = trim((string) $r['name']);
+                $publishedStr = trim((string) ($r['published'] ?? 'false'));
+                $state = trim((string) ($r['state'] ?? 'unknown'));
+                $startTimeRaw = trim((string) ($r['startTime'] ?? ''));
+                $endTimeRaw = trim((string) ($r['endTime'] ?? ''));
 
                 // Only import if it belongs to one of our rooms
                 if (in_array($meetingID, $userRoomIds)) {
@@ -97,10 +97,15 @@ class SyncUserRecordings implements ShouldQueue
                     // Determine best playback URL (prefer video if mp4 exists)
                     $playbackUrl = $this->getBestPlaybackUrl($r['playback'] ?? []);
 
-                    $recording = Recording::withTrashed()->firstOrNew(['record_id' => $recordID]);
-                    if ($recording->trashed()) {
-                        Log::info('SyncUserRecordings: Skipping softly deleted record', ['record_id' => $recordID]);
-                        continue;
+                    $recording = Recording::withTrashed()->where('record_id', $recordID)->first();
+
+                    if ($recording) {
+                        if ($recording->trashed()) {
+                            Log::info('SyncUserRecordings: Skipping softly deleted record', ['record_id' => $recordID]);
+                            continue;
+                        }
+                    } else {
+                        $recording = new Recording(['record_id' => $recordID]);
                     }
 
                     $recording->fill([
@@ -109,7 +114,7 @@ class SyncUserRecordings implements ShouldQueue
                         'published' => $isPublished,
                         'start_time' => $startTime,
                         'end_time' => $endTimeRaw ? \Carbon\Carbon::createFromTimestamp($endTimeRaw / 1000) : null,
-                        'participants' => (int) ((string) ($r['participants'] ?? '0')),
+                        'participants' => (int) trim((string) ($r['participants'] ?? '0')),
                         'url' => $playbackUrl ? trim($playbackUrl) : null,
                         // Ensure raw_data is a clean array without SimpleXMLElements for JSON cast
                         'raw_data' => json_decode(json_encode($r), true),
