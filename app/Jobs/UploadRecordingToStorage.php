@@ -55,8 +55,9 @@ class UploadRecordingToStorage implements ShouldQueue
             return;
         }
 
-        // Build video file URL
-        $videoUrl = rtrim(trim($this->recording->url), '/') . '/video-0.m4v';
+        // Build video file URL - strip ALL whitespace/newlines from URL just in case
+        $cleanUrl = preg_replace('/\s+/', '', $this->recording->url);
+        $videoUrl = rtrim($cleanUrl, '/') . '/video-0.m4v';
 
         if (empty($videoUrl)) {
             Log::warning('S3 Recording: No video URL', ['recording_id' => $this->recording->id]);
