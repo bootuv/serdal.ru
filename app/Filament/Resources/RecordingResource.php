@@ -101,29 +101,62 @@ class RecordingResource extends Resource
                                 ]);
                             }
 
-                            // Fetch ALL
-                            $response = Bigbluebutton::getRecordings(['state' => 'any']);
+                            // Fetch ALL - skip deleted & unpublished
+                            $response = Bigbluebutton::getRecordings(['state' => 'published,processing']);
                             $recs = collect($response);
 
                             $count = 0;
                             foreach ($recs as $rec) {
                                 $r = (array) $rec;
-                                Recording::updateOrCreate(
-                                    ['record_id' => $r['recordID']],
-                                    [
-                                        'meeting_id' => $r['meetingID'],
-                                        'name' => $r['name'],
-                                        'published' => $r['published'] === 'true' || $r['published'] === true,
-                                        'start_time' => isset($r['startTime']) ? \Carbon\Carbon::createFromTimestamp($r['startTime'] / 1000) : null,
-                                        'end_time' => isset($r['endTime']) ? \Carbon\Carbon::createFromTimestamp($r['endTime'] / 1000) : null,
-                                        'participants' => $r['participants'] ?? 0,
-                                        'url' => isset($r['playback']['format']['url']) ? $r['playback']['format']['url'] : (isset($r['playback']['format'][0]['url']) ? $r['playback']['format'][0]['url'] : null),
-                                        'raw_data' => $r,
-                                    ]
-                                );
+
+                                $meetingID = trim((string) $r['meetingID']);
+                                $recordID = trim((string) $r['recordID']);
+                                $name = trim((string) $r['name']);
+                                $publishedStr = trim((string) ($r['published'] ?? 'false'));
+                                $state = trim((string) ($r['state'] ?? 'unknown'));
+                                $startTimeRaw = trim((string) ($r['startTime'] ?? ''));
+                                $endTimeRaw = trim((string) ($r['endTime'] ?? ''));
+
+                                $isPublished = ($publishedStr === 'true' || $publishedStr === '1');
+                                $startTime = $startTimeRaw ? \Carbon\Carbon::createFromTimestamp($startTimeRaw / 1000) : null;
+
+                                // Filter out "zombie" recordings
+                                if (in_array($state, ['deleted', 'unpublished']) || (!$isPublished && (!$startTime || $startTime->lt(now()->subHours(24))))) {
+                                    continue;
+                                }
+
+                                $recording = Recording::withTrashed()->where('record_id', $recordID)->first();
+
+                                if ($recording) {
+                                    if ($recording->trashed()) {
+                                        continue;
+                                    }
+                                } else {
+                                    $recording = new Recording(['record_id' => $recordID]);
+                                }
+
+                                $urlFormat = $r['playback']['format'] ?? [];
+                                $url = null;
+                                if (isset($urlFormat['url'])) {
+                                    $url = $urlFormat['url'];
+                                } elseif (isset($urlFormat[0]['url'])) {
+                                    $url = $urlFormat[0]['url'];
+                                }
+
+                                $recording->fill([
+                                    'meeting_id' => $meetingID,
+                                    'name' => $name,
+                                    'published' => $isPublished,
+                                    'start_time' => $startTime,
+                                    'end_time' => $endTimeRaw ? \Carbon\Carbon::createFromTimestamp($endTimeRaw / 1000) : null,
+                                    'participants' => (int) trim((string) ($r['participants'] ?? '0')),
+                                    'url' => $url ? trim((string) $url) : null,
+                                    'raw_data' => json_decode(json_encode($r), true),
+                                ]);
+                                $recording->save();
 
                                 // Cleanup placeholder if exists for this meeting
-                                Recording::where('meeting_id', $r['meetingID'])
+                                Recording::where('meeting_id', $meetingID)
                                     ->where('record_id', 'like', '%-placeholder-%')
                                     ->delete();
                                 $count++;
