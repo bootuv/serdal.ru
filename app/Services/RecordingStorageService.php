@@ -28,7 +28,7 @@ class RecordingStorageService
                 mkdir(dirname($tempPath), 0755, true);
             }
 
-            $dlResponse = Http::timeout(300)->connectTimeout(30)->sink($tempPath)->get($videoUrl);
+            $dlResponse = Http::withoutVerifying()->timeout(600)->connectTimeout(30)->sink($tempPath)->get($videoUrl);
 
             if ($dlResponse->failed()) {
                 Log::error('S3 Recording: Download failed', ['status' => $dlResponse->status()]);
