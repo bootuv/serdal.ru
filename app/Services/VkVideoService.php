@@ -93,20 +93,35 @@ class VkVideoService
 
             Log::info('VK Video: File downloaded, uploading to VK...', ['size' => filesize($tempPath)]);
 
-            // Step 3: Upload file to VK
-            $uploadResponse = Http::timeout(600)->connectTimeout(30)->attach(
-                'video_file',
-                fopen($tempPath, 'r'),
-                'video.mp4'
-            )->post($uploadUrl);
+            // Step 3: Upload file to VK using native cURL
+            // Laravel Http::attach() causes VK CDN to return 500, but CURLFile works
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, $uploadUrl);
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, [
+                'video_file' => new \CURLFile($tempPath, 'video/mp4', 'video.mp4'),
+            ]);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 600);
+            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 30);
 
-            $uploadData = $uploadResponse->json();
+            $uploadResult = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $curlError = curl_error($ch);
+            curl_close($ch);
 
-            if ($uploadResponse->failed() || isset($uploadData['error']) || isset($uploadData['error_code'])) {
+            if ($curlError) {
+                Log::error('VK Video: cURL upload error', ['error' => $curlError]);
+                return null;
+            }
+
+            $uploadData = json_decode($uploadResult, true);
+
+            if ($httpCode >= 400 || empty($uploadData) || isset($uploadData['error']) || isset($uploadData['error_code'])) {
                 Log::error('VK Video: Upload failed', [
-                    'http_status' => $uploadResponse->status(),
+                    'http_status' => $httpCode,
                     'response' => $uploadData,
-                    'response_body' => $uploadResponse->body(),
+                    'response_body' => $uploadResult,
                 ]);
                 return null;
             }
