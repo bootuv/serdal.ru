@@ -159,7 +159,7 @@ class HomeworkResource extends Resource
                                 'image/png',
                                 'image/gif',
                             ])
-                            ->maxSize(51200) // 50MB
+                            ->maxSize(102400) // 100MB
                             ->afterStateUpdated(\App\Helpers\FileUploadHelper::filamentCallback('attachments', 'homework-attachments', 1920, 1080, 85, true))
                             ->deleteUploadedFileUsing(\App\Helpers\FileUploadHelper::filamentDeleteCallback())
                             ->columnSpanFull(),
