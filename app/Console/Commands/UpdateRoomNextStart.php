@@ -35,29 +35,17 @@ class UpdateRoomNextStart extends Command
             ->where('next_start', '<', now())
             ->cursor()
             ->each(function ($room) use (&$count) {
-                // If we want to be strict about duration, we can check it here.
-                // But simply re-calculating is safer as it guarantees we find the true *next* occurrence.
-                // If the immediate recalculation returns the SAME past date, it means there are no future occurrences.
-                // But our calculateNextStart() filters for future dates mostly.
-    
-                // We should check if the lesson is TRULY over (start + duration).
-                // Or we can rely on `calculateNextStart` logic.
-    
-                // Let's rely on updateNextStart() to do the heavy lifting.
-                // It will call calculateNextStart(), which returns the earliest FUTURE occurrence.
-                // So if the current `next_start` is past, the new one will be future (or null).
                 $room->updateNextStart();
-
-                // Dispatch event to trigger Livewire refresh on clients (via Pusher)
-                // This ensures the list re-sorts automatically for everyone
-                try {
-                    \App\Events\RoomStatusUpdated::dispatch();
-                } catch (\Throwable $e) {
-                    // Ignore broadcast errors in console command
-                }
-
                 $count++;
             });
+
+        if ($count > 0) {
+            try {
+                \App\Events\RoomStatusUpdated::dispatch();
+            } catch (\Throwable $e) {
+                // Ignore broadcast errors in console command
+            }
+        }
 
         $this->info("Updated {$count} rooms.");
     }
