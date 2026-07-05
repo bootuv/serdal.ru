@@ -217,6 +217,9 @@ class SupportChatComponent extends Component
                 \App\Jobs\SendUnreadSupportMessageNotification::dispatch($message, $admin)
                     ->delay(now()->addSeconds(30));
             }
+
+            // Telegram-уведомление админам — сразу, без задержки
+            \App\Jobs\SendSupportMessageTelegramNotification::dispatch($message);
         }
 
         // Добавляем сообщение в локальный список
