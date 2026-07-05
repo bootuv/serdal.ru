@@ -45,6 +45,10 @@ return [
         'bot_token' => env('TELEGRAM_BOT_TOKEN'),
         // ID чата (личного или группового), куда слать уведомления о сообщениях в поддержку
         'admin_chat_id' => env('TELEGRAM_ADMIN_CHAT_ID'),
+        // Если api.telegram.org недоступен с сервера: адрес релея (напр. Cloudflare Worker)
+        'api_base' => env('TELEGRAM_API_BASE', 'https://api.telegram.org'),
+        // ...или прокси для исходящих запросов (socks5://user:pass@host:port | http://host:port)
+        'proxy' => env('TELEGRAM_PROXY'),
     ],
 
 ];

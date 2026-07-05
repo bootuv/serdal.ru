@@ -53,8 +53,16 @@ class SendSupportMessageTelegramNotification implements ShouldQueue
             $text .= "\n\n<a href=\"{$url}\">Открыть чат</a>";
         }
 
+        $apiBase = rtrim(config('services.telegram.api_base', 'https://api.telegram.org'), '/');
+        $proxy = config('services.telegram.proxy');
+
         try {
-            $response = Http::timeout(10)->post("https://api.telegram.org/bot{$token}/sendMessage", [
+            $client = Http::timeout(10);
+            if (filled($proxy)) {
+                $client = $client->withOptions(['proxy' => $proxy]);
+            }
+
+            $response = $client->post("{$apiBase}/bot{$token}/sendMessage", [
                 'chat_id' => $chatId,
                 'text' => $text,
                 'parse_mode' => 'HTML',
