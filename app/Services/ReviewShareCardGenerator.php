@@ -14,55 +14,66 @@ class ReviewShareCardGenerator
     private const OUTPUT_WIDTH = 1080;
     private const TEXT_COLOR = '1d1d1b';
 
-    // Шапка: аватарка слева, имя справа от неё, под ними разделительная линия
+    // Шапка одной колонкой по центру: аватарка сверху, под ней имя
     private const AVATAR_SIZE = 310;
     private const AVATAR_TOP = 185;
-    private const AVATAR_LEFT = 185;
-    private const NAME_LEFT = 585;
-    private const NAME_WRAP_WIDTH = 1390;
-    private const DIVIDER_Y = 620;
+    private const NAME_TOP = 570;
+    private const NAME_WRAP_WIDTH = 1800;
 
-    // Текст отзыва центрируется между линией и логотипом внизу шаблона
-    private const LOGO_TOP = 3560;
+    // Группа «линия + отзыв» подтянута вверх к имени;
+    // если имя переносится на вторую строку, группа сдвигается вниз на NAME_LINE_HEIGHT
+    private const NAME_FONT_SIZE = 96;
+    private const NAME_LINE_HEIGHT = 125;
+    private const DIVIDER_Y = 820;
+    private const TEXT_TOP = 910;
     private const TEXT_LEFT = 192;
     private const TEXT_WRAP_WIDTH = 1776;
-    private const MAX_TEXT_LENGTH = 1000;
+    private const TEXT_LINE_HEIGHT = 1.6;
+    private const TEXT_BOTTOM = 3470; // верх логотипа минус отступ
+
+    // Размер подбирается по фактической высоте текста: максимальный, при котором отзыв
+    // помещается; не крупнее шрифта имени (NAME_FONT_SIZE)
+    private const TEXT_FONT_SIZES = [96, 88, 80, 72, 64, 58, 52];
+
+    // Страховочный потолок перед точной подгонкой: fitText() сам укоротит текст до заполнения места
+    private const MAX_TEXT_LENGTH = 3000;
 
     public function generate(Review $review): string
     {
         $card = Image::read(resource_path('images/serdal-story-bg.png'));
 
-        $card->place($this->circularAvatar($review->user?->avatar), 'top-left', self::AVATAR_LEFT, self::AVATAR_TOP);
+        $card->place($this->circularAvatar($review->user?->avatar), 'top', 0, self::AVATAR_TOP);
 
-        $nameCenterY = self::AVATAR_TOP + intdiv(self::AVATAR_SIZE, 2);
-        $card->text($review->user?->name ?? 'Ученик', self::NAME_LEFT, $nameCenterY, function (FontFactory $font) {
+        $name = $review->user?->name ?? 'Ученик';
+        $card->text($name, $card->width() / 2, self::NAME_TOP, function (FontFactory $font) {
             $font->filename(resource_path('fonts/Inter-SemiBold.ttf'));
-            $font->size(96);
+            $font->size(self::NAME_FONT_SIZE);
             $font->color(self::TEXT_COLOR);
-            $font->align('left');
-            $font->valign('middle');
+            $font->align('center');
+            $font->valign('top');
             $font->lineHeight(1.3);
             $font->wrap(self::NAME_WRAP_WIDTH);
         });
 
-        $card->drawLine(function (\Intervention\Image\Geometry\Factories\LineFactory $line) use ($card) {
-            $line->from(0, self::DIVIDER_Y);
-            $line->to($card->width(), self::DIVIDER_Y);
+        $headerShift = $this->nameIsMultiline($name) ? self::NAME_LINE_HEIGHT : 0;
+
+        $card->drawLine(function (\Intervention\Image\Geometry\Factories\LineFactory $line) use ($headerShift) {
+            $line->from(self::TEXT_LEFT, self::DIVIDER_Y + $headerShift);
+            $line->to(self::TEXT_LEFT + self::TEXT_WRAP_WIDTH, self::DIVIDER_Y + $headerShift);
             $line->color(self::TEXT_COLOR);
             $line->width(6);
         });
 
         $text = $this->prepareText($review->text);
-        $fontSize = $this->fontSizeFor($text);
-        $textCenterY = intdiv(self::DIVIDER_Y + self::LOGO_TOP, 2);
+        [$text, $fontSize] = $this->fitText($text, self::TEXT_BOTTOM - self::TEXT_TOP - $headerShift);
 
-        $card->text($text, self::TEXT_LEFT, $textCenterY, function (FontFactory $font) use ($fontSize) {
+        $card->text($text, self::TEXT_LEFT, self::TEXT_TOP + $headerShift, function (FontFactory $font) use ($fontSize) {
             $font->filename(resource_path('fonts/Inter-Regular.ttf'));
             $font->size($fontSize);
             $font->color(self::TEXT_COLOR);
             $font->align('left');
-            $font->valign('middle');
-            $font->lineHeight(1.6);
+            $font->valign('top');
+            $font->lineHeight(self::TEXT_LINE_HEIGHT);
             $font->wrap(self::TEXT_WRAP_WIDTH);
         });
 
@@ -84,17 +95,68 @@ class ReviewShareCardGenerator
         return $text;
     }
 
-    private function fontSizeFor(string $text): int
+    /**
+     * Подбирает максимальный размер шрифта, при котором текст помещается по высоте.
+     * Если не влезает даже минимальным — укорачивает текст с многоточием.
+     *
+     * @return array{string, int}
+     */
+    private function fitText(string $text, int $availableHeight): array
     {
         $length = mb_strlen($text);
 
-        return match (true) {
-            $length <= 200 => 104,
-            $length <= 400 => 96,
-            $length <= 600 => 88,
-            $length <= 800 => 80,
-            default => 72,
-        };
+        foreach (self::TEXT_FONT_SIZES as $size) {
+            // Грубая нижняя оценка высоты (заведомо оптимистичная по ширине символа),
+            // чтобы не делать дорогой точный замер для заведомо не влезающих размеров
+            $optimisticLines = (int) ceil($length / (self::TEXT_WRAP_WIDTH / ($size * 0.4)));
+            if ($optimisticLines * $this->leadingFor($size) > $availableHeight) {
+                continue;
+            }
+
+            if ($this->textHeight($text, $size) <= $availableHeight) {
+                return [$text, $size];
+            }
+        }
+
+        $sizes = self::TEXT_FONT_SIZES;
+        $minSize = end($sizes);
+
+        $height = $this->textHeight($text, $minSize);
+        while ($height > $availableHeight && mb_strlen($text) > 100) {
+            $keep = max(100, (int) floor(mb_strlen($text) * $availableHeight / $height) - 10);
+            $text = rtrim(mb_substr($text, 0, $keep), " \t.,!?;:…") . '…';
+            $height = $this->textHeight($text, $minSize);
+        }
+
+        return [$text, $minSize];
+    }
+
+    private function leadingFor(int $fontSize): int
+    {
+        // Intervention считает интерлиньяж от размера в пунктах (px * 0.75)
+        return (int) round($fontSize * 0.75 * self::TEXT_LINE_HEIGHT);
+    }
+
+    private function textHeight(string $text, int $fontSize): int
+    {
+        // Меряем тем же процессором, что рисует текст: совпадают и перенос строк, и интерлиньяж
+        $font = new \Intervention\Image\Typography\Font(resource_path('fonts/Inter-Regular.ttf'));
+        $font->setSize($fontSize);
+        $font->setLineHeight(self::TEXT_LINE_HEIGHT);
+        $font->setWrapWidth(self::TEXT_WRAP_WIDTH);
+
+        $processor = new \Intervention\Image\Drivers\Gd\FontProcessor();
+        $lines = $processor->textBlock($text, $font, new \Intervention\Image\Geometry\Point(0, 0))->count();
+
+        return $lines * $processor->leading($font);
+    }
+
+    private function nameIsMultiline(string $name): bool
+    {
+        // GD принимает размер шрифта в пунктах (px * 0.75)
+        $box = imagettfbbox(self::NAME_FONT_SIZE * 0.75, 0, resource_path('fonts/Inter-SemiBold.ttf'), $name);
+
+        return abs($box[4] - $box[0]) > self::NAME_WRAP_WIDTH;
     }
 
     private function circularAvatar(?string $avatarPath): ImageInterface
