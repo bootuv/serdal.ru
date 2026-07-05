@@ -51,10 +51,6 @@ class MeetingSessionResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('user.name')
-                    ->label('Создатель')
-                    ->sortable()
-                    ->searchable(),
                 Tables\Columns\TextColumn::make('room.name')
                     ->label('Занятие')
                     ->searchable()

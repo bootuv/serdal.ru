@@ -78,17 +78,17 @@ class TeacherApplicationResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('created_at')
-                    ->label('Дата')
-                    ->formatStateUsing(fn($state) => format_datetime($state))
-                    ->sortable()
-                    ->toggleable(),
                 Tables\Columns\TextColumn::make('full_name') // Accessor from Model
                     ->label('ФИО')
                     ->searchable(['last_name', 'first_name', 'middle_name']),
                 Tables\Columns\TextColumn::make('email')
                     ->label('Email')
                     ->searchable(),
+                Tables\Columns\TextColumn::make('created_at')
+                    ->label('Дата')
+                    ->formatStateUsing(fn($state) => format_datetime($state))
+                    ->sortable()
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('status')
                     ->label('Статус')
                     ->badge()

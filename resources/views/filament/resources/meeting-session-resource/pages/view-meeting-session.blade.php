@@ -78,7 +78,7 @@
 
     <x-filament::section heading="Обзор участников">
         <div class="overflow-x-auto">
-            <table class="w-full text-sm text-left rtl:text-right text-gray-500 dark:text-gray-400">
+            <table class="sd-card-table w-full text-sm text-left rtl:text-right text-gray-500 dark:text-gray-400">
                 <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
                     <tr>
                         <th scope="col" class="px-6 py-3">Участники</th>
@@ -108,13 +108,13 @@
                             $avatar = $user?->avatar_url ?? asset('images/default-avatar.png'); 
                         @endphp
                         <tr class="bg-white border-b dark:bg-gray-800 dark:border-gray-700 [&>td]:align-middle">
-                            <td
+                            <td data-label="Участник"
                                 class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white flex items-center gap-2">
                                 <img src="{{ $avatar }}" alt="Avatar" class="w-8 h-8 rounded-full bg-gray-200">
                                 <span>{{ $p['full_name'] ?? 'Unknown' }}</span>
                             </td>
 
-                            <td class="px-6 py-4">
+                            <td class="px-6 py-4" data-label="Время в сети">
                                 @php
                                     $joined = isset($p['joined_at']) ? \Carbon\Carbon::parse($p['joined_at']) : null;
                                     $left = isset($p['left_at']) ? \Carbon\Carbon::parse($p['left_at']) : ($record->ended_at ?? now());
@@ -128,22 +128,22 @@
                                     {{ $joined ? $joined->format('H:i') : '-' }} - {{ $left ? $left->format('H:i') : '-' }}
                                 </div>
                             </td>
-                            <td class="px-6 py-4">
+                            <td class="px-6 py-4" data-label="Микрофон">
                                 {{ gmdate("H:i:s", $p['talking_time'] ?? 0) }}
                             </td>
-                            <td class="px-6 py-4">
+                            <td class="px-6 py-4" data-label="Вебкамера">
                                 {{ gmdate("H:i:s", $p['webcam_time'] ?? 0) }}
                             </td>
-                            <td class="px-6 py-4">
+                            <td class="px-6 py-4" data-label="Сообщения">
                                 {{ $p['message_count'] ?? 0 }}
                             </td>
-                            <td class="px-6 py-4">
+                            <td class="px-6 py-4" data-label="Реакции">
                                 {{ $p['emoji_count'] ?? 0 }}
                             </td>
-                            <td class="px-6 py-4">
+                            <td class="px-6 py-4" data-label="Рука">
                                 {{ $p['raise_hand_count'] ?? 0 }}
                             </td>
-                            <td class="px-6 py-4 font-bold text-center">
+                            <td class="px-6 py-4 font-bold text-center" data-label="Оценка активности">
                                 {{ $score }}/10
                             </td>
                         </tr>

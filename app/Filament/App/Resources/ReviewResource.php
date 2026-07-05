@@ -63,7 +63,8 @@ class ReviewResource extends Resource
                     ->toggleable(),
                 Tables\Columns\TextColumn::make('text')
                     ->label('Текст')
-                    ->limit(50)
+                    ->limit(60)
+                    ->wrap()
                     ->tooltip(fn($state) => $state)
                     ->toggleable(),
                 Tables\Columns\TextColumn::make('created_at')
@@ -71,7 +72,8 @@ class ReviewResource extends Resource
                     ->formatStateUsing(fn($state) => format_datetime($state))
                     ->toggleable(),
                 Tables\Columns\IconColumn::make('is_reported')
-                    ->label('Жалоба отправлена')
+                    ->label('Жалоба')
+                    ->tooltip(fn(Review $record) => $record->is_reported ? 'Жалоба отправлена' : null)
                     ->boolean()
                     ->trueColor('warning')
                     ->falseColor('gray')
@@ -83,7 +85,16 @@ class ReviewResource extends Resource
             ->recordAction('view')
             ->recordUrl(null)
             ->actions([
+                Tables\Actions\Action::make('share')
+                    ->label('Поделиться')
+                    ->icon('heroicon-o-share')
+                    ->color('primary')
+                    ->url(fn(Review $record) => route('reviews.share-card', $record))
+                    ->extraAttributes(['onclick' => 'serdalShareReviewCard(this.href); return false;']),
                 Tables\Actions\ViewAction::make()
+                    // кнопка скрыта: просмотр открывается кликом по строке (recordAction),
+                    // но сам экшен должен оставаться видимым, иначе клик не смонтирует модалку
+                    ->extraAttributes(['class' => 'hidden'])
                     ->modalHeading('Отзыв')
                     ->modalCancelAction(false)
                     ->infolist([
@@ -105,6 +116,12 @@ class ReviewResource extends Resource
                             ->columns(1),
                     ])
                     ->extraModalFooterActions([
+                        Tables\Actions\Action::make('share_from_modal')
+                            ->label('Поделиться')
+                            ->icon('heroicon-o-share')
+                            ->color('primary')
+                            ->url(fn(Review $record) => route('reviews.share-card', $record))
+                            ->extraAttributes(['onclick' => 'serdalShareReviewCard(this.href); return false;']),
                         Tables\Actions\Action::make('report')
                             ->label('Пожаловаться')
                             ->icon('heroicon-o-flag')

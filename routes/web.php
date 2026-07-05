@@ -39,6 +39,9 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/google/calendar/disconnect', [\App\Http\Controllers\GoogleCalendarController::class, 'disconnect'])->name('google.calendar.disconnect');
     Route::get('/google/calendar/sync', [\App\Http\Controllers\GoogleCalendarController::class, 'syncSchedule'])->name('google.calendar.sync');
 
+    // Share review as social media story card
+    Route::get('/reviews/{review}/share-card', \App\Http\Controllers\ReviewShareCardController::class)->name('reviews.share-card');
+
     // Push Notifications
     Route::post('/push-subscription', [\App\Http\Controllers\PushSubscriptionController::class, 'store'])->name('push.subscribe');
     Route::delete('/push-subscription', [\App\Http\Controllers\PushSubscriptionController::class, 'destroy'])->name('push.unsubscribe');

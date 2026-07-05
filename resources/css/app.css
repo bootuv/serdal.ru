@@ -2,6 +2,194 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Адаптивные таблицы: ниже lg таблица рендерится карточками.
+ * Подписи берутся из data-label, который проставляется каждой ячейке
+ * глобально в AppServiceProvider (Column::configureUsing).
+ */
+@media (max-width: 1023.98px) {
+    .fi-ta-content {
+        overflow-x: hidden;
+    }
+
+    :is(.fi-ta-table, .sd-card-table) {
+        display: block;
+    }
+
+    :is(.fi-ta-table, .sd-card-table) thead {
+        display: none;
+    }
+
+    :is(.fi-ta-table, .sd-card-table) tbody {
+        @apply flex flex-col gap-3;
+        white-space: normal;
+        border-top-width: 0 !important;
+    }
+
+    /* серая подложка нужна только полноэкранным Filament-таблицам; кастомные
+       таблицы уже лежат внутри белой секции-контейнера */
+    .fi-ta-table tbody {
+        @apply bg-gray-50 p-3 dark:bg-transparent;
+    }
+
+    .sd-card-table tbody {
+        background: transparent;
+        padding: 0;
+    }
+
+    /* обёртка overflow-x-auto режет ring-рамку карточек — на мобильных скролла нет */
+    div:has(> .sd-card-table) {
+        overflow: visible !important;
+    }
+
+    :is(.fi-ta-table, .sd-card-table) tbody > tr {
+        @apply relative flex flex-col rounded-xl bg-white shadow-sm ring-1 ring-gray-200 dark:bg-white/5 dark:ring-white/10;
+        border-top-width: 0 !important;
+        padding-block: 0.5rem;
+    }
+
+    /* ячейка = строка «метка — значение» */
+    :is(.fi-ta-table, .sd-card-table) tbody > tr > td[data-label] {
+        @apply flex flex-wrap items-center justify-between;
+        column-gap: 1rem;
+        row-gap: 0.125rem;
+        padding: 0.375rem 1rem;
+    }
+
+    :is(.fi-ta-table, .sd-card-table) tbody > tr > td[data-label]::before {
+        content: attr(data-label);
+        @apply shrink-0 text-sm font-medium text-gray-500 dark:text-gray-400;
+    }
+
+    :is(.fi-ta-table, .sd-card-table) tbody > tr > td[data-label=""]::before {
+        display: none;
+    }
+
+    :is(.fi-ta-table, .sd-card-table) tbody > tr > td[data-label] .fi-ta-col-wrp {
+        width: auto;
+        max-width: 100%;
+        margin-inline-start: auto;
+    }
+
+    :is(.fi-ta-table, .sd-card-table) tbody > tr > td[data-label] .fi-ta-col-wrp > a,
+    :is(.fi-ta-table, .sd-card-table) tbody > tr > td[data-label] .fi-ta-col-wrp > button,
+    :is(.fi-ta-table, .sd-card-table) tbody > tr > td[data-label] .fi-ta-col-wrp > div {
+        width: auto;
+        justify-content: flex-end;
+    }
+
+    :is(.fi-ta-table, .sd-card-table) tbody > tr > td[data-label] .fi-ta-text {
+        @apply justify-items-end text-end;
+    }
+
+    /* обнулить табличные отступы контента у всех типов колонок */
+    :is(.fi-ta-table, .sd-card-table) tbody > tr > td[data-label] .fi-ta-col-wrp [class*="px-3"] {
+        width: auto;
+        padding: 0;
+    }
+
+    /* чекбокс выбора — в начале первой строки карточки, без отдельного ряда */
+    :is(.fi-ta-table, .sd-card-table) tbody > tr > td.fi-ta-selection-cell {
+        @apply flex items-center justify-start;
+        position: absolute;
+        inset-inline-start: 1rem;
+        top: 0.75rem;
+        height: 2rem;
+        width: 2rem;
+        padding: 0;
+        z-index: 1;
+    }
+
+    /* убрать внутренний отступ обёртки, чтобы чекбокс шёл по одной линии с контентом ниже */
+    :is(.fi-ta-table, .sd-card-table) tbody > tr > td.fi-ta-selection-cell > div {
+        padding: 0;
+    }
+
+    :is(.fi-ta-table, .sd-card-table) tbody > tr > td.fi-ta-selection-cell + td[data-label] {
+        padding-inline-start: 2.75rem;
+    }
+
+    /* у выделенной записи — обводка всей карточки вместо боковой полоски-индикатора */
+    :is(.fi-ta-table, .sd-card-table) tbody > tr > td.fi-ta-selection-cell::before {
+        display: none !important;
+    }
+
+    :is(.fi-ta-table, .sd-card-table) tbody > tr:has(.fi-ta-record-checkbox:checked) {
+        @apply bg-white ring-2 ring-primary-500 dark:bg-white/5 dark:ring-primary-400;
+    }
+
+    /* первая ячейка данных = заголовок карточки: без лейбла, полужирный, слева */
+    :is(.fi-ta-table, .sd-card-table) tbody > tr > td[data-label]:first-child,
+    :is(.fi-ta-table, .sd-card-table) tbody > tr > td.fi-ta-selection-cell + td[data-label] {
+        justify-content: flex-start;
+        padding-top: 0.5rem;
+        padding-bottom: 0.5rem;
+    }
+
+    :is(.fi-ta-table, .sd-card-table) tbody > tr > td[data-label]:first-child::before,
+    :is(.fi-ta-table, .sd-card-table) tbody > tr > td.fi-ta-selection-cell + td[data-label]::before {
+        display: none;
+    }
+
+    :is(.fi-ta-table, .sd-card-table) tbody > tr > td[data-label]:first-child .fi-ta-col-wrp,
+    :is(.fi-ta-table, .sd-card-table) tbody > tr > td.fi-ta-selection-cell + td[data-label] .fi-ta-col-wrp {
+        margin-inline-start: 0;
+    }
+
+    :is(.fi-ta-table, .sd-card-table) tbody > tr > td[data-label]:first-child .fi-ta-col-wrp > a,
+    :is(.fi-ta-table, .sd-card-table) tbody > tr > td[data-label]:first-child .fi-ta-col-wrp > button,
+    :is(.fi-ta-table, .sd-card-table) tbody > tr > td[data-label]:first-child .fi-ta-col-wrp > div,
+    :is(.fi-ta-table, .sd-card-table) tbody > tr > td.fi-ta-selection-cell + td[data-label] .fi-ta-col-wrp > a,
+    :is(.fi-ta-table, .sd-card-table) tbody > tr > td.fi-ta-selection-cell + td[data-label] .fi-ta-col-wrp > button,
+    :is(.fi-ta-table, .sd-card-table) tbody > tr > td.fi-ta-selection-cell + td[data-label] .fi-ta-col-wrp > div {
+        justify-content: flex-start;
+    }
+
+    /* кликабельность всей карточки: ссылка/кнопка заголовка растягивается на карточку */
+    :is(.fi-ta-table, .sd-card-table) tbody > tr > td[data-label] :is(a, button) {
+        position: relative;
+        z-index: 1;
+    }
+
+    :is(.fi-ta-table, .sd-card-table) tbody > tr > td[data-label]:first-child .fi-ta-col-wrp > :is(a, button),
+    :is(.fi-ta-table, .sd-card-table) tbody > tr > td.fi-ta-selection-cell + td[data-label] .fi-ta-col-wrp > :is(a, button) {
+        position: static;
+        z-index: auto;
+    }
+
+    :is(.fi-ta-table, .sd-card-table) tbody > tr > td[data-label]:first-child .fi-ta-col-wrp > :is(a, button)::after,
+    :is(.fi-ta-table, .sd-card-table) tbody > tr > td.fi-ta-selection-cell + td[data-label] .fi-ta-col-wrp > :is(a, button)::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+    }
+
+    :is(.fi-ta-table, .sd-card-table) tbody > tr > td.fi-ta-actions-cell {
+        position: relative;
+        z-index: 1;
+    }
+
+    :is(.fi-ta-table, .sd-card-table) tbody > tr > td[data-label]:first-child .fi-ta-text,
+    :is(.fi-ta-table, .sd-card-table) tbody > tr > td.fi-ta-selection-cell + td[data-label] .fi-ta-text {
+        @apply justify-items-start text-start;
+    }
+
+    :is(.fi-ta-table, .sd-card-table) tbody > tr > td[data-label]:first-child .fi-ta-text-item-label,
+    :is(.fi-ta-table, .sd-card-table) tbody > tr > td.fi-ta-selection-cell + td[data-label] .fi-ta-text-item-label {
+        @apply text-base font-semibold;
+    }
+
+    /* действия — строка внизу карточки */
+    :is(.fi-ta-table, .sd-card-table) tbody > tr > td.fi-ta-actions-cell {
+        display: block;
+    }
+
+    :is(.fi-ta-table, .sd-card-table) tbody > tr > td.fi-ta-actions-cell > div {
+        white-space: normal;
+        padding: 0.5rem 1rem 0.375rem;
+    }
+}
+
 /* Hide Collapse All and Expand All buttons in Filament Repeater */
 [data-collapse-all-action],
 [data-expand-all-action] {

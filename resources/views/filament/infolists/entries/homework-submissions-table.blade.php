@@ -11,7 +11,7 @@
         </div>
     @else
         <div class="overflow-x-auto">
-            <table class="w-full text-sm">
+            <table class="sd-card-table w-full text-sm">
                 <thead>
                     <tr class="border-b border-gray-200 dark:border-gray-700">
                         <th class="text-left py-2 px-3 font-medium text-gray-600 dark:text-gray-400">Ученик</th>
@@ -42,21 +42,21 @@
                             }
                         @endphp
                         <tr class="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50">
-                            <td class="py-3 px-3">
+                            <td class="py-3 px-3" data-label="Ученик">
                                 <div class="flex items-center gap-2">
                                     <img src="{{ $student->avatar_url }}" alt="" class="w-8 h-8 rounded-full object-cover">
                                     <span class="font-medium text-gray-900 dark:text-gray-100">{{ $student->name }}</span>
                                 </div>
                             </td>
-                            <td class="py-3 px-3">
+                            <td class="py-3 px-3" data-label="Статус">
                                 <x-filament::badge :color="$statusColor">
                                     {{ $statusLabel }}
                                 </x-filament::badge>
                             </td>
-                            <td class="py-3 px-3 text-gray-600 dark:text-gray-400">
+                            <td class="py-3 px-3 text-gray-600 dark:text-gray-400" data-label="Сдано">
                                 {{ format_datetime($submission?->submitted_at) ?? '—' }}
                             </td>
-                            <td class="py-3 px-3">
+                            <td class="py-3 px-3" data-label="Оценка">
                                 @if($submission?->grade !== null)
                                     <span class="font-semibold text-lg text-primary-600 dark:text-primary-400">
                                         {{ $homework->formatGrade($submission->grade) }}
@@ -65,7 +65,7 @@
                                     <span class="text-gray-400">—</span>
                                 @endif
                             </td>
-                            <td class="py-3 px-3 text-right">
+                            <td class="py-3 px-3 text-right" data-label="">
                                 @if($submission && $submission->submitted_at)
                                     <x-filament::button size="sm" color="primary" tag="a"
                                         href="{{ route('filament.app.resources.homework-submissions.view', $submission) }}">

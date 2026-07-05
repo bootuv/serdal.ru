@@ -4,7 +4,7 @@
             <p class="text-gray-500 dark:text-gray-400 text-sm">Сессий пока не было</p>
         @else
             <div class="overflow-x-auto">
-                <table class="w-full text-sm">
+                <table class="sd-card-table w-full text-sm">
                     <thead class="bg-gray-50 dark:bg-gray-800 text-left">
                         <tr>
                             <th class="px-4 py-3 font-medium text-gray-600 dark:text-gray-300 whitespace-nowrap">Дата</th>
@@ -50,11 +50,12 @@
                             @else
                                     <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
                                 @endif
-                                <td class="px-4 py-3 text-gray-900 dark:text-white font-medium whitespace-nowrap">
+                                <td class="px-4 py-3 text-gray-900 dark:text-white font-medium whitespace-nowrap"
+                                    data-label="Дата">
                                     {{ format_datetime($session->started_at) }}
                                 </td>
                                 @if(auth()->user()->role === \App\Models\User::ROLE_STUDENT)
-                                    <td class="px-4 py-3 whitespace-nowrap">
+                                    <td class="px-4 py-3 whitespace-nowrap" data-label="Посещаемость">
                                         <div class="flex justify-start items-center gap-1.5">
                                             @if($isAttended)
                                                 <svg class="w-4 h-4 text-success-600 dark:text-success-500"
@@ -75,7 +76,7 @@
                                         </div>
                                     </td>
                                 @endif
-                                <td class="px-4 py-3 text-gray-600 dark:text-gray-400">
+                                <td class="px-4 py-3 text-gray-600 dark:text-gray-400" data-label="Длительность">
                                     {{ $duration }}
                                 </td>
 
@@ -89,16 +90,18 @@
                                     // Simple approach: Use the color for text and a very light standard bg, or try to apply the color to bg with opacity.
                                     // Actually, let's use the pure hex for text and a 10% opacity version for background.
                                 @endphp
-                                <td class="px-4 py-3 text-gray-600 dark:text-gray-400 text-right whitespace-nowrap">
+                                <td class="px-4 py-3 text-gray-600 dark:text-gray-400 text-right whitespace-nowrap"
+                                    data-label="Участники">
                                     <span
-                                        class="inline-flex items-center justify-center -my-1 mx-auto min-h-6 min-w-6 px-2 py-0.5 rounded-full text-xs font-medium"
+                                        class="inline-flex items-center justify-center -my-1 min-h-6 min-w-6 px-2 py-0.5 rounded-full text-xs font-medium"
                                         style="color: {{ $color }}; background-color: {{ $color }}1A;">
                                         <!-- 1A is ~10% opacity in hex -->
                                         {{ $stats['attended'] }}/{{ $stats['total'] }}
                                     </span>
                                 </td>
                                 @if(auth()->user()->role !== \App\Models\User::ROLE_STUDENT)
-                                    <td class="px-4 py-3 text-right whitespace-nowrap" onclick="event.stopPropagation()">
+                                    <td class="px-4 py-3 text-right whitespace-nowrap" data-label=""
+                                        onclick="event.stopPropagation()">
                                         @if($session->deletion_requested_at)
                                             <button type="button" wire:click="openCancelModal({{ $session->id }})"
                                                 class="inline-flex items-center justify-center w-8 h-8 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 dark:hover:text-gray-300 transition-colors"

@@ -86,6 +86,7 @@ class ReviewResource extends Resource
                 Tables\Columns\TextColumn::make('text')
                     ->label('Текст')
                     ->limit(50)
+                    ->wrap()
                     ->tooltip(fn($state) => $state)
                     ->toggleable(),
                 Tables\Columns\TextColumn::make('created_at')
@@ -112,6 +113,13 @@ class ReviewResource extends Resource
             ->searchable()
             ->defaultSort('created_at', 'desc')
             ->actions([
+                Tables\Actions\Action::make('share')
+                    ->label('Поделиться')
+                    ->icon('heroicon-o-share')
+                    ->color('primary')
+                    ->visible(fn(Review $record) => !$record->is_rejected)
+                    ->url(fn(Review $record) => route('reviews.share-card', $record))
+                    ->extraAttributes(['onclick' => 'serdalShareReviewCard(this.href); return false;']),
                 Tables\Actions\Action::make('reported_badge')
                     ->label('Поступила жалоба')
                     ->icon('heroicon-o-exclamation-triangle')

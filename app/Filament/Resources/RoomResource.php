@@ -330,10 +330,6 @@ class RoomResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('user.name')
-                    ->label('Пользователь')
-                    ->sortable()
-                    ->searchable(),
                 Tables\Columns\TextColumn::make('name')
                     ->label('Название')
                     ->searchable()
@@ -352,6 +348,10 @@ class RoomResource extends Resource
                             </div>'
                         );
                     }),
+                Tables\Columns\TextColumn::make('user.name')
+                    ->label('Пользователь')
+                    ->sortable()
+                    ->searchable(),
                 Tables\Columns\TextColumn::make('participants_custom')
                     ->label('Ученики')
                     ->getStateUsing(function (Room $record) {
