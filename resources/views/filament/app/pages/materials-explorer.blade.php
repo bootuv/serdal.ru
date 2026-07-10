@@ -10,7 +10,29 @@
 
     <div
         class="flex flex-col gap-6"
-        x-data="{ dragging: 0, drag: null }"
+        x-data="{
+            dragging: 0,
+            drag: null,
+            startUpload(files) {
+                if (! files.length) return;
+
+                // Сразу открываем окно настроек со списком файлов
+                $wire.openUploadSettings(files.map(f => ({ name: f.name, size: f.size })));
+
+                // Передаём файлы в фоне, прогресс — в окне
+                const s = Alpine.store('matUpload');
+                s.active = true; s.done = false; s.failed = false; s.progress = 0;
+
+                $wire.uploadMultiple(
+                    'pendingFiles',
+                    files,
+                    () => { s.done = true; s.progress = 100 },
+                    () => { s.failed = true; $wire.notifyUploadError() },
+                    (e) => { s.progress = e.detail.progress },
+                );
+            },
+        }"
+        x-init="if (! Alpine.store('matUpload')) Alpine.store('matUpload', { active: false, done: false, failed: false, progress: 0 })"
         x-on:dragenter.prevent="
             const t = Array.from($event.dataTransfer.types);
             if (t.includes('Files') && !drag) dragging++
@@ -20,8 +42,7 @@
         x-on:drop.prevent="
             dragging = 0;
             if (drag) { drag = null; return; }
-            const files = Array.from($event.dataTransfer.files);
-            if (files.length) $wire.uploadMultiple('pendingFiles', files, () => {}, () => $wire.notifyUploadError());
+            startUpload(Array.from($event.dataTransfer.files));
         "
     >
 
@@ -32,8 +53,7 @@
         multiple
         class="hidden"
         x-on:change="
-            const files = Array.from($event.target.files);
-            if (files.length) $wire.uploadMultiple('pendingFiles', files, () => {}, () => $wire.notifyUploadError());
+            startUpload(Array.from($event.target.files));
             $event.target.value = '';
         "
     />

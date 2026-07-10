@@ -39,6 +39,9 @@ class ListMaterials extends Page
     /** Файлы, ожидающие загрузки (из системного окна выбора или drag&drop) */
     public array $pendingFiles = [];
 
+    /** Метаданные выбранных файлов (имя, размер) — известны сразу, до передачи на сервер */
+    public array $uploadingMeta = [];
+
     public function getTitle(): string|Htmlable
     {
         return 'Материалы';
@@ -72,8 +75,26 @@ class ListMaterials extends Page
     }
 
     /**
-     * Файлы выбраны (системное окно или drag&drop) — валидируем
-     * и открываем модалку настроек загрузки
+     * Файлы выбраны — сразу открываем модалку настроек,
+     * пока файлы ещё передаются на сервер в фоне
+     */
+    public function openUploadSettings(array $files): void
+    {
+        $this->uploadingMeta = collect($files)
+            ->map(fn ($f) => [
+                'name' => (string) ($f['name'] ?? 'файл'),
+                'size' => (int) ($f['size'] ?? 0),
+            ])
+            ->take(100)
+            ->all();
+
+        if ($this->uploadingMeta) {
+            $this->mountAction('uploadSettings');
+        }
+    }
+
+    /**
+     * Файлы доехали до сервера — валидируем размер
      */
     public function updatedPendingFiles(): void
     {
@@ -84,18 +105,16 @@ class ListMaterials extends Page
             );
         } catch (\Illuminate\Validation\ValidationException $e) {
             $this->pendingFiles = [];
+            $this->uploadingMeta = [];
+
+            // Закрываем модалку настроек — загружать нечего
+            $this->dispatch('close-modal', id: "{$this->getId()}-action");
 
             Notification::make()
                 ->title('Не удалось загрузить')
                 ->body(collect($e->errors())->flatten()->unique()->implode(' '))
                 ->danger()
                 ->send();
-
-            return;
-        }
-
-        if (! empty($this->pendingFiles)) {
-            $this->mountAction('uploadSettings');
         }
     }
 
@@ -106,7 +125,7 @@ class ListMaterials extends Page
     {
         return Actions\Action::make('uploadSettings')
             ->label('Загрузка файлов')
-            ->modalHeading(fn () => 'Загрузка файлов (' . count($this->pendingFiles) . ' шт.)')
+            ->modalHeading(fn () => 'Загрузка файлов (' . count($this->uploadingMeta) . ' шт.)')
             ->modalSubmitActionLabel('Загрузить')
             ->modalWidth('lg')
             ->fillForm(fn () => [
@@ -118,14 +137,17 @@ class ListMaterials extends Page
                     ->label('Файлы')
                     ->content(fn () => new \Illuminate\Support\HtmlString(
                         '<ul class="space-y-1 text-sm">' .
-                        collect($this->pendingFiles)->map(function ($file) {
-                            $name = e($file->getClientOriginalName());
-                            $size = \Illuminate\Support\Number::fileSize($file->getSize(), precision: 1);
+                        collect($this->uploadingMeta)->map(function ($meta) {
+                            $name = e($meta['name']);
+                            $size = $meta['size'] > 0 ? \Illuminate\Support\Number::fileSize($meta['size'], precision: 1) : '';
 
                             return "<li class=\"flex items-center justify-between gap-3\"><span class=\"truncate\">{$name}</span><span class=\"shrink-0 text-gray-400\">{$size}</span></li>";
                         })->implode('') .
                         '</ul>'
                     )),
+
+                // Прогресс передачи файлов на сервер
+                Forms\Components\View::make('filament.app.partials.material-upload-progress'),
 
                 Forms\Components\Select::make('folder_id')
                     ->label('Папка')
@@ -147,7 +169,18 @@ class ListMaterials extends Page
                     ->required()
                     ->visible(fn (Forms\Get $get) => $get('visibility') === TeacherMaterial::VISIBILITY_ROOMS),
             ])
-            ->action(function (array $data) {
+            ->action(function (array $data, Actions\Action $action) {
+                // Файлы ещё передаются на сервер — не даём отправить форму раньше времени
+                if (empty($this->pendingFiles)) {
+                    Notification::make()
+                        ->title('Файлы ещё передаются')
+                        ->body('Дождитесь окончания передачи — прогресс показан в окне.')
+                        ->warning()
+                        ->send();
+
+                    $action->halt();
+                }
+
                 $created = 0;
 
                 foreach ($this->pendingFiles as $file) {
@@ -179,6 +212,7 @@ class ListMaterials extends Page
                 }
 
                 $this->pendingFiles = [];
+                $this->uploadingMeta = [];
 
                 if ($created > 0) {
                     Notification::make()
