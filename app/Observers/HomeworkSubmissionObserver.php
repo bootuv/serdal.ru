@@ -5,6 +5,7 @@ namespace App\Observers;
 use App\Jobs\ProcessHomeworkAttachments;
 use App\Models\HomeworkActivity;
 use App\Models\HomeworkSubmission;
+use Illuminate\Support\Facades\Storage;
 
 class HomeworkSubmissionObserver
 {
@@ -78,23 +79,25 @@ class HomeworkSubmissionObserver
     }
 
     /**
-     * Handle the HomeworkSubmission "deleted" event.
+     * Handle the HomeworkSubmission "deleting" event.
+     *
+     * Removes every file the submission holds from the CDN (s3): student
+     * attachments, teacher feedback attachments, and the annotated PDFs/images
+     * produced during grading. homework_activities rows are removed via FK
+     * cascade.
      */
-    public function deleted(HomeworkSubmission $submission): void
+    public function deleting(HomeworkSubmission $submission): void
     {
-        if (!empty($submission->attachments)) {
-            foreach ($submission->attachments as $path) {
-                if (\Illuminate\Support\Facades\Storage::disk('s3')->exists($path)) {
-                    \Illuminate\Support\Facades\Storage::disk('s3')->delete($path);
-                }
-            }
-        }
+        $files = array_merge(
+            $submission->attachments ?? [],
+            $submission->annotated_files ?? [],
+            $submission->annotated_images ?? [],
+            $submission->feedback_attachments ?? [],
+        );
 
-        if (!empty($submission->feedback_attachments)) {
-            foreach ($submission->feedback_attachments as $path) {
-                if (\Illuminate\Support\Facades\Storage::disk('s3')->exists($path)) {
-                    \Illuminate\Support\Facades\Storage::disk('s3')->delete($path);
-                }
+        foreach ($files as $path) {
+            if (is_string($path) && Storage::disk('s3')->exists($path)) {
+                Storage::disk('s3')->delete($path);
             }
         }
     }

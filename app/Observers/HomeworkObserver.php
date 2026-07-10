@@ -24,38 +24,25 @@ class HomeworkObserver
     }
 
     /**
-     * Handle the Homework "deleted" event.
+     * Handle the Homework "deleting" event.
+     *
+     * Runs before the row is removed. We delete the homework's own attachments
+     * from the CDN (s3) and explicitly delete each submission so that its own
+     * deleting event fires and cleans up submission files. The database-level
+     * FK cascade would remove submission rows silently, bypassing Eloquent
+     * events and leaking their files on the CDN.
      */
-    public function deleted(Homework $homework): void
+    public function deleting(Homework $homework): void
     {
-        // Delete homework attachments
-        if (!empty($homework->attachments)) {
-            foreach ($homework->attachments as $path) {
-                if (Storage::disk('s3')->exists($path)) {
-                    Storage::disk('s3')->delete($path);
-                }
+        // Delete homework attachments from the CDN
+        foreach ($homework->attachments ?? [] as $path) {
+            if (is_string($path) && Storage::disk('s3')->exists($path)) {
+                Storage::disk('s3')->delete($path);
             }
         }
 
-        // Delete all submission files (student attachments + teacher feedback)
-        foreach ($homework->submissions as $submission) {
-            // Student attachments
-            if (!empty($submission->attachments)) {
-                foreach ($submission->attachments as $path) {
-                    if (Storage::disk('s3')->exists($path)) {
-                        Storage::disk('s3')->delete($path);
-                    }
-                }
-            }
-
-            // Teacher feedback attachments
-            if (!empty($submission->feedback_attachments)) {
-                foreach ($submission->feedback_attachments as $path) {
-                    if (Storage::disk('s3')->exists($path)) {
-                        Storage::disk('s3')->delete($path);
-                    }
-                }
-            }
-        }
+        // Delete submissions one by one to trigger per-submission file cleanup.
+        // homework_student / homework_activities rows are removed via FK cascade.
+        $homework->submissions()->cursor()->each(fn ($submission) => $submission->delete());
     }
 }
