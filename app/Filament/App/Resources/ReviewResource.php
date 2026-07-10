@@ -73,9 +73,15 @@ class ReviewResource extends Resource
         return $table
             ->defaultSort('created_at', 'desc')
             ->columns([
+                Tables\Columns\TextColumn::make('unread')
+                    ->label('')
+                    ->state(fn(Review $record) => $record->teacher_read_at === null ? 'Новый' : null)
+                    ->badge()
+                    ->color('primary'),
                 Tables\Columns\TextColumn::make('user.name')
                     ->label('Студент')
-                    ->searchable(),
+                    ->searchable()
+                    ->weight(fn(Review $record) => $record->teacher_read_at === null ? 'bold' : null),
                 Tables\Columns\TextColumn::make('rating')
                     ->label('Оценка')
                     ->formatStateUsing(fn($state) => str_repeat('★', $state) . str_repeat('☆', 5 - $state))
