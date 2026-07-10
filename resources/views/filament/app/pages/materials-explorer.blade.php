@@ -33,6 +33,15 @@
             },
         }"
         x-init="if (! Alpine.store('matUpload')) Alpine.store('matUpload', { active: false, done: false, failed: false, progress: 0 })"
+        x-on:modal-closed.window="
+            // Окно настроек закрыто без отправки (Отменить/крестик/клик мимо):
+            // обрываем передачу и удаляем уже переданные временные файлы
+            if ($event.detail?.id === '{{ $this->getId() }}-action' && $wire.uploadingMeta.length) {
+                try { $wire.cancelUpload('pendingFiles') } catch (e) {}
+                Alpine.store('matUpload').active = false;
+                $wire.discardPendingUpload();
+            }
+        "
         x-on:dragenter.prevent="
             const t = Array.from($event.dataTransfer.types);
             if (t.includes('Files') && !drag) dragging++

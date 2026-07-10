@@ -94,10 +94,38 @@ class ListMaterials extends Page
     }
 
     /**
+     * Загрузка отменена (модалка закрыта без отправки) —
+     * удаляем уже переданные временные файлы с сервера
+     */
+    public function discardPendingUpload(): void
+    {
+        foreach ($this->pendingFiles as $file) {
+            if ($file instanceof \Livewire\Features\SupportFileUploads\TemporaryUploadedFile) {
+                try {
+                    $file->delete();
+                } catch (\Throwable $e) {
+                    // Временный файл мог не долететь — не критично
+                }
+            }
+        }
+
+        $this->pendingFiles = [];
+        $this->uploadingMeta = [];
+    }
+
+    /**
      * Файлы доехали до сервера — валидируем размер
      */
     public function updatedPendingFiles(): void
     {
+        // Окно уже закрыто (отмена) — файлы больше не нужны, чистим сразу.
+        // Покрывает гонку: передача завершилась в момент отмены.
+        if (empty($this->uploadingMeta)) {
+            $this->discardPendingUpload();
+
+            return;
+        }
+
         try {
             $this->validate(
                 ['pendingFiles.*' => 'file|max:204800'],
