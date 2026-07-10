@@ -13,15 +13,16 @@
         x-data="{
             dragging: 0,
             drag: null,
-            startUpload(files) {
+            async startUpload(files) {
                 if (! files.length) return;
 
-                // Сразу открываем окно настроек со списком файлов
-                $wire.openUploadSettings(files.map(f => ({ name: f.name, size: f.size })));
-
-                // Передаём файлы в фоне, прогресс — в окне
                 const s = Alpine.store('matUpload');
                 s.active = true; s.done = false; s.failed = false; s.progress = 0;
+
+                // Сначала полностью открываем окно настроек (быстрый запрос
+                // только с метаданными) — и лишь потом начинаем передачу файлов,
+                // чтобы тяжёлая загрузка не задерживала появление окна
+                await $wire.openUploadSettings(files.map(f => ({ name: f.name, size: f.size })));
 
                 $wire.uploadMultiple(
                     'pendingFiles',
