@@ -29,6 +29,25 @@ class ReviewResource extends Resource
             ->where('is_rejected', false);
     }
 
+    public static function getNavigationBadge(): ?string
+    {
+        $count = static::getEloquentQuery()
+            ->whereNull('teacher_read_at')
+            ->count();
+
+        return $count > 0 ? (string) $count : null;
+    }
+
+    public static function getNavigationBadgeColor(): ?string
+    {
+        return 'danger';
+    }
+
+    public static function getNavigationBadgeTooltip(): ?string
+    {
+        return 'Непрочитанные отзывы';
+    }
+
     // Disable creation
     public static function canCreate(): bool
     {
@@ -52,6 +71,7 @@ class ReviewResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->defaultSort('created_at', 'desc')
             ->columns([
                 Tables\Columns\TextColumn::make('user.name')
                     ->label('Студент')
@@ -95,6 +115,12 @@ class ReviewResource extends Resource
                     // кнопка скрыта: просмотр открывается кликом по строке (recordAction),
                     // но сам экшен должен оставаться видимым, иначе клик не смонтирует модалку
                     ->extraAttributes(['class' => 'hidden'])
+                    // открытие модалки считается прочтением отзыва
+                    ->mountUsing(function (Review $record) {
+                        if ($record->teacher_read_at === null) {
+                            $record->forceFill(['teacher_read_at' => now()])->saveQuietly();
+                        }
+                    })
                     ->modalHeading('Отзыв')
                     ->modalCancelAction(false)
                     ->infolist([

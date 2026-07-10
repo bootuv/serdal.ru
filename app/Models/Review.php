@@ -9,7 +9,11 @@ class Review extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['text', 'user_id', 'teacher_id', 'rating', 'is_reported', 'is_rejected'];
+    protected $fillable = ['text', 'user_id', 'teacher_id', 'rating', 'is_reported', 'is_rejected', 'teacher_read_at'];
+
+    protected $casts = [
+        'teacher_read_at' => 'datetime',
+    ];
 
     public function user(): BelongsTo
     {
