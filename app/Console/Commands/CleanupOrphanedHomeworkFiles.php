@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Models\Homework;
 use App\Models\HomeworkSubmission;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 
 class CleanupOrphanedHomeworkFiles extends Command
@@ -121,6 +122,14 @@ class CleanupOrphanedHomeworkFiles extends Command
             }
         };
 
+        // В базе на разных окружениях набор колонок может отличаться
+        // (например, annotated_images может отсутствовать), поэтому выбираем
+        // только реально существующие колонки с файлами.
+        $submissionFileColumns = array_values(array_filter(
+            ['attachments', 'annotated_files', 'annotated_images', 'feedback_attachments'],
+            fn ($column) => Schema::hasColumn('homework_submissions', $column)
+        ));
+
         Homework::query()
             ->select(['id', 'attachments'])
             ->chunkById($chunk, function ($homeworks) use ($add) {
@@ -130,13 +139,12 @@ class CleanupOrphanedHomeworkFiles extends Command
             });
 
         HomeworkSubmission::query()
-            ->select(['id', 'attachments', 'annotated_files', 'annotated_images', 'feedback_attachments'])
-            ->chunkById($chunk, function ($submissions) use ($add) {
+            ->select(array_merge(['id'], $submissionFileColumns))
+            ->chunkById($chunk, function ($submissions) use ($add, $submissionFileColumns) {
                 foreach ($submissions as $submission) {
-                    $add($submission->attachments);
-                    $add($submission->annotated_files);
-                    $add($submission->annotated_images);
-                    $add($submission->feedback_attachments);
+                    foreach ($submissionFileColumns as $column) {
+                        $add($submission->{$column});
+                    }
                 }
             });
 
