@@ -21,7 +21,7 @@
             dragging = 0;
             if (drag) { drag = null; return; }
             const files = Array.from($event.dataTransfer.files);
-            if (files.length) $wire.uploadMultiple('pendingFiles', files);
+            if (files.length) $wire.uploadMultiple('pendingFiles', files, () => {}, () => $wire.notifyUploadError());
         "
     >
 
@@ -33,7 +33,7 @@
         class="hidden"
         x-on:change="
             const files = Array.from($event.target.files);
-            if (files.length) $wire.uploadMultiple('pendingFiles', files);
+            if (files.length) $wire.uploadMultiple('pendingFiles', files, () => {}, () => $wire.notifyUploadError());
             $event.target.value = '';
         "
     />
