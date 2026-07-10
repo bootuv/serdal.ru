@@ -34,6 +34,7 @@ class CleanupOrphanedHomeworkFiles extends Command
         'homework-attachments',
         'homework-submissions',
         'feedback-attachments',
+        'teacher-materials',
     ];
 
     public function handle(): int
@@ -147,6 +148,17 @@ class CleanupOrphanedHomeworkFiles extends Command
                     }
                 }
             });
+
+        if (Schema::hasTable('teacher_materials')) {
+            \App\Models\TeacherMaterial::query()
+                ->select(['id', 'file_path', 'thumbnail_path'])
+                ->chunkById($chunk, function ($materials) use ($add) {
+                    foreach ($materials as $material) {
+                        $add($material->file_path);
+                        $add($material->thumbnail_path);
+                    }
+                });
+        }
 
         return $paths;
     }
