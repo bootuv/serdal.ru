@@ -15,7 +15,7 @@
       <div class="title-block">
         <div class="title-description">
           <h1 class="h1 white-text">Онлайн репетиторы в Ингушетии</h1>
-          <div class="p30 white-text">Первая интерактивная онлайн-платформа профессиональных репетиторов и менторов в
+          <div class="p30 white-text">Интерактивная онлайн-платформа профессиональных репетиторов и менторов в
             Ингушетии.</div>
         </div>
       </div>
@@ -76,23 +76,6 @@
     <h2 id="specialists" class="h2">Найти специалиста</h2>
     <div class="filters-wrapper">
       <div class="filters">
-        <div id="format" data-hover="false" data-delay="0" class="filter w-dropdown">
-          <div class="filter-select w-dropdown-toggle">
-            <div class="filter-counter">0</div>
-            <div class="p24 filter-name">Формат</div>
-            <div class="filter-icon w-icon-dropdown-toggle"></div>
-          </div>
-          <nav class="dropdown-list w-dropdown-list">
-            <div class="dropdown-list-wrapper">
-              <label class="p24 dropdown-list-item w-dropdown-link">
-                <input type="checkbox" class="filter-checkbox" data-filter-type="user_type" data-value="mentor"> Ментор
-              </label>
-              <label class="p24 dropdown-list-item w-dropdown-link">
-                <input type="checkbox" class="filter-checkbox" data-filter-type="user_type" data-value="tutor"> Репетитор
-              </label>
-            </div>
-          </nav>
-        </div>
         <div id="directs" data-hover="false" data-delay="0" class="filter w-dropdown">
           <div class="filter-select w-dropdown-toggle">
             <div class="filter-counter">0</div>

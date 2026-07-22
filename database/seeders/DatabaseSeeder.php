@@ -20,6 +20,7 @@ class DatabaseSeeder extends Seeder
             DirectSeeder::class,
             UsersTableSeeder::class,
             LessonTypeSeeder::class,
+            MeetingSessionSeeder::class,
             ReviewSeeder::class,
         ]);
 

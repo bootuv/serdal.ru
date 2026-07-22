@@ -8,7 +8,7 @@
         </div>
     </div>
     <p class="p24">
-        @if($review->teacher)
+        @if($review->teacher && empty($hideTeacherMention))
             <a href="{{ route('tutors.show', ['username' => $review->teacher->username]) }}"
                 class="review-teacher-mention">{{ '@' . $review->teacher->username }}</a>
         @endif

@@ -225,6 +225,11 @@ class User extends Authenticatable implements FilamentUser
         return $this->hasMany(Room::class);
     }
 
+    public function meetingSessions()
+    {
+        return $this->hasMany(MeetingSession::class);
+    }
+
     public function assignedRooms()
     {
         return $this->belongsToMany(Room::class, 'room_user', 'user_id', 'room_id');

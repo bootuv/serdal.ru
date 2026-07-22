@@ -11,7 +11,11 @@ class IndexController extends Controller
     public function index(Request $request)
     {
         $queryBuilder = User::isSpecialist()
-            ->where('is_active', true);
+            ->where('is_active', true)
+            ->withCount([
+                'meetingSessions as recent_sessions_count' => fn ($q) => $q->where('started_at', '>=', now()->subDays(30)),
+                'meetingSessions as total_sessions_count',
+            ]);
 
         if ($request->has('user_type')) {
             $types = (array) $request->input('user_type');
@@ -46,7 +50,13 @@ class IndexController extends Controller
         $offset = $request->input('offset', 0);
         $limit = 20;
 
-        $specialists = $queryBuilder->skip($offset)->take($limit)->get();
+        $specialists = $queryBuilder
+            ->orderByDesc('recent_sessions_count')
+            ->orderByDesc('total_sessions_count')
+            ->orderBy('id')
+            ->skip($offset)
+            ->take($limit)
+            ->get();
 
         if ($request->ajax()) {
             $html = '';

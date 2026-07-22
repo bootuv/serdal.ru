@@ -247,4 +247,58 @@
       </div>
     </div>
   </section>
+  @if($reviews->isNotEmpty())
+    <section class="content reviews-content">
+      <h2 class="h2">Отзывы</h2>
+      <div class="reviews" id="teacher-reviews">
+        @foreach($reviews as $review)
+          @include('partials.review-item', ['review' => $review, 'hideTeacherMention' => true])
+        @endforeach
+      </div>
+      @if($reviewsHasMore)
+        <div id="reviews-load-trigger" data-offset="20" style="height: 1px;"></div>
+      @endif
+    </section>
+    <script>
+      document.addEventListener('DOMContentLoaded', function () {
+        const container = document.getElementById('teacher-reviews');
+        const loadTrigger = document.getElementById('reviews-load-trigger');
+        if (!loadTrigger) return;
+
+        let isLoading = false;
+
+        const loadMore = () => {
+          if (isLoading) return;
+          isLoading = true;
+
+          const offset = parseInt(loadTrigger.getAttribute('data-offset'));
+
+          fetch(`{{ route('reviews.load-more') }}?offset=${offset}&teacher={{ $user->id }}`)
+            .then(response => response.json())
+            .then(data => {
+              container.insertAdjacentHTML('beforeend', data.html);
+
+              if (data.hasMore) {
+                loadTrigger.setAttribute('data-offset', offset + 20);
+                isLoading = false;
+              } else {
+                loadTrigger.remove();
+              }
+            })
+            .catch(err => {
+              console.error('Error loading reviews:', err);
+              isLoading = false;
+            });
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+          if (entries[0].isIntersecting) {
+            loadMore();
+          }
+        }, { rootMargin: '200px' });
+
+        observer.observe(loadTrigger);
+      });
+    </script>
+  @endif
 @endsection

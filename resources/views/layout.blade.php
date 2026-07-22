@@ -19,6 +19,17 @@
   <script
     type="text/javascript">!function (o, c) { var n = c.documentElement, t = " w-mod-"; n.className += t + "js", ("ontouchstart" in o || o.DocumentTouch && c instanceof DocumentTouch) && (n.className += t + "touch") }(window, document);</script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <style>
+    .body {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    .footer-spacer {
+      flex: 1 0 auto;
+    }
+  </style>
 </head>
 
 <body class="body" x-data="{ mobileMenuOpen: false }">
@@ -38,6 +49,7 @@
   </section>
 
   @yield('content')
+  <div class="footer-spacer"></div>
   <section class="footer">
     <div class="p18 copyright">© {{ date('Y') }} Serdal</div>
     <div class="footer-menu">

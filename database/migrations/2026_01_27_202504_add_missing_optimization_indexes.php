@@ -17,7 +17,7 @@ return new class extends Migration {
             });
         } catch (QueryException $e) {
             // Ignore duplicate index errors
-            if (!str_contains($e->getMessage(), 'Duplicate key name') && !str_contains($e->getMessage(), '1061')) {
+            if (!str_contains($e->getMessage(), 'Duplicate key name') && !str_contains($e->getMessage(), '1061') && !str_contains($e->getMessage(), 'already exists')) {
                 throw $e;
             }
         }

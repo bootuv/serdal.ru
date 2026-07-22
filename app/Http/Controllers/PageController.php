@@ -14,6 +14,7 @@ class PageController extends Controller
             ->where('is_rejected', false)
             ->whereHas('user', fn($q) => $q->where('role', User::ROLE_STUDENT))
             ->latest()
+            ->orderByDesc('id')
             ->take(20)
             ->get();
 
@@ -30,24 +31,30 @@ class PageController extends Controller
     {
         $offset = $request->input('offset', 0);
         $limit = 20;
+        $teacherId = $request->input('teacher');
 
-        $reviews = Review::with(['user', 'teacher'])
+        $query = Review::with(['user', 'teacher'])
             ->where('is_rejected', false)
             ->whereHas('user', fn($q) => $q->where('role', User::ROLE_STUDENT))
+            ->when($teacherId, fn($q) => $q->where('teacher_id', $teacherId));
+
+        $totalCount = (clone $query)->count();
+
+        $reviews = $query
             ->latest()
+            ->orderByDesc('id')
             ->skip($offset)
             ->take($limit)
             ->get();
-
-        $totalCount = Review::where('is_rejected', false)
-            ->whereHas('user', fn($q) => $q->where('role', User::ROLE_STUDENT))
-            ->count();
 
         $hasMore = ($offset + $limit) < $totalCount;
 
         $html = '';
         foreach ($reviews as $review) {
-            $html .= view('partials.review-item', compact('review'))->render();
+            $html .= view('partials.review-item', [
+                'review' => $review,
+                'hideTeacherMention' => (bool) $teacherId,
+            ])->render();
         }
 
         return response()->json([
@@ -66,7 +73,22 @@ class PageController extends Controller
         $lessonTypeIndividual = $user->lessonTypes->where('type', LessonType::TYPE_INDIVIDUAL)->first();
         $lessonTypeGroup = $user->lessonTypes->where('type', LessonType::TYPE_GROUP)->first();
 
-        return view('tutor', compact('user', 'lessonTypeIndividual', 'lessonTypeGroup'));
+        $reviewsQuery = Review::with('user')
+            ->where('teacher_id', $user->id)
+            ->where('is_rejected', false)
+            ->whereHas('user', fn($q) => $q->where('role', User::ROLE_STUDENT));
+
+        $reviewsTotal = (clone $reviewsQuery)->count();
+
+        $reviews = $reviewsQuery
+            ->latest()
+            ->orderByDesc('id')
+            ->take(20)
+            ->get();
+
+        $reviewsHasMore = $reviewsTotal > 20;
+
+        return view('tutor', compact('user', 'lessonTypeIndividual', 'lessonTypeGroup', 'reviews', 'reviewsHasMore'));
     }
 
     public function privacyPage()
