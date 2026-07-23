@@ -41,6 +41,8 @@
 <body class="h-full font-sans antialiased text-gray-900 dark:text-gray-100">
     {{ $slot }}
 
+    @livewire('notifications')
+
     @filamentScripts
     @vite('resources/js/app.js')
 </body>

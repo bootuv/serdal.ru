@@ -126,7 +126,18 @@ class BecomeTutorPage extends Component implements HasForms
 
     public function create(): void
     {
-        $data = $this->form->getState();
+        try {
+            $data = $this->form->getState();
+        } catch (\Illuminate\Validation\ValidationException $exception) {
+            Notification::make()
+                ->title('Не удалось отправить заявку')
+                ->body(implode('<br>', collect($exception->validator->errors()->all())->unique()->all()))
+                ->danger()
+                ->persistent()
+                ->send();
+
+            throw $exception;
+        }
 
         // Создаем заявку
         $application = TeacherApplication::create($data);
