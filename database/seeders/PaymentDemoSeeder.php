@@ -23,6 +23,9 @@ use Illuminate\Support\Str;
  *             pay-blocked@demo.ru         — заблокирован → редирект на страницу «Оплата»
  *             pay-monthly-paid@demo.ru    — помесячная, месяц оплачен
  *             pay-monthly-overdue@demo.ru — помесячная, месяц просрочен → баннер
+ *             pay-free@demo.ru            — бесплатный ученик, оплата не отслеживается
+ *             pay-override@demo.ru        — персональная помесячная оплата (override)
+ *             pay-extra-1..6@demo.ru      — обычная история: оплачено + свежее начисление
  */
 class PaymentDemoSeeder extends Seeder
 {
@@ -31,7 +34,7 @@ class PaymentDemoSeeder extends Seeder
         // Пересоздаём демо-данные при повторном запуске
         User::where('email', 'like', 'pay-%@demo.ru')->get()->each->delete();
 
-        $teacher = $this->createUser('pay-teacher@demo.ru', 'Демо Учитель', User::ROLE_TUTOR);
+        $teacher = $this->createUser('pay-teacher@demo.ru', 'Магомед Евлоев', User::ROLE_TUTOR);
         $teacher->update(['is_profile_completed' => true]);
 
         LessonType::create([
@@ -54,35 +57,35 @@ class PaymentDemoSeeder extends Seeder
         $groupRoom = $this->createRoom($teacher, 'Группа (помесячно)', 'group');
 
         // ── Кейс 1: всё оплачено + одно отменённое начисление в истории ──
-        $student = $this->createStudent($teacher, 'pay-paid@demo.ru', 'Оля Оплатившая');
-        $room = $this->createRoom($teacher, 'Математика — Оля', 'individual', $student);
+        $student = $this->createStudent($teacher, 'pay-paid@demo.ru', 'Хава Оздоева');
+        $room = $this->createRoom($teacher, 'Математика — Хава', 'individual', $student);
         foreach ([10, 5] as $daysAgo) {
             $this->createLessonRecord($teacher, $student, $room, $daysAgo, PaymentRecord::STATUS_PAID);
         }
         $this->createLessonRecord($teacher, $student, $room, 3, PaymentRecord::STATUS_CANCELLED);
 
         // ── Кейс 2: ожидает оплаты, срок ещё не прошёл (баннера нет) ──
-        $student = $this->createStudent($teacher, 'pay-pending@demo.ru', 'Петя Ожидающий');
-        $room = $this->createRoom($teacher, 'Физика — Петя', 'individual', $student);
+        $student = $this->createStudent($teacher, 'pay-pending@demo.ru', 'Адам Мальсагов');
+        $room = $this->createRoom($teacher, 'Физика — Адам', 'individual', $student);
         $this->createLessonRecord($teacher, $student, $room, 1, PaymentRecord::STATUS_UNPAID); // срок через 2 дня
 
         // ── Кейс 3: просрочка → баннер в кабинете, но ещё не заблокирован ──
-        $student = $this->createStudent($teacher, 'pay-overdue@demo.ru', 'Даня Должник');
-        $room = $this->createRoom($teacher, 'Химия — Даня', 'individual', $student);
+        $student = $this->createStudent($teacher, 'pay-overdue@demo.ru', 'Ибрагим Костоев');
+        $room = $this->createRoom($teacher, 'Химия — Ибрагим', 'individual', $student);
         $this->createLessonRecord($teacher, $student, $room, 8, PaymentRecord::STATUS_UNPAID);  // просрочено 5 дней
         $this->createLessonRecord($teacher, $student, $room, 6, PaymentRecord::STATUS_UNPAID);  // просрочено 3 дня
 
         // ── Кейс 4: продолжил ходить с долгом → кабинет заблокирован ──
-        $student = $this->createStudent($teacher, 'pay-blocked@demo.ru', 'Боря Заблокированный');
-        $room = $this->createRoom($teacher, 'История — Боря', 'individual', $student);
+        $student = $this->createStudent($teacher, 'pay-blocked@demo.ru', 'Муса Плиев');
+        $room = $this->createRoom($teacher, 'История — Муса', 'individual', $student);
         $this->createLessonRecord($teacher, $student, $room, 15, PaymentRecord::STATUS_UNPAID); // старый долг
         $this->createLessonRecord($teacher, $student, $room, 2, PaymentRecord::STATUS_UNPAID);  // пришёл с долгом
         $student->update(['payment_blocked_at' => now()->subDay()]);
 
         // ── Кейс 5: помесячная оплата, месяц оплачен ──
-        $monthlyPaid = $this->createStudent($teacher, 'pay-monthly-paid@demo.ru', 'Маша Помесячная');
+        $monthlyPaid = $this->createStudent($teacher, 'pay-monthly-paid@demo.ru', 'Марем Аушева');
         // ── Кейс 6: помесячная оплата, месяц просрочен → баннер ──
-        $monthlyOverdue = $this->createStudent($teacher, 'pay-monthly-overdue@demo.ru', 'Гриша Просрочивший');
+        $monthlyOverdue = $this->createStudent($teacher, 'pay-monthly-overdue@demo.ru', 'Иса Цечоев');
 
         $groupRoom->participants()->attach([$monthlyPaid->id, $monthlyOverdue->id]);
         // RoomObserver пересчитывает тип по числу участников на событии saved
@@ -94,17 +97,34 @@ class PaymentDemoSeeder extends Seeder
         $this->createMonthlyRecord($teacher, $monthlyOverdue, now(), PaymentRecord::STATUS_UNPAID);
 
         // ── Кейс 7: бесплатный ученик — оплата не отслеживается ──
-        $student = $this->createStudent($teacher, 'pay-free@demo.ru', 'Федя Бесплатный');
+        $student = $this->createStudent($teacher, 'pay-free@demo.ru', 'Аминат Котиева');
         $teacher->students()->updateExistingPivot($student->id, ['is_free' => true]);
-        $this->createRoom($teacher, 'Биология — Федя', 'individual', $student);
+        $this->createRoom($teacher, 'Биология — Аминат', 'individual', $student);
 
         // ── Кейс 8: индивидуальный ученик с персональной помесячной оплатой ──
-        // (у учителя индивидуальные занятия поурочные, но для Иры — помесячно)
-        $student = $this->createStudent($teacher, 'pay-override@demo.ru', 'Ира Персональная');
+        // (у учителя индивидуальные занятия поурочные, но для Мадины — помесячно)
+        $student = $this->createStudent($teacher, 'pay-override@demo.ru', 'Мадина Барахоева');
         $teacher->students()->updateExistingPivot($student->id, ['payment_type_override' => PaymentRecord::TYPE_MONTHLY]);
-        $this->createRoom($teacher, 'Английский — Ира', 'individual', $student);
+        $this->createRoom($teacher, 'Английский — Мадина', 'individual', $student);
         $this->createMonthlyRecord($teacher, $student, now()->subMonth(), PaymentRecord::STATUS_PAID);
         $this->createMonthlyRecord($teacher, $student, now(), PaymentRecord::STATUS_UNPAID);
+
+        // ── Остальные ученики: обычная история — пара оплаченных занятий и одно свежее начисление ──
+        $extras = [
+            ['pay-extra-1@demo.ru', 'Танзила Хамхоева', 'Алгебра — Танзила'],
+            ['pay-extra-2@demo.ru', 'Ахмед Точиев', 'Геометрия — Ахмед'],
+            ['pay-extra-3@demo.ru', 'Заира Медова', 'Русский язык — Заира'],
+            ['pay-extra-4@demo.ru', 'Алихан Албаков', 'Информатика — Алихан'],
+            ['pay-extra-5@demo.ru', 'Луиза Гагиева', 'Обществознание — Луиза'],
+            ['pay-extra-6@demo.ru', 'Дауд Ужахов', 'География — Дауд'],
+        ];
+        foreach ($extras as $i => [$email, $studentName, $roomName]) {
+            $student = $this->createStudent($teacher, $email, $studentName);
+            $room = $this->createRoom($teacher, $roomName, 'individual', $student);
+            $this->createLessonRecord($teacher, $student, $room, 12 + $i, PaymentRecord::STATUS_PAID);
+            $this->createLessonRecord($teacher, $student, $room, 7 + $i, PaymentRecord::STATUS_PAID);
+            $this->createLessonRecord($teacher, $student, $room, 1 + ($i % 2), PaymentRecord::STATUS_UNPAID); // срок не прошёл
+        }
 
         $this->command?->info('Демо-данные оплаты созданы. Учитель: pay-teacher@demo.ru, пароль: password');
     }

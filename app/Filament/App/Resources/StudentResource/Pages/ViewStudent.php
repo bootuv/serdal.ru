@@ -199,7 +199,8 @@ class ViewStudent extends ViewRecord
                                                 'records' => \App\Models\PaymentRecord::where('teacher_id', auth()->id())
                                                     ->where('student_id', $this->record->id)
                                                     ->with('meetingSession.room')
-                                                    ->orderByRaw("FIELD(status, 'unpaid') DESC")
+                                                    // Сначала неоплаченные; CASE вместо FIELD() — работает и в MySQL, и в SQLite
+                                                    ->orderByRaw("CASE WHEN status = 'unpaid' THEN 0 ELSE 1 END")
                                                     ->orderByDesc('due_date')
                                                     ->limit(50)
                                                     ->get(),

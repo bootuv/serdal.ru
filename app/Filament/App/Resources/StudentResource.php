@@ -235,11 +235,10 @@ class StudentResource extends Resource
                                 return 'Заблокирован';
                             }
 
-                            $monthly = $overdue->firstWhere('type', PaymentRecord::TYPE_MONTHLY);
-                            if ($monthly) {
-                                return 'Долг: ' . mb_strtolower($monthly->label);
+                            if ($overdue->firstWhere('type', PaymentRecord::TYPE_MONTHLY)) {
+                                return 'Просрочено';
                             }
-                            return 'Долг: ' . trans_choice('{1} :count занятие|[2,4] :count занятия|[5,*] :count занятий', $overdue->count());
+                            return 'Просрочено: ' . trans_choice('{1} :count занятие|[2,4] :count занятия|[5,*] :count занятий', $overdue->count());
                         }
 
                         return 'Ожидает оплаты';
@@ -247,23 +246,37 @@ class StudentResource extends Resource
                     ->badge()
                     ->icon(fn(string $state): ?string => $state === 'Заблокирован' ? 'heroicon-m-lock-closed' : null)
                     ->tooltip(function (string $state, User $record): ?string {
-                        if ($state !== 'Заблокирован') {
-                            return null;
+                        if ($state === 'Заблокирован') {
+                            return static::blockedPaymentTooltip($record);
                         }
 
-                        $overdueCount = PaymentRecord::overdue()
-                            ->where('teacher_id', auth()->id())
-                            ->where('student_id', $record->id)
-                            ->count();
+                        if (str_starts_with($state, 'Просрочено')) {
+                            $due = PaymentRecord::overdue()
+                                ->where('teacher_id', auth()->id())
+                                ->where('student_id', $record->id)
+                                ->orderBy('due_date')
+                                ->first()?->due_date;
 
-                        return 'Долг: ' . trans_choice('{1} :count занятие|[2,4] :count занятия|[5,*] :count занятий', $overdueCount)
-                            . '. Кабинет ученика заблокирован, разблокируется после отметки оплаты.';
+                            return $due ? 'Срок оплаты был ' . $due->format('d.m.Y') : null;
+                        }
+
+                        if ($state === 'Ожидает оплаты') {
+                            $due = PaymentRecord::unpaid()
+                                ->where('teacher_id', auth()->id())
+                                ->where('student_id', $record->id)
+                                ->orderBy('due_date')
+                                ->first()?->due_date;
+
+                            return $due ? 'Оплата до ' . $due->format('d.m.Y') : null;
+                        }
+
+                        return null;
                     })
                     ->color(fn(string $state): string => match (true) {
                         $state === 'Занятий не было', $state === 'Оплата не требуется' => 'gray',
                         $state === 'Бесплатно' => 'info',
                         $state === 'Оплачено' => 'success',
-                        str_starts_with($state, 'Долг'), str_starts_with($state, 'Заблокирован') => 'danger',
+                        str_starts_with($state, 'Просрочено'), str_starts_with($state, 'Заблокирован') => 'danger',
                         default => 'warning',
                     }),
             ])
@@ -418,6 +431,20 @@ class StudentResource extends Resource
             ->where('teacher_id', auth()->id())
             ->where('student_id', $record->id)
             ->value('payment_type_override');
+    }
+
+    /**
+     * Единый текст подсказки для статуса «Заблокирован» (список учеников и дашборд).
+     */
+    public static function blockedPaymentTooltip(User $student): string
+    {
+        $overdueCount = PaymentRecord::overdue()
+            ->where('teacher_id', auth()->id())
+            ->where('student_id', $student->id)
+            ->count();
+
+        return 'Просрочено: ' . trans_choice('{1} :count занятие|[2,4] :count занятия|[5,*] :count занятий', $overdueCount)
+            . '. Кабинет ученика заблокирован, разблокируется после отметки оплаты.';
     }
 
     /**

@@ -53,12 +53,27 @@ class PendingPaymentsWidget extends BaseWidget
                     ->label('За что')
                     ->state(fn(PaymentRecord $record): string => $record->label),
                 Tables\Columns\TextColumn::make('due_date')
-                    ->label('Срок оплаты')
-                    ->state(fn(PaymentRecord $record): string => $record->isOverdue()
-                        ? 'Просрочено'
-                        : 'до ' . $record->due_date->format('d.m.Y'))
+                    ->label('Оплата')
+                    // Статусы и цвета — как в колонке «Оплата» на странице «Ученики»
+                    ->state(function (PaymentRecord $record): string {
+                        if ($record->student?->payment_blocked_at) {
+                            return 'Заблокирован';
+                        }
+
+                        return $record->isOverdue() ? 'Просрочено' : 'Ожидает оплаты';
+                    })
                     ->badge()
-                    ->color(fn(string $state): string => $state === 'Просрочено' ? 'danger' : 'warning'),
+                    ->icon(fn(string $state): ?string => $state === 'Заблокирован' ? 'heroicon-m-lock-closed' : null)
+                    ->color(fn(string $state): string => $state === 'Ожидает оплаты' ? 'warning' : 'danger')
+                    ->tooltip(function (PaymentRecord $record, string $state): string {
+                        if ($state === 'Заблокирован') {
+                            return \App\Filament\App\Resources\StudentResource::blockedPaymentTooltip($record->student);
+                        }
+
+                        return $record->isOverdue()
+                            ? 'Срок оплаты был ' . $record->due_date->format('d.m.Y')
+                            : 'Оплата до ' . $record->due_date->format('d.m.Y');
+                    }),
             ])
             ->actions([
                 Tables\Actions\Action::make('mark_paid')
