@@ -12,7 +12,14 @@ trait BroadcastsNotification
      */
     public function toBroadcast(object $notifiable): BroadcastMessage
     {
-        return new BroadcastMessage($this->toDatabase($notifiable));
+        $data = $this->toDatabase($notifiable);
+
+        // Звук в кабинете играет только для уведомлений с этим флагом
+        // (см. resources/views/filament/notifications/sound.blade.php).
+        // Включается свойством `public bool $broadcastSound = true;` в классе уведомления.
+        $data['sound'] = $this->broadcastSound ?? false;
+
+        return new BroadcastMessage($data);
     }
 
     /**

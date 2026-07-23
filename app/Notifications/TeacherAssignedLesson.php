@@ -14,6 +14,9 @@ class TeacherAssignedLesson extends Notification implements ShouldBroadcast
 {
     use Queueable, BroadcastsNotification;
 
+    // Важное уведомление: играть звук в кабинете при получении
+    public bool $broadcastSound = true;
+
     public function __construct(
         public Room $room,
         public User $teacher
