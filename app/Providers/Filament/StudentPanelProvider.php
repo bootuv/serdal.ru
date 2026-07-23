@@ -40,6 +40,18 @@ class StudentPanelProvider extends PanelProvider
                 'panels::body.end',
                 fn() => view('filament.notifications.sound')
             )
+            ->renderHook(
+                'panels::page.start',
+                fn() => auth()->check() ? view('filament.student.payment-banner') : ''
+            )
+            // При блокировке за неоплату прячем сайдбар и кнопку его открытия:
+            // ученику доступна только страница «Оплата»
+            ->renderHook(
+                'panels::styles.after',
+                fn() => auth()->user()?->payment_blocked_at
+                    ? new \Illuminate\Support\HtmlString('<style>.fi-sidebar, .fi-topbar-open-sidebar-btn, .fi-topbar-close-sidebar-btn, .fi-sidebar-close-overlay { display: none !important; }</style>')
+                    : ''
+            )
 
             ->databaseNotifications()
             ->databaseNotificationsPolling('30s')
@@ -83,6 +95,7 @@ class StudentPanelProvider extends PanelProvider
             ->authMiddleware([
                 Authenticate::class,
                 \App\Http\Middleware\CheckUserActive::class,
+                \App\Http\Middleware\CheckStudentPaymentBlocked::class,
             ]);
     }
 }

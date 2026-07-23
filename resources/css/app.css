@@ -80,6 +80,8 @@
 
     :is(.fi-ta-table, .sd-card-table) tbody > tr > td[data-label] .fi-ta-text {
         @apply justify-items-end text-end;
+        padding: 0 !important;
+        width: auto;
     }
 
     /* обнулить табличные отступы контента у всех типов колонок */
@@ -336,4 +338,48 @@
 
 .dark .fi-sidebar-item:has(a[href*="prices"]) {
     border-top-color: rgba(255, 255, 255, 0.1) !important;
+}
+/* Payment modal: unpaid records as horizontal cards */
+.payment-record-cards label.fi-fo-checkbox-list-option-label {
+    align-items: center;
+    border: 1px solid rgb(229, 231, 235);
+    border-radius: 0.75rem;
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.payment-record-cards label.fi-fo-checkbox-list-option-label:hover {
+    background-color: rgb(249, 250, 251);
+}
+
+.payment-record-cards label.fi-fo-checkbox-list-option-label:has(input:checked) {
+    border-color: rgb(245, 158, 11);
+    background-color: rgba(245, 158, 11, 0.06);
+}
+
+.payment-record-cards label.fi-fo-checkbox-list-option-label input {
+    margin-top: 0 !important;
+}
+
+.dark .payment-record-cards label.fi-fo-checkbox-list-option-label {
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+.dark .payment-record-cards label.fi-fo-checkbox-list-option-label:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.dark .payment-record-cards label.fi-fo-checkbox-list-option-label:has(input:checked) {
+    border-color: rgb(245, 158, 11);
+    background-color: rgba(245, 158, 11, 0.1);
+}
+
+/* Payment modal: tighter spacing between record cards */
+.payment-record-cards.fi-fo-checkbox-list {
+    margin-top: -0.5rem !important;
+}
+
+.payment-record-cards > div {
+    padding-top: 0.5rem !important;
 }

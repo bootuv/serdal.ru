@@ -14,6 +14,8 @@ class LessonType extends Model
         'type',
         'price',
         'payment_type',
+        'payment_due_days',
+        'payment_due_day',
         'count_per_week',
         'duration',
         'user_id',

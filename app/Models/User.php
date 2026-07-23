@@ -54,6 +54,7 @@ class User extends Authenticatable implements FilamentUser
         'username',
         'is_active',
         'is_blocked',
+        'payment_blocked_at',
         'google_access_token',
         'google_refresh_token',
         'google_token_expires_at',
@@ -88,6 +89,7 @@ class User extends Authenticatable implements FilamentUser
             'grade' => 'json',
             'google_token_expires_at' => 'datetime',
             'push_reminder_at' => 'datetime',
+            'payment_blocked_at' => 'datetime',
             'commission_rate' => 'integer',
         ];
     }
@@ -237,12 +239,30 @@ class User extends Authenticatable implements FilamentUser
 
     public function students()
     {
-        return $this->belongsToMany(User::class, 'teacher_student', 'teacher_id', 'student_id');
+        return $this->belongsToMany(User::class, 'teacher_student', 'teacher_id', 'student_id')
+            ->withPivot('is_free', 'payment_type_override');
     }
 
     public function teachers()
     {
-        return $this->belongsToMany(User::class, 'teacher_student', 'student_id', 'teacher_id');
+        return $this->belongsToMany(User::class, 'teacher_student', 'student_id', 'teacher_id')
+            ->withPivot('is_free', 'payment_type_override');
+    }
+
+    /**
+     * Начисления ученика (записи об оплате занятий).
+     */
+    public function paymentRecords()
+    {
+        return $this->hasMany(PaymentRecord::class, 'student_id');
+    }
+
+    /**
+     * Начисления, выставленные учителем своим ученикам.
+     */
+    public function issuedPaymentRecords()
+    {
+        return $this->hasMany(PaymentRecord::class, 'teacher_id');
     }
 
     public function messages()

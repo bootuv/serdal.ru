@@ -29,7 +29,7 @@ class ViewStudent extends ViewRecord
             Actions\Action::make('delete_from_list')
                 ->label('Удалить из списка')
                 ->color('danger')
-                ->link()
+                ->outlined()
                 ->icon('heroicon-o-trash')
                 ->requiresConfirmation()
                 ->action(function () {
@@ -70,6 +70,33 @@ class ViewStudent extends ViewRecord
 
                     $this->redirect(StudentResource::getUrl('index'));
                 }),
+            Actions\ActionGroup::make([
+                Actions\Action::make('mark_payment')
+                    ->label('Отметить оплату')
+                    ->icon('heroicon-o-check-circle')
+                    ->modalHeading(fn() => "Оплата — {$this->record->name}")
+                    ->modalSubmitActionLabel('Сохранить')
+                    ->modalSubmitAction(fn($action) => StudentResource::hasUnpaidRecords($this->record) ? $action : false)
+                    ->modalCancelActionLabel(fn() => StudentResource::hasUnpaidRecords($this->record) ? 'Отмена' : 'Закрыть')
+                    ->form(fn() => StudentResource::getPaymentFormSchema($this->record))
+                    ->action(function (array $data) {
+                        StudentResource::applyPaymentMarks($this->record, $data);
+                    }),
+                Actions\Action::make('payment_settings')
+                    ->label('Настройки оплаты')
+                    ->icon('heroicon-o-cog-6-tooth')
+                    ->modalHeading(fn() => "Настройки оплаты — {$this->record->name}")
+                    ->modalWidth('md')
+                    ->modalSubmitActionLabel('Сохранить')
+                    ->form(fn() => StudentResource::getPaymentSettingsFormSchema($this->record))
+                    ->action(function (array $data) {
+                        StudentResource::applyPaymentSettings($this->record, $data);
+                    }),
+            ])
+                ->label('Оплата')
+                ->icon('heroicon-o-banknotes')
+                ->color('gray')
+                ->button(),
         ];
     }
 
@@ -161,6 +188,21 @@ class ViewStudent extends ViewRecord
                                                     ->label('Просрочено')
                                                     ->state(fn(User $record) => $this->getHomeworkStats($record)['overdue'])
                                                     ->color('danger'),
+                                            ]),
+                                    ]),
+
+                                Infolists\Components\Section::make('Оплата')
+                                    ->collapsed()
+                                    ->schema([
+                                        Infolists\Components\View::make('filament.app.resources.student-resource.pages.payment-history')
+                                            ->viewData([
+                                                'records' => \App\Models\PaymentRecord::where('teacher_id', auth()->id())
+                                                    ->where('student_id', $this->record->id)
+                                                    ->with('meetingSession.room')
+                                                    ->orderByRaw("FIELD(status, 'unpaid') DESC")
+                                                    ->orderByDesc('due_date')
+                                                    ->limit(50)
+                                                    ->get(),
                                             ]),
                                     ]),
 

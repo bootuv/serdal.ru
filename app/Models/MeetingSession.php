@@ -34,6 +34,20 @@ class MeetingSession extends Model
         'deletion_requested_at' => 'datetime',
     ];
 
+    protected static function booted()
+    {
+        // При завершении сессии создаём поурочные начисления и проверяем должников
+        static::updated(function (MeetingSession $session) {
+            if ($session->wasChanged('status') && $session->status === 'completed') {
+                try {
+                    \App\Services\PaymentRecordService::handleCompletedSession($session);
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::error("[Payments] handleCompletedSession failed for session {$session->id}: " . $e->getMessage());
+                }
+            }
+        });
+    }
+
     public function user()
     {
         return $this->belongsTo(User::class);
