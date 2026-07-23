@@ -14,32 +14,27 @@ class ReviewShareCardGenerator
     private const OUTPUT_WIDTH = 1080;
     private const TEXT_COLOR = '1d1d1b';
 
-    // Шапка одной колонкой по центру: аватарка сверху, под ней имя
-    private const AVATAR_SIZE = 310;
-    private const AVATAR_TOP = 185;
-    private const NAME_TOP = 570;
-    private const NAME_WRAP_WIDTH = 1800;
-
-    // Группа «линия + отзыв» подтянута вверх к имени;
-    // если имя переносится на вторую строку, группа сдвигается вниз на NAME_LINE_HEIGHT
+    // Шапка горизонтальная: аватарка слева, справа от неё имя автора,
+    // под именем подпись «Репетитор: {имя}». Всё выровнено по левому краю.
+    private const AVATAR_SIZE = 360;
+    private const AVATAR_TOP = 160;
+    private const NAME_TOP = 200;
     private const NAME_FONT_SIZE = 96;
-    private const NAME_LINE_HEIGHT = 125;
+    private const SUBTITLE_FONT_SIZE = 64;
+    private const NAME_SUBTITLE_GAP = 50;
 
-    // Подпись «Репетитор: / {имя}» под разделительной линией; при её наличии
-    // текст отзыва сдвигается вниз на SUBTITLE_SHIFT + SUBTITLE_LINE_HEIGHT
-    private const SUBTITLE_FONT_SIZE = 60;
-    private const SUBTITLE_NAME_FONT_SIZE = 72;
-    private const SUBTITLE_TOP = 830;
-    private const SUBTITLE_LINE_HEIGHT = 80;
-    private const SUBTITLE_SHIFT = 150;
-    private const SUBTITLE_COLOR = self::TEXT_COLOR;
+    // Высота шапки считается от фактических переносов имени и подписи;
+    // линия и текст идут после самого нижнего элемента (аватар или подпись)
+    private const DIVIDER_GAP = 130;  // низ шапки -> линия
+    private const TEXT_GAP = 160;     // линия -> текст отзыва
 
-    private const DIVIDER_Y = 750;
-    private const TEXT_TOP = 910;
     private const TEXT_LEFT = 192;
     private const TEXT_WRAP_WIDTH = 1776;
     private const TEXT_LINE_HEIGHT = 1.6;
-    private const TEXT_BOTTOM = 3470; // верх логотипа минус отступ
+    private const TEXT_BOTTOM = 3450; // верх логотипа (y=3538) минус отступ
+
+    private const HEADER_TEXT_LEFT = self::TEXT_LEFT + self::AVATAR_SIZE + 72;
+    private const HEADER_WRAP_WIDTH = self::TEXT_LEFT + self::TEXT_WRAP_WIDTH - self::HEADER_TEXT_LEFT;
 
     // Размер подбирается по фактической высоте текста: максимальный, при котором отзыв
     // помещается; не крупнее шрифта имени (NAME_FONT_SIZE)
@@ -52,36 +47,59 @@ class ReviewShareCardGenerator
     {
         $card = Image::read(resource_path('images/serdal-story-bg.png'));
 
-        $card->place($this->circularAvatar($review->user?->avatar), 'top', 0, self::AVATAR_TOP);
+        $card->place($this->circularAvatar($review->user?->avatar), 'top-left', self::TEXT_LEFT, self::AVATAR_TOP);
 
         $name = $review->user?->name ?? 'Ученик';
-        $card->text($name, $card->width() / 2, self::NAME_TOP, function (FontFactory $font) {
+        $nameFontSize = $this->headerFontSize($name, self::NAME_FONT_SIZE, 'fonts/Inter-SemiBold.ttf');
+        $card->text($name, self::HEADER_TEXT_LEFT, self::NAME_TOP, function (FontFactory $font) use ($nameFontSize) {
             $font->filename(resource_path('fonts/Inter-SemiBold.ttf'));
-            $font->size(self::NAME_FONT_SIZE);
+            $font->size($nameFontSize);
             $font->color(self::TEXT_COLOR);
-            $font->align('center');
+            $font->align('left');
             $font->valign('top');
             $font->lineHeight(1.3);
-            $font->wrap(self::NAME_WRAP_WIDTH);
+            $font->wrap(self::HEADER_WRAP_WIDTH);
         });
 
-        $headerShift = $this->nameIsMultiline($name) ? self::NAME_LINE_HEIGHT : 0;
-
-        $card->drawLine(function (\Intervention\Image\Geometry\Factories\LineFactory $line) use ($headerShift) {
-            $line->from(self::TEXT_LEFT, self::DIVIDER_Y + $headerShift);
-            $line->to(self::TEXT_LEFT + self::TEXT_WRAP_WIDTH, self::DIVIDER_Y + $headerShift);
-            $line->color(self::TEXT_COLOR);
-            $line->width(6);
-        });
+        $headerBottom = self::NAME_TOP + $this->textHeight(
+            $name, $nameFontSize, 'fonts/Inter-SemiBold.ttf', self::HEADER_WRAP_WIDTH, 1.3
+        );
 
         if ($review->teacher?->name) {
-            $headerShift += $this->drawSubtitle($card, $review->teacher->name, self::SUBTITLE_TOP + $headerShift);
+            $subtitle = 'Репетитор: ' . $review->teacher->name;
+            $subtitleFontSize = $this->headerFontSize($subtitle, self::SUBTITLE_FONT_SIZE, 'fonts/Inter-Regular.ttf');
+            $subtitleTop = $headerBottom + self::NAME_SUBTITLE_GAP;
+
+            $card->text($subtitle, self::HEADER_TEXT_LEFT, $subtitleTop, function (FontFactory $font) use ($subtitleFontSize) {
+                $font->filename(resource_path('fonts/Inter-Regular.ttf'));
+                $font->size($subtitleFontSize);
+                $font->color(self::TEXT_COLOR);
+                $font->align('left');
+                $font->valign('top');
+                $font->lineHeight(1.3);
+                $font->wrap(self::HEADER_WRAP_WIDTH);
+            });
+
+            $headerBottom = $subtitleTop + $this->textHeight(
+                $subtitle, $subtitleFontSize, 'fonts/Inter-Regular.ttf', self::HEADER_WRAP_WIDTH, 1.3
+            );
         }
 
-        $text = $this->prepareText($review->text);
-        [$text, $fontSize] = $this->fitText($text, self::TEXT_BOTTOM - self::TEXT_TOP - $headerShift);
+        $headerBottom = max($headerBottom, self::AVATAR_TOP + self::AVATAR_SIZE);
+        $dividerY = $headerBottom + self::DIVIDER_GAP;
+        $textTop = $dividerY + self::TEXT_GAP;
 
-        $card->text($text, self::TEXT_LEFT, self::TEXT_TOP + $headerShift, function (FontFactory $font) use ($fontSize) {
+        $card->drawLine(function (\Intervention\Image\Geometry\Factories\LineFactory $line) use ($dividerY) {
+            $line->from(self::TEXT_LEFT, $dividerY);
+            $line->to(self::TEXT_LEFT + self::TEXT_WRAP_WIDTH, $dividerY);
+            $line->color(self::TEXT_COLOR);
+            $line->width(7);
+        });
+
+        $text = $this->prepareText($review->text);
+        [$text, $fontSize] = $this->fitText($text, self::TEXT_BOTTOM - $textTop);
+
+        $card->text($text, self::TEXT_LEFT, $textTop, function (FontFactory $font) use ($fontSize) {
             $font->filename(resource_path('fonts/Inter-Regular.ttf'));
             $font->size($fontSize);
             $font->color(self::TEXT_COLOR);
@@ -151,66 +169,43 @@ class ReviewShareCardGenerator
         return (int) round($fontSize * 0.75 * self::TEXT_LINE_HEIGHT);
     }
 
-    private function textHeight(string $text, int $fontSize): int
+    /**
+     * GD переносит текст только по пробелам: слово шире колонки вылезет за край.
+     * Уменьшаем размер шрифта так, чтобы самое длинное слово помещалось.
+     */
+    private function headerFontSize(string $text, int $baseSize, string $fontPath): int
     {
+        $widest = 0;
+        foreach (preg_split('/\s+/u', $text) as $word) {
+            // GD принимает размер шрифта в пунктах (px * 0.75)
+            $box = imagettfbbox($baseSize * 0.75, 0, resource_path($fontPath), $word);
+            $widest = max($widest, abs($box[4] - $box[0]));
+        }
+
+        if ($widest <= self::HEADER_WRAP_WIDTH) {
+            return $baseSize;
+        }
+
+        return max(40, (int) floor($baseSize * self::HEADER_WRAP_WIDTH / $widest));
+    }
+
+    private function textHeight(
+        string $text,
+        int $fontSize,
+        string $fontPath = 'fonts/Inter-Regular.ttf',
+        int $wrapWidth = self::TEXT_WRAP_WIDTH,
+        float $lineHeight = self::TEXT_LINE_HEIGHT,
+    ): int {
         // Меряем тем же процессором, что рисует текст: совпадают и перенос строк, и интерлиньяж
-        $font = new \Intervention\Image\Typography\Font(resource_path('fonts/Inter-Regular.ttf'));
+        $font = new \Intervention\Image\Typography\Font(resource_path($fontPath));
         $font->setSize($fontSize);
-        $font->setLineHeight(self::TEXT_LINE_HEIGHT);
-        $font->setWrapWidth(self::TEXT_WRAP_WIDTH);
+        $font->setLineHeight($lineHeight);
+        $font->setWrapWidth($wrapWidth);
 
         $processor = new \Intervention\Image\Drivers\Gd\FontProcessor();
         $lines = $processor->textBlock($text, $font, new \Intervention\Image\Geometry\Point(0, 0))->count();
 
         return $lines * $processor->leading($font);
-    }
-
-    /**
-     * Рисует подпись: слово «Репетитор:» обычным начертанием, под ним имя полужирным.
-     *
-     * @return int на сколько сдвинуть вниз группу «линия + отзыв»
-     */
-    private function drawSubtitle(ImageInterface $card, string $teacherName, int $top): int
-    {
-        $centerX = (int) round($card->width() / 2);
-
-        $card->text('Репетитор:', $centerX, $top, function (FontFactory $font) {
-            $font->filename(resource_path('fonts/Inter-Regular.ttf'));
-            $font->size(self::SUBTITLE_FONT_SIZE);
-            $font->color(self::SUBTITLE_COLOR);
-            $font->align('center');
-            $font->valign('top');
-        });
-
-        $card->text($teacherName, $centerX, $top + self::SUBTITLE_LINE_HEIGHT, function (FontFactory $font) {
-            $font->filename(resource_path('fonts/Inter-SemiBold.ttf'));
-            $font->size(self::SUBTITLE_NAME_FONT_SIZE);
-            $font->color(self::SUBTITLE_COLOR);
-            $font->align('center');
-            $font->valign('top');
-            $font->lineHeight(1.3);
-            $font->wrap(self::NAME_WRAP_WIDTH);
-        });
-
-        $shift = self::SUBTITLE_SHIFT + self::SUBTITLE_LINE_HEIGHT;
-        if ($this->textWidth($teacherName, self::SUBTITLE_NAME_FONT_SIZE, 'fonts/Inter-SemiBold.ttf') > self::NAME_WRAP_WIDTH) {
-            $shift += (int) round(self::SUBTITLE_NAME_FONT_SIZE * 1.3);
-        }
-
-        return $shift;
-    }
-
-    private function nameIsMultiline(string $name): bool
-    {
-        return $this->textWidth($name, self::NAME_FONT_SIZE, 'fonts/Inter-SemiBold.ttf') > self::NAME_WRAP_WIDTH;
-    }
-
-    private function textWidth(string $text, int $fontSize, string $fontPath): int
-    {
-        // GD принимает размер шрифта в пунктах (px * 0.75)
-        $box = imagettfbbox($fontSize * 0.75, 0, resource_path($fontPath), $text);
-
-        return abs($box[4] - $box[0]);
     }
 
     private function circularAvatar(?string $avatarPath): ImageInterface
