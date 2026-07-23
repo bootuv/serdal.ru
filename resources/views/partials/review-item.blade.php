@@ -6,6 +6,7 @@
             <div class="user-type">{{ $review->user->displayRole }}</div>
             <div class="p24-medium">{{ $review->user->name }}</div>
         </div>
+        @include('partials.star-rating', ['rating' => $review->rating])
     </div>
     <p class="p24">
         @if($review->teacher && empty($hideTeacherMention))

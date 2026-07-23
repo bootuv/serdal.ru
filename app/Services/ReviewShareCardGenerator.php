@@ -24,7 +24,17 @@ class ReviewShareCardGenerator
     // если имя переносится на вторую строку, группа сдвигается вниз на NAME_LINE_HEIGHT
     private const NAME_FONT_SIZE = 96;
     private const NAME_LINE_HEIGHT = 125;
-    private const DIVIDER_Y = 820;
+
+    // Подпись «Репетитор: / {имя}» под разделительной линией; при её наличии
+    // текст отзыва сдвигается вниз на SUBTITLE_SHIFT + SUBTITLE_LINE_HEIGHT
+    private const SUBTITLE_FONT_SIZE = 60;
+    private const SUBTITLE_NAME_FONT_SIZE = 72;
+    private const SUBTITLE_TOP = 830;
+    private const SUBTITLE_LINE_HEIGHT = 80;
+    private const SUBTITLE_SHIFT = 150;
+    private const SUBTITLE_COLOR = self::TEXT_COLOR;
+
+    private const DIVIDER_Y = 750;
     private const TEXT_TOP = 910;
     private const TEXT_LEFT = 192;
     private const TEXT_WRAP_WIDTH = 1776;
@@ -63,6 +73,10 @@ class ReviewShareCardGenerator
             $line->color(self::TEXT_COLOR);
             $line->width(6);
         });
+
+        if ($review->teacher?->name) {
+            $headerShift += $this->drawSubtitle($card, $review->teacher->name, self::SUBTITLE_TOP + $headerShift);
+        }
 
         $text = $this->prepareText($review->text);
         [$text, $fontSize] = $this->fitText($text, self::TEXT_BOTTOM - self::TEXT_TOP - $headerShift);
@@ -151,12 +165,52 @@ class ReviewShareCardGenerator
         return $lines * $processor->leading($font);
     }
 
+    /**
+     * Рисует подпись: слово «Репетитор:» обычным начертанием, под ним имя полужирным.
+     *
+     * @return int на сколько сдвинуть вниз группу «линия + отзыв»
+     */
+    private function drawSubtitle(ImageInterface $card, string $teacherName, int $top): int
+    {
+        $centerX = (int) round($card->width() / 2);
+
+        $card->text('Репетитор:', $centerX, $top, function (FontFactory $font) {
+            $font->filename(resource_path('fonts/Inter-Regular.ttf'));
+            $font->size(self::SUBTITLE_FONT_SIZE);
+            $font->color(self::SUBTITLE_COLOR);
+            $font->align('center');
+            $font->valign('top');
+        });
+
+        $card->text($teacherName, $centerX, $top + self::SUBTITLE_LINE_HEIGHT, function (FontFactory $font) {
+            $font->filename(resource_path('fonts/Inter-SemiBold.ttf'));
+            $font->size(self::SUBTITLE_NAME_FONT_SIZE);
+            $font->color(self::SUBTITLE_COLOR);
+            $font->align('center');
+            $font->valign('top');
+            $font->lineHeight(1.3);
+            $font->wrap(self::NAME_WRAP_WIDTH);
+        });
+
+        $shift = self::SUBTITLE_SHIFT + self::SUBTITLE_LINE_HEIGHT;
+        if ($this->textWidth($teacherName, self::SUBTITLE_NAME_FONT_SIZE, 'fonts/Inter-SemiBold.ttf') > self::NAME_WRAP_WIDTH) {
+            $shift += (int) round(self::SUBTITLE_NAME_FONT_SIZE * 1.3);
+        }
+
+        return $shift;
+    }
+
     private function nameIsMultiline(string $name): bool
     {
-        // GD принимает размер шрифта в пунктах (px * 0.75)
-        $box = imagettfbbox(self::NAME_FONT_SIZE * 0.75, 0, resource_path('fonts/Inter-SemiBold.ttf'), $name);
+        return $this->textWidth($name, self::NAME_FONT_SIZE, 'fonts/Inter-SemiBold.ttf') > self::NAME_WRAP_WIDTH;
+    }
 
-        return abs($box[4] - $box[0]) > self::NAME_WRAP_WIDTH;
+    private function textWidth(string $text, int $fontSize, string $fontPath): int
+    {
+        // GD принимает размер шрифта в пунктах (px * 0.75)
+        $box = imagettfbbox($fontSize * 0.75, 0, resource_path($fontPath), $text);
+
+        return abs($box[4] - $box[0]);
     }
 
     private function circularAvatar(?string $avatarPath): ImageInterface

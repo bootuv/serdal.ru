@@ -29,6 +29,17 @@
     .footer-spacer {
       flex: 1 0 auto;
     }
+
+    .star-rating {
+      display: flex;
+      justify-content: center;
+      gap: 2px;
+      margin-top: 12px;
+    }
+
+    .star-rating svg {
+      flex-shrink: 0;
+    }
   </style>
 </head>
 
