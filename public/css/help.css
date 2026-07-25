@@ -1,0 +1,585 @@
+/* Help Center (база знаний) */
+
+.help-content {
+  flex-flow: column;
+  align-items: stretch;
+  width: 100%;
+  max-width: 1080px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.content.help-content {
+  grid-row-gap: 40px;
+}
+
+/* Компактный заголовок главной */
+.help-hero {
+  display: flex;
+  flex-flow: column;
+  align-items: center;
+  gap: 16px;
+  text-align: center;
+}
+
+.help-title {
+  margin: 0;
+  font-size: 44px;
+  font-weight: 500;
+  line-height: 52px;
+  letter-spacing: -1px;
+  color: var(--black);
+}
+
+.help-subtitle {
+  color: var(--gray);
+  margin: 0;
+}
+
+/* Поиск — на всю ширину сетки */
+.help-search-form {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+
+.help-search-input {
+  -webkit-appearance: none;
+  appearance: none;
+  flex: 1;
+  min-width: 0;
+  height: 64px;
+  padding: 0 24px;
+  font-family: inherit;
+  font-size: 18px;
+  line-height: 24px;
+  color: var(--black);
+  background-color: var(--white);
+  border: 1px solid var(--line-light);
+  border-radius: 16px;
+  outline: none;
+  box-shadow: 0 12px 24px #2322150f;
+  transition: border-color .15s ease;
+}
+
+.help-search-input::placeholder {
+  color: var(--gray);
+}
+
+.help-search-input:focus {
+  border-color: var(--black);
+}
+
+.help-search-button {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 64px;
+  padding: 0 32px;
+  font-family: inherit;
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--black);
+  background-color: var(--brand-main);
+  border: none;
+  border-radius: 16px;
+  cursor: pointer;
+}
+
+/* Карточки разделов на главной */
+.help-sections-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.help-section-card {
+  gap: 4px;
+  padding: 32px 32px 36px;
+  color: var(--black);
+  text-decoration: none;
+  transition: background-color .3s;
+}
+
+.help-section-card:hover {
+  background-color: var(--bg1);
+}
+
+.help-section-card-link {
+  margin-top: 24px;
+  color: var(--black);
+  font-weight: 500;
+}
+
+/* Сетка карточек категорий */
+.help-categories-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.help-category-card {
+  gap: 0;
+}
+
+.help-category-title {
+  display: block;
+  color: var(--black);
+  text-decoration: none;
+  margin-bottom: 24px;
+}
+
+.help-category-title:hover {
+  text-decoration: underline;
+}
+
+.help-category-articles {
+  display: flex;
+  flex-flow: column;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.help-category-articles a {
+  color: var(--black);
+  text-decoration: none;
+}
+
+.help-category-articles a:hover {
+  text-decoration: underline;
+}
+
+.help-category-all {
+  margin-top: auto;
+  color: var(--black);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.help-category-all:hover {
+  text-decoration: underline;
+}
+
+/* Внутренние страницы: сайдбар + контент */
+.content.help-inner {
+  grid-row-gap: 32px;
+  margin-top: 48px;
+}
+
+.help-layout {
+  display: flex;
+  gap: 48px;
+  align-items: flex-start;
+}
+
+.help-sidebar {
+  flex: none;
+  width: 280px;
+  display: flex;
+  flex-flow: column;
+  gap: 4px;
+  position: sticky;
+  top: 24px;
+}
+
+.help-sidebar-back {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  color: var(--black);
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 24px;
+  text-decoration: none;
+}
+
+.help-sidebar-back:hover {
+  text-decoration: underline;
+}
+
+.help-sidebar-category {
+  display: block;
+  padding: 10px 12px;
+  border-radius: 12px;
+  color: var(--black);
+  font-size: 18px;
+  line-height: 24px;
+  text-decoration: none;
+  transition: background-color .2s;
+}
+
+.help-sidebar-category:hover {
+  background-color: var(--bg1);
+}
+
+.help-sidebar-category.active {
+  background-color: var(--bg1);
+  font-weight: 500;
+}
+
+.help-sidebar-articles {
+  display: flex;
+  flex-flow: column;
+  gap: 2px;
+  margin: 2px 0 8px;
+}
+
+.help-sidebar-article {
+  display: block;
+  padding: 8px 12px 8px 28px;
+  border-radius: 12px;
+  color: var(--gray);
+  font-size: 16px;
+  line-height: 22px;
+  text-decoration: none;
+  transition: background-color .2s;
+}
+
+.help-sidebar-article:hover {
+  color: var(--black);
+  background-color: var(--bg1);
+}
+
+.help-sidebar-article.active {
+  color: var(--black);
+  font-weight: 500;
+  background-color: var(--brand-main-light);
+}
+
+.help-main {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Кнопка «Содержание» и оверлей — только для мобильного drawer-сайдбара */
+.help-nav-toggle {
+  display: none;
+  align-items: center;
+  width: fit-content;
+  height: 48px;
+  padding: 0 20px;
+  margin-bottom: 24px;
+  font-family: inherit;
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--black);
+  background-color: var(--white);
+  border: 1px solid var(--black);
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.help-sidebar-overlay {
+  display: none;
+}
+
+.help-sidebar-close {
+  display: none;
+}
+
+.help-main-title {
+  margin: 0 0 12px;
+  font-size: 32px;
+  font-weight: 500;
+  line-height: 38px;
+  color: var(--black);
+}
+
+.help-main-description {
+  color: var(--gray);
+  margin: 0;
+}
+
+/* Список статей — строки с разделителями */
+.help-articles-list {
+  display: flex;
+  flex-flow: column;
+  width: 100%;
+  margin-top: 32px;
+  border-top: 1px solid var(--line-light);
+}
+
+.help-article-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 32px;
+  padding: 20px 12px;
+  border-bottom: 1px solid var(--line-light);
+  text-decoration: none;
+  color: var(--black);
+  transition: background-color .3s;
+}
+
+.help-article-item:hover {
+  background-color: var(--bg1);
+}
+
+.help-article-item-text {
+  display: flex;
+  flex-flow: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.help-article-item-category {
+  color: var(--gray);
+}
+
+.help-article-item-excerpt {
+  color: var(--gray);
+}
+
+.help-article-item-arrow {
+  flex: none;
+  color: var(--gray);
+  font-size: 24px;
+}
+
+/* Хлебные крошки */
+.help-breadcrumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  color: var(--gray);
+  font-size: 16px;
+  line-height: 22px;
+}
+
+.help-breadcrumbs a {
+  color: var(--gray);
+  text-decoration: none;
+}
+
+.help-breadcrumbs a:hover {
+  color: var(--black);
+  text-decoration: underline;
+}
+
+/* Мобильная замена крошек: одна ссылка «на уровень выше» */
+.help-crumb-back {
+  display: none;
+  color: var(--gray);
+  font-size: 18px;
+  line-height: 24px;
+  text-decoration: none;
+}
+
+/* Страница статьи */
+.help-article-video {
+  position: relative;
+  width: 100%;
+  padding-top: 56.25%;
+  margin: 32px 0;
+  border-radius: 24px;
+  overflow: hidden;
+  background-color: var(--bg2);
+}
+
+.help-article-video iframe,
+.help-article-video video {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background-color: var(--black);
+}
+
+/* Текст статьи */
+.help-article-body {
+  margin-top: 32px;
+  color: var(--black);
+  font-size: 18px;
+  line-height: 1.7;
+}
+
+.help-article-body h2 {
+  margin: 32px 0 16px;
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 34px;
+}
+
+.help-article-body h3 {
+  margin: 24px 0 12px;
+  font-size: 21px;
+  font-weight: 600;
+  line-height: 28px;
+}
+
+.help-article-body p {
+  margin-bottom: 14px;
+}
+
+.help-article-body ul,
+.help-article-body ol {
+  margin: 8px 0 14px 20px;
+}
+
+.help-article-body li {
+  margin-bottom: 8px;
+}
+
+.help-article-body a {
+  color: var(--black);
+}
+
+.help-article-body img {
+  max-width: 100%;
+  border-radius: 16px;
+  margin: 8px 0;
+}
+
+.help-article-body blockquote {
+  border-left: 3px solid var(--brand-main);
+  padding-left: 16px;
+  margin: 16px 0;
+  color: var(--gray);
+}
+
+/* Следующая статья */
+.help-next-article {
+  display: flex;
+  flex-flow: column;
+  align-items: flex-end;
+  gap: 4px;
+  margin-top: 56px;
+  padding-top: 24px;
+  border-top: 1px solid var(--line-light);
+}
+
+.help-next-article-label {
+  color: var(--gray);
+  font-size: 16px;
+}
+
+.help-next-article-link {
+  color: var(--black);
+  font-size: 18px;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.help-next-article-link:hover {
+  text-decoration: underline;
+}
+
+.help-empty {
+  color: var(--gray);
+  text-align: center;
+}
+
+@media screen and (max-width: 991px) {
+  .help-categories-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  /* Сайдбар превращается в выезжающую панель */
+  .help-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 1001;
+    width: 300px;
+    max-width: 85vw;
+    padding: 56px 16px 24px;
+    background-color: var(--white);
+    overflow-y: auto;
+    transform: translateX(-100%);
+    transition: transform .3s ease;
+  }
+
+  .help-sidebar.open {
+    transform: translateX(0);
+    box-shadow: 0 0 48px #20232333;
+  }
+
+  .help-sidebar-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    background-color: #000000d4;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .3s ease;
+  }
+
+  .help-sidebar-overlay.open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .help-sidebar-close {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 36px;
+    height: 36px;
+    font-size: 20px;
+    color: var(--gray);
+    cursor: pointer;
+  }
+
+  .help-nav-toggle {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+  }
+
+  /* Компактнее верх страницы: меньше отступ от шапки и между крошками и кнопкой */
+  .content.help-inner {
+    margin-top: 24px;
+    grid-row-gap: 16px;
+  }
+
+  .help-title {
+    font-size: 36px;
+    line-height: 42px;
+  }
+}
+
+@media screen and (max-width: 767px) {
+  .help-categories-grid,
+  .help-sections-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .help-search-form {
+    flex-flow: column;
+  }
+
+  /* В колонке flex:1 управляет высотой и схлопывает поле — сбрасываем */
+  .help-search-input {
+    flex: none;
+    width: 100%;
+  }
+
+  .help-search-button {
+    height: 56px;
+  }
+
+  /* Крошки: вместо полной цепочки — ссылка «на уровень выше» */
+  .help-breadcrumbs {
+    display: none;
+  }
+
+  .help-crumb-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .help-article-item {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+}

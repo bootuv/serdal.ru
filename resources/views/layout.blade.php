@@ -8,9 +8,10 @@
   @yield('meta')
   <meta property="og:site_name" content="Serdal">
   <meta property="og:locale" content="ru_RU">
-  <link href="css/normalize.css" rel="stylesheet" type="text/css">
-  <link href="css/webflow.css" rel="stylesheet" type="text/css">
-  <link href="css/serdal-ru.webflow.css" rel="stylesheet" type="text/css">
+  <link href="/css/normalize.css" rel="stylesheet" type="text/css">
+  <link href="/css/webflow.css" rel="stylesheet" type="text/css">
+  <link href="/css/serdal-ru.webflow.css" rel="stylesheet" type="text/css">
+  @yield('styles')
   <link href="https://fonts.googleapis.com" rel="preconnect">
   <link href="https://fonts.gstatic.com" rel="preconnect" crossorigin="anonymous">
   <script src="https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js" type="text/javascript"></script>
@@ -52,6 +53,7 @@
       <div class="main-menu">
         <a href="#" target="_blank" class="p24">О нас</a>
         <a href="{{ route('reviews') }}" class="p24">Отзывы</a>
+        <a href="{{ route('help.index') }}" class="p24">Помощь</a>
         <a href="/welcome" class="p24">Войти</a>
       </div>
       <div @click="mobileMenuOpen = true" class="burger-menu-wrapper"><img src="/images/burger.svg" loading="lazy"
@@ -66,6 +68,7 @@
     <div class="footer-menu">
       <a href="#" class="white-text p18">О нас</a>
       <a href="{{ route('reviews') }}" class="white-text p18">Отзывы</a>
+      <a href="{{ route('help.index') }}" class="white-text p18">Помощь</a>
       <a href="{{ route('privacy') }}" class="white-text p18">Конфиденциальность</a>
       <a href="{{ route('terms') }}" class="white-text p18">Условия</a>
       <a href="mailto:info@serdal.ru" class="white-text p18">info@serdal.ru</a>
@@ -89,6 +92,7 @@
       <div class="mobile-menu-litems">
         <a href="#" target="_blank" class="p30">О нас</a>
         <a href="{{ route('reviews') }}" class="p30">Отзывы</a>
+        <a href="{{ route('help.index') }}" class="p30">Помощь</a>
         <a href="/welcome" class="p30">Войти</a>
       </div>
     </div>
@@ -97,8 +101,8 @@
   <script src="https://d3e54v103j8qbb.cloudfront.net/js/jquery-3.5.1.min.dc5e7f18c8.js?site=668d4be20ae6c2fa4bba833d"
     type="text/javascript" integrity="sha256-9/aliU8dGd2tb6OSsuzixeV4y/faTqgFtohetphbbj0="
     crossorigin="anonymous"></script>
-  <script src="js/webflow.js" type="text/javascript"></script>
-  <script src="js/specialists-filter.js" type="text/javascript"></script>
+  <script src="/js/webflow.js" type="text/javascript"></script>
+  <script src="/js/specialists-filter.js" type="text/javascript"></script>
   <script>
     var autoStopperBtn = document.querySelectorAll('.auto-stopper');
     for (var i = 0; i < autoStopperBtn.length; i++) {

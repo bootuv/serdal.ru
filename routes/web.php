@@ -10,6 +10,12 @@ Route::get('/', [IndexController::class, 'index']);
 
 
 
+// Help Center (база знаний) — публичные страницы
+Route::get('/help', [\App\Http\Controllers\HelpController::class, 'index'])->name('help.index');
+Route::get('/help/{audience}', [\App\Http\Controllers\HelpController::class, 'section'])->name('help.section');
+Route::get('/help/{audience}/{category}', [\App\Http\Controllers\HelpController::class, 'category'])->name('help.category');
+Route::get('/help/{audience}/{category}/{article}', [\App\Http\Controllers\HelpController::class, 'article'])->name('help.article');
+
 Route::get('/reviews', [PageController::class, 'reviewsPage'])->name('reviews');
 Route::get('/reviews/load-more', [PageController::class, 'loadMoreReviews'])->name('reviews.load-more');
 Route::get('/privacy', [PageController::class, 'privacyPage'])->name('privacy');
