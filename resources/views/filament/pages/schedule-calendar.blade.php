@@ -15,27 +15,12 @@
         $eventsByDate = $filteredEvents->groupBy(fn($event) => $event['start']->format('Y-m-d'));
     @endphp
 
-    {{-- Type Filter using Filament Tabs --}}
-    {{-- Type Filter using Filament Tabs --}}
-    <div class="mb-1 overflow-x-auto">
-        <x-filament::tabs>
-            <x-filament::tabs.item :active="$filterType === 'all'" :href="'?month=' . $currentMonth . '&type=all'"
-                tag="a">
-                Все
-            </x-filament::tabs.item>
-
-            <x-filament::tabs.item :active="$filterType === 'individual'" :href="'?month=' . $currentMonth . '&type=individual'" tag="a">
-                Индивидуальное
-            </x-filament::tabs.item>
-
-
-            <x-filament::tabs.item :active="$filterType === 'group'" :href="'?month=' . $currentMonth . '&type=group'"
-                tag="a">
-                Групповое
-            </x-filament::tabs.item>
-
-        </x-filament::tabs>
-    </div>
+    {{-- Фильтр по типу занятия --}}
+    <x-page-tabs class="mb-1" :tabs="[
+        ['label' => 'Все', 'href' => '?month=' . $currentMonth . '&type=all', 'active' => $filterType === 'all'],
+        ['label' => 'Индивидуальное', 'href' => '?month=' . $currentMonth . '&type=individual', 'active' => $filterType === 'individual'],
+        ['label' => 'Групповое', 'href' => '?month=' . $currentMonth . '&type=group', 'active' => $filterType === 'group'],
+    ]" />
 
     {{-- Calendar --}}
     <x-filament::section class="[&_.fi-section-content]:!p-2">
