@@ -61,6 +61,31 @@ class EmojiTextRenderer
     }
 
     /**
+     * Высота до нижнего края букв последней строки — без «воздуха» интерлиньяжа
+     * под ней. По ней выравнивают низ блока по макету.
+     */
+    public function inkHeight(string $text, TextStyle $style): int
+    {
+        $font = $this->font($style);
+        $lines = $this->lineCount($text, $style);
+
+        return ($lines - 1) * $this->processor->leading($font) + $this->processor->typographicalSize($font);
+    }
+
+    public function lineCount(string $text, TextStyle $style): int
+    {
+        return count($this->lines($text, $style));
+    }
+
+    /**
+     * Расстояние между базовыми линиями соседних строк.
+     */
+    public function leading(TextStyle $style): int
+    {
+        return $this->processor->leading($this->font($style));
+    }
+
+    /**
      * Ширина самого широкого слова — GD переносит текст только по пробелам,
      * поэтому по ней подбирается кегль для заголовков.
      */

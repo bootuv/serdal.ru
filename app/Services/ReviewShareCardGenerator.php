@@ -33,14 +33,23 @@ class ReviewShareCardGenerator
     private const TEXT_LEFT = 192;
     private const TEXT_WRAP_WIDTH = 1776;
     private const TEXT_LINE_HEIGHT = 1.6;
-    private const TEXT_BOTTOM = 3450; // верх логотипа (y=3538) минус отступ
+    private const TEXT_LINE_HEIGHT_MAX = 1.75;
+
+    // Логотип в шаблоне занимает y=3538..3679, снизу до края холста 161px.
+    // Над логотипом оставляем ровно столько же, сколько под ним.
+    private const LOGO_TOP = 3538;
+    private const LOGO_BOTTOM_MARGIN = 161;
+    private const TEXT_BOTTOM = self::LOGO_TOP - self::LOGO_BOTTOM_MARGIN;
 
     private const HEADER_TEXT_LEFT = self::TEXT_LEFT + self::AVATAR_SIZE + 72;
     private const HEADER_WRAP_WIDTH = self::TEXT_LEFT + self::TEXT_WRAP_WIDTH - self::HEADER_TEXT_LEFT;
 
     // Размер подбирается по фактической высоте текста: максимальный, при котором отзыв
-    // помещается; не крупнее шрифта имени (NAME_FONT_SIZE)
-    private const TEXT_FONT_SIZES = [96, 88, 80, 72, 64, 58, 52];
+    // помещается. Шаг дробный, чтобы текст доходил до низа колонки и над логотипом
+    // не оставалось пустоты; крупнее шрифта имени (NAME_FONT_SIZE) не делаем.
+    private const TEXT_FONT_SIZE_MAX = self::NAME_FONT_SIZE;
+    private const TEXT_FONT_SIZE_MIN = 52;
+    private const TEXT_FONT_SIZE_STEP = 0.5;
 
     // Страховочный потолок перед точной подгонкой: fitText() сам укоротит текст до заполнения места
     private const MAX_TEXT_LENGTH = 3000;
@@ -96,6 +105,7 @@ class ReviewShareCardGenerator
 
         $text = $this->prepareText($review->text);
         [$text, $textStyle] = $this->fitText($text, self::TEXT_BOTTOM - $textTop);
+        $textTop += $this->bottomAlignShift($text, $textStyle, self::TEXT_BOTTOM - $textTop);
 
         $this->renderer->draw($card, $text, self::TEXT_LEFT, $textTop, $textStyle);
 
@@ -123,38 +133,89 @@ class ReviewShareCardGenerator
     {
         $style = new TextStyle(
             fontPath: resource_path('fonts/Inter-Regular.ttf'),
-            size: self::TEXT_FONT_SIZES[0],
+            size: self::TEXT_FONT_SIZE_MIN,
             color: self::TEXT_COLOR,
             lineHeight: self::TEXT_LINE_HEIGHT,
             wrapWidth: self::TEXT_WRAP_WIDTH,
         );
 
-        $length = mb_strlen($text);
+        // Высота растёт вместе с кеглем, поэтому ищем границу делением пополам.
+        // Кегль дробный: так текст добирает колонку до низа, а не оставляет
+        // пустую полосу над логотипом из-за округления до целых пикселей.
+        $low = (float) self::TEXT_FONT_SIZE_MIN;
+        $high = (float) self::TEXT_FONT_SIZE_MAX;
+        $fitting = null;
 
-        foreach (self::TEXT_FONT_SIZES as $size) {
-            // Грубая нижняя оценка высоты (заведомо оптимистичная по ширине символа),
-            // чтобы не делать дорогой точный замер для заведомо не влезающих размеров
-            $optimisticLines = (int) ceil($length / (self::TEXT_WRAP_WIDTH / ($size * 0.4)));
-            if ($optimisticLines * $this->leadingFor($size) > $availableHeight) {
-                continue;
-            }
+        while ($high - $low > self::TEXT_FONT_SIZE_STEP) {
+            $size = ($low + $high) / 2;
 
-            if ($this->renderer->height($text, $style->withSize($size)) <= $availableHeight) {
-                return [$text, $style->withSize($size)];
+            if ($this->renderer->inkHeight($text, $style->withSize($size)) <= $availableHeight) {
+                $fitting = $size;
+                $low = $size;
+            } else {
+                $high = $size;
             }
         }
 
-        $sizes = self::TEXT_FONT_SIZES;
-        $style = $style->withSize(end($sizes));
+        if ($fitting !== null) {
+            return [$text, $this->fillRemainder($text, $style->withSize($fitting), $availableHeight)];
+        }
 
-        $height = $this->renderer->height($text, $style);
+        // Не влезает даже минимальным кеглем — укорачиваем до заполнения колонки
+        $height = $this->renderer->inkHeight($text, $style);
         while ($height > $availableHeight && mb_strlen($text) > 100) {
             $keep = max(100, (int) floor(mb_strlen($text) * $availableHeight / $height) - 10);
             $text = $this->truncate($text, $keep);
-            $height = $this->renderer->height($text, $style);
+            $height = $this->renderer->inkHeight($text, $style);
         }
 
-        return [$text, $style];
+        return [$text, $this->fillRemainder($text, $style, $availableHeight)];
+    }
+
+    /**
+     * Кегль дискретен по числу строк: следующий уже не влезает, а текущий не
+     * достаёт до низа колонки. Остаток добираем интерлиньяжем — переносы строк
+     * от него не зависят. Растягиваем не больше TEXT_LINE_HEIGHT_MAX, иначе
+     * короткие отзывы расползлись бы строчками по всей карточке.
+     */
+    private function fillRemainder(string $text, TextStyle $style, int $availableHeight): TextStyle
+    {
+        $lines = $this->renderer->lineCount($text, $style);
+        $inkHeight = $this->renderer->inkHeight($text, $style);
+
+        if ($lines < 2 || $inkHeight >= $availableHeight) {
+            return $style;
+        }
+
+        $leading = $this->renderer->leading($style);
+        $filled = $style;
+
+        // Интерлиньяж округляется до целых пикселей, поэтому берём не расчётное
+        // значение, а последнее, при котором блок ещё не вылезает за низ колонки
+        for ($lineHeight = $style->lineHeight; $lineHeight <= self::TEXT_LINE_HEIGHT_MAX; $lineHeight += 0.005) {
+            $candidate = $style->withLineHeight($lineHeight);
+
+            if ($inkHeight + ($lines - 1) * ($this->renderer->leading($candidate) - $leading) > $availableHeight) {
+                break;
+            }
+
+            $filled = $candidate;
+        }
+
+        return $filled;
+    }
+
+    /**
+     * Остаток после подгонки кегля и интерлиньяжа — меньше одной строки.
+     * Сдвигаем блок на него вниз, чтобы низ текста сел ровно на TEXT_BOTTOM;
+     * лишнее уходит в отступ под линией. Короткий отзыв, которому до низа
+     * далеко больше строки, не тащим — он остаётся под линией как есть.
+     */
+    private function bottomAlignShift(string $text, TextStyle $style, int $availableHeight): int
+    {
+        $slack = $availableHeight - $this->renderer->inkHeight($text, $style);
+
+        return $slack > 0 && $slack < $this->renderer->leading($style) ? $slack : 0;
     }
 
     /**
@@ -168,12 +229,6 @@ class ReviewShareCardGenerator
         $text = preg_replace('/[\s.,!?;:…]+$/u', '', $text);
 
         return $text . '…';
-    }
-
-    private function leadingFor(int $fontSize): int
-    {
-        // Intervention считает интерлиньяж от размера в пунктах (px * 0.75)
-        return (int) round($fontSize * 0.75 * self::TEXT_LINE_HEIGHT);
     }
 
     /**
