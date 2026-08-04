@@ -3,10 +3,11 @@
 namespace App\Services;
 
 use App\Models\Review;
+use App\Services\ShareCard\EmojiTextRenderer;
+use App\Services\ShareCard\TextStyle;
 use Illuminate\Support\Facades\Storage;
 use Intervention\Image\Interfaces\ImageInterface;
 use Intervention\Image\Laravel\Facades\Image;
-use Intervention\Image\Typography\FontFactory;
 
 class ReviewShareCardGenerator
 {
@@ -22,6 +23,7 @@ class ReviewShareCardGenerator
     private const NAME_FONT_SIZE = 96;
     private const SUBTITLE_FONT_SIZE = 64;
     private const NAME_SUBTITLE_GAP = 50;
+    private const HEADER_LINE_HEIGHT = 1.3;
 
     // Высота шапки считается от фактических переносов имени и подписи;
     // линия и текст идут после самого нижнего элемента (аватар или подпись)
@@ -43,6 +45,8 @@ class ReviewShareCardGenerator
     // Страховочный потолок перед точной подгонкой: fitText() сам укоротит текст до заполнения места
     private const MAX_TEXT_LENGTH = 3000;
 
+    public function __construct(private EmojiTextRenderer $renderer) {}
+
     public function generate(Review $review): string
     {
         $card = Image::read(resource_path('images/serdal-story-bg.png'));
@@ -50,39 +54,33 @@ class ReviewShareCardGenerator
         $card->place($this->circularAvatar($review->user?->avatar), 'top-left', self::TEXT_LEFT, self::AVATAR_TOP);
 
         $name = $review->user?->name ?? 'Ученик';
-        $nameFontSize = $this->headerFontSize($name, self::NAME_FONT_SIZE, 'fonts/Inter-SemiBold.ttf');
-        $card->text($name, self::HEADER_TEXT_LEFT, self::NAME_TOP, function (FontFactory $font) use ($nameFontSize) {
-            $font->filename(resource_path('fonts/Inter-SemiBold.ttf'));
-            $font->size($nameFontSize);
-            $font->color(self::TEXT_COLOR);
-            $font->align('left');
-            $font->valign('top');
-            $font->lineHeight(1.3);
-            $font->wrap(self::HEADER_WRAP_WIDTH);
-        });
+        $nameStyle = $this->fitHeader(new TextStyle(
+            fontPath: resource_path('fonts/Inter-SemiBold.ttf'),
+            size: self::NAME_FONT_SIZE,
+            color: self::TEXT_COLOR,
+            lineHeight: self::HEADER_LINE_HEIGHT,
+            wrapWidth: self::HEADER_WRAP_WIDTH,
+        ), $name);
 
-        $headerBottom = self::NAME_TOP + $this->textHeight(
-            $name, $nameFontSize, 'fonts/Inter-SemiBold.ttf', self::HEADER_WRAP_WIDTH, 1.3
-        );
+        $this->renderer->draw($card, $name, self::HEADER_TEXT_LEFT, self::NAME_TOP, $nameStyle);
+
+        $headerBottom = self::NAME_TOP + $this->renderer->height($name, $nameStyle);
 
         if ($review->teacher?->name) {
             $subtitle = 'Репетитор: ' . $review->teacher->name;
-            $subtitleFontSize = $this->headerFontSize($subtitle, self::SUBTITLE_FONT_SIZE, 'fonts/Inter-Regular.ttf');
+            $subtitleStyle = $this->fitHeader(new TextStyle(
+                fontPath: resource_path('fonts/Inter-Regular.ttf'),
+                size: self::SUBTITLE_FONT_SIZE,
+                color: self::TEXT_COLOR,
+                lineHeight: self::HEADER_LINE_HEIGHT,
+                wrapWidth: self::HEADER_WRAP_WIDTH,
+            ), $subtitle);
+
             $subtitleTop = $headerBottom + self::NAME_SUBTITLE_GAP;
 
-            $card->text($subtitle, self::HEADER_TEXT_LEFT, $subtitleTop, function (FontFactory $font) use ($subtitleFontSize) {
-                $font->filename(resource_path('fonts/Inter-Regular.ttf'));
-                $font->size($subtitleFontSize);
-                $font->color(self::TEXT_COLOR);
-                $font->align('left');
-                $font->valign('top');
-                $font->lineHeight(1.3);
-                $font->wrap(self::HEADER_WRAP_WIDTH);
-            });
+            $this->renderer->draw($card, $subtitle, self::HEADER_TEXT_LEFT, $subtitleTop, $subtitleStyle);
 
-            $headerBottom = $subtitleTop + $this->textHeight(
-                $subtitle, $subtitleFontSize, 'fonts/Inter-Regular.ttf', self::HEADER_WRAP_WIDTH, 1.3
-            );
+            $headerBottom = $subtitleTop + $this->renderer->height($subtitle, $subtitleStyle);
         }
 
         $headerBottom = max($headerBottom, self::AVATAR_TOP + self::AVATAR_SIZE);
@@ -97,17 +95,9 @@ class ReviewShareCardGenerator
         });
 
         $text = $this->prepareText($review->text);
-        [$text, $fontSize] = $this->fitText($text, self::TEXT_BOTTOM - $textTop);
+        [$text, $textStyle] = $this->fitText($text, self::TEXT_BOTTOM - $textTop);
 
-        $card->text($text, self::TEXT_LEFT, $textTop, function (FontFactory $font) use ($fontSize) {
-            $font->filename(resource_path('fonts/Inter-Regular.ttf'));
-            $font->size($fontSize);
-            $font->color(self::TEXT_COLOR);
-            $font->align('left');
-            $font->valign('top');
-            $font->lineHeight(self::TEXT_LINE_HEIGHT);
-            $font->wrap(self::TEXT_WRAP_WIDTH);
-        });
+        $this->renderer->draw($card, $text, self::TEXT_LEFT, $textTop, $textStyle);
 
         return $card->scale(width: self::OUTPUT_WIDTH)->toJpeg(quality: 90)->toString();
     }
@@ -116,12 +106,8 @@ class ReviewShareCardGenerator
     {
         $text = trim(preg_replace('/\s+/u', ' ', $text));
 
-        // GD не умеет рисовать эмодзи — убираем их, чтобы не было пустых квадратов
-        $text = preg_replace('/[\x{1F000}-\x{1FAFF}\x{2600}-\x{27BF}\x{FE00}-\x{FE0F}\x{2B00}-\x{2BFF}\x{200D}]/u', '', $text);
-        $text = trim(preg_replace('/ {2,}/', ' ', $text));
-
         if (mb_strlen($text) > self::MAX_TEXT_LENGTH) {
-            $text = rtrim(mb_substr($text, 0, self::MAX_TEXT_LENGTH), " \t.,!?;:") . '…';
+            $text = $this->truncate($text, self::MAX_TEXT_LENGTH);
         }
 
         return $text;
@@ -131,10 +117,18 @@ class ReviewShareCardGenerator
      * Подбирает максимальный размер шрифта, при котором текст помещается по высоте.
      * Если не влезает даже минимальным — укорачивает текст с многоточием.
      *
-     * @return array{string, int}
+     * @return array{string, TextStyle}
      */
     private function fitText(string $text, int $availableHeight): array
     {
+        $style = new TextStyle(
+            fontPath: resource_path('fonts/Inter-Regular.ttf'),
+            size: self::TEXT_FONT_SIZES[0],
+            color: self::TEXT_COLOR,
+            lineHeight: self::TEXT_LINE_HEIGHT,
+            wrapWidth: self::TEXT_WRAP_WIDTH,
+        );
+
         $length = mb_strlen($text);
 
         foreach (self::TEXT_FONT_SIZES as $size) {
@@ -145,22 +139,35 @@ class ReviewShareCardGenerator
                 continue;
             }
 
-            if ($this->textHeight($text, $size) <= $availableHeight) {
-                return [$text, $size];
+            if ($this->renderer->height($text, $style->withSize($size)) <= $availableHeight) {
+                return [$text, $style->withSize($size)];
             }
         }
 
         $sizes = self::TEXT_FONT_SIZES;
-        $minSize = end($sizes);
+        $style = $style->withSize(end($sizes));
 
-        $height = $this->textHeight($text, $minSize);
+        $height = $this->renderer->height($text, $style);
         while ($height > $availableHeight && mb_strlen($text) > 100) {
             $keep = max(100, (int) floor(mb_strlen($text) * $availableHeight / $height) - 10);
-            $text = rtrim(mb_substr($text, 0, $keep), " \t.,!?;:…") . '…';
-            $height = $this->textHeight($text, $minSize);
+            $text = $this->truncate($text, $keep);
+            $height = $this->renderer->height($text, $style);
         }
 
-        return [$text, $minSize];
+        return [$text, $style];
+    }
+
+    /**
+     * Обрезает текст с многоточием, не разрывая эмодзи-последовательности
+     * (склейки через ZWJ, селекторы вариаций, тона кожи).
+     */
+    private function truncate(string $text, int $length): string
+    {
+        $text = mb_substr($text, 0, $length);
+        $text = preg_replace('/[\x{200D}\x{FE0E}\x{FE0F}\x{1F3FB}-\x{1F3FF}]+$/u', '', $text);
+        $text = preg_replace('/[\s.,!?;:…]+$/u', '', $text);
+
+        return $text . '…';
     }
 
     private function leadingFor(int $fontSize): int
@@ -173,39 +180,15 @@ class ReviewShareCardGenerator
      * GD переносит текст только по пробелам: слово шире колонки вылезет за край.
      * Уменьшаем размер шрифта так, чтобы самое длинное слово помещалось.
      */
-    private function headerFontSize(string $text, int $baseSize, string $fontPath): int
+    private function fitHeader(TextStyle $style, string $text): TextStyle
     {
-        $widest = 0;
-        foreach (preg_split('/\s+/u', $text) as $word) {
-            // GD принимает размер шрифта в пунктах (px * 0.75)
-            $box = imagettfbbox($baseSize * 0.75, 0, resource_path($fontPath), $word);
-            $widest = max($widest, abs($box[4] - $box[0]));
-        }
+        $widest = $this->renderer->widestWord($text, $style);
 
         if ($widest <= self::HEADER_WRAP_WIDTH) {
-            return $baseSize;
+            return $style;
         }
 
-        return max(40, (int) floor($baseSize * self::HEADER_WRAP_WIDTH / $widest));
-    }
-
-    private function textHeight(
-        string $text,
-        int $fontSize,
-        string $fontPath = 'fonts/Inter-Regular.ttf',
-        int $wrapWidth = self::TEXT_WRAP_WIDTH,
-        float $lineHeight = self::TEXT_LINE_HEIGHT,
-    ): int {
-        // Меряем тем же процессором, что рисует текст: совпадают и перенос строк, и интерлиньяж
-        $font = new \Intervention\Image\Typography\Font(resource_path($fontPath));
-        $font->setSize($fontSize);
-        $font->setLineHeight($lineHeight);
-        $font->setWrapWidth($wrapWidth);
-
-        $processor = new \Intervention\Image\Drivers\Gd\FontProcessor();
-        $lines = $processor->textBlock($text, $font, new \Intervention\Image\Geometry\Point(0, 0))->count();
-
-        return $lines * $processor->leading($font);
+        return $style->withSize(max(40, (int) floor($style->size * self::HEADER_WRAP_WIDTH / $widest)));
     }
 
     private function circularAvatar(?string $avatarPath): ImageInterface
