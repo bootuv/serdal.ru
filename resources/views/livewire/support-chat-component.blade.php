@@ -487,10 +487,12 @@
                             
                             if (this.validateFiles(pseudoEvent)) {
                                 isUploading = true;
-                                $wire.uploadMultiple('attachments', files, 
-                                    () => { isUploading = false; hasAttachments = true; }, 
-                                    () => { isUploading = false; }, 
-                                    (event) => { progress = event.detail.progress }
+                                $wire.uploadMultiple('attachments', files,
+                                    () => { isUploading = false; hasAttachments = true; },
+                                    () => { isUploading = false; },
+                                    (event) => { progress = event.detail.progress },
+                                    () => { isUploading = false; },
+                                    true // append: не заменять уже прикреплённые файлы
                                 );
                             }
                         }
@@ -504,7 +506,7 @@
                         
                         <input type="file" x-ref="fileInput" class="hidden" multiple
                             accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.zip,.rar"
-                            x-on:change="if(validateFiles($event)) { isUploading = true; $wire.uploadMultiple('attachments', $refs.fileInput.files, () => { isUploading = false; hasAttachments = true; }, () => { isUploading = false; }, (event) => { progress = event.detail.progress }) }" />
+                            x-on:change="if(validateFiles($event)) { isUploading = true; $wire.uploadMultiple('attachments', $refs.fileInput.files, () => { isUploading = false; hasAttachments = true; $refs.fileInput.value = ''; }, () => { isUploading = false; $refs.fileInput.value = ''; }, (event) => { progress = event.detail.progress }, () => { isUploading = false; $refs.fileInput.value = ''; }, true) }" />
                         <x-heroicon-o-paper-clip class="w-5 h-5" />
                     </label>
 
@@ -524,7 +526,7 @@
                         class="flex-1 block w-full text-sm bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 rounded-lg resize-none overflow-hidden focus:ring-0"
                         style="border: 1px solid #e5e7eb; min-height: 36px; max-height: 100px; padding-top: 7px !important; padding-bottom: 7px !important; line-height: 20px !important;"
                         rows="1" 
-                        @keydown.enter.prevent="if(!$event.shiftKey) submitMessage()"
+                        @keydown.enter="if (! $event.shiftKey) { $event.preventDefault(); submitMessage() }"
                         @paste="handlePaste($event)"></textarea>
 
                     <button type="submit" 

@@ -17,6 +17,7 @@ class SupportChatComponent extends Component
 
     private const MAX_IMAGE_WIDTH = 1920;
     private const MAX_IMAGE_HEIGHT = 1080;
+    private const MAX_ATTACHMENTS = 10;
 
     public ?SupportChat $supportChat = null;
     public ?string $newMessage = '';
@@ -36,6 +37,16 @@ class SupportChatComponent extends Component
      */
     public function updatedAttachments()
     {
+        // Файлы догружаются с append, поэтому общий лимит проверяем здесь
+        if (count($this->attachments) > self::MAX_ATTACHMENTS) {
+            $this->attachments = array_slice($this->attachments, 0, self::MAX_ATTACHMENTS);
+
+            \Filament\Notifications\Notification::make()
+                ->title('Можно прикрепить не более ' . self::MAX_ATTACHMENTS . ' файлов')
+                ->warning()
+                ->send();
+        }
+
         $this->processedAttachments = \App\Helpers\FileUploadHelper::processChatAttachments(
             $this->attachments,
             $this->processedAttachments,
