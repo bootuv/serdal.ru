@@ -97,9 +97,10 @@ class HomeworkResource extends Resource
                                 'name',
                                 function (Builder $query, Forms\Get $get) {
                                     $userId = auth()->id();
-                                    // Показывать учеников текущего учителя или учеников выбранного урока
-                                    $query->where('role', 'student')
-                                        ->where(function ($q) use ($userId, $get) {
+                                    // Показывать учеников текущего учителя или учеников выбранного урока.
+                                    // Роль не проверяем: источник истины — связка teacher_student
+                                    // (у привязанного пользователя роль может быть не 'student').
+                                    $query->where(function ($q) use ($userId, $get) {
                                         $q->whereHas('teachers', function ($q) use ($userId) {
                                             $q->where('teacher_student.teacher_id', $userId);
                                         });

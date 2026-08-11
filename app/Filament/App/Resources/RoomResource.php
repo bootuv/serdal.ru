@@ -72,19 +72,26 @@ class RoomResource extends Resource
                         'participants',
                         'name',
                         function (Builder $query, $livewire) {
-                            // Show only teacher's students in dropdown
-                            $query->where('role', 'student')
-                                ->whereHas('teachers', function ($q) {
-                                $q->where('teacher_student.teacher_id', auth()->id());
-                            });
-
-                            // But also include already selected students (even if not teacher's students)
+                            // Already selected students are shown even if they are no longer
+                            // linked to the teacher
+                            $existingIds = [];
                             if ($livewire instanceof \Filament\Resources\Pages\EditRecord && $livewire->record) {
                                 $existingIds = $livewire->record->participants()->pluck('users.id')->toArray();
-                                if (!empty($existingIds)) {
-                                    $query->orWhereIn('users.id', $existingIds);
-                                }
                             }
+
+                            // Show only teacher's students in dropdown. The teacher_student pivot is
+                            // the source of truth here — role is not checked, because a linked user
+                            // may have another role (e.g. accepted the invite link while logged in,
+                            // or became a tutor later) and would otherwise disappear from the list.
+                            $query->where(function (Builder $q) use ($existingIds) {
+                                $q->whereHas('teachers', function ($q) {
+                                    $q->where('teacher_student.teacher_id', auth()->id());
+                                });
+
+                                if (!empty($existingIds)) {
+                                    $q->orWhereIn('users.id', $existingIds);
+                                }
+                            });
 
                             return $query;
                         }
