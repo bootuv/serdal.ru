@@ -142,6 +142,9 @@ class BecomeTutorPage extends Component implements HasForms
         // Создаем заявку
         $application = TeacherApplication::create($data);
 
+        // Telegram-уведомление в чат техслужбы
+        \App\Jobs\SendTeacherApplicationTelegramNotification::dispatch($application);
+
         // Отправка уведомления администраторам
         $admins = \App\Models\User::where('role', \App\Models\User::ROLE_ADMIN)->get();
 
