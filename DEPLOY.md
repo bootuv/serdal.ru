@@ -171,3 +171,63 @@ ASSETS_SHA=<sha> ./deploy.sh
 ls -1dt /var/www/serdal.ru/builds/*/
 ln -sfn /var/www/serdal.ru/builds/<sha> /var/www/serdal.ru/public/build
 ```
+
+## Сервер конференций (BigBlueButton)
+
+Отдельная машина, к serdal.ru отношения не имеет.
+
+- **Хост**: `room.serdal.ru` → `84.38.184.203` (hostname `Descartes`)
+- **Версия**: BigBlueButton 3.0
+- **Платформа общается с ним** через API `https://room.serdal.ru/bigbluebutton/api`
+  (пакет `joisarjignesh/bigbluebutton`, запросы подписываются секретом из `.env`)
+
+### Greenlight отключён (21.08.2026)
+
+Учителя переведены на нашу платформу, старая веб-морда Greenlight выключена.
+Любой её путь теперь отдаёт 302 на `https://serdal.ru/login` — включая старые
+закладки вида `/rooms`, `/signin`, `/b/signin`.
+
+**Как это устроено.** В `/etc/nginx/sites-enabled/bigbluebutton` блок `location /`
+отдаёт статику из `/var/www/bigbluebutton-default/assets`, а если файла нет —
+проваливается в именованный `location @bbb-fe`. Это «фронтенд» в терминологии BBB.
+Раньше `@bbb-fe` объявлял Greenlight, теперь — наша заглушка с редиректом.
+
+| Что | Где |
+|---|---|
+| Заглушка с редиректом | `/usr/share/bigbluebutton/nginx/redirect-fe.nginx` |
+| Отключённый конфиг Greenlight | `/root/greenlight-v3.nginx.off` |
+| Контейнеры (остановлены) | `/root/greenlight-v3`, `docker compose stop` |
+| Дамп БД перед отключением | `/root/greenlight-<дата>.sql.gz` |
+| Список пользователей | `/root/gl_users.csv` |
+
+База Greenlight называется `greenlight-v3-production` (с дефисами), пользователь
+`postgres`, пароль — в `/root/greenlight-v3/.env`.
+
+**Две мины, о которых легко забыть:**
+
+1. Не запускайте `bbb-install.sh` с флагом `-g` — он поставит Greenlight заново
+   и перезапишет `redirect-fe.nginx` своим конфигом.
+2. Не включайте `default-fe.nginx.disabled` — он объявляет тот же `@bbb-fe`,
+   что и наша заглушка. Nginx откажется стартовать из-за дубликата.
+
+**Откат** (если Greenlight понадобится снова):
+
+```bash
+rm /usr/share/bigbluebutton/nginx/redirect-fe.nginx
+mv /root/greenlight-v3.nginx.off /usr/share/bigbluebutton/nginx/greenlight-v3.nginx
+nginx -t && systemctl reload nginx
+cd /root/greenlight-v3 && docker compose start
+```
+
+**Проверка, что конференции живы** (после любых работ с nginx на этой машине):
+
+```bash
+curl -sI https://room.serdal.ru/ | head -1                   # 302 на serdal.ru
+curl -s  https://room.serdal.ru/bigbluebutton/api | head -3  # SUCCESS
+curl -sI https://room.serdal.ru/html5client/ | head -1       # 200
+```
+
+Пути конференции — `/html5client`, `/bigbluebutton`, `/graphql`, `/playback`, `/pad`,
+`/learning-analytics-dashboard` — имеют собственные блоки в `/usr/share/bigbluebutton/nginx/`
+и `@bbb-fe` не используют, поэтому работы с фронтендом их не задевают. Но проверять
+всё равно нужно живым уроком: curl не покрывает цепочку `create → join → recording`.
