@@ -54,7 +54,7 @@
         <a href="#" target="_blank" class="p24">О нас</a>
         <a href="{{ route('reviews') }}" class="p24">Отзывы</a>
         <a href="{{ route('help.index') }}" class="p24">Помощь</a>
-        <a href="/welcome" class="p24">Войти</a>
+        <a href="/login" class="p24">Войти</a>
       </div>
       <div @click="mobileMenuOpen = true" class="burger-menu-wrapper"><img src="/images/burger.svg" loading="lazy"
           width="32" height="32" alt="" class="burger-menu"></div>
@@ -93,7 +93,7 @@
         <a href="#" target="_blank" class="p30">О нас</a>
         <a href="{{ route('reviews') }}" class="p30">Отзывы</a>
         <a href="{{ route('help.index') }}" class="p30">Помощь</a>
-        <a href="/welcome" class="p30">Войти</a>
+        <a href="/login" class="p30">Войти</a>
       </div>
     </div>
     <div class="mobile-menu-bg"></div>

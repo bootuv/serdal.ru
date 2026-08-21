@@ -301,15 +301,29 @@ class StudentResource extends Resource
                     ->form([
                         Forms\Components\Select::make('student_id')
                             ->label('Выберите ученика')
-                            ->options(function () {
-                                // Get all students NOT already associated with this teacher
-                                return User::where('role', 'student')
-                                    ->whereDoesntHave('teachers', function ($q) {
-                                    $q->where('users.id', auth()->id());
-                                })
-                                    ->pluck('name', 'id');
-                            })
+                            ->options(fn () => static::availableStudentsQuery()
+                                ->orderBy('name')
+                                ->get()
+                                ->mapWithKeys(fn (User $student) => [
+                                    $student->id => static::studentOptionLabel($student),
+                                ]))
                             ->searchable()
+                            ->searchPrompt('Введите имя или email...')
+                            ->noSearchResultsMessage('Ученик не найден')
+                            ->getSearchResultsUsing(fn (string $search) => static::availableStudentsQuery()
+                                ->where(function (Builder $query) use ($search) {
+                                    $query->where('name', 'like', "%{$search}%")
+                                        ->orWhere('email', 'like', "%{$search}%");
+                                })
+                                ->orderBy('name')
+                                ->limit(50)
+                                ->get()
+                                ->mapWithKeys(fn (User $student) => [
+                                    $student->id => static::studentOptionLabel($student),
+                                ]))
+                            ->getOptionLabelUsing(fn ($value) => ($student = User::find($value))
+                                ? static::studentOptionLabel($student)
+                                : null)
                             ->required(),
                     ])
                     ->action(function (array $data) {
@@ -664,6 +678,27 @@ class StudentResource extends Resource
                     ->send();
             }
         }
+    }
+
+    /**
+     * Ученики, которых ещё нет в списке текущего учителя.
+     */
+    protected static function availableStudentsQuery(): Builder
+    {
+        return User::where('role', 'student')
+            ->whereDoesntHave('teachers', function (Builder $query) {
+                $query->where('users.id', auth()->id());
+            });
+    }
+
+    /**
+     * Подпись в выпадающем списке: имя и email, чтобы тёзок можно было различить.
+     */
+    protected static function studentOptionLabel(User $student): string
+    {
+        return filled($student->email)
+            ? "{$student->name} ({$student->email})"
+            : $student->name;
     }
 
     public static function getRelations(): array

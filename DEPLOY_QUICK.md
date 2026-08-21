@@ -33,7 +33,7 @@ php artisan queue:restart
 
 После выполнения команд:
 
-1. Откройте https://serdal.ru/app/schedule-calendar
+1. Откройте https://serdal.ru/tutor/schedule-calendar
 2. Должна появиться кнопка "Подключить Google Calendar"
 3. Нажмите на неё - должна открыться страница авторизации Google
 
