@@ -293,105 +293,15 @@ class StudentResource extends Resource
             ->searchable()
             ->defaultSort('name', 'asc')
             ->headerActions([
-                Tables\Actions\Action::make('add_student')
-                    ->label('Добавить ученика')
-                    ->icon('heroicon-o-plus')
-                    ->color('gray')
-                    ->modalSubmitActionLabel('Добавить')
-                    ->form([
-                        Forms\Components\Select::make('student_id')
-                            ->label('Выберите ученика')
-                            ->options(fn () => static::availableStudentsQuery()
-                                ->orderBy('name')
-                                ->get()
-                                ->mapWithKeys(fn (User $student) => [
-                                    $student->id => static::studentOptionLabel($student),
-                                ]))
-                            ->searchable()
-                            ->searchPrompt('Введите имя или email...')
-                            ->noSearchResultsMessage('Ученик не найден')
-                            ->getSearchResultsUsing(fn (string $search) => static::availableStudentsQuery()
-                                ->where(function (Builder $query) use ($search) {
-                                    $query->where('name', 'like', "%{$search}%")
-                                        ->orWhere('email', 'like', "%{$search}%");
-                                })
-                                ->orderBy('name')
-                                ->limit(50)
-                                ->get()
-                                ->mapWithKeys(fn (User $student) => [
-                                    $student->id => static::studentOptionLabel($student),
-                                ]))
-                            ->getOptionLabelUsing(fn ($value) => ($student = User::find($value))
-                                ? static::studentOptionLabel($student)
-                                : null)
-                            ->required(),
-                    ])
-                    ->action(function (array $data) {
-                        $student = User::find($data['student_id']);
-                        if ($student) {
-                            $changes = auth()->user()->students()->syncWithoutDetaching([$student->id]);
-
-                            if (count($changes['attached']) > 0) {
-                                // Notify the student
-                                // Notify the student
-                                $student->notify(new \App\Notifications\NewTeacher(auth()->user()));
-
-                                Notification::make()
-                                    ->title('Ученик добавлен')
-                                    ->success()
-                                    ->send();
-                            } else {
-                                Notification::make()
-                                    ->title('Ученик уже в вашем списке')
-                                    ->warning()
-                                    ->send();
-                            }
-                        }
-                    }),
-                Tables\Actions\Action::make('invite_student')
-                    ->label('Пригласить ученика')
-                    ->icon('heroicon-o-paper-airplane')
-                    ->form([
-                        Forms\Components\Section::make('Ссылка для приглашения')
-                            ->description('Отправьте эту ссылку ученику, чтобы он мог зарегистрироваться и автоматически добавиться в ваш список.')
-                            ->schema([
-                                Forms\Components\TextInput::make('invitation_link')
-                                    ->label('Ссылка')
-                                    ->default(fn() => \Illuminate\Support\Facades\URL::signedRoute('student.invitation', ['teacher' => auth()->id()]))
-                                    ->readOnly()
-                                    ->suffixAction(
-                                        Forms\Components\Actions\Action::make('copy')
-                                            ->icon('heroicon-m-clipboard')
-                                            ->label('Копировать')
-                                            ->action(function ($livewire, $state) {
-                                                $livewire->js("window.navigator.clipboard.writeText('{$state}'); \$tooltip('Скопировано', { timeout: 1500 });");
-                                                Notification::make()->title('Ссылка скопирована')->success()->send();
-                                            })
-                                    ),
-                            ]),
-                        Forms\Components\Section::make('Отправить по Email')
-                            ->description('Или укажите Email, и мы отправим приглашение.')
-                            ->schema([
-                                Forms\Components\TextInput::make('email')
-                                    ->label('Email ученика')
-                                    ->email()
-                                    ->placeholder('student@example.com'),
-                            ]),
-                    ])
-                    ->modalSubmitActionLabel('Отправить')
-                    ->action(function (array $data) {
-                        if (!empty($data['email'])) {
-                            \Illuminate\Support\Facades\Mail::to($data['email'])->send(new \App\Mail\StudentInvitation($data['invitation_link'], auth()->user()->name));
-
-                            Notification::make()
-                                ->title('Приглашение отправлено')
-                                ->body("Письмо отправлено на {$data['email']}")
-                                ->success()
-                                ->send();
-                        }
-                    }),
+                static::addStudentAction(),
             ])
             ->defaultSort('created_at', 'desc')
+            ->emptyStateIcon('heroicon-o-users')
+            ->emptyStateHeading('Пока нет учеников')
+            ->emptyStateDescription('Ученика, который уже зарегистрирован на Serdal, можно найти по имени или email. Если его ещё нет на платформе — отправьте ему ссылку-приглашение.')
+            ->emptyStateActions([
+                static::addStudentAction(),
+            ])
             ->actions([
                 Tables\Actions\ActionGroup::make([
                     Tables\Actions\Action::make('mark_payment')
@@ -699,6 +609,160 @@ class StudentResource extends Resource
         return filled($student->email)
             ? "{$student->name} ({$student->email})"
             : $student->name;
+    }
+
+    /**
+     * Единая точка входа: и в шапке таблицы, и в пустом состоянии.
+     */
+    protected static function addStudentAction(): Tables\Actions\Action
+    {
+        return Tables\Actions\Action::make('add_student')
+            ->label('Добавить ученика')
+            ->icon('heroicon-o-plus')
+            ->modalHeading('Добавить ученика')
+            ->modalWidth('lg')
+            ->modalSubmitActionLabel(fn (array $data): string => ($data['mode'] ?? 'existing') === 'invite'
+                ? 'Отправить приглашение'
+                : 'Добавить')
+            ->form([
+                // Учитель не обязан знать, зарегистрирован ли ученик, поэтому
+                // спрашиваем об этом прямо, а не прячем различие в двух кнопках.
+                Forms\Components\Radio::make('mode')
+                    ->label('Как добавить ученика?')
+                    ->options([
+                        'existing' => 'Ученик уже зарегистрирован на Serdal',
+                        'invite' => 'Ученика ещё нет на Serdal',
+                    ])
+                    ->descriptions([
+                        'existing' => 'Найдём его по имени или email и добавим в ваш список',
+                        'invite' => 'Отправим ссылку-приглашение — после регистрации ученик появится в списке автоматически',
+                    ])
+                    ->default('existing')
+                    ->live()
+                    ->required(),
+
+                Forms\Components\Select::make('student_id')
+                    ->label('Выберите ученика')
+                    ->options(fn () => static::availableStudentsQuery()
+                        ->orderBy('name')
+                        ->get()
+                        ->mapWithKeys(fn (User $student) => [
+                            $student->id => static::studentOptionLabel($student),
+                        ]))
+                    ->searchable()
+                    ->searchPrompt('Введите имя или email...')
+                    ->noSearchResultsMessage('Никого не нашли. Если ученик ещё не зарегистрирован, выберите вариант «Ученика ещё нет на Serdal».')
+                    ->getSearchResultsUsing(fn (string $search) => static::availableStudentsQuery()
+                        ->where(function (Builder $query) use ($search) {
+                            $query->where('name', 'like', "%{$search}%")
+                                ->orWhere('email', 'like', "%{$search}%");
+                        })
+                        ->orderBy('name')
+                        ->limit(50)
+                        ->get()
+                        ->mapWithKeys(fn (User $student) => [
+                            $student->id => static::studentOptionLabel($student),
+                        ]))
+                    ->getOptionLabelUsing(fn ($value) => ($student = User::find($value))
+                        ? static::studentOptionLabel($student)
+                        : null)
+                    ->visible(fn (Forms\Get $get) => $get('mode') === 'existing')
+                    ->required(fn (Forms\Get $get) => $get('mode') === 'existing'),
+
+                Forms\Components\Section::make('Ссылка для приглашения')
+                    ->description('Отправьте эту ссылку ученику, чтобы он мог зарегистрироваться и автоматически добавиться в ваш список.')
+                    ->visible(fn (Forms\Get $get) => $get('mode') === 'invite')
+                    ->schema([
+                        Forms\Components\TextInput::make('invitation_link')
+                            ->label('Ссылка')
+                            ->default(fn () => \Illuminate\Support\Facades\URL::signedRoute('student.invitation', ['teacher' => auth()->id()]))
+                            ->readOnly()
+                            ->suffixAction(
+                                Forms\Components\Actions\Action::make('copy')
+                                    ->icon('heroicon-m-clipboard')
+                                    ->label('Копировать')
+                                    ->action(function ($livewire, $state) {
+                                        $livewire->js("window.navigator.clipboard.writeText('{$state}'); \$tooltip('Скопировано', { timeout: 1500 });");
+                                        Notification::make()->title('Ссылка скопирована')->success()->send();
+                                    })
+                            ),
+                    ]),
+
+                Forms\Components\Section::make('Отправить по Email')
+                    ->description('Или укажите Email, и мы отправим приглашение.')
+                    ->visible(fn (Forms\Get $get) => $get('mode') === 'invite')
+                    ->schema([
+                        Forms\Components\TextInput::make('email')
+                            ->label('Email ученика')
+                            ->email()
+                            ->placeholder('student@example.com'),
+                    ]),
+            ])
+            ->action(function (array $data) {
+                if (($data['mode'] ?? 'existing') === 'invite') {
+                    static::sendStudentInvitation($data);
+
+                    return;
+                }
+
+                static::attachExistingStudent($data);
+            });
+    }
+
+    /**
+     * Привязывает уже зарегистрированного ученика к текущему учителю.
+     */
+    protected static function attachExistingStudent(array $data): void
+    {
+        $student = User::find($data['student_id'] ?? null);
+
+        if (! $student) {
+            return;
+        }
+
+        $changes = auth()->user()->students()->syncWithoutDetaching([$student->id]);
+
+        if (count($changes['attached']) === 0) {
+            Notification::make()
+                ->title('Ученик уже в вашем списке')
+                ->warning()
+                ->send();
+
+            return;
+        }
+
+        $student->notify(new \App\Notifications\NewTeacher(auth()->user()));
+
+        Notification::make()
+            ->title('Ученик добавлен')
+            ->success()
+            ->send();
+    }
+
+    /**
+     * Отправляет приглашение на почту. Ссылку учитель может и просто скопировать,
+     * поэтому пустой email — не ошибка, но об этом стоит сказать явно.
+     */
+    protected static function sendStudentInvitation(array $data): void
+    {
+        if (blank($data['email'] ?? null)) {
+            Notification::make()
+                ->title('Email не указан')
+                ->body('Скопируйте ссылку и отправьте её ученику сами или укажите email.')
+                ->warning()
+                ->send();
+
+            return;
+        }
+
+        \Illuminate\Support\Facades\Mail::to($data['email'])
+            ->send(new \App\Mail\StudentInvitation($data['invitation_link'], auth()->user()->name));
+
+        Notification::make()
+            ->title('Приглашение отправлено')
+            ->body("Письмо отправлено на {$data['email']}")
+            ->success()
+            ->send();
     }
 
     public static function getRelations(): array
