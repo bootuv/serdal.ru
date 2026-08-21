@@ -39,6 +39,29 @@ jobs:
           fi
           echo "Все секреты на месте (длина ключа: ${#SSH_PRIVATE_KEY} симв.)"
 
+      # tailwind.config.js импортирует пресет из vendor/filament и сканирует
+      # vendor/filament/**/*.blade.php. Без vendor сборка падает, а если бы не
+      # падала — Tailwind выкинул бы все классы Filament из итогового CSS.
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+
+      - name: Определить каталог кеша composer
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: composer-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-
+
+      - name: Установить PHP-зависимости (нужны для сборки CSS)
+        run: |
+          composer install --no-dev --prefer-dist --no-progress --no-scripts --ignore-platform-reqs
+          test -f vendor/filament/filament/tailwind.config.preset.js
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -51,7 +74,14 @@ jobs:
         run: npm run build
 
       - name: Проверить, что сборка не пустая
-        run: test -f public/build/manifest.json
+        run: |
+          test -f public/build/manifest.json
+          css=$(find public/build/assets -name '*.css' -print -quit)
+          size=$(wc -c < "$css")
+          echo "CSS: $css, $size байт"
+          # Полный CSS с Filament — ~150 КБ. Если vendor не подхватился,
+          # Tailwind вычистит классы Filament и файл будет в разы меньше.
+          [ "$size" -ge 50000 ] || { echo "::error::CSS подозрительно мал — вероятно, не собрались стили Filament"; exit 1; }
 
       - name: Настроить SSH
         env:

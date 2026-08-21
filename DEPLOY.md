@@ -90,7 +90,11 @@ composer install --no-dev --optimize-autoloader
 
 Что происходит:
 
-1. **Раннер** собирает фронтенд (`npm ci && npm run build`) — на проде node не нужен;
+1. **Раннер** ставит PHP-зависимости (`composer install --no-dev --no-scripts`) и собирает
+   фронтенд (`npm ci && npm run build`) — на проде node не нужен. Composer на раннере нужен
+   потому, что `tailwind.config.js` тянет пресет из `vendor/filament` и сканирует его
+   blade-шаблоны; собранный CSS проверяется на минимальный размер, чтобы поймать ситуацию,
+   когда стили Filament молча вычистились;
 2. готовый `public/build` заливается через `rsync` в `/var/www/serdal.ru/builds/<sha>/`;
 3. раннер по SSH запускает [deploy.sh](deploy.sh), передавая его через stdin — значит на
    сервере всегда исполняется версия скрипта из деплоящегося коммита;
