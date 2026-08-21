@@ -85,21 +85,29 @@ composer install --no-dev --optimize-autoloader
 
 ## Автодеплой через GitHub Actions
 
-Пуш в `main` запускает [.github/workflows/deploy.yml](.github/workflows/deploy.yml):
-раннер подключается к серверу по SSH и выполняет [deploy.sh](deploy.sh) (скрипт
-передаётся из репозитория через stdin, поэтому на сервере всегда исполняется
-актуальная версия). Ручной запуск — вкладка **Actions → Deploy to production → Run workflow**.
+Пуш в `main` запускает [.github/workflows/deploy.yml](.github/workflows/deploy.yml).
+Ручной запуск — вкладка **Actions → Deploy to production → Run workflow**.
 
-Что делает `deploy.sh`:
+Что происходит:
 
-1. `git fetch` + `git reset --hard origin/main` (локальные правки на сервере затираются);
-2. `composer install` — только если менялись `composer.json/lock`;
-3. `npm ci` — только если менялся `package-lock.json`; `npm run build` — если менялись
-   `resources/`, `vite/tailwind/postcss` конфиги или зависимости;
-4. `php artisan migrate --force` (всегда, безопасно);
-5. сброс и пересборка кэшей: config, route, view, event;
-6. рестарт `php8.4-fpm`, `serdal-queue`, `serdal-reverb`, `serdal-pulse` и проверка статуса;
-7. в конце workflow дергает `https://serdal.ru/` и падает, если ответ не 200.
+1. **Раннер** собирает фронтенд (`npm ci && npm run build`) — на проде node не нужен;
+2. готовый `public/build` заливается через `rsync` в `/var/www/serdal.ru/builds/<sha>/`;
+3. раннер по SSH запускает [deploy.sh](deploy.sh), передавая его через stdin — значит на
+   сервере всегда исполняется версия скрипта из деплоящегося коммита;
+4. `deploy.sh` делает `git fetch` + `git reset --hard origin/main` (локальные правки на
+   сервере затираются, неотслеживаемые файлы вроде `.env` не трогаются);
+5. `composer install` — только если менялись `composer.json/lock`;
+6. `public/build` переключается симлинком на `builds/<sha>` через `rename(2)` — атомарно,
+   без окна, когда `manifest.json` отсутствует и страницы отдают 500. Старые сборки чистятся,
+   последние 3 остаются (можно откатить ассеты одним `ln -sfn`);
+7. `php artisan migrate --force` (всегда, безопасно);
+8. сброс и пересборка кэшей: config, route, view, event;
+9. рестарт `php8.4-fpm`, `serdal-queue`, `serdal-reverb`, `serdal-pulse` + проверка статуса;
+10. workflow дергает `https://serdal.ru/` и падает, если ответ не 200.
+
+Если в релизе появилась новая переменная окружения — допишите её в серверный `.env`
+**до** деплоя: `config:cache` запечёт текущее содержимое, и отсутствующая переменная
+станет `null` молча, без ошибки.
 
 ### Настройка на сервере (один раз)
 
@@ -111,21 +119,25 @@ sudo chmod -R g+w /var/www/serdal.ru/storage /var/www/serdal.ru/bootstrap/cache
 
 # 2. Ключ для входа из GitHub Actions (генерируем локально, БЕЗ пароля)
 ssh-keygen -t ed25519 -C "github-actions-deploy" -f ~/.ssh/serdal_deploy
-# публичную часть — на сервер:
 ssh-copy-id -i ~/.ssh/serdal_deploy.pub deploy@serdal.ru
 
-# 3. Разрешить рестарт сервисов без пароля
+# 3. Разрешить рестарт сервисов без пароля.
+#    ВАЖНО: путь к systemctl должен совпадать с фактическим — проверьте `which systemctl`.
 sudo tee /etc/sudoers.d/deploy-serdal >/dev/null <<'EOF'
-deploy ALL=(root) NOPASSWD: /bin/systemctl restart php8.4-fpm, \
-  /bin/systemctl restart serdal-queue.service, \
-  /bin/systemctl restart serdal-reverb.service, \
-  /bin/systemctl restart serdal-pulse.service
+deploy ALL=(root) NOPASSWD: /usr/bin/systemctl restart php8.4-fpm, \
+  /usr/bin/systemctl restart serdal-queue.service, \
+  /usr/bin/systemctl restart serdal-reverb.service, \
+  /usr/bin/systemctl restart serdal-pulse.service
 EOF
 sudo visudo -c
 ```
 
-Проверить, что у пользователя `deploy` работает `git fetch` (нужен доступ к репозиторию —
-deploy key GitHub или ssh-agent forwarding), а также доступны `composer`, `php`, `npm`.
+Проверьте, что у пользователя `deploy` работает `git fetch` (нужен deploy key на GitHub),
+доступны `php`, `composer` и `rsync`. Node на сервере больше не требуется — можно снести
+`node_modules` (~133 МБ), он нужен только для ручной сборки на месте.
+
+Nginx должен ходить в `public/build` **по симлинку**: если в конфиге есть `disable_symlinks on`,
+уберите или смените на `disable_symlinks if_not_owner from=$document_root`.
 
 ### Secrets и variables в GitHub
 
@@ -139,11 +151,19 @@ deploy key GitHub или ssh-agent forwarding), а также доступны `
 | `SSH_PORT` | порт SSH, если не 22 (необязательно) |
 | `SSH_KNOWN_HOSTS` | вывод `ssh-keyscan -p 22 serdal.ru` |
 
-**Variables** (необязательно, есть значения по умолчанию): `APP_DIR` = `/var/www/serdal.ru`,
-`PHP_FPM` = `php8.4-fpm`.
+**Variables** (необязательно): `PHP_FPM` = `php8.4-fpm`. Путь приложения задан в
+`env.APP_DIR` самого workflow.
 
-### Ручной запуск того же скрипта
+### Ручной запуск и откат
 
 ```bash
+# Полный деплой руками (соберёт фронтенд на сервере — нужен node)
 cd /var/www/serdal.ru && ./deploy.sh
+
+# Деплой с уже залитыми ассетами
+ASSETS_SHA=<sha> ./deploy.sh
+
+# Откатить только ассеты на предыдущую сборку
+ls -1dt /var/www/serdal.ru/builds/*/
+ln -sfn /var/www/serdal.ru/builds/<sha> /var/www/serdal.ru/public/build
 ```

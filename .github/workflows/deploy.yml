@@ -10,14 +10,48 @@ concurrency:
   group: deploy-production
   cancel-in-progress: false
 
+env:
+  APP_DIR: /var/www/serdal.ru
+
 jobs:
   deploy:
-    name: Deploy
+    name: Build & deploy
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Проверить, что секреты заданы
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+        run: |
+          missing=
+          for name in SSH_HOST SSH_USER SSH_PRIVATE_KEY SSH_KNOWN_HOSTS; do
+            [ -n "${!name}" ] || missing="$missing $name"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::Пустые секреты:$missing — заведите их в Settings → Secrets and variables → Actions → Repository secrets"
+            exit 1
+          fi
+          echo "Все секреты на месте (длина ключа: ${#SSH_PRIVATE_KEY} симв.)"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Установить зависимости фронтенда
+        run: npm ci
+
+      - name: Собрать ассеты
+        run: npm run build
+
+      - name: Проверить, что сборка не пустая
+        run: test -f public/build/manifest.json
 
       - name: Настроить SSH
         env:
@@ -30,16 +64,31 @@ jobs:
           printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
           chmod 644 ~/.ssh/known_hosts
 
+      - name: Залить ассеты на сервер
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PORT: ${{ secrets.SSH_PORT || '22' }}
+        run: |
+          SSH_CMD="ssh -i ~/.ssh/id_deploy -p $SSH_PORT"
+          TARGET="$APP_DIR/builds/${{ github.sha }}"
+          $SSH_CMD "$SSH_USER@$SSH_HOST" "mkdir -p '$TARGET'"
+          rsync -az --delete -e "$SSH_CMD" \
+            public/build/ "$SSH_USER@$SSH_HOST:$TARGET/"
+
       - name: Деплой по SSH
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
           SSH_USER: ${{ secrets.SSH_USER }}
           SSH_PORT: ${{ secrets.SSH_PORT || '22' }}
-          APP_DIR: ${{ vars.APP_DIR || '/var/www/serdal.ru' }}
           PHP_FPM: ${{ vars.PHP_FPM || 'php8.4-fpm' }}
         run: |
           ssh -i ~/.ssh/id_deploy -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" \
-            "APP_DIR='$APP_DIR' BRANCH='${{ github.ref_name }}' PHP_FPM='$PHP_FPM' bash -s" < deploy.sh
+            "APP_DIR='$APP_DIR' \
+             BRANCH='${{ github.ref_name }}' \
+             PHP_FPM='$PHP_FPM' \
+             ASSETS_SHA='${{ github.sha }}' \
+             bash -s" < deploy.sh
 
       - name: Проверить, что сайт отвечает
         run: |
