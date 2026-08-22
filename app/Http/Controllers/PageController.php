@@ -91,6 +91,11 @@ class PageController extends Controller
         return view('tutor', compact('user', 'lessonTypeIndividual', 'lessonTypeGroup', 'reviews', 'reviewsHasMore'));
     }
 
+    public function aboutPage()
+    {
+        return view('about');
+    }
+
     public function privacyPage()
     {
         return view('privacy');

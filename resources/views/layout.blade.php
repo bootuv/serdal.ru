@@ -51,7 +51,7 @@
         alt="" class="logo"></a>
     <div class="menu-wrapper">
       <div class="main-menu">
-        <a href="#" target="_blank" class="p24">О нас</a>
+        <a href="{{ route('about') }}" class="p24">О нас</a>
         <a href="{{ route('reviews') }}" class="p24">Отзывы</a>
         <a href="{{ route('help.index') }}" class="p24">Помощь</a>
         <a href="/login" class="p24">Войти</a>
@@ -66,7 +66,7 @@
   <section class="footer">
     <div class="p18 copyright">© {{ date('Y') }} Serdal</div>
     <div class="footer-menu">
-      <a href="#" class="white-text p18">О нас</a>
+      <a href="{{ route('about') }}" class="white-text p18">О нас</a>
       <a href="{{ route('reviews') }}" class="white-text p18">Отзывы</a>
       <a href="{{ route('help.index') }}" class="white-text p18">Помощь</a>
       <a href="{{ route('privacy') }}" class="white-text p18">Конфиденциальность</a>
@@ -90,7 +90,7 @@
     <div class="mobile-menu">
       <div @click="mobileMenuOpen = false" class="menu-close"><img src="/images/close.svg" loading="lazy" alt=""></div>
       <div class="mobile-menu-litems">
-        <a href="#" target="_blank" class="p30">О нас</a>
+        <a href="{{ route('about') }}" class="p30">О нас</a>
         <a href="{{ route('reviews') }}" class="p30">Отзывы</a>
         <a href="{{ route('help.index') }}" class="p30">Помощь</a>
         <a href="/login" class="p30">Войти</a>

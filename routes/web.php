@@ -16,6 +16,7 @@ Route::get('/help/{audience}', [\App\Http\Controllers\HelpController::class, 'se
 Route::get('/help/{audience}/{category}', [\App\Http\Controllers\HelpController::class, 'category'])->name('help.category');
 Route::get('/help/{audience}/{category}/{article}', [\App\Http\Controllers\HelpController::class, 'article'])->name('help.article');
 
+Route::get('/about', [PageController::class, 'aboutPage'])->name('about');
 Route::get('/reviews', [PageController::class, 'reviewsPage'])->name('reviews');
 Route::get('/reviews/load-more', [PageController::class, 'loadMoreReviews'])->name('reviews.load-more');
 Route::get('/privacy', [PageController::class, 'privacyPage'])->name('privacy');
