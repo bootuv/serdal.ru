@@ -30,10 +30,19 @@
             margin-bottom: 40px;
         }
 
-        .about-manifest {
+        .about-manifest,
+        .about-final {
             background-color: var(--bg1);
             border-radius: 32px;
             padding: 64px;
+        }
+
+        .about-final .about-heading {
+            margin-bottom: 24px;
+        }
+
+        .about-final .about-cta__secondary {
+            background-color: var(--white);
         }
 
         .about-manifest p {
@@ -141,7 +150,7 @@
             width: 12px;
             height: 12px;
             border-radius: 4px;
-            background-color: var(--brand-secondary);
+            background-color: var(--black);
         }
 
         .about-cta {
@@ -304,41 +313,136 @@
             line-height: 28px;
         }
 
-        /* --- Слайдер со скриншотами ---------------------------------------- */
-        .about-slider {
-            display: flex;
-            gap: 24px;
-            margin-top: 40px;
-            padding-bottom: 20px;
-            overflow-x: auto;
-            scroll-snap-type: x mandatory;
-            -webkit-overflow-scrolling: touch;
-            scrollbar-color: var(--bg3) transparent;
+        /* --- Список возможностей с синхронной графикой ---------------------- */
+        .about-tabs {
+            display: grid;
+            grid-template-columns: minmax(0, .85fr) minmax(0, 1fr);
+            gap: 64px;
+            align-items: stretch;
+            margin-top: 48px;
         }
 
-        .about-slider::-webkit-scrollbar {
-            height: 8px;
+        .about-tabs__list {
+            border-left: 1px solid var(--line-light);
         }
 
-        .about-slider::-webkit-scrollbar-thumb {
-            border-radius: 999px;
-            background-color: var(--bg3);
+        .about-tab {
+            position: relative;
+            display: block;
+            width: 100%;
+            padding: 24px 0 24px 40px;
+            border: 0;
+            background: none;
+            font-family: inherit;
+            text-align: left;
+            cursor: pointer;
         }
 
-        .about-slide {
-            flex: 0 0 520px;
-            scroll-snap-align: start;
+        .about-tab__bar {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: -1px;
+            width: 4px;
+            overflow: hidden;
+            border-radius: 4px;
         }
 
-        .about-hint {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            margin-top: 12px;
+        .about-tab__fill {
+            display: block;
+            width: 100%;
+            height: 0;
+            border-radius: 4px;
+            background-color: var(--brand-main);
+        }
+
+        .about-tab__title {
+            display: block;
             color: var(--icon);
-            font-size: 20px;
-            line-height: 28px;
+            font-size: 36px;
+            font-weight: 500;
+            line-height: 44px;
+            letter-spacing: -.5px;
+            transition: color .2s;
         }
+
+        .about-tab:hover .about-tab__title {
+            color: var(--gray);
+        }
+
+        .about-tab.is-active .about-tab__title {
+            color: var(--black);
+        }
+
+        /* Раскрытие через grid-template-rows 0fr -> 1fr: высота анимируется
+           без магических max-height, текст при этом обрезается overflow. */
+        .about-tab__reveal {
+            display: grid;
+            grid-template-rows: 0fr;
+            opacity: 0;
+            transition: grid-template-rows .45s cubic-bezier(.4, 0, .2, 1), opacity .3s;
+        }
+
+        .about-tab.is-active .about-tab__reveal {
+            grid-template-rows: 1fr;
+            opacity: 1;
+        }
+
+        /* Отступ живёт на внутреннем элементе: padding самой grid-ячейки
+           не схлопывается вместе с min-height и оставлял бы полоску в 16px. */
+        .about-tab__clip {
+            display: block;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        .about-tab__text {
+            display: block;
+            padding-top: 16px;
+            color: var(--gray);
+        }
+
+        .about-tabs__media {
+            display: flex;
+            align-items: center;
+            padding: 48px;
+            border-radius: 32px;
+            background-color: var(--bg2);
+        }
+
+        /* Обрезаем по контенту, а не по padding-box: иначе соседний слайд
+           выглядывает в зоне внутреннего отступа панели. */
+        .about-tabs__viewport {
+            width: 100%;
+            overflow: hidden;
+        }
+
+        .about-tabs__track {
+            display: flex;
+            width: 100%;
+            transition: transform .55s cubic-bezier(.4, 0, .2, 1);
+        }
+
+        .about-tabs__slide {
+            flex: 0 0 100%;
+        }
+
+        /* Кадр на цветной панели делаем белым, иначе сливается с фоном */
+        .about-tabs__media .about-shot__frame {
+            background-color: var(--white);
+            border-color: #0000;
+        }
+
+        .about-tabs__media .about-shot__bar,
+        .about-tabs__media .about-shot__tiles div {
+            background-color: var(--bg1);
+        }
+
+        .about-tabs__media .about-shot__tiles div:nth-child(2) {
+            background-color: var(--brand-main-light);
+        }
+
+
 
         /* --- Крупный блок с картинкой -------------------------------------- */
         .about-spotlight {
@@ -360,8 +464,70 @@
             color: var(--gray);
         }
 
-        .about-ticker {
+        .about-directions {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 16px;
             margin-top: 40px;
+        }
+
+        .about-direction {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            gap: 40px;
+            min-height: 188px;
+            padding: 32px;
+            border: 1px solid var(--line-light);
+            border-radius: 24px;
+            color: var(--black);
+            text-decoration: none;
+            transition: background-color .2s, border-color .2s;
+        }
+
+        a.about-direction:hover {
+            background-color: var(--brand-main-light);
+            border-color: transparent;
+        }
+
+        .about-direction__name {
+            font-size: 30px;
+            font-weight: 500;
+            line-height: 38px;
+            letter-spacing: -.5px;
+        }
+
+        .about-direction__foot {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            gap: 16px;
+        }
+
+        .about-direction__meta {
+            color: var(--gray);
+        }
+
+        .about-direction__arrow {
+            flex: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            background-color: var(--bg1);
+            color: var(--black);
+            transition: background-color .2s, transform .2s;
+        }
+
+        a.about-direction:hover .about-direction__arrow {
+            background-color: var(--white);
+            transform: translate(2px, -2px);
+        }
+
+        .about-direction--empty {
+            color: var(--gray);
         }
 
         @media screen and (max-width: 991px) {
@@ -369,12 +535,14 @@
                 margin-top: 72px;
             }
 
-            .about-manifest {
+            .about-manifest,
+            .about-final {
                 padding: 48px 40px;
             }
 
             .about-grid,
-            .about-steps {
+            .about-steps,
+            .about-directions {
                 grid-template-columns: repeat(2, minmax(0, 1fr));
             }
 
@@ -383,8 +551,18 @@
                 line-height: 32px;
             }
 
-            .about-slide {
-                flex-basis: 420px;
+            .about-tabs {
+                grid-template-columns: minmax(0, 1fr);
+                gap: 40px;
+            }
+
+            .about-tab__title {
+                font-size: 30px;
+                line-height: 38px;
+            }
+
+            .about-tabs__media {
+                padding: 32px;
             }
 
             .about-spotlight {
@@ -403,7 +581,8 @@
                 margin-bottom: 32px;
             }
 
-            .about-manifest {
+            .about-manifest,
+            .about-final {
                 border-radius: 24px;
                 padding: 32px 24px;
             }
@@ -430,12 +609,26 @@
                 height: 64px;
             }
 
-            .about-slide {
-                flex-basis: 84%;
+            .about-tabs {
+                gap: 32px;
+                margin-top: 32px;
             }
 
-            .about-shot__caption,
-            .about-hint {
+            .about-tab {
+                padding: 20px 0 20px 24px;
+            }
+
+            .about-tab__title {
+                font-size: 26px;
+                line-height: 34px;
+            }
+
+            .about-tabs__media {
+                padding: 24px;
+                border-radius: 24px;
+            }
+
+            .about-shot__caption {
                 font-size: 18px;
                 line-height: 26px;
             }
@@ -447,8 +640,31 @@
                 border-radius: 24px;
             }
 
-            .about-ticker {
+            .about-directions {
+                grid-template-columns: minmax(0, 1fr);
                 margin-top: 32px;
+            }
+
+            .about-direction {
+                min-height: 0;
+                gap: 12px;
+                padding: 20px 24px;
+            }
+
+            .about-direction__meta {
+                font-size: 18px;
+                line-height: 26px;
+            }
+
+            .about-direction__arrow {
+                width: 32px;
+                height: 32px;
+                border-radius: 10px;
+            }
+
+            .about-direction__name {
+                font-size: 24px;
+                line-height: 32px;
             }
         }
     </style>
@@ -555,29 +771,57 @@
         </div>
     </section>
 
-    <section class="about-section">
+    <section class="about-section" id="screens">
         <h2 class="h2 about-heading" style="padding-left: 0; padding-right: 0;">Как это выглядит</h2>
         <p class="p24 about-text-limit" style="color: var(--gray); margin: 0;">
-            Несколько экранов платформы — так их видят преподаватель и ученик.
+            Пять экранов, в которых проходит почти вся работа на платформе.
         </p>
-        <div class="about-slider">
-            <div class="about-slide">
-                @include('partials.about-shot', ['label' => 'Расписание занятий на неделю'])
+
+        @php
+            $screens = [
+                ['Расписание', 'Календарь занятий у преподавателя и ученика: видно, что уже прошло и что впереди. Синхронизируется с Google Calendar, а о начале урока напоминает уведомление.', 'Расписание занятий на неделю'],
+                ['Занятие', 'Урок идёт прямо в браузере: общая доска, презентации и демонстрация экрана. При необходимости занятие записывается целиком.', 'Занятие с доской и презентацией'],
+                ['Домашние задания', 'Преподаватель выдаёт задание с файлами и сроком, ученик сдаёт работу на платформе. Проверка и комментарии остаются в истории.', 'Домашнее задание и проверка работы'],
+                ['Записи уроков', 'Все записи собраны в кабинете ученика. К объяснению можно вернуться перед контрольной или экзаменом — столько раз, сколько нужно.', 'Записи прошедших уроков'],
+                ['Ученики и оплаты', 'Список учеников, типы занятий и учёт оплат: видно, кто и за какие уроки заплатил, без ручных подсчётов.', 'Список учеников и оплаты'],
+            ];
+        @endphp
+
+        {{-- Alpine подключён в layout, отдельный скрипт слайдеру не нужен --}}
+        <div class="about-tabs" x-data="aboutTabs({{ count($screens) }})">
+
+            <div class="about-tabs__list">
+                @foreach ($screens as $i => [$title, $text, $label])
+                    <button type="button" class="about-tab" :class="{ 'is-active': active === {{ $i }} }"
+                        @click="go({{ $i }})" :aria-expanded="active === {{ $i }}">
+                        {{-- Полоска слева одновременно отмечает активный пункт
+                             и показывает, сколько осталось до автопереключения --}}
+                        <span class="about-tab__bar" aria-hidden="true">
+                            <span class="about-tab__fill"
+                                :style="active === {{ $i }} ? 'height: ' + progress + '%' : 'height: 0%'"></span>
+                        </span>
+                        <span class="about-tab__title">{{ $title }}</span>
+                        <span class="about-tab__reveal">
+                            <span class="about-tab__clip">
+                                <span class="p24 about-tab__text">{{ $text }}</span>
+                            </span>
+                        </span>
+                    </button>
+                @endforeach
             </div>
-            <div class="about-slide">
-                @include('partials.about-shot', ['label' => 'Занятие с доской и презентацией'])
-            </div>
-            <div class="about-slide">
-                @include('partials.about-shot', ['label' => 'Домашнее задание и проверка работы'])
-            </div>
-            <div class="about-slide">
-                @include('partials.about-shot', ['label' => 'Записи прошедших уроков'])
-            </div>
-            <div class="about-slide">
-                @include('partials.about-shot', ['label' => 'Список учеников и оплаты'])
+
+            <div class="about-tabs__media" @mouseenter="paused = true" @mouseleave="paused = false">
+                <div class="about-tabs__viewport">
+                <div class="about-tabs__track" :style="'transform: translateX(-' + (active * 100) + '%)'">
+                    @foreach ($screens as [, , $label])
+                        <div class="about-tabs__slide">
+                            @include('partials.about-shot', ['label' => $label])
+                        </div>
+                    @endforeach
+                </div>
+                </div>
             </div>
         </div>
-        <span class="about-hint">Листайте вбок &rarr;</span>
     </section>
 
     <section class="about-section">
@@ -648,44 +892,125 @@
         </div>
     </section>
 
-    @php($directs = App\Models\Direct::all())
+    @php
+        $directs = App\Models\Direct::withCount([
+            'users' => fn ($query) => $query->isSpecialist()->where('is_active', true),
+        ])->orderByDesc('users_count')->orderBy('name')->get();
+
+        // Русская форма слова для счётчика преподавателей.
+        $teacherWord = function (int $count): string {
+            $mod100 = $count % 100;
+            $mod10 = $count % 10;
+
+            if ($mod100 >= 11 && $mod100 <= 14) return 'преподавателей';
+            if ($mod10 === 1) return 'преподаватель';
+            if ($mod10 >= 2 && $mod10 <= 4) return 'преподавателя';
+
+            return 'преподавателей';
+        };
+    @endphp
     @if($directs->isNotEmpty())
         <section class="about-section">
             <h2 class="h2 about-heading" style="padding-left: 0; padding-right: 0;">Направления</h2>
             <p class="p24 about-text-limit" style="color: var(--gray); margin: 0;">
                 Преподаватели платформы готовят к экзаменам, ведут школьные предметы и наставничество.
             </p>
-        </section>
 
-        {{-- Бегущая строка: тот же компонент, что и на главной. Список дублируется,
-             чтобы анимация ticker зациклилась без разрыва. --}}
-        <section class="directions-row about-ticker">
-            <ul role="list" class="directions">
+            {{-- Не бегущая строка, как на главной: здесь направления — точка входа в каталог.
+                 Каждая карточка ведёт на список специалистов с уже применённым фильтром. --}}
+            <div class="about-directions">
                 @foreach($directs as $direct)
-                    <li class="direction">
-                        <div class="p30">{{ $direct->name }}</div>
-                    </li>
+                    @if($direct->users_count > 0)
+                        <a class="about-direction" href="/?direct%5B%5D={{ $direct->id }}#specialists">
+                            <span class="about-direction__name">{{ $direct->name }}</span>
+                            <span class="about-direction__foot">
+                                <span class="p24 about-direction__meta">
+                                    {{ $direct->users_count }} {{ $teacherWord($direct->users_count) }}
+                                </span>
+                                <span class="about-direction__arrow" aria-hidden="true">
+                                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M5 15L15 5M15 5H7M15 5V13" stroke="currentColor" stroke-width="1.5"
+                                            stroke-linecap="round" stroke-linejoin="round" />
+                                    </svg>
+                                </span>
+                            </span>
+                        </a>
+                    @else
+                        <div class="about-direction about-direction--empty">
+                            <span class="about-direction__name">{{ $direct->name }}</span>
+                        </div>
+                    @endif
                 @endforeach
-                @foreach($directs as $direct)
-                    <li class="direction">
-                        <div class="p30">{{ $direct->name }}</div>
-                    </li>
-                @endforeach
-            </ul>
+            </div>
         </section>
     @endif
 
     <section class="about-section">
-        <h2 class="h2 about-heading" style="padding-left: 0; padding-right: 0;">С чего начать</h2>
-        <p class="p24 about-text-limit" style="color: var(--gray); margin: 0;">
-            Ученикам — подобрать специалиста под свою цель. Преподавателям — оставить заявку,
-            мы свяжемся и поможем перенести занятия на платформу.
-        </p>
-        <div class="about-cta">
-            <a href="/#specialists" class="main-button w-button">Найти специалиста</a>
-            <a href="{{ route('become-tutor') }}" class="main-button about-cta__secondary w-button">Стать преподавателем</a>
+        <div class="about-final">
+            <h2 class="h2 about-heading" style="padding-left: 0; padding-right: 0;">С чего начать</h2>
+            <p class="p24 about-text-limit" style="color: var(--gray); margin: 0;">
+                Ученикам — подобрать специалиста под свою цель. Преподавателям — оставить заявку,
+                мы свяжемся и поможем перенести занятия на платформу.
+            </p>
+            <div class="about-cta">
+                <a href="/#specialists" class="main-button w-button">Найти специалиста</a>
+                <a href="{{ route('become-tutor') }}" class="main-button about-cta__secondary w-button">Стать преподавателем</a>
+            </div>
         </div>
     </section>
+
+    <script>
+        document.addEventListener('alpine:init', function () {
+            Alpine.data('aboutTabs', function (count) {
+                return {
+                    active: 0,
+                    progress: 0,     // 0..100 — заполнение полоски и таймер автопереключения
+                    paused: false,
+                    auto: true,
+                    duration: 7000,  // мс на один экран
+                    last: 0,
+
+                    init() {
+                        // Уважаем системную настройку «уменьшить движение»:
+                        // без автоперелистывания полоску держим заполненной.
+                        this.auto = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+                        if (!this.auto) {
+                            this.progress = 100;
+                            return;
+                        }
+
+                        this.last = performance.now();
+                        this.tick();
+                    },
+
+                    tick() {
+                        requestAnimationFrame(function (now) {
+                            var dt = now - this.last;
+                            this.last = now;
+
+                            if (!this.paused) {
+                                this.progress += (dt / this.duration) * 100;
+
+                                if (this.progress >= 100) {
+                                    this.progress = 0;
+                                    this.active = (this.active + 1) % count;
+                                }
+                            }
+
+                            this.tick();
+                        }.bind(this));
+                    },
+
+                    go(i) {
+                        this.active = i;
+                        this.progress = this.auto ? 0 : 100;
+                        this.last = performance.now();
+                    },
+                };
+            });
+        });
+    </script>
 
     <div class="about-footer-space"></div>
 
