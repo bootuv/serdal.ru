@@ -402,38 +402,57 @@
             color: var(--gray);
         }
 
-        /* Горизонтальный отступ панели частично перенесён внутрь слайдов
-           (.about-tabs__slide): так тень у видео не режется краем viewport,
-           а соседний слайд при этом не выглядывает — он остаётся за пределами
-           области обрезки вместе со своим отступом. */
+        /* Панель без внутренних отступов и без overflow: hidden — слайды не едут лентой,
+           а лежат друг на друге и проявляются (см. .about-tabs__slide), поэтому тень
+           у видео нечему обрезать. Воздух вокруг видео задаёт его собственная ширина. */
         .about-tabs__media {
             display: flex;
             align-items: center;
-            padding: 48px 16px;
+            /* Панель всегда квадратная: высота = ширине. align-self: start нужен,
+               иначе stretch сетки растянет её по высоте списка и пропорция пропадёт. */
+            aspect-ratio: 1 / 1;
+            align-self: start;
+            padding: 0;
             border-radius: 32px;
+            /* Фирменная «искра» одна, по центру, крупнее панели: концы лучей уходят
+               за края и обрезаются скруглением — фон не выглядит сплошной заливкой. */
             background-color: var(--bg2);
+            background-image: url('/images/about/sparkle.svg');
+            background-repeat: no-repeat;
+            background-size: 160% 160%;
+            background-position: center;
         }
 
-        /* overflow нужен, чтобы спрятать соседние слайды при прокрутке трека.
-           По вертикали даём запас под тень: padding компенсирован margin'ом,
-           поэтому на раскладку это не влияет. */
         .about-tabs__viewport {
             width: 100%;
-            overflow: hidden;
-            padding: 64px 0;
-            margin: -64px 0;
         }
 
+        /* Все слайды в одной ячейке сетки: высота — по самому высокому,
+           активный проявляется поверх остальных */
         .about-tabs__track {
-            display: flex;
+            display: grid;
             width: 100%;
-            transition: transform .55s cubic-bezier(.4, 0, .2, 1);
         }
 
         .about-tabs__slide {
-            flex: 0 0 100%;
-            box-sizing: border-box;
-            padding: 0 32px;
+            grid-area: 1 / 1;
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+            transition: opacity .55s cubic-bezier(.4, 0, .2, 1), visibility 0s .55s;
+        }
+
+        .about-tabs__slide.is-active {
+            opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
+            transition-delay: 0s;
+        }
+
+        /* Видео/кадр уже панели — отступ от краёв вместо внутреннего padding */
+        .about-tabs .about-tabs__slide > * {
+            width: 84%;
+            margin: 0 auto;
         }
 
         /* Кадр на цветной панели делаем белым, иначе сливается с фоном */
@@ -583,13 +602,6 @@
                 line-height: 38px;
             }
 
-            .about-tabs__media {
-                padding: 32px 8px;
-            }
-
-            .about-tabs__slide {
-                padding: 0 24px;
-            }
 
             .about-spotlight {
                 gap: 40px;
@@ -650,12 +662,7 @@
             }
 
             .about-tabs__media {
-                padding: 24px 0;
                 border-radius: 24px;
-            }
-
-            .about-tabs__slide {
-                padding: 0 24px;
             }
 
             .about-shot__caption {
@@ -844,10 +851,11 @@
 
             <div class="about-tabs__media" @mouseenter="paused = true" @mouseleave="paused = false">
                 <div class="about-tabs__viewport">
-                <div class="about-tabs__track" :style="'transform: translateX(-' + (active * 100) + '%)'">
+                <div class="about-tabs__track">
                     @foreach ($screens as $i => $screen)
                         @php [, , $label] = $screen; $video = $screen[3] ?? null; @endphp
-                        <div class="about-tabs__slide">
+                        <div class="about-tabs__slide" :class="{ 'is-active': active === {{ $i }} }"
+                            :aria-hidden="active !== {{ $i }}">
                             @if ($video)
                                 {{-- Ролик без звука стартует с начала, когда экран становится активным,
                                      и останавливается, когда уходит. Таймер автопереключения на этом
@@ -898,16 +906,20 @@
     </section>
 
     <section class="about-section">
+        {{-- Тема намеренно не из слайдера выше: записи, ДЗ и расписание там уже показаны.
+             Публичная страница преподавателя — единственное, чего нет ни на одном экране,
+             и она подводит к «Направлениям» и кнопке «Найти специалиста» ниже. --}}
         <div class="about-spotlight">
             <div>
-                <h3 class="h3">Урок не заканчивается вместе со звонком</h3>
+                <h3 class="h3">Преподавателя видно ещё до первого урока</h3>
                 <p class="p24">
-                    Запись занятия, разобранные на доске задачи, выданное домашнее задание и все
-                    материалы остаются в кабинете ученика. К ним можно вернуться через неделю
-                    перед контрольной или через полгода перед экзаменом.
+                    У каждого преподавателя на Serdal — своя открытая страница: предметы
+                    и направления, опыт, формат занятий и отзывы учеников, которые у него
+                    занимались. Ученик выбирает осознанно, а преподавателю не нужен отдельный
+                    сайт — ссылку на профиль можно дать в любой соцсети или мессенджере.
                 </p>
             </div>
-            @include('partials.about-shot', ['label' => 'Запись урока в кабинете ученика', 'ratio' => '4-3'])
+            @include('partials.about-shot', ['label' => 'Страница преподавателя с отзывами учеников', 'ratio' => '4-3'])
         </div>
     </section>
 
