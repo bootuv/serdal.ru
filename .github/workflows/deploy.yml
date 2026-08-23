@@ -70,8 +70,21 @@ jobs:
       - name: Установить зависимости фронтенда
         run: npm ci
 
+      # Vite запекает VITE_* в бандл при сборке. В CI нет серверного .env, поэтому
+      # значения для Reverb (WebSocket) берутся из Settings → Secrets and variables →
+      # Actions → Variables. Без них Echo не создаётся (см. resources/js/echo.js):
+      # сайт работает, но чат и realtime-уведомления — нет.
       - name: Собрать ассеты
-        run: npm run build
+        env:
+          VITE_REVERB_APP_KEY: ${{ vars.VITE_REVERB_APP_KEY }}
+          VITE_REVERB_HOST: ${{ vars.VITE_REVERB_HOST }}
+          VITE_REVERB_PORT: ${{ vars.VITE_REVERB_PORT }}
+          VITE_REVERB_SCHEME: ${{ vars.VITE_REVERB_SCHEME }}
+        run: |
+          if [ -z "$VITE_REVERB_APP_KEY" ]; then
+            echo "::warning::VITE_REVERB_APP_KEY не задан в Actions → Variables — в сборке не будет WebSocket (Reverb)"
+          fi
+          npm run build
 
       - name: Проверить, что сборка не пустая
         run: |

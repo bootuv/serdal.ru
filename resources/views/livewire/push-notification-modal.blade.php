@@ -41,7 +41,11 @@ this.isLoading = true;
 
 try {
 const vapidKey = '{{ $this->getVapidPublicKey() }}';
-if (vapidKey && window.PushNotifications) {
+if (!vapidKey) {
+console.error('Push: VAPID_PUBLIC_KEY не задан на сервере');
+} else if (!window.PushNotifications) {
+console.error('Push: клиент push-уведомлений не загружен (ошибка в app.js?)');
+} else {
 await window.PushNotifications.init(vapidKey);
 const success = await window.PushNotifications.subscribe();
 if (success) {

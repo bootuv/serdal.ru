@@ -402,19 +402,26 @@
             color: var(--gray);
         }
 
+        /* Горизонтальный отступ панели частично перенесён внутрь слайдов
+           (.about-tabs__slide): так тень у видео не режется краем viewport,
+           а соседний слайд при этом не выглядывает — он остаётся за пределами
+           области обрезки вместе со своим отступом. */
         .about-tabs__media {
             display: flex;
             align-items: center;
-            padding: 48px;
+            padding: 48px 16px;
             border-radius: 32px;
             background-color: var(--bg2);
         }
 
-        /* Обрезаем по контенту, а не по padding-box: иначе соседний слайд
-           выглядывает в зоне внутреннего отступа панели. */
+        /* overflow нужен, чтобы спрятать соседние слайды при прокрутке трека.
+           По вертикали даём запас под тень: padding компенсирован margin'ом,
+           поэтому на раскладку это не влияет. */
         .about-tabs__viewport {
             width: 100%;
             overflow: hidden;
+            padding: 64px 0;
+            margin: -64px 0;
         }
 
         .about-tabs__track {
@@ -425,6 +432,8 @@
 
         .about-tabs__slide {
             flex: 0 0 100%;
+            box-sizing: border-box;
+            padding: 0 32px;
         }
 
         /* Кадр на цветной панели делаем белым, иначе сливается с фоном */
@@ -440,6 +449,19 @@
 
         .about-tabs__media .about-shot__tiles div:nth-child(2) {
             background-color: var(--brand-main-light);
+        }
+
+        .about-tabs__video {
+            display: block;
+            width: 100%;
+            height: auto;
+            border-radius: 16px;
+            background-color: var(--white);
+            /* Мягкая рассеянная тень: два слоя — широкая лёгкая и короткая у края.
+               Её размах (~36px) укладывается в отступы слайда и запас viewport. */
+            box-shadow:
+                0 20px 48px -12px rgba(20, 32, 40, .16),
+                0 2px 6px rgba(20, 32, 40, .05);
         }
 
 
@@ -562,7 +584,11 @@
             }
 
             .about-tabs__media {
-                padding: 32px;
+                padding: 32px 8px;
+            }
+
+            .about-tabs__slide {
+                padding: 0 24px;
             }
 
             .about-spotlight {
@@ -624,8 +650,12 @@
             }
 
             .about-tabs__media {
-                padding: 24px;
+                padding: 24px 0;
                 border-radius: 24px;
+            }
+
+            .about-tabs__slide {
+                padding: 0 24px;
             }
 
             .about-shot__caption {
@@ -779,8 +809,10 @@
 
         @php
             $screens = [
-                ['Расписание', 'Календарь занятий у преподавателя и ученика: видно, что уже прошло и что впереди. Синхронизируется с Google Calendar, а о начале урока напоминает уведомление.', 'Расписание занятий на неделю'],
-                ['Занятие', 'Урок идёт прямо в браузере: общая доска, презентации и демонстрация экрана. При необходимости занятие записывается целиком.', 'Занятие с доской и презентацией'],
+                // Четвёртый элемент — путь к видео: тогда вместо заглушки с подписью
+                // показывается ролик, который стартует при переходе на этот экран.
+                ['Расписание', 'Календарь занятий у преподавателя и ученика: видно, что уже прошло и что впереди. Синхронизируется с Google Calendar, а о начале урока напоминает уведомление.', 'Расписание занятий на неделю', '/videos/about/calendar.mp4'],
+                ['Занятие', 'Урок идёт прямо в браузере: общая доска, презентации и демонстрация экрана. При необходимости занятие записывается целиком.', 'Занятие с доской и презентацией', '/videos/about/lesson.mp4'],
                 ['Домашние задания', 'Преподаватель выдаёт задание с файлами и сроком, ученик сдаёт работу на платформе. Проверка и комментарии остаются в истории.', 'Домашнее задание и проверка работы'],
                 ['Записи уроков', 'Все записи собраны в кабинете ученика. К объяснению можно вернуться перед контрольной или экзаменом — столько раз, сколько нужно.', 'Записи прошедших уроков'],
                 ['Ученики и оплаты', 'Список учеников, типы занятий и учёт оплат: видно, кто и за какие уроки заплатил, без ручных подсчётов.', 'Список учеников и оплаты'],
@@ -813,9 +845,20 @@
             <div class="about-tabs__media" @mouseenter="paused = true" @mouseleave="paused = false">
                 <div class="about-tabs__viewport">
                 <div class="about-tabs__track" :style="'transform: translateX(-' + (active * 100) + '%)'">
-                    @foreach ($screens as [, , $label])
+                    @foreach ($screens as $i => $screen)
+                        @php [, , $label] = $screen; $video = $screen[3] ?? null; @endphp
                         <div class="about-tabs__slide">
-                            @include('partials.about-shot', ['label' => $label])
+                            @if ($video)
+                                {{-- Ролик без звука стартует с начала, когда экран становится активным,
+                                     и останавливается, когда уходит. Таймер автопереключения на этом
+                                     экране подстраивается под длину ролика (см. aboutTabs). --}}
+                                <video class="about-tabs__video" src="{{ $video }}" muted playsinline loop
+                                    preload="auto" aria-label="{{ $label }}"
+                                    x-effect="syncVideo($el, {{ $i }})"
+                                    @loadedmetadata="setDuration({{ $i }}, $el.duration)"></video>
+                            @else
+                                @include('partials.about-shot', ['label' => $label])
+                            @endif
                         </div>
                     @endforeach
                 </div>
@@ -968,6 +1011,7 @@
                     paused: false,
                     auto: true,
                     duration: 7000,  // мс на один экран
+                    durations: {},   // переопределения по индексу (экраны с видео — длина ролика)
                     last: 0,
 
                     init() {
@@ -990,7 +1034,7 @@
                             this.last = now;
 
                             if (!this.paused) {
-                                this.progress += (dt / this.duration) * 100;
+                                this.progress += (dt / (this.durations[this.active] || this.duration)) * 100;
 
                                 if (this.progress >= 100) {
                                     this.progress = 0;
@@ -1006,6 +1050,23 @@
                         this.active = i;
                         this.progress = this.auto ? 0 : 100;
                         this.last = performance.now();
+                    },
+
+                    setDuration(i, seconds) {
+                        if (seconds && isFinite(seconds)) {
+                            this.durations[i] = seconds * 1000;
+                        }
+                    },
+
+                    // Вызывается через x-effect: перезапускается при каждой смене active
+                    syncVideo(el, i) {
+                        if (this.active === i) {
+                            el.currentTime = 0;
+                            var p = el.play();
+                            if (p && p.catch) p.catch(function () {});
+                        } else {
+                            el.pause();
+                        }
                     },
                 };
             });

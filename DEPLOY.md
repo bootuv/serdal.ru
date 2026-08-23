@@ -113,6 +113,24 @@ composer install --no-dev --optimize-autoloader
 **до** деплоя: `config:cache` запечёт текущее содержимое, и отсутствующая переменная
 станет `null` молча, без ошибки.
 
+### Переменные фронтенда (VITE_*) в CI
+
+Ассеты собираются в GitHub Actions, где серверного `.env` нет, а Vite запекает `VITE_*`
+в бандл на этапе сборки. Поэтому параметры Reverb (WebSocket) нужно завести в
+**Settings → Secrets and variables → Actions → Variables** (это не секреты — ключ всё
+равно попадает в публичный JS):
+
+| Переменная | Значение |
+|------------|----------|
+| `VITE_REVERB_APP_KEY` | как `REVERB_APP_KEY` в серверном `.env` |
+| `VITE_REVERB_HOST` | хост, на который браузер ходит за WebSocket (обычно `serdal.ru`) |
+| `VITE_REVERB_PORT` | обычно `443` |
+| `VITE_REVERB_SCHEME` | обычно `https` |
+
+Без `VITE_REVERB_APP_KEY` сборка проходит (с предупреждением в workflow), но в браузере
+Echo не создаётся: чат и realtime-уведомления не работают. Push-уведомления и остальной
+JS от этого не зависят.
+
 ### Настройка на сервере (один раз)
 
 ```bash

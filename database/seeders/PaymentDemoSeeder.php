@@ -3,6 +3,9 @@
 namespace Database\Seeders;
 
 use App\Models\Direct;
+use App\Models\Homework;
+use App\Models\HomeworkActivity;
+use App\Models\HomeworkSubmission;
 use App\Models\LessonType;
 use App\Models\MeetingSession;
 use App\Models\PaymentRecord;
@@ -30,6 +33,10 @@ use Illuminate\Support\Str;
  *             pay-free@demo.ru            — бесплатный ученик, оплата не отслеживается
  *             pay-override@demo.ru        — персональная помесячная оплата (override)
  *             pay-extra-1..6@demo.ru      — обычная история: оплачено + свежее начисление
+ *
+ * Домашние задания: шесть заданий (ДЗ, пробник, контрольная) по группам и индивидуально,
+ * работы во всех статусах — не сдано, на проверке, на доработке, пересдано, оценено,
+ * просрочено — с историей событий (сдал/вернул/оценил).
  *
  * Занятия: индивидуальные по темам химии + две группы (7 и 5 учеников).
  *
@@ -145,7 +152,238 @@ class PaymentDemoSeeder extends Seeder
         // ── Расписание: заполняет календарь на месяц назад и на месяц вперёд ──
         $this->createSchedules($teacher, $egeGroup, $ogeGroup);
 
+        // ── Домашние задания и сданные работы во всех статусах ──
+        $this->createHomeworks($teacher, $egeGroup, $ogeGroup, [
+            'hawa' => $hawa, 'adam' => $adam, 'ibragim' => $ibragim, 'musa' => $musa,
+            'marem' => $marem, 'isa' => $isa, 'madina' => $madina, 'extras' => $extraStudents,
+        ]);
+
         $this->command?->info('Демо-данные созданы. Преподаватель химии: pay-teacher@demo.ru, пароль: password');
+    }
+
+    /**
+     * Домашние задания с работами во всех состояниях.
+     *
+     * Статус «Не сдано» — это отсутствие строки в homework_submissions (так ведёт себя
+     * кабинет ученика: строка появляется только при сдаче), поэтому для части учеников
+     * работы намеренно не создаются.
+     *
+     * @param array{hawa:User,adam:User,ibragim:User,musa:User,marem:User,isa:User,madina:User,extras:User[]} $s
+     */
+    private function createHomeworks(User $teacher, Room $egeGroup, Room $ogeGroup, array $s): void
+    {
+        [$tanzila, $ahmed, $zaira, $alihan, $luiza] = $s['extras'];
+
+        // 1. Групповое ДЗ, срок прошёл 5 дней назад — полный набор статусов
+        $hw = $this->createHomework($teacher, $egeGroup, [
+            'type' => Homework::TYPE_HOMEWORK,
+            'title' => 'Задачи на растворы: массовая доля и молярная концентрация',
+            'description' => '<p>Решите задачи 1–8 из файла. В каждой задаче запишите дано, формулы и ответ с единицами измерения.</p><p>Задачи 7 и 8 — повышенного уровня, за них даётся по 2 балла.</p>',
+            'max_score' => 10,
+        ], createdDaysAgo: 12, deadlineInDays: -5, students: $egeGroup->participants);
+
+        $this->submit($hw, $s['hawa'], HomeworkSubmission::STATUS_GRADED, [
+            'days_ago' => 7, 'grade' => 9,
+            'content' => 'Решения во вложении. В задаче 8 не уверена в округлении.',
+            'feedback' => 'Отлично! В задаче 8 округление верное, но потеряна единица измерения в ответе.',
+        ]);
+        $this->submit($hw, $s['adam'], HomeworkSubmission::STATUS_GRADED, [
+            'days_ago' => 5, 'grade' => 6,
+            'content' => 'Сделал 1–6, седьмую и восьмую не успел.',
+            'feedback' => 'Задачи 1–6 решены верно. Разберём 7 и 8 на занятии — там нужна формула разбавления.',
+        ]);
+        $this->submit($hw, $s['marem'], HomeworkSubmission::STATUS_SUBMITTED, [
+            'days_ago' => 1,
+            'content' => 'Прошу прощения за опоздание, болела. Все задачи решены.',
+        ]);
+        $this->submit($hw, $s['madina'], HomeworkSubmission::STATUS_REVISION_REQUESTED, [
+            'days_ago' => 6,
+            'content' => 'Решила все, кроме 4-й — не поняла условие.',
+            'feedback' => 'В задачах 2 и 5 перепутана массовая доля с мольной. Перерешайте их и задачу 4 — условие разобрали в чате.',
+        ]);
+        $this->submit($hw, $tanzila, HomeworkSubmission::STATUS_SUBMITTED, [
+            'days_ago' => 2, 'resubmitted' => true,
+            'content' => 'Исправила задачи 3 и 6, как вы просили.',
+            'feedback' => 'В 3 и 6 ошибка в переводе граммов в моли — пересчитайте молярные массы.',
+        ]);
+        $this->submit($hw, $ahmed, HomeworkSubmission::STATUS_GRADED, [
+            'days_ago' => 8, 'grade' => 10,
+            'content' => 'Готово, решения в файле.',
+            'feedback' => 'Безупречно. Задачу 8 можно было решить короче через пропорцию, покажу на уроке.',
+        ]);
+        // Заира не сдала — срок прошёл
+
+        // 2. Пробник ОГЭ для группы 9 класса, срок прошёл 2 дня назад
+        $hw = $this->createHomework($teacher, $ogeGroup, [
+            'type' => Homework::TYPE_PRACTICE,
+            'title' => 'Пробник ОГЭ: вариант 3 (задания 1–19)',
+            'description' => '<p>Решите вариант целиком за 120 минут без справочных материалов, кроме таблицы Менделеева и таблицы растворимости.</p><p>Сфотографируйте бланк ответов и развёрнутые решения заданий 17–19.</p>',
+            'max_score' => 40,
+        ], createdDaysAgo: 9, deadlineInDays: -2, students: $ogeGroup->participants);
+
+        $this->submit($hw, $s['ibragim'], HomeworkSubmission::STATUS_GRADED, [
+            'days_ago' => 3, 'grade' => 27,
+            'content' => 'Уложился в 110 минут. Задание 19 не дорешал.',
+            'feedback' => 'Тестовая часть — 22 из 24, хорошо. В 17 не уравнена ОВР, в 19 нет расчёта по второму уравнению.',
+        ]);
+        $this->submit($hw, $s['isa'], HomeworkSubmission::STATUS_SUBMITTED, [
+            'days_ago' => 2,
+            'content' => 'Решал два дня по частям, время не засекал.',
+        ]);
+        $this->submit($hw, $alihan, HomeworkSubmission::STATUS_GRADED, [
+            'days_ago' => 4, 'grade' => 35,
+            'content' => 'Готово. Было сложно с 18-м заданием.',
+            'feedback' => 'Отличный результат. В 18 не хватило одного качественного признака — осадок BaSO₄ белый.',
+        ]);
+        $this->submit($hw, $luiza, HomeworkSubmission::STATUS_REVISION_REQUESTED, [
+            'days_ago' => 3,
+            'content' => 'Сдаю только тестовую часть, 17–19 не успела.',
+            'feedback' => 'Тестовая часть принята (20 из 24). Дорешайте 17–19 и пришлите — без них балл не выставляю.',
+        ]);
+        // Муса не сдал
+
+        // 3. Контрольная для группы ЕГЭ, срок — завтра: кто-то уже сдал, большинство ещё нет
+        $hw = $this->createHomework($teacher, $egeGroup, [
+            'type' => Homework::TYPE_EXAM,
+            'title' => 'Контрольная работа по теме «Растворы и электролитическая диссоциация»',
+            'description' => '<p>Контрольная по итогам блока. 6 заданий, из них 2 — задачи. Фотографию работы загрузите одним PDF.</p>',
+            'max_score' => 20,
+        ], createdDaysAgo: 3, deadlineInDays: 1, students: $egeGroup->participants);
+
+        $this->submit($hw, $ahmed, HomeworkSubmission::STATUS_SUBMITTED, [
+            'days_ago' => 1,
+            'content' => 'Сдаю заранее — завтра не будет интернета.',
+        ]);
+        $this->submit($hw, $s['hawa'], HomeworkSubmission::STATUS_SUBMITTED, [
+            'days_ago' => 0,
+            'content' => 'Готово.',
+        ]);
+
+        // 4. Индивидуальное ДЗ, срок через 3 дня — сдано досрочно, ждёт проверки
+        $hw = $this->createHomework($teacher, $teacher->rooms()->where('name', 'Органическая химия — Хава')->first(), [
+            'type' => Homework::TYPE_HOMEWORK,
+            'title' => 'Изомерия алканов: составить все изомеры C₆H₁₄ и C₇H₁₆',
+            'description' => '<p>Нарисуйте структурные формулы всех изомеров и назовите их по номенклатуре IUPAC. Для C₆H₁₄ их 5, для C₇H₁₆ — 9.</p>',
+            'max_score' => 10,
+        ], createdDaysAgo: 2, deadlineInDays: 3, students: [$s['hawa']]);
+
+        $this->submit($hw, $s['hawa'], HomeworkSubmission::STATUS_SUBMITTED, [
+            'days_ago' => 0,
+            'content' => 'Нашла 5 и 9 изомеров, названия в файле. Не уверена в 2,2,3-триметилбутане.',
+        ]);
+
+        // 5. Индивидуальное ДЗ, срок через 5 дней — пока ничего не сдано (актуальное)
+        $this->createHomework($teacher, $teacher->rooms()->where('name', 'Химия ЕГЭ — Ибрагим')->first(), [
+            'type' => Homework::TYPE_HOMEWORK,
+            'title' => 'Окислительно-восстановительные реакции: метод электронного баланса',
+            'description' => '<p>Уравняйте 10 реакций из файла методом электронного баланса, укажите окислитель и восстановитель.</p>',
+            'max_score' => 10,
+        ], createdDaysAgo: 1, deadlineInDays: 5, students: [$s['ibragim']]);
+
+        // 6. Старое ДЗ в истории — всё проверено и оценено
+        $hw = $this->createHomework($teacher, $egeGroup, [
+            'type' => Homework::TYPE_HOMEWORK,
+            'title' => 'Электролиз расплавов и растворов солей',
+            'description' => '<p>Составьте схемы электролиза для 6 веществ из списка, запишите процессы на катоде и аноде.</p>',
+            'max_score' => 10,
+        ], createdDaysAgo: 24, deadlineInDays: -17, students: $egeGroup->participants);
+
+        foreach ([
+            [$s['hawa'], 10, 'Всё верно.'],
+            [$s['adam'], 7, 'Для раствора CuSO₄ на аноде окисляется вода, а не сульфат-ион.'],
+            [$s['marem'], 8, 'Хорошо. В схеме для NaCl(раствор) не указана среда у катода.'],
+            [$s['madina'], 9, 'Отлично, одна описка в коэффициентах.'],
+            [$tanzila, 6, 'Расплавы — верно, растворы нужно повторить: правило «активных металлов».'],
+            [$ahmed, 10, 'Без замечаний.'],
+            [$zaira, 8, 'Хорошо. Обратите внимание на электролиз с растворимым анодом.'],
+        ] as $i => [$student, $grade, $feedback]) {
+            $this->submit($hw, $student, HomeworkSubmission::STATUS_GRADED, [
+                'days_ago' => 18 + ($i % 3), 'grade' => $grade,
+                'content' => 'Готово, схемы во вложении.',
+                'feedback' => $feedback,
+            ]);
+        }
+    }
+
+    /**
+     * @param iterable<User> $students
+     */
+    private function createHomework(User $teacher, ?Room $room, array $attrs, int $createdDaysAgo, int $deadlineInDays, iterable $students): Homework
+    {
+        $createdAt = now()->subDays($createdDaysAgo)->setTime(18, 30);
+
+        // forceCreate, чтобы выставить created_at: иначе все задания получат «сегодня»
+        $homework = Homework::forceCreate($attrs + [
+            'teacher_id' => $teacher->id,
+            'room_id' => $room?->id,
+            'deadline' => now()->addDays($deadlineInDays)->setTime(23, 59),
+            'is_visible' => true,
+            'created_at' => $createdAt,
+            'updated_at' => $createdAt,
+        ]);
+
+        $homework->students()->attach(collect($students)->pluck('id')->all());
+
+        return $homework;
+    }
+
+    /**
+     * Сданная работа + история событий.
+     *
+     * opts: days_ago — когда сдана; grade; feedback; content;
+     *       resubmitted — работа уже возвращалась на доработку и сдана повторно.
+     *
+     * Наблюдатель отключён: он пишет события с текущим временем и от auth()->id(),
+     * а здесь нужны правдоподобные даты и конкретный автор действия.
+     */
+    private function submit(Homework $homework, User $student, string $status, array $opts): HomeworkSubmission
+    {
+        $submittedAt = now()->subDays($opts['days_ago'])->setTime(20, 15)->subMinutes($student->id % 50);
+        $teacherId = $homework->teacher_id;
+        $isGradedOrReturned = in_array($status, [HomeworkSubmission::STATUS_GRADED, HomeworkSubmission::STATUS_REVISION_REQUESTED], true);
+
+        $submission = HomeworkSubmission::withoutEvents(fn () => HomeworkSubmission::forceCreate([
+            'homework_id' => $homework->id,
+            'student_id' => $student->id,
+            'status' => $status,
+            'content' => $opts['content'] ?? null,
+            'feedback' => ($isGradedOrReturned || ! empty($opts['resubmitted'])) ? ($opts['feedback'] ?? null) : null,
+            'grade' => $status === HomeworkSubmission::STATUS_GRADED ? ($opts['grade'] ?? null) : null,
+            'submitted_at' => $submittedAt,
+            'created_at' => $submittedAt,
+            'updated_at' => $isGradedOrReturned ? $submittedAt->copy()->addDay() : $submittedAt,
+        ]));
+
+        $log = function (string $type, Carbon $at, ?int $userId, ?array $meta = null) use ($submission) {
+            HomeworkActivity::forceCreate([
+                'submission_id' => $submission->id,
+                'user_id' => $userId,
+                'type' => $type,
+                'metadata' => $meta,
+                'created_at' => $at,
+                'updated_at' => $at,
+            ]);
+        };
+
+        if (! empty($opts['resubmitted'])) {
+            $log(HomeworkActivity::TYPE_SUBMITTED, $submittedAt->copy()->subDays(3), $student->id);
+            $log(HomeworkActivity::TYPE_REVISION_REQUESTED, $submittedAt->copy()->subDays(2), $teacherId);
+            $log(HomeworkActivity::TYPE_RESUBMITTED, $submittedAt, $student->id);
+        } else {
+            $log(HomeworkActivity::TYPE_SUBMITTED, $submittedAt, $student->id);
+        }
+
+        match ($status) {
+            HomeworkSubmission::STATUS_GRADED => $log(
+                HomeworkActivity::TYPE_GRADED, $submittedAt->copy()->addDay(), $teacherId, ['grade' => $opts['grade'] ?? null]
+            ),
+            HomeworkSubmission::STATUS_REVISION_REQUESTED => $log(
+                HomeworkActivity::TYPE_REVISION_REQUESTED, $submittedAt->copy()->addDay(), $teacherId
+            ),
+            default => null,
+        };
+
+        return $submission;
     }
 
     /**
