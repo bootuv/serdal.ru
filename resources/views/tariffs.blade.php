@@ -122,6 +122,12 @@
             font-weight: 700;
         }
 
+        .tariff-extras {
+            flex: 0 0 auto;
+            border-top: 1px solid #eee;
+            padding-top: 16px;
+        }
+
         .tariff-button {
             display: block;
             text-align: center;
@@ -382,6 +388,13 @@
                             <li>{{ $feature }}</li>
                         @endforeach
                     </ul>
+                    @if(!empty($tariff->extra_features))
+                        <ul class="tariff-features tariff-extras">
+                            @foreach($tariff->extra_features as $feature)
+                                <li>{{ $feature }}</li>
+                            @endforeach
+                        </ul>
+                    @endif
                     <a href="{{ auth()->check() ? url('/tutor/subscription') : route('become-tutor') }}" class="tariff-button">
                         {{ $tariff->isFree() ? 'Начать бесплатно' : 'Подключить' }}
                     </a>

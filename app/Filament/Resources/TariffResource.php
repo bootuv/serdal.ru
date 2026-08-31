@@ -104,6 +104,10 @@ class TariffResource extends Resource
                         Forms\Components\TagsInput::make('features')
                             ->label('Что входит (список)')
                             ->placeholder('Добавьте пункт и нажмите Enter'),
+                        Forms\Components\TagsInput::make('extra_features')
+                            ->label('Доп. сервисы (список)')
+                            ->placeholder('Добавьте пункт и нажмите Enter')
+                            ->helperText('Выводятся на сайте под общим списком, отделены линией'),
                     ]),
             ]);
     }

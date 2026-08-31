@@ -21,6 +21,7 @@ class Tariff extends Model
         'short_description',
         'description',
         'features',
+        'extra_features',
         'is_active',
         'is_popular',
         'sort',
@@ -30,6 +31,7 @@ class Tariff extends Model
     {
         return [
             'features' => 'array',
+            'extra_features' => 'array',
             'is_active' => 'boolean',
             'is_popular' => 'boolean',
         ];
