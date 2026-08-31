@@ -21,6 +21,15 @@ Route::get('/reviews', [PageController::class, 'reviewsPage'])->name('reviews');
 Route::get('/reviews/load-more', [PageController::class, 'loadMoreReviews'])->name('reviews.load-more');
 Route::get('/privacy', [PageController::class, 'privacyPage'])->name('privacy');
 Route::get('/terms', [PageController::class, 'termsPage'])->name('terms');
+Route::get('/tariffs', [PageController::class, 'tariffsPage'])->name('tariffs');
+Route::get('/offer', [PageController::class, 'offerPage'])->name('offer');
+
+// Интернет-эквайринг Альфа-Банка: возврат с платёжной страницы и серверный колбэк
+Route::get('/subscription/payment/{payment}/return', [\App\Http\Controllers\SubscriptionPaymentController::class, 'return'])
+    ->name('subscription.payment.return');
+Route::match(['get', 'post'], '/payments/alfabank/callback', [\App\Http\Controllers\SubscriptionPaymentController::class, 'callback'])
+    ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class])
+    ->name('subscription.payment.callback');
 
 // Unified login - redirect to admin panel login
 Route::get('/login', fn() => redirect('/admin/login'))->name('login');

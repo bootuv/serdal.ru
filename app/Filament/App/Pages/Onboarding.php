@@ -83,11 +83,11 @@ class Onboarding extends Page implements HasForms, HasTable
     {
         return $table
             ->query(LessonType::query()->where('user_id', Auth::id()))
-            ->heading('Базовые цены')
+            ->heading('Цены для учеников')
 
             ->modelLabel('Базовая цена')
-            ->pluralModelLabel('Базовые цены')
-            ->emptyStateHeading('Базовые цены не добавлены')
+            ->pluralModelLabel('Цены для учеников')
+            ->emptyStateHeading('Цены для учеников не добавлены')
             ->emptyStateDescription('Добавьте хотя бы одну базовую цену для старта.')
             ->paginated(false)
             ->headerActions([
@@ -248,6 +248,15 @@ class Onboarding extends Page implements HasForms, HasTable
             'telegram' => $data['telegram'],
             'is_profile_completed' => true,
         ]);
+
+        // Если тариф не был выбран при регистрации — подключаем бесплатный «Старт»
+        if (!$user->activeSubscription()) {
+            $freeTariff = \App\Models\Tariff::active()->where('price', 0)->first();
+
+            if ($freeTariff) {
+                \App\Services\SubscriptionService::activate($user, $freeTariff);
+            }
+        }
 
         // Notify all admins about teacher completing onboarding
         $admins = User::where('role', User::ROLE_ADMIN)->get();

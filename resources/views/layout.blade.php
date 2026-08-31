@@ -52,6 +52,7 @@
     <div class="menu-wrapper">
       <div class="main-menu">
         <a href="{{ route('about') }}" class="p24">О нас</a>
+        <a href="{{ route('tariffs') }}" class="p24">Тарифы</a>
         <a href="{{ route('reviews') }}" class="p24">Отзывы</a>
         <a href="{{ route('help.index') }}" class="p24">Помощь</a>
         <a href="/login" class="p24">Войти</a>
@@ -63,14 +64,30 @@
 
   @yield('content')
   <div class="footer-spacer"></div>
+  @php($legalRequisites = \App\Models\Setting::whereIn('key', ['legal_name', 'legal_inn', 'legal_ogrn'])->pluck('value', 'key'))
   <section class="footer">
-    <div class="p18 copyright">© {{ date('Y') }} Serdal</div>
+    <div class="p18 copyright">
+      © {{ date('Y') }} Serdal
+      @if(!empty($legalRequisites['legal_name']))
+        <div style="margin-top: 8px; font-size: 14px; opacity: .7; line-height: 1.5;">
+          {{ $legalRequisites['legal_name'] }}
+          @if(!empty($legalRequisites['legal_inn']))
+            <br>ИНН {{ $legalRequisites['legal_inn'] }}
+          @endif
+          @if(!empty($legalRequisites['legal_ogrn']))
+            <br>ОГРН/ОГРНИП {{ $legalRequisites['legal_ogrn'] }}
+          @endif
+        </div>
+      @endif
+    </div>
     <div class="footer-menu">
       <a href="{{ route('about') }}" class="white-text p18">О нас</a>
+      <a href="{{ route('tariffs') }}" class="white-text p18">Тарифы</a>
       <a href="{{ route('reviews') }}" class="white-text p18">Отзывы</a>
       <a href="{{ route('help.index') }}" class="white-text p18">Помощь</a>
       <a href="{{ route('privacy') }}" class="white-text p18">Конфиденциальность</a>
       <a href="{{ route('terms') }}" class="white-text p18">Условия</a>
+      <a href="{{ route('offer') }}" class="white-text p18">Оферта</a>
       <a href="mailto:info@serdal.ru" class="white-text p18">info@serdal.ru</a>
     </div>
   </section>
@@ -91,6 +108,7 @@
       <div @click="mobileMenuOpen = false" class="menu-close"><img src="/images/close.svg" loading="lazy" alt=""></div>
       <div class="mobile-menu-litems">
         <a href="{{ route('about') }}" class="p30">О нас</a>
+        <a href="{{ route('tariffs') }}" class="p30">Тарифы</a>
         <a href="{{ route('reviews') }}" class="p30">Отзывы</a>
         <a href="{{ route('help.index') }}" class="p30">Помощь</a>
         <a href="/login" class="p30">Войти</a>

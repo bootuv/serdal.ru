@@ -19,3 +19,6 @@ Schedule::command('payments:generate-monthly')->monthlyOn(1, '06:00');
 
 // Remind students about overdue payments
 Schedule::command('payments:check-overdue')->dailyAt('09:00');
+
+// Mark expired teacher subscriptions and notify about expiring ones
+Schedule::command('subscriptions:check')->hourly();

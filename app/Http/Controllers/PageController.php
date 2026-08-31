@@ -105,4 +105,27 @@ class PageController extends Controller
     {
         return view('terms');
     }
+
+    public function tariffsPage()
+    {
+        $tariffs = \App\Models\Tariff::active()->get();
+
+        return view('tariffs', compact('tariffs'));
+    }
+
+    public function offerPage()
+    {
+        $legal = \App\Models\Setting::whereIn('key', [
+            'legal_name',
+            'legal_inn',
+            'legal_ogrn',
+            'legal_address',
+            'legal_email',
+            'legal_phone',
+        ])->pluck('value', 'key');
+
+        $tariffs = \App\Models\Tariff::active()->get();
+
+        return view('offer', compact('legal', 'tariffs'));
+    }
 }

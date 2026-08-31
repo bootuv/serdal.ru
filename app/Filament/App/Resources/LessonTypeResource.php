@@ -19,7 +19,7 @@ class LessonTypeResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-banknotes';
 
-    protected static ?string $navigationLabel = 'Базовые цены';
+    protected static ?string $navigationLabel = 'Цены для учеников';
 
     protected static ?string $slug = 'prices';
 
@@ -27,7 +27,7 @@ class LessonTypeResource extends Resource
 
     protected static ?string $modelLabel = 'Базовая цена';
 
-    protected static ?string $pluralModelLabel = 'Базовые цены';
+    protected static ?string $pluralModelLabel = 'Цены для учеников';
 
     protected static ?int $navigationSort = 90;
 

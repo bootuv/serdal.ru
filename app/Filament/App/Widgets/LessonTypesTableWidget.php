@@ -9,7 +9,7 @@ use Filament\Widgets\TableWidget as BaseWidget;
 
 class LessonTypesTableWidget extends BaseWidget
 {
-    protected static ?string $heading = 'Базовые цены';
+    protected static ?string $heading = 'Цены для учеников';
 
     protected int|string|array $columnSpan = 'full';
 
@@ -25,9 +25,9 @@ class LessonTypesTableWidget extends BaseWidget
             ->query(LessonType::query()->where('user_id', auth()->id()))
 
             ->modelLabel('Базовая цена')
-            ->pluralModelLabel('Базовые цены')
-            ->emptyStateHeading('Базовые цены не добавлены')
-            ->emptyStateDescription('Добавьте хотя бы одну базовую цену для старта.')
+            ->pluralModelLabel('Цены для учеников')
+            ->emptyStateHeading('Цены для учеников не добавлены')
+            ->emptyStateDescription('Добавьте хотя бы одну цену для старта.')
             ->paginated(false)
             ->columns([
                 Tables\Columns\TextColumn::make('type')

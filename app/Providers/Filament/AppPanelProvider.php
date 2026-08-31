@@ -34,6 +34,10 @@ class AppPanelProvider extends PanelProvider
             )
             ->renderHook(
                 'panels::global-search.after',
+                fn() => view('filament.app.components.subscription-badge')
+            )
+            ->renderHook(
+                'panels::global-search.after',
                 fn() => view('filament.app.components.profile-link')
             )
             ->renderHook(

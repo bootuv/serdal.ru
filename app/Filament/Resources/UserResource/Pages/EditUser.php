@@ -13,6 +13,20 @@ class EditUser extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
+            Actions\Action::make('assignSubscription')
+                ->label('Назначить подписку')
+                ->icon('heroicon-o-credit-card')
+                ->visible(fn() => in_array($this->record->role, [\App\Models\User::ROLE_TUTOR, \App\Models\User::ROLE_MENTOR]))
+                ->modalHeading(fn() => 'Назначить подписку: ' . $this->record->name)
+                ->modalDescription(function () {
+                    $current = $this->record->activeSubscription();
+
+                    return $current
+                        ? 'Сейчас: «' . $current->tariff->name . '»' . ($current->ends_at ? ' до ' . $current->ends_at->format('d.m.Y') : ' (бессрочно)') . '. Текущая подписка будет заменена.'
+                        : 'У пользователя нет активной подписки.';
+                })
+                ->form(UserResource::assignSubscriptionForm())
+                ->action(fn(array $data) => UserResource::assignSubscription($this->record, $data)),
             Actions\DeleteAction::make(),
         ];
     }

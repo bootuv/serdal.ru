@@ -267,13 +267,87 @@ class UserResource extends Resource
             ->searchable()
             ->defaultSort('created_at', 'desc')
             ->actions([
-                //
+                Tables\Actions\Action::make('assignSubscription')
+                    ->label('Назначить подписку')
+                    ->icon('heroicon-o-credit-card')
+                    ->visible(fn(User $record) => in_array($record->role, [User::ROLE_TUTOR, User::ROLE_MENTOR]))
+                    ->modalHeading(fn(User $record) => 'Назначить подписку: ' . $record->name)
+                    ->modalDescription(function (User $record) {
+                        $current = $record->activeSubscription();
+
+                        return $current
+                            ? 'Сейчас: «' . $current->tariff->name . '»' . ($current->ends_at ? ' до ' . $current->ends_at->format('d.m.Y') : ' (бессрочно)') . '. Текущая подписка будет заменена.'
+                            : 'У пользователя нет активной подписки.';
+                    })
+                    ->form(static::assignSubscriptionForm())
+                    ->action(fn(User $record, array $data) => static::assignSubscription($record, $data)),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ]);
+    }
+
+    /**
+     * Форма ручного назначения подписки (используется в таблице и на странице пользователя).
+     */
+    public static function assignSubscriptionForm(): array
+    {
+        return [
+            Forms\Components\Select::make('tariff_id')
+                ->label('Тариф')
+                ->options(
+                    \App\Models\Tariff::active()->get()
+                        ->mapWithKeys(fn($tariff) => [
+                            $tariff->id => $tariff->name . ' — ' . number_format($tariff->price, 0, ',', ' ') . ' ₽/мес',
+                        ])
+                )
+                ->required()
+                ->live()
+                ->afterStateUpdated(function ($state, Forms\Set $set) {
+                    if ($tariff = \App\Models\Tariff::find($state)) {
+                        $set('days', $tariff->period_days);
+                    }
+                }),
+            Forms\Components\Toggle::make('unlimited')
+                ->label('Бессрочно')
+                ->helperText('Подписка без даты окончания — например, максимальный тариф навсегда.')
+                ->live(),
+            Forms\Components\TextInput::make('days')
+                ->label('Срок действия (дней)')
+                ->numeric()
+                ->minValue(1)
+                ->default(30)
+                ->required(fn(Forms\Get $get) => !$get('unlimited'))
+                ->visible(fn(Forms\Get $get) => !$get('unlimited')),
+            Forms\Components\TextInput::make('comment')
+                ->label('Комментарий')
+                ->placeholder('Например: выдано бесплатно за помощь с тестированием')
+                ->maxLength(255),
+        ];
+    }
+
+    /**
+     * Назначает подписку пользователю от имени администратора.
+     */
+    public static function assignSubscription(User $record, array $data): void
+    {
+        $tariff = \App\Models\Tariff::findOrFail($data['tariff_id']);
+
+        \App\Services\SubscriptionService::activate(
+            $record,
+            $tariff,
+            days: !empty($data['unlimited']) ? null : (int) $data['days'],
+            unlimited: !empty($data['unlimited']),
+            comment: $data['comment'] ?: 'Назначена администратором: ' . auth()->user()->name,
+        );
+
+        \Filament\Notifications\Notification::make()
+            ->title('Подписка назначена')
+            ->body('«' . $tariff->name . '» для ' . $record->name . (!empty($data['unlimited']) ? ' (бессрочно)' : ' на ' . $data['days'] . ' дн.'))
+            ->success()
+            ->send();
     }
 
     public static function getRelations(): array

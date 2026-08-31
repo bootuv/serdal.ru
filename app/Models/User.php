@@ -424,4 +424,28 @@ class User extends Authenticatable implements FilamentUser
             }
         }
     }
+
+    /**
+     * Подписки пользователя (тарифные планы платформы).
+     */
+    public function subscriptions()
+    {
+        return $this->hasMany(Subscription::class);
+    }
+
+    /**
+     * Платежи за подписку.
+     */
+    public function subscriptionPayments()
+    {
+        return $this->hasMany(SubscriptionPayment::class);
+    }
+
+    /**
+     * Текущая активная подписка (или null).
+     */
+    public function activeSubscription(): ?Subscription
+    {
+        return $this->subscriptions()->active()->with('tariff')->latest('starts_at')->first();
+    }
 }

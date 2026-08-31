@@ -45,6 +45,16 @@ class ManageBigBlueButton extends Page implements HasForms
             'recording_auto_upload' => Setting::where('key', 'recording_auto_upload')->value('value') === '1',
             'recording_delete_after_upload' => Setting::where('key', 'recording_delete_after_upload')->value('value') === '1',
             'teacher_commission' => Setting::where('key', 'teacher_commission')->value('value') ?? 10,
+            'legal_name' => Setting::where('key', 'legal_name')->value('value'),
+            'legal_inn' => Setting::where('key', 'legal_inn')->value('value'),
+            'legal_ogrn' => Setting::where('key', 'legal_ogrn')->value('value'),
+            'legal_address' => Setting::where('key', 'legal_address')->value('value'),
+            'legal_email' => Setting::where('key', 'legal_email')->value('value') ?? 'info@serdal.ru',
+            'legal_phone' => Setting::where('key', 'legal_phone')->value('value'),
+            'alfabank_username' => Setting::where('key', 'alfabank_username')->value('value'),
+            'alfabank_password' => Setting::where('key', 'alfabank_password')->value('value'),
+            'alfabank_gateway_url' => Setting::where('key', 'alfabank_gateway_url')->value('value'),
+            'alfabank_test_mode' => Setting::where('key', 'alfabank_test_mode')->value('value') === '1',
         ]);
     }
 
@@ -129,6 +139,58 @@ class ManageBigBlueButton extends Page implements HasForms
                                     ->maxValue(100)
                                     ->helperText('Процент, который удерживается с учителей за каждый урок.'),
                             ]),
+                        Tabs\Tab::make('Реквизиты')
+                            ->schema([
+                                Section::make('Реквизиты юридического лица / ИП')
+                                    ->description('Отображаются в подвале сайта и на странице оферты. Обязательное требование банка для интернет-эквайринга.')
+                                    ->schema([
+                                        TextInput::make('legal_name')
+                                            ->label('Наименование юр. лица / ИП')
+                                            ->placeholder('ИП Иванов Иван Иванович')
+                                            ->maxLength(255),
+                                        TextInput::make('legal_inn')
+                                            ->label('ИНН')
+                                            ->maxLength(12),
+                                        TextInput::make('legal_ogrn')
+                                            ->label('ОГРН / ОГРНИП')
+                                            ->maxLength(15),
+                                        TextInput::make('legal_address')
+                                            ->label('Адрес (юридический)')
+                                            ->maxLength(255),
+                                        TextInput::make('legal_email')
+                                            ->label('E-mail для связи')
+                                            ->email()
+                                            ->maxLength(255),
+                                        TextInput::make('legal_phone')
+                                            ->label('Телефон')
+                                            ->tel()
+                                            ->maxLength(32),
+                                    ])->columns(2),
+                            ]),
+                        Tabs\Tab::make('Эквайринг')
+                            ->schema([
+                                Section::make('Интернет-эквайринг Альфа-Банка')
+                                    ->description('Учётные данные API платёжного шлюза. Выдаются банком после одобрения заявки на подключение.')
+                                    ->schema([
+                                        TextInput::make('alfabank_username')
+                                            ->label('Логин API (userName)')
+                                            ->maxLength(255),
+                                        TextInput::make('alfabank_password')
+                                            ->label('Пароль API')
+                                            ->password()
+                                            ->revealable()
+                                            ->maxLength(255),
+                                        TextInput::make('alfabank_gateway_url')
+                                            ->label('URL шлюза (необязательно)')
+                                            ->placeholder('https://pay.alfabank.ru/payment/rest/')
+                                            ->helperText('Пусто = стандартный адрес: боевой или тестовый в зависимости от переключателя ниже.')
+                                            ->url()
+                                            ->maxLength(255),
+                                        \Filament\Forms\Components\Toggle::make('alfabank_test_mode')
+                                            ->label('Тестовый режим')
+                                            ->helperText('Платежи идут через тестовый контур банка (alfa.rbsuat.com), деньги не списываются.'),
+                                    ]),
+                            ]),
                     ])
                     ->persistTabInQueryString()
             ])
@@ -164,6 +226,17 @@ class ManageBigBlueButton extends Page implements HasForms
 
         // Finance settings
         Setting::updateOrCreate(['key' => 'teacher_commission'], ['value' => $data['teacher_commission'] ?? 10]);
+
+        // Legal requisites
+        foreach (['legal_name', 'legal_inn', 'legal_ogrn', 'legal_address', 'legal_email', 'legal_phone'] as $key) {
+            Setting::updateOrCreate(['key' => $key], ['value' => $data[$key] ?? '']);
+        }
+
+        // Acquiring (Alfa-Bank)
+        Setting::updateOrCreate(['key' => 'alfabank_username'], ['value' => $data['alfabank_username'] ?? '']);
+        Setting::updateOrCreate(['key' => 'alfabank_password'], ['value' => $data['alfabank_password'] ?? '']);
+        Setting::updateOrCreate(['key' => 'alfabank_gateway_url'], ['value' => $data['alfabank_gateway_url'] ?? '']);
+        Setting::updateOrCreate(['key' => 'alfabank_test_mode'], ['value' => !empty($data['alfabank_test_mode']) ? '1' : '0']);
 
         Notification::make()
             ->title('Настройки сохранены')
