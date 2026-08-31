@@ -103,7 +103,6 @@
             list-style: none;
             padding: 0;
             margin: 0 0 24px;
-            flex: 1;
         }
 
         .tariff-features li {
@@ -123,13 +122,18 @@
         }
 
         .tariff-extras {
-            flex: 0 0 auto;
             border-top: 1px solid #eee;
             padding-top: 16px;
         }
 
+        .tariff-extras li::before {
+            content: "★";
+            color: #ffc700;
+        }
+
         .tariff-button {
             display: block;
+            margin-top: auto;
             text-align: center;
             background: #111;
             color: #fff;

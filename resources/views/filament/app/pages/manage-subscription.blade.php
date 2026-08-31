@@ -136,7 +136,7 @@
                     </ul>
 
                     {{-- Дополнительные возможности --}}
-                    <ul class="mt-3 flex-1 space-y-2 border-t border-gray-200 pt-3 dark:border-white/10">
+                    <ul class="mt-3 space-y-2 border-t border-gray-200 pt-3 dark:border-white/10">
                         @foreach($tariff->features ?? [] as $feature)
                             <li class="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-300">
                                 <x-heroicon-m-check class="mt-0.5 h-4 w-4 shrink-0 text-green-500" />
@@ -149,13 +149,13 @@
                         <ul class="mt-3 space-y-2 border-t border-gray-200 pt-3 dark:border-white/10">
                             @foreach($tariff->extra_features as $feature)
                                 <li class="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-300">
-                                    <x-heroicon-m-check class="mt-0.5 h-4 w-4 shrink-0 text-green-500" />
+                                    <x-heroicon-m-star class="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
                                     {{ $feature }}
                                 </li>
                             @endforeach
                         </ul>
                     @endif
-                    <div class="mt-5">
+                    <div class="mt-auto pt-5">
                         @if($isCurrent)
                             <x-filament::button color="gray" disabled class="w-full justify-center">
                                 Подключён
