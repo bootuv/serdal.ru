@@ -14,10 +14,11 @@ class EditUser extends EditRecord
     {
         return [
             Actions\Action::make('assignSubscription')
-                ->label('Назначить подписку')
+                ->label(fn() => $this->record->activeSubscription()?->tariff->name ?? 'Назначить подписку')
                 ->icon('heroicon-o-credit-card')
+                ->color(fn() => $this->record->activeSubscription() ? 'gray' : 'primary')
                 ->visible(fn() => in_array($this->record->role, [\App\Models\User::ROLE_TUTOR, \App\Models\User::ROLE_MENTOR]))
-                ->modalHeading(fn() => 'Назначить подписку: ' . $this->record->name)
+                ->modalHeading(fn() => ($this->record->activeSubscription() ? 'Изменить подписку: ' : 'Назначить подписку: ') . $this->record->name)
                 ->modalDescription(function () {
                     $current = $this->record->activeSubscription();
 
@@ -26,6 +27,7 @@ class EditUser extends EditRecord
                         : 'У пользователя нет активной подписки.';
                 })
                 ->form(UserResource::assignSubscriptionForm())
+                ->fillForm(fn() => UserResource::assignSubscriptionFill($this->record))
                 ->action(fn(array $data) => UserResource::assignSubscription($this->record, $data)),
             Actions\DeleteAction::make(),
         ];

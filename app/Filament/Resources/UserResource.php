@@ -268,10 +268,14 @@ class UserResource extends Resource
             ->defaultSort('created_at', 'desc')
             ->actions([
                 Tables\Actions\Action::make('assignSubscription')
-                    ->label('Назначить подписку')
+                    // Если тариф уже назначен, кнопка показывает его название —
+                    // клик открывает ту же форму для смены тарифа
+                    ->label(fn(User $record) => $record->activeSubscription()?->tariff->name ?? 'Назначить подписку')
                     ->icon('heroicon-o-credit-card')
+                    ->button()
+                    ->color(fn(User $record) => $record->activeSubscription() ? 'gray' : 'primary')
                     ->visible(fn(User $record) => in_array($record->role, [User::ROLE_TUTOR, User::ROLE_MENTOR]))
-                    ->modalHeading(fn(User $record) => 'Назначить подписку: ' . $record->name)
+                    ->modalHeading(fn(User $record) => ($record->activeSubscription() ? 'Изменить подписку: ' : 'Назначить подписку: ') . $record->name)
                     ->modalDescription(function (User $record) {
                         $current = $record->activeSubscription();
 
@@ -280,6 +284,7 @@ class UserResource extends Resource
                             : 'У пользователя нет активной подписки.';
                     })
                     ->form(static::assignSubscriptionForm())
+                    ->fillForm(fn(User $record) => static::assignSubscriptionFill($record))
                     ->action(fn(User $record, array $data) => static::assignSubscription($record, $data)),
             ])
             ->bulkActions([
@@ -317,7 +322,7 @@ class UserResource extends Resource
             Forms\Components\Toggle::make('free')
                 ->label('Без оплаты')
                 ->helperText('Преподаватель увидит пометку «Предоставлен бесплатно» — без цены и кнопки оплаты.')
-                ->default(true),
+                ->default(false),
             Forms\Components\TextInput::make('days')
                 ->label('Срок действия (дней)')
                 ->numeric()
@@ -329,6 +334,25 @@ class UserResource extends Resource
                 ->label('Комментарий')
                 ->placeholder('Например: выдано бесплатно за помощь с тестированием')
                 ->maxLength(255),
+        ];
+    }
+
+    /**
+     * Предзаполнение формы значениями текущей подписки (для смены тарифа).
+     */
+    public static function assignSubscriptionFill(User $record): array
+    {
+        $current = $record->activeSubscription();
+
+        if (!$current) {
+            return [];
+        }
+
+        return [
+            'tariff_id' => $current->tariff_id,
+            'unlimited' => $current->ends_at === null && !$current->tariff->isFree(),
+            'days' => $current->tariff->period_days,
+            'free' => $current->isComplimentary(),
         ];
     }
 
