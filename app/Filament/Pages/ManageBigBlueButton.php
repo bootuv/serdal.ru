@@ -44,7 +44,19 @@ class ManageBigBlueButton extends Page implements HasForms
             'duration' => Setting::where('key', 'bbb_duration')->value('value') ?? 0,
             'recording_auto_upload' => Setting::where('key', 'recording_auto_upload')->value('value') === '1',
             'recording_delete_after_upload' => Setting::where('key', 'recording_delete_after_upload')->value('value') === '1',
-            'teacher_commission' => Setting::where('key', 'teacher_commission')->value('value') ?? 10,
+            'b2b_enabled' => Setting::where('key', 'b2b_enabled')->value('value') !== '0',
+            'b2b_title' => Setting::where('key', 'b2b_title')->value('value') ?? 'Для образовательных центров (B2B)',
+            'b2b_description' => Setting::where('key', 'b2b_description')->value('value') ?? 'Пакет для онлайн-школ и образовательных центров: white-label, администрирование и поддержка с SLA.',
+            'b2b_price_label' => Setting::where('key', 'b2b_price_label')->value('value') ?? 'от 14 900 ₽',
+            'b2b_price_note' => Setting::where('key', 'b2b_price_note')->value('value') ?? '5 рабочих мест включено',
+            'b2b_features' => json_decode(Setting::where('key', 'b2b_features')->value('value') ?? '', true) ?: [
+                '5 рабочих мест преподавателей включено (дополнительное место — 1 900 ₽/мес)',
+                'White-label: платформа под брендом вашего центра',
+                'Административная панель для управления преподавателями и учениками',
+                'Приоритетная поддержка и SLA',
+                'Обучение и онбординг команды',
+            ],
+            'b2b_email' => Setting::where('key', 'b2b_email')->value('value') ?? 'info@serdal.ru',
             'legal_name' => Setting::where('key', 'legal_name')->value('value'),
             'legal_inn' => Setting::where('key', 'legal_inn')->value('value'),
             'legal_ogrn' => Setting::where('key', 'legal_ogrn')->value('value'),
@@ -127,17 +139,37 @@ class ManageBigBlueButton extends Page implements HasForms
                                             ->helperText('Удалять оригинал записи с сервера BBB после успешной загрузки'),
                                     ]),
                             ]),
-                        Tabs\Tab::make('Финансы')
+                        Tabs\Tab::make('B2B-блок')
                             ->schema([
-                                TextInput::make('teacher_commission')
-                                    ->label('Комиссия платформы (%)')
-                                    ->numeric()
-                                    ->default(10)
-                                    ->suffix('%')
-                                    ->required()
-                                    ->minValue(0)
-                                    ->maxValue(100)
-                                    ->helperText('Процент, который удерживается с учителей за каждый урок.'),
+                                Section::make('Блок «Для образовательных центров» на странице тарифов')
+                                    ->schema([
+                                        \Filament\Forms\Components\Toggle::make('b2b_enabled')
+                                            ->label('Показывать блок на сайте')
+                                            ->default(true),
+                                        TextInput::make('b2b_title')
+                                            ->label('Заголовок')
+                                            ->required()
+                                            ->maxLength(255),
+                                        \Filament\Forms\Components\Textarea::make('b2b_description')
+                                            ->label('Описание')
+                                            ->rows(2),
+                                        TextInput::make('b2b_price_label')
+                                            ->label('Цена (текст)')
+                                            ->helperText('Например: «от 14 900 ₽» — «/мес» добавляется автоматически')
+                                            ->required()
+                                            ->maxLength(255),
+                                        TextInput::make('b2b_price_note')
+                                            ->label('Подпись под ценой')
+                                            ->maxLength(255),
+                                        \Filament\Forms\Components\TagsInput::make('b2b_features')
+                                            ->label('Что входит (список)')
+                                            ->placeholder('Добавьте пункт и нажмите Enter'),
+                                        TextInput::make('b2b_email')
+                                            ->label('Email для кнопки «Написать нам»')
+                                            ->email()
+                                            ->required()
+                                            ->maxLength(255),
+                                    ]),
                             ]),
                         Tabs\Tab::make('Реквизиты')
                             ->schema([
@@ -224,8 +256,14 @@ class ManageBigBlueButton extends Page implements HasForms
         Setting::updateOrCreate(['key' => 'recording_auto_upload'], ['value' => $data['recording_auto_upload'] ? '1' : '0']);
         Setting::updateOrCreate(['key' => 'recording_delete_after_upload'], ['value' => $data['recording_delete_after_upload'] ? '1' : '0']);
 
-        // Finance settings
-        Setting::updateOrCreate(['key' => 'teacher_commission'], ['value' => $data['teacher_commission'] ?? 10]);
+        // B2B block
+        Setting::updateOrCreate(['key' => 'b2b_enabled'], ['value' => !empty($data['b2b_enabled']) ? '1' : '0']);
+        Setting::updateOrCreate(['key' => 'b2b_title'], ['value' => $data['b2b_title'] ?? '']);
+        Setting::updateOrCreate(['key' => 'b2b_description'], ['value' => $data['b2b_description'] ?? '']);
+        Setting::updateOrCreate(['key' => 'b2b_price_label'], ['value' => $data['b2b_price_label'] ?? '']);
+        Setting::updateOrCreate(['key' => 'b2b_price_note'], ['value' => $data['b2b_price_note'] ?? '']);
+        Setting::updateOrCreate(['key' => 'b2b_features'], ['value' => json_encode(array_values($data['b2b_features'] ?? []), JSON_UNESCAPED_UNICODE)]);
+        Setting::updateOrCreate(['key' => 'b2b_email'], ['value' => $data['b2b_email'] ?? '']);
 
         // Legal requisites
         foreach (['legal_name', 'legal_inn', 'legal_ogrn', 'legal_address', 'legal_email', 'legal_phone'] as $key) {

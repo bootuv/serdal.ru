@@ -406,25 +406,26 @@
             @endforeach
         </div>
 
-        <div class="b2b-block">
-            <div>
-                <h2 class="tariff-name">Для образовательных центров (B2B)</h2>
-                <p class="tariff-short">Пакет для онлайн-школ и образовательных центров: white-label,
-                    администрирование и поддержка с SLA.</p>
+        @if($b2b['enabled'])
+            <div class="b2b-block">
+                <div>
+                    <h2 class="tariff-name">{{ $b2b['title'] }}</h2>
+                    <p class="tariff-short">{{ $b2b['description'] }}</p>
+                </div>
+                <div class="b2b-block__price">
+                    {{ $b2b['price_label'] }}<span>/мес</span>
+                    @if($b2b['price_note'])
+                        <small>{{ $b2b['price_note'] }}</small>
+                    @endif
+                </div>
+                <ul class="tariff-features" style="margin-bottom: 0;">
+                    @foreach($b2b['features'] as $feature)
+                        <li>{{ $feature }}</li>
+                    @endforeach
+                </ul>
+                <a href="mailto:{{ $b2b['email'] }}?subject=Подключение B2B" class="tariff-button secondary">Написать нам</a>
             </div>
-            <div class="b2b-block__price">
-                от 14 900 ₽<span>/мес</span>
-                <small>5 рабочих мест включено</small>
-            </div>
-            <ul class="tariff-features" style="margin-bottom: 0;">
-                <li>5 рабочих мест преподавателей включено (дополнительное место — 1 900 ₽/мес)</li>
-                <li>White-label: платформа под брендом вашего центра</li>
-                <li>Административная панель для управления преподавателями и учениками</li>
-                <li>Приоритетная поддержка и SLA</li>
-                <li>Обучение и онбординг команды</li>
-            </ul>
-            <a href="mailto:info@serdal.ru?subject=Подключение B2B" class="tariff-button secondary">Написать нам</a>
-        </div>
+        @endif
     </div>
 
     <div class="tariff-info">

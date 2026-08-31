@@ -110,7 +110,39 @@ class PageController extends Controller
     {
         $tariffs = \App\Models\Tariff::active()->get();
 
-        return view('tariffs', compact('tariffs'));
+        // Блок B2B — настраивается в админке (Настройки → B2B-блок)
+        $b2bDefaults = [
+            'b2b_enabled' => '1',
+            'b2b_title' => 'Для образовательных центров (B2B)',
+            'b2b_description' => 'Пакет для онлайн-школ и образовательных центров: white-label, администрирование и поддержка с SLA.',
+            'b2b_price_label' => 'от 14 900 ₽',
+            'b2b_price_note' => '5 рабочих мест включено',
+            'b2b_features' => json_encode([
+                '5 рабочих мест преподавателей включено (дополнительное место — 1 900 ₽/мес)',
+                'White-label: платформа под брендом вашего центра',
+                'Административная панель для управления преподавателями и учениками',
+                'Приоритетная поддержка и SLA',
+                'Обучение и онбординг команды',
+            ], JSON_UNESCAPED_UNICODE),
+            'b2b_email' => 'info@serdal.ru',
+        ];
+        $b2bSettings = \App\Models\Setting::whereIn('key', array_keys($b2bDefaults))
+            ->pluck('value', 'key')
+            ->filter(fn($value) => $value !== null)
+            ->all();
+        $b2bSettings += $b2bDefaults;
+
+        $b2b = [
+            'enabled' => $b2bSettings['b2b_enabled'] === '1',
+            'title' => $b2bSettings['b2b_title'],
+            'description' => $b2bSettings['b2b_description'],
+            'price_label' => $b2bSettings['b2b_price_label'],
+            'price_note' => $b2bSettings['b2b_price_note'],
+            'features' => json_decode($b2bSettings['b2b_features'], true) ?: [],
+            'email' => $b2bSettings['b2b_email'],
+        ];
+
+        return view('tariffs', compact('tariffs', 'b2b'));
     }
 
     public function offerPage()

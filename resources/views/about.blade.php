@@ -1030,7 +1030,7 @@
             </p>
             <div class="about-cta">
                 <a href="/#specialists" class="main-button w-button">Найти специалиста</a>
-                <a href="{{ route('become-tutor') }}" class="main-button about-cta__secondary w-button">Стать преподавателем</a>
+                <a href="{{ route('tariffs') }}" class="main-button about-cta__secondary w-button">Стать преподавателем</a>
             </div>
         </div>
     </section>
