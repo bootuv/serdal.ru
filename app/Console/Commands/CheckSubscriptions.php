@@ -29,7 +29,13 @@ class CheckSubscriptions extends Command
 
         foreach ($expired as $subscription) {
             $subscription->update(['status' => Subscription::STATUS_EXPIRED]);
-            $subscription->user?->notify(new SubscriptionExpired($subscription->tariff->name));
+
+            // Если было запланировано переключение (например, на бесплатный тариф),
+            // оно уже вступило в силу — «подписка истекла» слать не нужно
+            $user = $subscription->user;
+            if ($user && !$user->activeSubscription()) {
+                $user->notify(new SubscriptionExpired($subscription->tariff->name));
+            }
         }
 
         // 2. Подписки, которые скоро закончатся — предупреждаем один раз

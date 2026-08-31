@@ -22,3 +22,6 @@ Schedule::command('payments:check-overdue')->dailyAt('09:00');
 
 // Mark expired teacher subscriptions and notify about expiring ones
 Schedule::command('subscriptions:check')->hourly();
+
+// Delete lesson recordings older than the tariff retention period
+Schedule::command('recordings:cleanup')->dailyAt('04:00');

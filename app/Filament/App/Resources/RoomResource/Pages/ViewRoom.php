@@ -80,7 +80,18 @@ class ViewRoom extends ViewRecord
                 ->label('Начать занятие')
                 ->icon('heroicon-o-play')
                 ->color(fn() => $this->record->next_start && $this->record->next_start->isPast() && !$this->record->next_start->addMinutes($this->record->duration ?? 45)->isPast() ? 'success' : 'gray')
-                ->url(fn() => route('rooms.start', $this->record))
+                // Если лимит подписки не позволяет — url пуст, и клик открывает модалку с причиной
+                ->url(fn() => $this->record->is_running || \App\Services\SubscriptionService::canStartLesson(auth()->user()) === null
+                    ? route('rooms.start', $this->record)
+                    : null)
+                ->requiresConfirmation()
+                ->modalIcon('heroicon-o-credit-card')
+                ->modalIconColor('warning')
+                ->modalHeading('Занятие недоступно')
+                ->modalDescription(fn() => \App\Services\SubscriptionService::canStartLesson(auth()->user()))
+                ->modalSubmitActionLabel('Перейти к подписке')
+                ->modalCancelActionLabel('Закрыть')
+                ->action(fn($livewire) => $livewire->redirect(\App\Filament\App\Pages\ManageSubscription::getUrl()))
                 ->openUrlInNewTab()
                 ->visible(function () {
                     if ($this->record->is_running) {

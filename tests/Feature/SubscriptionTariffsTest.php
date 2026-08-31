@@ -20,6 +20,7 @@ class SubscriptionTariffsTest extends TestCase
     {
         parent::setUp();
         $this->seed(TariffSeeder::class);
+        SubscriptionService::flushCanStartCache();
     }
 
     protected function makeTutor(): User
@@ -93,6 +94,288 @@ class SubscriptionTariffsTest extends TestCase
         $this->assertNotNull($subscription);
         $this->assertEquals($freeTariff->id, $subscription->tariff_id);
         $this->assertNull($subscription->ends_at);
+    }
+
+    public function test_complimentary_subscription_hides_price_and_renew_button(): void
+    {
+        $tutor = $this->makeTutor();
+        $master = Tariff::where('slug', 'master')->first();
+
+        SubscriptionService::activate($tutor, $master, unlimited: true, price: 0);
+
+        $subscription = $tutor->fresh()->activeSubscription();
+        $this->assertTrue($subscription->isComplimentary());
+
+        $this->actingAs($tutor)->get('/tutor/subscription')
+            ->assertOk()
+            ->assertSee('Предоставлен бесплатно')
+            ->assertSee('Оплата не требуется')
+            ->assertDontSee('Продлить');
+    }
+
+    public function test_paid_subscription_is_not_complimentary(): void
+    {
+        $tutor = $this->makeTutor();
+        $master = Tariff::where('slug', 'master')->first();
+
+        SubscriptionService::activate($tutor, $master);
+
+        $this->assertFalse($tutor->fresh()->activeSubscription()->isComplimentary());
+    }
+
+    protected function makeRoom(User $tutor): \App\Models\Room
+    {
+        return \App\Models\Room::create([
+            'user_id' => $tutor->id,
+            'name' => 'Тестовая комната',
+            'meeting_id' => 'test-' . uniqid(),
+            'moderator_pw' => 'mp',
+            'attendee_pw' => 'ap',
+        ]);
+    }
+
+    protected function makeCompletedLesson(User $tutor, \App\Models\Room $room): void
+    {
+        \App\Models\MeetingSession::create([
+            'user_id' => $tutor->id,
+            'room_id' => $room->id,
+            'meeting_id' => $room->meeting_id,
+            'started_at' => now()->subHour(),
+            'ended_at' => now()->subMinutes(10),
+            'status' => 'completed',
+            'participant_count' => 2,
+        ]);
+    }
+
+    public function test_lesson_start_blocked_without_subscription(): void
+    {
+        $tutor = $this->makeTutor();
+        $room = $this->makeRoom($tutor);
+
+        $this->assertNotNull(SubscriptionService::canStartLesson($tutor));
+
+        $this->actingAs($tutor)
+            ->get(route('rooms.start', $room))
+            ->assertRedirect()
+            ->assertSessionHas('error');
+    }
+
+    public function test_lesson_start_blocked_when_lessons_limit_reached(): void
+    {
+        $tutor = $this->makeTutor();
+        $start = Tariff::where('slug', 'start')->first(); // 8 занятий в месяц
+
+        SubscriptionService::activate($tutor, $start);
+        $tutor->activeSubscription()->update(['starts_at' => now()->subDay()]);
+
+        $room = $this->makeRoom($tutor);
+
+        for ($i = 0; $i < $start->lessons_per_month; $i++) {
+            $this->makeCompletedLesson($tutor, $room);
+        }
+
+        SubscriptionService::flushCanStartCache();
+        $error = SubscriptionService::canStartLesson($tutor->fresh());
+        $this->assertNotNull($error);
+        $this->assertStringContainsString('исчерпан', $error);
+
+        $this->actingAs($tutor)
+            ->get(route('rooms.start', $room))
+            ->assertRedirect()
+            ->assertSessionHas('error');
+    }
+
+    public function test_lesson_start_allowed_within_limits(): void
+    {
+        $tutor = $this->makeTutor();
+        SubscriptionService::activate($tutor, Tariff::where('slug', 'start')->first());
+
+        $this->assertNull(SubscriptionService::canStartLesson($tutor->fresh()));
+    }
+
+    public function test_switch_to_free_tariff_is_deferred_until_paid_period_ends(): void
+    {
+        $tutor = $this->makeTutor();
+        $basic = Tariff::where('slug', 'basic')->first();
+        $free = Tariff::where('slug', 'start')->first();
+
+        SubscriptionService::activate($tutor, $basic);
+        $paidEndsAt = $tutor->activeSubscription()->ends_at;
+
+        Livewire::actingAs($tutor)
+            ->test(ManageSubscription::class)
+            ->call('selectTariff', $free->id);
+
+        // Платный тариф продолжает действовать, бесплатный — запланирован на дату окончания
+        $tutor = $tutor->fresh();
+        $this->assertEquals($basic->id, $tutor->activeSubscription()->tariff_id);
+        $scheduled = $tutor->scheduledSubscription();
+        $this->assertNotNull($scheduled);
+        $this->assertEquals($free->id, $scheduled->tariff_id);
+        $this->assertTrue($scheduled->starts_at->equalTo($paidEndsAt));
+
+        // После окончания оплаченного периода активным становится бесплатный
+        $this->travelTo($paidEndsAt->copy()->addMinute());
+        $this->assertEquals($free->id, $tutor->fresh()->activeSubscription()->tariff_id);
+        $this->travelBack();
+    }
+
+    public function test_switch_to_free_is_immediate_when_no_paid_period(): void
+    {
+        $tutor = $this->makeTutor();
+        SubscriptionService::activate($tutor, Tariff::where('slug', 'master')->first(), unlimited: true);
+
+        $free = Tariff::where('slug', 'start')->first();
+
+        Livewire::actingAs($tutor)
+            ->test(ManageSubscription::class)
+            ->call('selectTariff', $free->id);
+
+        // Бессрочная подписка не имеет оплаченного периода — переключение сразу
+        $this->assertEquals($free->id, $tutor->fresh()->activeSubscription()->tariff_id);
+        $this->assertNull($tutor->fresh()->scheduledSubscription());
+    }
+
+    public function test_no_expired_notification_when_downgrade_scheduled(): void
+    {
+        \Illuminate\Support\Facades\Notification::fake();
+
+        $tutor = $this->makeTutor();
+        $basic = Tariff::where('slug', 'basic')->first();
+        $free = Tariff::where('slug', 'start')->first();
+
+        SubscriptionService::activate($tutor, $basic);
+        $endsAt = $tutor->activeSubscription()->ends_at;
+        SubscriptionService::scheduleTariffChange($tutor, $free, $endsAt);
+
+        $this->travelTo($endsAt->copy()->addHour());
+        $this->artisan('subscriptions:check')->assertSuccessful();
+
+        \Illuminate\Support\Facades\Notification::assertNotSentTo(
+            $tutor,
+            \App\Notifications\SubscriptionExpired::class
+        );
+        $this->assertEquals($free->id, $tutor->fresh()->activeSubscription()->tariff_id);
+        $this->travelBack();
+    }
+
+    public function test_expired_subscription_shows_renew_state(): void
+    {
+        $tutor = $this->makeTutor();
+        SubscriptionService::activate($tutor, Tariff::where('slug', 'basic')->first());
+        $endsAt = $tutor->activeSubscription()->ends_at;
+
+        $this->travelTo($endsAt->copy()->addDay());
+        SubscriptionService::flushCanStartCache();
+
+        $this->assertNull($tutor->fresh()->activeSubscription());
+
+        $this->actingAs($tutor)->get('/tutor/subscription')
+            ->assertOk()
+            ->assertSee('Срок истёк')
+            ->assertSee('Продлить');
+
+        $this->travelBack();
+    }
+
+    public function test_payment_history_page_and_receipt(): void
+    {
+        $tutor = $this->makeTutor();
+        $basic = Tariff::where('slug', 'basic')->first();
+
+        $payment = \App\Models\SubscriptionPayment::create([
+            'user_id' => $tutor->id,
+            'tariff_id' => $basic->id,
+            'amount' => $basic->price,
+            'status' => \App\Models\SubscriptionPayment::STATUS_PAID,
+            'gateway' => 'alfabank',
+            'paid_at' => now(),
+        ]);
+        $pending = \App\Models\SubscriptionPayment::create([
+            'user_id' => $tutor->id,
+            'tariff_id' => $basic->id,
+            'amount' => $basic->price,
+            'status' => \App\Models\SubscriptionPayment::STATUS_PENDING,
+            'gateway' => 'alfabank',
+        ]);
+
+        // Страница истории платежей
+        $this->actingAs($tutor)->get('/tutor/payments')->assertOk();
+
+        // Квитанция по оплаченному платежу — доступна владельцу
+        $this->actingAs($tutor)->get(route('subscription.payment.receipt', $payment))
+            ->assertOk()
+            ->assertSee('Квитанция об оплате № ' . $payment->id)
+            ->assertSee($basic->name)
+            ->assertSee('1 490');
+
+        // По неоплаченному — 404
+        $this->actingAs($tutor)->get(route('subscription.payment.receipt', $pending))->assertNotFound();
+
+        // Чужому пользователю — 403
+        $other = $this->makeTutor();
+        $this->actingAs($other)->get(route('subscription.payment.receipt', $payment))->assertForbidden();
+    }
+
+    public function test_meeting_limits_follow_tariff(): void
+    {
+        $tutor = $this->makeTutor();
+
+        // Без подписки: лимитов тарифа нет, запись запрещена
+        $limits = SubscriptionService::meetingLimits($tutor);
+        $this->assertNull($limits['max_participants']);
+        $this->assertFalse($limits['record_allowed']);
+
+        // «Старт»: 2 участника, 60 минут, записи недоступны
+        SubscriptionService::activate($tutor, Tariff::where('slug', 'start')->first());
+        $limits = SubscriptionService::meetingLimits($tutor->fresh());
+        $this->assertEquals(2, $limits['max_participants']);
+        $this->assertEquals(60, $limits['duration_minutes']);
+        $this->assertFalse($limits['record_allowed']);
+
+        // «Мастер»: 25 участников, без лимита длительности, записи доступны
+        SubscriptionService::activate($tutor->fresh(), Tariff::where('slug', 'master')->first());
+        $limits = SubscriptionService::meetingLimits($tutor->fresh());
+        $this->assertEquals(25, $limits['max_participants']);
+        $this->assertNull($limits['duration_minutes']);
+        $this->assertTrue($limits['record_allowed']);
+    }
+
+    public function test_recordings_cleanup_respects_tariff_retention(): void
+    {
+        // «Базовый»: хранение записей 14 дней
+        $tutor = $this->makeTutor();
+        SubscriptionService::activate($tutor, Tariff::where('slug', 'basic')->first());
+        $room = $this->makeRoom($tutor);
+
+        $old = \App\Models\Recording::create([
+            'meeting_id' => $room->meeting_id,
+            'record_id' => 'old-' . uniqid(),
+            'name' => 'Старая запись',
+            'end_time' => now()->subDays(20),
+        ]);
+        $fresh = \App\Models\Recording::create([
+            'meeting_id' => $room->meeting_id,
+            'record_id' => 'fresh-' . uniqid(),
+            'name' => 'Свежая запись',
+            'end_time' => now()->subDays(5),
+        ]);
+
+        // Пользователь без активной подписки: записи не трогаем
+        $noSub = $this->makeTutor();
+        $noSubRoom = $this->makeRoom($noSub);
+        $noSubRecording = \App\Models\Recording::create([
+            'meeting_id' => $noSubRoom->meeting_id,
+            'record_id' => 'nosub-' . uniqid(),
+            'name' => 'Запись без подписки',
+            'end_time' => now()->subDays(400),
+        ]);
+
+        $this->artisan('recordings:cleanup')->assertSuccessful();
+
+        $this->assertSoftDeleted('recordings', ['id' => $old->id]);
+        $this->assertNull($fresh->fresh()->deleted_at);
+        $this->assertNull($noSubRecording->fresh()->deleted_at);
     }
 
     public function test_lessons_counter_ignores_sessions_without_participants(): void

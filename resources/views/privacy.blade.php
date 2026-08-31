@@ -48,7 +48,7 @@
             <p class="p24">Мы используем собранную информацию для:</p>
             <ul class="p24" style="margin-left: 20px; margin-top: 10px;">
                 <li style="margin-bottom: 10px;">Предоставления доступа к Платформе и её функциям</li>
-                <li style="margin-bottom: 10px;">Организации и проведения онлайн-занятий через BigBlueButton</li>
+                <li style="margin-bottom: 10px;">Организации и проведения онлайн-занятий в виртуальных комнатах</li>
                 <li style="margin-bottom: 10px;">Синхронизации расписания с Google Calendar (при вашем согласии)</li>
                 <li style="margin-bottom: 10px;">Отправки уведомлений о занятиях и важных событиях</li>
                 <li style="margin-bottom: 10px;">Улучшения качества наших услуг</li>
@@ -70,7 +70,7 @@
                 законодательством или необходимых для работы Платформы:
             </p>
             <ul class="p24" style="margin-left: 20px; margin-top: 10px;">
-                <li style="margin-bottom: 10px;"><strong>BigBlueButton:</strong> для проведения видеоконференций</li>
+                <li style="margin-bottom: 10px;"><strong>Система видеоконференций:</strong> для проведения онлайн-занятий</li>
                 <li style="margin-bottom: 10px;"><strong>Google:</strong> для синхронизации с Google Calendar (при вашем
                     согласии)</li>
                 <li style="margin-bottom: 10px;"><strong>Почтовые сервисы:</strong> для отправки уведомлений</li>

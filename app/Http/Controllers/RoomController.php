@@ -24,6 +24,19 @@ class RoomController extends Controller
             return back()->with('error', 'У вас уже есть запущенное занятие. Пожалуйста, завершите его перед запуском нового.');
         }
 
+        // Лимиты подписки: блокируем создание нового занятия (повторный вход
+        // в уже запущенную комнату не ограничиваем)
+        if (!$room->is_running && ($limitError = \App\Services\SubscriptionService::canStartLesson(auth()->user()))) {
+            \Filament\Notifications\Notification::make()
+                ->title('Занятие не запущено')
+                ->body($limitError)
+                ->danger()
+                ->persistent()
+                ->send();
+
+            return back(fallback: route('filament.app.pages.subscription'))->with('error', $limitError);
+        }
+
         // Apply Custom BBB Settings if available
         $user = auth()->user();
         if ($user->bbb_url && $user->bbb_secret) {
@@ -65,6 +78,24 @@ class RoomController extends Controller
                     'max_participants' => (int) (\App\Models\Setting::where('key', 'bbb_max_participants')->value('value') ?? 0),
                     'duration' => (int) (\App\Models\Setting::where('key', 'bbb_duration')->value('value') ?? 0),
                 ];
+
+                // Лимиты тарифа: участники и длительность применяются сервером BBB
+                // (берём самое строгое из глобального и тарифного ограничения),
+                // запись отключается, если тариф не включает хранение записей
+                $tariffLimits = \App\Services\SubscriptionService::meetingLimits($user);
+
+                $globalSettings['max_participants'] = collect([
+                    $globalSettings['max_participants'],
+                    $tariffLimits['max_participants'],
+                ])->filter(fn($v) => (int) $v > 0)->min() ?? 0;
+
+                $globalSettings['duration'] = collect([
+                    $globalSettings['duration'],
+                    $tariffLimits['duration_minutes'],
+                ])->filter(fn($v) => (int) $v > 0)->min() ?? 0;
+
+                $globalSettings['record'] = $globalSettings['record'] && $tariffLimits['record_allowed'];
+                $globalSettings['auto_start_recording'] = $globalSettings['auto_start_recording'] && $tariffLimits['record_allowed'];
 
                 $inviteUrl = route('rooms.join', $room);
                 $welcomeMsg = $room->welcome_msg ?: "Добро пожаловать на занятие <b>{$room->name}</b>!<br>Пожалуйста, проверьте работу микрофона и динамиков.";

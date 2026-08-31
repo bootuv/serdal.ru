@@ -429,7 +429,18 @@ class RoomResource extends Resource
                     ->icon('heroicon-o-play')
                     ->color(fn(Room $record) => $record->next_start && $record->next_start->isPast() && !$record->next_start->addMinutes($record->duration ?? 45)->isPast() ? 'success' : 'gray')
                     ->button()
-                    ->url(fn(Room $record) => route('rooms.start', $record))
+                    // Если лимит подписки не позволяет — url пуст, и клик открывает модалку с причиной
+                    ->url(fn(Room $record) => $record->is_running || \App\Services\SubscriptionService::canStartLesson(auth()->user()) === null
+                        ? route('rooms.start', $record)
+                        : null)
+                    ->requiresConfirmation()
+                    ->modalIcon('heroicon-o-credit-card')
+                    ->modalIconColor('warning')
+                    ->modalHeading('Занятие недоступно')
+                    ->modalDescription(fn() => \App\Services\SubscriptionService::canStartLesson(auth()->user()))
+                    ->modalSubmitActionLabel('Перейти к подписке')
+                    ->modalCancelActionLabel('Закрыть')
+                    ->action(fn($livewire) => $livewire->redirect(\App\Filament\App\Pages\ManageSubscription::getUrl()))
                     ->openUrlInNewTab()
                     ->visible(function (Room $record) {
                         // Hide if this room is already running

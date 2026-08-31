@@ -68,6 +68,16 @@ class AppPanelProvider extends PanelProvider
                 \Filament\Navigation\NavigationGroup::make('')
                     ->extraSidebarAttributes(['class' => 'mt-5 pt-5 border-t border-gray-200 dark:border-white/10']),
             ])
+            ->userMenuItems([
+                \Filament\Navigation\MenuItem::make()
+                    ->label('Подписка')
+                    ->icon('heroicon-o-credit-card')
+                    ->url(fn() => \App\Filament\App\Pages\ManageSubscription::getUrl()),
+                \Filament\Navigation\MenuItem::make()
+                    ->label('Платежи')
+                    ->icon('heroicon-o-banknotes')
+                    ->url(fn() => \App\Filament\App\Pages\PaymentHistory::getUrl()),
+            ])
             ->brandLogo(fn() => asset('images/Logo.svg'))
             ->darkModeBrandLogo(fn() => asset('images/Logo-white.svg'))
             ->brandLogoHeight('2rem')

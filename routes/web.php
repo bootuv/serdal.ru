@@ -43,6 +43,7 @@ Route::get('/register/invite', \App\Livewire\RegisterInvitedStudent::class)->nam
 
 Route::middleware(['auth'])->group(function () {
     Route::get('/rooms/{room}/start', [RoomController::class, 'start'])->name('rooms.start');
+    Route::get('/payments/{payment}/receipt', [\App\Http\Controllers\PaymentReceiptController::class, 'show'])->name('subscription.payment.receipt');
     // Route::get('/rooms/{room}/join', [RoomController::class, 'join'])->name('rooms.join'); // Moved to public
     Route::get('/rooms/{room}/stop', [RoomController::class, 'stop'])->name('rooms.stop');
 

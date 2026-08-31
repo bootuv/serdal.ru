@@ -31,7 +31,7 @@
                 Serdal — это платформа для организации онлайн-обучения, которая предоставляет:
             </p>
             <ul class="p24" style="margin-left: 20px; margin-top: 10px;">
-                <li style="margin-bottom: 10px;">Инструменты для проведения онлайн-занятий через BigBlueButton</li>
+                <li style="margin-bottom: 10px;">Инструменты для проведения онлайн-занятий: видеосвязь, интерактивная доска и демонстрация экрана</li>
                 <li style="margin-bottom: 10px;">Систему управления расписанием и занятиями</li>
                 <li style="margin-bottom: 10px;">Интеграцию с Google Calendar для синхронизации расписания</li>
                 <li style="margin-bottom: 10px;">Профили преподавателей, менторов и учеников</li>

@@ -245,10 +245,9 @@
 
                                             @if($message['can_delete'] ?? false)
                                                 <x-filament::dropdown.list.item
-                                                    wire:click="deleteMessage({{ $message['id'] }})"
-                                                    wire:confirm="Вы уверены, что хотите удалить это сообщение?"
-                                                    icon="heroicon-m-trash" 
-                                                    color="danger" 
+                                                    wire:click="confirmDelete({{ $message['id'] }})"
+                                                    icon="heroicon-m-trash"
+                                                    color="danger"
                                                     x-on:click="close">
                                                     Удалить
                                                 </x-filament::dropdown.list.item>
@@ -679,4 +678,22 @@
         </div>
     </div>
     @endif
+
+    {{-- Кастомная модалка подтверждения удаления сообщения --}}
+    <x-filament::modal id="confirm-delete-message" icon="heroicon-o-trash" icon-color="danger" alignment="center"
+        width="sm">
+        <x-slot name="heading">Удалить сообщение?</x-slot>
+        <x-slot name="description">Сообщение будет удалено без возможности восстановления.</x-slot>
+        <x-slot name="footer">
+            <div class="flex w-full justify-center gap-3">
+                <x-filament::button color="gray"
+                    x-on:click="$dispatch('close-modal', { id: 'confirm-delete-message' })">
+                    Отмена
+                </x-filament::button>
+                <x-filament::button color="danger" wire:click="deleteConfirmed">
+                    Удалить
+                </x-filament::button>
+            </div>
+        </x-slot>
+    </x-filament::modal>
 </div>

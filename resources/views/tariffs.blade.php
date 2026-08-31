@@ -83,7 +83,20 @@
         }
 
         .tariff-specs div {
-            margin-bottom: 6px;
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #222;
+        }
+
+        .tariff-specs svg {
+            width: 16px;
+            height: 16px;
+            flex-shrink: 0;
+            margin-top: 2px;
+            color: #999;
         }
 
         .tariff-features {
@@ -131,11 +144,130 @@
             padding: 0 20px 40px;
         }
 
-        .tariff-info-block {
-            max-width: 900px;
+        .tariff-info {
+            max-width: 1200px;
             margin: 0 auto;
-            padding: 20px 20px 60px;
-            line-height: 1.8;
+            padding: 40px 20px 0;
+        }
+
+        .tariff-info__heading {
+            font-size: 30px;
+            font-weight: 600;
+            letter-spacing: -.5px;
+            margin: 64px 0 28px;
+        }
+
+        /* Что такое подписка */
+        .tariff-about {
+            background: var(--bg1, #ebf5f4);
+            border-radius: 24px;
+            padding: 48px 40px;
+        }
+
+        .tariff-about__heading {
+            margin: 0 0 16px;
+        }
+
+        .tariff-about p {
+            max-width: 820px;
+            margin: 0;
+            color: var(--black, #202323);
+        }
+
+        .tariff-about__chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 28px;
+        }
+
+        .tariff-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--white, #fff);
+            border-radius: 999px;
+            padding: 10px 18px;
+            font-size: 15px;
+            font-weight: 500;
+            color: var(--black, #202323);
+        }
+
+        .tariff-chip svg {
+            width: 18px;
+            height: 18px;
+            color: var(--gray, #5f6262);
+        }
+
+        /* Порядок оплаты — шаги */
+        .tariff-steps {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 24px;
+        }
+
+        .tariff-step__number {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 56px;
+            height: 56px;
+            margin-bottom: 20px;
+            border-radius: 18px;
+            background: var(--brand-main, #ffe500);
+            font-size: 26px;
+            font-weight: 500;
+            line-height: 1;
+        }
+
+        .tariff-step p {
+            margin: 0;
+            font-size: 16px;
+            line-height: 1.55;
+            color: var(--gray, #5f6262);
+        }
+
+        /* Гарантии и возврат */
+        .tariff-guarantees {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 24px;
+        }
+
+        .tariff-guarantee {
+            background: var(--bg1, #ebf5f4);
+            border-radius: 24px;
+            padding: 32px;
+        }
+
+        .tariff-guarantee svg {
+            width: 28px;
+            height: 28px;
+            margin-bottom: 16px;
+            color: var(--black, #202323);
+        }
+
+        .tariff-guarantee h3 {
+            margin: 0 0 8px;
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .tariff-guarantee p {
+            margin: 0;
+            font-size: 16px;
+            line-height: 1.55;
+            color: var(--gray, #5f6262);
+        }
+
+        .tariff-info__footnote {
+            margin-top: 28px;
+            font-size: 16px;
+            color: var(--gray, #5f6262);
+        }
+
+        .tariff-info a {
+            color: #0066cc;
         }
 
         .b2b-block {
@@ -143,12 +275,78 @@
             border: 1px solid #e4e4e4;
             border-radius: 16px;
             padding: 32px 28px;
-            background: #f8f8f8;
+            background: #fff;
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 8px 48px;
+            align-items: start;
+        }
+
+        .b2b-block__price {
+            font-size: 34px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .b2b-block__price span {
+            font-size: 16px;
+            font-weight: 400;
+            color: #666;
+        }
+
+        .b2b-block__price small {
+            display: block;
+            font-size: 14px;
+            font-weight: 400;
+            color: #666;
+            margin-top: 4px;
+        }
+
+        .tariff-button.secondary {
+            background: #fff;
+            color: #111;
+            border: 1px solid #111;
+        }
+
+        .tariff-button.secondary:hover {
+            background: #111;
+            color: #fff;
+            opacity: 1;
+        }
+
+        .b2b-block .tariff-button {
+            grid-column: 2;
+            padding: 14px 32px;
+        }
+
+        @media (max-width: 767px) {
+            .b2b-block {
+                grid-template-columns: 1fr;
+            }
+
+            .b2b-block .tariff-button {
+                grid-column: 1;
+            }
+        }
+
+        @media (max-width: 991px) {
+            .tariff-steps {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
         }
 
         @media (max-width: 767px) {
             .tariff-short {
                 min-height: auto;
+            }
+
+            .tariff-about {
+                padding: 32px 24px;
+            }
+
+            .tariff-steps,
+            .tariff-guarantees {
+                grid-template-columns: 1fr;
             }
         }
     </style>
@@ -174,10 +372,10 @@
                         {{ number_format($tariff->price, 0, ',', ' ') }} ₽<span>/мес</span>
                     </div>
                     <div class="tariff-specs">
-                        <div>{{ $tariff->lessons_label }}</div>
-                        <div>{{ $tariff->participants_label }}</div>
-                        <div>{{ $tariff->duration_label }}</div>
-                        <div>{{ $tariff->recording_label }}</div>
+                        <div><x-heroicon-m-user-group /> {{ $tariff->participants_label }}</div>
+                        <div><x-heroicon-m-calendar-days /> {{ $tariff->lessons_label }}</div>
+                        <div><x-heroicon-m-clock /> {{ $tariff->duration_label }}</div>
+                        <div><x-heroicon-m-video-camera /> {{ $tariff->recording_label }}</div>
                     </div>
                     <ul class="tariff-features">
                         @foreach($tariff->features ?? [] as $feature)
@@ -192,58 +390,105 @@
         </div>
 
         <div class="b2b-block">
-            <h2 class="tariff-name">Для образовательных центров (B2B)</h2>
-            <p class="p24" style="margin: 10px 0 16px;">
-                Пакет для онлайн-школ и образовательных центров — от <strong>14 900 ₽/мес</strong>.
-            </p>
-            <ul class="tariff-features" style="margin-bottom: 16px;">
+            <div>
+                <h2 class="tariff-name">Для образовательных центров (B2B)</h2>
+                <p class="tariff-short">Пакет для онлайн-школ и образовательных центров: white-label,
+                    администрирование и поддержка с SLA.</p>
+            </div>
+            <div class="b2b-block__price">
+                от 14 900 ₽<span>/мес</span>
+                <small>5 рабочих мест включено</small>
+            </div>
+            <ul class="tariff-features" style="margin-bottom: 0;">
                 <li>5 рабочих мест преподавателей включено (дополнительное место — 1 900 ₽/мес)</li>
                 <li>White-label: платформа под брендом вашего центра</li>
                 <li>Административная панель для управления преподавателями и учениками</li>
                 <li>Приоритетная поддержка и SLA</li>
                 <li>Обучение и онбординг команды</li>
             </ul>
-            <p class="p24">Для подключения напишите на
-                <a href="mailto:info@serdal.ru" style="color: #0066cc;">info@serdal.ru</a> — подготовим договор и настроим
-                платформу под ваш центр.
-            </p>
+            <a href="mailto:info@serdal.ru?subject=Подключение B2B" class="tariff-button secondary">Написать нам</a>
         </div>
     </div>
 
-    <div class="tariff-info-block">
-        <h2 class="p30" style="margin-bottom: 20px; font-weight: 600;">Что такое подписка Serdal</h2>
-        <p class="p24">
-            Serdal — платформа для проведения онлайн-занятий: виртуальные комнаты на базе BigBlueButton с интерактивной
-            доской, демонстрацией экрана и видеосвязью, расписание занятий, домашние задания, записи уроков, учёт оплат
-            учеников и личные страницы преподавателей. Подписка оформляется на 30 дней и даёт доступ ко всем возможностям
-            выбранного тарифа в течение оплаченного периода.
-        </p>
+    <div class="tariff-info">
+        {{-- Что такое подписка --}}
+        <div class="tariff-about">
+            <h2 class="tariff-info__heading tariff-about__heading">Что такое подписка Serdal</h2>
+            <p class="p24">
+                Serdal — платформа для проведения онлайн-занятий. Подписка оформляется на 30 дней и даёт доступ
+                ко всем возможностям выбранного тарифа в течение оплаченного периода.
+            </p>
+            <div class="tariff-about__chips">
+                <span class="tariff-chip"><x-heroicon-o-video-camera /> Виртуальные комнаты для занятий</span>
+                <span class="tariff-chip"><x-heroicon-o-pencil-square /> Интерактивная доска и демонстрация экрана</span>
+                <span class="tariff-chip"><x-heroicon-o-calendar-days /> Расписание занятий и напоминания</span>
+                <span class="tariff-chip"><x-heroicon-o-clipboard-document-check /> Домашние задания и проверка работ</span>
+                <span class="tariff-chip"><x-heroicon-o-folder-open /> Материалы для учеников</span>
+                <span class="tariff-chip"><x-heroicon-o-chart-bar /> Успеваемость учеников</span>
+                <span class="tariff-chip"><x-heroicon-o-film /> Записи уроков</span>
+                <span class="tariff-chip"><x-heroicon-o-banknotes /> Учёт оплат учеников</span>
+                <span class="tariff-chip"><x-heroicon-o-chat-bubble-left-right /> Чат с учениками</span>
+                <span class="tariff-chip"><x-heroicon-o-star /> Отзывы учеников</span>
+                <span class="tariff-chip"><x-heroicon-o-user-circle /> Личные страницы преподавателей</span>
+                <span class="tariff-chip"><x-heroicon-o-bell /> Уведомления о занятиях и сообщениях</span>
+            </div>
+        </div>
 
-        <h2 class="p30" style="margin-top: 40px; margin-bottom: 20px; font-weight: 600;">Порядок оплаты</h2>
-        <ul class="p24" style="margin-left: 20px; margin-top: 10px;">
-            <li style="margin-bottom: 10px;">Оплата производится банковской картой (МИР, Visa, Mastercard) через
-                интернет-эквайринг Альфа-Банка в личном кабинете преподавателя.</li>
-            <li style="margin-bottom: 10px;">Платёж обрабатывается на защищённой платёжной странице банка; данные карты на
-                нашем сервере не сохраняются.</li>
-            <li style="margin-bottom: 10px;">Подписка активируется автоматически сразу после подтверждения оплаты.</li>
-            <li style="margin-bottom: 10px;">Тариф можно повысить или понизить в любой момент в личном кабинете.</li>
-        </ul>
+        {{-- Порядок оплаты --}}
+        <h2 class="tariff-info__heading">Порядок оплаты</h2>
+        <div class="tariff-steps">
+            <div class="tariff-step">
+                <div class="tariff-step__number">1</div>
+                <p>Оплата банковской картой (МИР, Visa, Mastercard) через интернет-эквайринг Альфа-Банка
+                    в личном кабинете преподавателя.</p>
+            </div>
+            <div class="tariff-step">
+                <div class="tariff-step__number">2</div>
+                <p>Платёж обрабатывается на защищённой платёжной странице банка — данные карты
+                    на нашем сервере не сохраняются.</p>
+            </div>
+            <div class="tariff-step">
+                <div class="tariff-step__number">3</div>
+                <p>Подписка активируется автоматически сразу после подтверждения оплаты.</p>
+            </div>
+            <div class="tariff-step">
+                <div class="tariff-step__number">4</div>
+                <p>Тариф можно повысить или понизить в любой момент в личном кабинете.</p>
+            </div>
+        </div>
 
-        <h2 class="p30" style="margin-top: 40px; margin-bottom: 20px; font-weight: 600;">Гарантийные условия и возврат</h2>
-        <ul class="p24" style="margin-left: 20px; margin-top: 10px;">
-            <li style="margin-bottom: 10px;">Если сервис не был использован (не проведено ни одного занятия в оплаченном
-                периоде), вы можете отказаться от подписки в течение 14 дней с момента оплаты и получить полный возврат
-                средств.</li>
-            <li style="margin-bottom: 10px;">При технической невозможности оказания услуги по нашей вине производится
-                возврат средств пропорционально неиспользованному периоду подписки.</li>
-            <li style="margin-bottom: 10px;">Возврат осуществляется на ту же банковскую карту, с которой была произведена
-                оплата, в срок до 10 рабочих дней.</li>
-            <li style="margin-bottom: 10px;">Для оформления возврата напишите на
-                <a href="mailto:info@serdal.ru" style="color: #0066cc;">info@serdal.ru</a> с указанием e-mail учётной записи
-                и даты платежа.</li>
-        </ul>
-        <p class="p24" style="margin-top: 16px;">
-            Полные условия — в <a href="{{ route('offer') }}" style="color: #0066cc;">публичной оферте</a>.
+        {{-- Гарантии и возврат --}}
+        <h2 class="tariff-info__heading">Гарантийные условия и возврат</h2>
+        <div class="tariff-guarantees">
+            <div class="tariff-guarantee">
+                <x-heroicon-o-arrow-uturn-left />
+                <h3>14 дней на возврат</h3>
+                <p>Если сервис не был использован (не проведено ни одного занятия в оплаченном периоде),
+                    вы можете отказаться от подписки в течение 14 дней с момента оплаты и получить полный
+                    возврат средств.</p>
+            </div>
+            <div class="tariff-guarantee">
+                <x-heroicon-o-shield-check />
+                <h3>Гарантия работы сервиса</h3>
+                <p>При технической невозможности оказания услуги по нашей вине производится возврат средств
+                    пропорционально неиспользованному периоду подписки.</p>
+            </div>
+            <div class="tariff-guarantee">
+                <x-heroicon-o-credit-card />
+                <h3>Возврат на ту же карту</h3>
+                <p>Возврат осуществляется на ту же банковскую карту, с которой была произведена оплата,
+                    в срок до 10 рабочих дней.</p>
+            </div>
+            <div class="tariff-guarantee">
+                <x-heroicon-o-envelope />
+                <h3>Как оформить возврат</h3>
+                <p>Напишите на <a href="mailto:info@serdal.ru">info@serdal.ru</a> с указанием e-mail
+                    учётной записи и даты платежа.</p>
+            </div>
+        </div>
+
+        <p class="tariff-info__footnote">
+            Полные условия — в <a href="{{ route('offer') }}">публичной оферте</a>.
         </p>
     </div>
 @endsection

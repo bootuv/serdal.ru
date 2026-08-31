@@ -314,6 +314,10 @@ class UserResource extends Resource
                 ->label('Бессрочно')
                 ->helperText('Подписка без даты окончания — например, максимальный тариф навсегда.')
                 ->live(),
+            Forms\Components\Toggle::make('free')
+                ->label('Без оплаты')
+                ->helperText('Преподаватель увидит пометку «Предоставлен бесплатно» — без цены и кнопки оплаты.')
+                ->default(true),
             Forms\Components\TextInput::make('days')
                 ->label('Срок действия (дней)')
                 ->numeric()
@@ -341,6 +345,7 @@ class UserResource extends Resource
             days: !empty($data['unlimited']) ? null : (int) $data['days'],
             unlimited: !empty($data['unlimited']),
             comment: $data['comment'] ?: 'Назначена администратором: ' . auth()->user()->name,
+            price: !empty($data['free']) ? 0 : null,
         );
 
         \Filament\Notifications\Notification::make()

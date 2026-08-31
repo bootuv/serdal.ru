@@ -58,7 +58,8 @@ class SubscriptionResource extends Resource
                     ->numeric()
                     ->minValue(0)
                     ->prefix('₽')
-                    ->required(),
+                    ->required()
+                    ->helperText('0 ₽ — тариф предоставлен бесплатно: преподаватель увидит пометку «Предоставлен бесплатно» вместо цены и кнопки оплаты'),
                 Forms\Components\Select::make('status')
                     ->label('Статус')
                     ->options([

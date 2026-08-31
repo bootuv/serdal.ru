@@ -307,6 +307,27 @@ class SupportChatComponent extends Component
         $this->cancelEdit();
     }
 
+    /**
+     * Кастомная модалка подтверждения удаления вместо системного confirm браузера.
+     */
+    public ?int $confirmingDeleteId = null;
+
+    public function confirmDelete(int $messageId): void
+    {
+        $this->confirmingDeleteId = $messageId;
+        $this->dispatch('open-modal', id: 'confirm-delete-message');
+    }
+
+    public function deleteConfirmed(): void
+    {
+        if ($this->confirmingDeleteId) {
+            $this->deleteMessage($this->confirmingDeleteId);
+            $this->confirmingDeleteId = null;
+        }
+
+        $this->dispatch('close-modal', id: 'confirm-delete-message');
+    }
+
     public function deleteMessage(int $messageId)
     {
         $message = SupportMessage::find($messageId);

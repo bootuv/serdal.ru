@@ -11,9 +11,28 @@
 
     $daysLeft = $subscription?->ends_at ? (int) now()->diffInDays($subscription->ends_at, false) : null;
     $isExpiring = $daysLeft !== null && $daysLeft <= 5;
+
+    // Была подписка, но срок вышел (или крон ещё не пометил её истёкшей)
+    $expired = $subscription ? null : $user->subscriptions()
+        ->whereIn('status', [\App\Models\Subscription::STATUS_EXPIRED, \App\Models\Subscription::STATUS_ACTIVE])
+        ->with('tariff')
+        ->latest('starts_at')
+        ->first();
 @endphp
 
-@if(!$subscription)
+@if(!$subscription && $expired)
+    <a href="{{ $subscriptionUrl }}"
+        title="Срок действия тарифа «{{ $expired->tariff->name }}» истёк{{ $expired->ends_at ? ' ' . $expired->ends_at->format('d.m.Y') : '' }} — продлите подписку"
+        class="hidden sm:flex items-center gap-1.5 px-3 rounded-xl border transition-all"
+        style="height: 32px; border-color: #ef4444; background: rgba(239, 68, 68, .08);">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"
+            class="w-4 h-4" style="color: #ef4444;">
+            <path stroke-linecap="round" stroke-linejoin="round"
+                d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" />
+        </svg>
+        <span class="text-sm font-medium" style="color: #ef4444;">Срок истёк</span>
+    </a>
+@elseif(!$subscription)
     <a href="{{ $subscriptionUrl }}" title="Подписка не оформлена — выберите тариф"
         class="hidden sm:flex items-center gap-1.5 px-3 rounded-xl border transition-all"
         style="height: 32px; border-color: #fbbf24; background: rgba(251, 191, 36, .1);">

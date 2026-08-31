@@ -448,4 +448,13 @@ class User extends Authenticatable implements FilamentUser
     {
         return $this->subscriptions()->active()->with('tariff')->latest('starts_at')->first();
     }
+
+    /**
+     * Запланированная подписка: вступит в силу после окончания текущего
+     * оплаченного периода (отложенное переключение тарифа).
+     */
+    public function scheduledSubscription(): ?Subscription
+    {
+        return $this->subscriptions()->scheduled()->with('tariff')->latest('starts_at')->first();
+    }
 }

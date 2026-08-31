@@ -48,6 +48,16 @@ class StartScheduledMeetings extends Command
 
     private function startMeeting($room)
     {
+        // Лимиты подписки владельца комнаты
+        if ($limitError = \App\Services\SubscriptionService::canStartLesson($room->user)) {
+            \Illuminate\Support\Facades\Log::warning('Scheduled meeting skipped: subscription limit', [
+                'room_id' => $room->id,
+                'reason' => $limitError,
+            ]);
+
+            return;
+        }
+
         // Apply BBB config from room owner
         $owner = $room->user;
         if ($owner && $owner->bbb_url && $owner->bbb_secret) {
@@ -79,6 +89,22 @@ class StartScheduledMeetings extends Command
             'duration' => (int) (\App\Models\Setting::where('key', 'bbb_duration')->value('value') ?? 0),
             'logout_url' => \App\Models\Setting::where('key', 'bbb_logout_url')->value('value'),
         ];
+
+        // Лимиты тарифа владельца (самое строгое из глобального и тарифного)
+        $tariffLimits = \App\Services\SubscriptionService::meetingLimits($room->user);
+
+        $globalSettings['max_participants'] = collect([
+            $globalSettings['max_participants'],
+            $tariffLimits['max_participants'],
+        ])->filter(fn($v) => (int) $v > 0)->min() ?? 0;
+
+        $globalSettings['duration'] = collect([
+            $globalSettings['duration'],
+            $tariffLimits['duration_minutes'],
+        ])->filter(fn($v) => (int) $v > 0)->min() ?? 0;
+
+        $globalSettings['record'] = $globalSettings['record'] && $tariffLimits['record_allowed'];
+        $globalSettings['auto_start_recording'] = $globalSettings['auto_start_recording'] && $tariffLimits['record_allowed'];
 
         $createParams = [
             'meetingID' => $room->meeting_id,

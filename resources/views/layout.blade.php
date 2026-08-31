@@ -31,6 +31,99 @@
       flex: 1 0 auto;
     }
 
+    .footer {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 48px;
+      padding: 56px 32px 32px;
+    }
+
+    .footer a {
+      text-decoration: none;
+    }
+
+    .footer-top {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 48px 64px;
+      max-width: 1216px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    .footer-brand {
+      max-width: 340px;
+    }
+
+    .footer-brand img {
+      height: 32px;
+    }
+
+    .footer-brand p {
+      margin: 16px 0 0;
+      font-size: 15px;
+      line-height: 1.55;
+      color: #9b9e9e;
+    }
+
+    .footer-cols {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 40px 72px;
+    }
+
+    .footer-col {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      min-width: 160px;
+    }
+
+    .footer-col__title {
+      margin-bottom: 4px;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: #fff;
+      opacity: .55;
+    }
+
+    .footer-col a {
+      font-size: 16px;
+      color: #d6d8d8;
+      transition: color .15s ease;
+    }
+
+    .footer-col a:hover {
+      color: var(--brand-main, #ffe500);
+    }
+
+    .footer-bottom {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 8px 24px;
+      max-width: 1216px;
+      width: 100%;
+      margin: 0 auto;
+      padding-top: 24px;
+      border-top: 1px solid rgba(255, 255, 255, .12);
+      font-size: 14px;
+      color: #9b9e9e;
+    }
+
+    @media (max-width: 767px) {
+      .footer {
+        padding: 40px 20px 28px;
+      }
+
+      .footer-cols {
+        gap: 32px 48px;
+      }
+    }
+
     .star-rating {
       display: flex;
       justify-content: center;
@@ -66,29 +159,46 @@
   <div class="footer-spacer"></div>
   @php($legalRequisites = \App\Models\Setting::whereIn('key', ['legal_name', 'legal_inn', 'legal_ogrn'])->pluck('value', 'key'))
   <section class="footer">
-    <div class="p18 copyright">
-      © {{ date('Y') }} Serdal
+    <div class="footer-top">
+      <div class="footer-brand">
+        <a href="/" class="w-inline-block"><img src="/images/Logo-white.svg" loading="lazy" height="32" alt="Serdal"></a>
+        <p>Платформа для онлайн-занятий: виртуальные комнаты, расписание, домашние задания и учёт оплат — всё в одном
+          месте.</p>
+      </div>
+      <div class="footer-cols">
+        <div class="footer-col">
+          <div class="footer-col__title">Платформа</div>
+          <a href="{{ route('about') }}">О нас</a>
+          <a href="{{ route('tariffs') }}">Тарифы</a>
+          <a href="{{ route('reviews') }}">Отзывы</a>
+          <a href="{{ route('help.index') }}">Помощь</a>
+        </div>
+        <div class="footer-col">
+          <div class="footer-col__title">Документы</div>
+          <a href="{{ route('privacy') }}">Конфиденциальность</a>
+          <a href="{{ route('terms') }}">Условия использования</a>
+          <a href="{{ route('offer') }}">Публичная оферта</a>
+        </div>
+        <div class="footer-col">
+          <div class="footer-col__title">Контакты</div>
+          <a href="mailto:info@serdal.ru">info@serdal.ru</a>
+          <a href="/login">Войти в кабинет</a>
+        </div>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <div>© {{ date('Y') }} Serdal</div>
       @if(!empty($legalRequisites['legal_name']))
-        <div style="margin-top: 8px; font-size: 14px; opacity: .7; line-height: 1.5;">
+        <div class="footer-bottom__legal">
           {{ $legalRequisites['legal_name'] }}
           @if(!empty($legalRequisites['legal_inn']))
-            <br>ИНН {{ $legalRequisites['legal_inn'] }}
+            · ИНН {{ $legalRequisites['legal_inn'] }}
           @endif
           @if(!empty($legalRequisites['legal_ogrn']))
-            <br>ОГРН/ОГРНИП {{ $legalRequisites['legal_ogrn'] }}
+            · ОГРН/ОГРНИП {{ $legalRequisites['legal_ogrn'] }}
           @endif
         </div>
       @endif
-    </div>
-    <div class="footer-menu">
-      <a href="{{ route('about') }}" class="white-text p18">О нас</a>
-      <a href="{{ route('tariffs') }}" class="white-text p18">Тарифы</a>
-      <a href="{{ route('reviews') }}" class="white-text p18">Отзывы</a>
-      <a href="{{ route('help.index') }}" class="white-text p18">Помощь</a>
-      <a href="{{ route('privacy') }}" class="white-text p18">Конфиденциальность</a>
-      <a href="{{ route('terms') }}" class="white-text p18">Условия</a>
-      <a href="{{ route('offer') }}" class="white-text p18">Оферта</a>
-      <a href="mailto:info@serdal.ru" class="white-text p18">info@serdal.ru</a>
     </div>
   </section>
   <div class="popup-wrapper auto-stopper">

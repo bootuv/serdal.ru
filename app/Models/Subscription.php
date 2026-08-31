@@ -54,9 +54,29 @@ class Subscription extends Model
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('status', self::STATUS_ACTIVE)
+            // запланированные на будущее (отложенный даунгрейд) ещё не действуют
+            ->where('starts_at', '<=', now())
             ->where(function (Builder $q) {
                 $q->whereNull('ends_at')->orWhere('ends_at', '>', now());
             });
+    }
+
+    /**
+     * Запланированные подписки: вступят в силу в будущем
+     * (например, бесплатный тариф после окончания оплаченного периода).
+     */
+    public function scopeScheduled(Builder $query): Builder
+    {
+        return $query->where('status', self::STATUS_ACTIVE)
+            ->where('starts_at', '>', now());
+    }
+
+    /**
+     * Платный тариф, выданный администратором без оплаты (цена-снимок 0).
+     */
+    public function isComplimentary(): bool
+    {
+        return !$this->tariff->isFree() && (float) $this->price <= 0;
     }
 
     public function isActive(): bool
