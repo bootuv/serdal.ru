@@ -184,10 +184,6 @@ class UserResource extends Resource
                 TextColumn::make('name')
                     ->label('Имя')
                     ->searchable(),
-                TextColumn::make('id')
-                    ->label('ID')
-                    ->sortable()
-                    ->searchable(),
                 TextColumn::make('email')
                     ->label('Email')
                     ->searchable(),
@@ -270,7 +266,7 @@ class UserResource extends Resource
                 Tables\Actions\Action::make('assignSubscription')
                     // Если тариф уже назначен, кнопка показывает его название —
                     // клик открывает ту же форму для смены тарифа
-                    ->label(fn(User $record) => $record->activeSubscription()?->tariff->name ?? 'Назначить подписку')
+                    ->label(fn(User $record) => $record->activeSubscription()?->tariff->name ?? 'Тариф')
                     ->icon('heroicon-o-credit-card')
                     ->button()
                     ->color(fn(User $record) => $record->activeSubscription() ? 'gray' : 'primary')
@@ -315,21 +311,27 @@ class UserResource extends Resource
                         $set('days', $tariff->period_days);
                     }
                 }),
+            Forms\Components\Placeholder::make('free_tariff_note')
+                ->hiddenLabel()
+                ->content('Бесплатный тариф действует бессрочно и не требует оплаты.')
+                ->visible(fn(Forms\Get $get) => \App\Models\Tariff::find($get('tariff_id'))?->isFree() ?? false),
             Forms\Components\Toggle::make('unlimited')
                 ->label('Бессрочно')
                 ->helperText('Подписка без даты окончания — например, максимальный тариф навсегда.')
-                ->live(),
+                ->live()
+                ->visible(fn(Forms\Get $get) => !(\App\Models\Tariff::find($get('tariff_id'))?->isFree() ?? false)),
             Forms\Components\Toggle::make('free')
                 ->label('Без оплаты')
                 ->helperText('Преподаватель увидит пометку «Предоставлен бесплатно» — без цены и кнопки оплаты.')
-                ->default(false),
+                ->default(false)
+                ->visible(fn(Forms\Get $get) => !(\App\Models\Tariff::find($get('tariff_id'))?->isFree() ?? false)),
             Forms\Components\TextInput::make('days')
                 ->label('Срок действия (дней)')
                 ->numeric()
                 ->minValue(1)
                 ->default(30)
-                ->required(fn(Forms\Get $get) => !$get('unlimited'))
-                ->visible(fn(Forms\Get $get) => !$get('unlimited')),
+                ->required(fn(Forms\Get $get) => !$get('unlimited') && !(\App\Models\Tariff::find($get('tariff_id'))?->isFree() ?? false))
+                ->visible(fn(Forms\Get $get) => !$get('unlimited') && !(\App\Models\Tariff::find($get('tariff_id'))?->isFree() ?? false)),
             Forms\Components\TextInput::make('comment')
                 ->label('Комментарий')
                 ->placeholder('Например: выдано бесплатно за помощь с тестированием')
@@ -366,15 +368,16 @@ class UserResource extends Resource
         \App\Services\SubscriptionService::activate(
             $record,
             $tariff,
-            days: !empty($data['unlimited']) ? null : (int) $data['days'],
+            days: !empty($data['unlimited']) || $tariff->isFree() ? null : (int) ($data['days'] ?? $tariff->period_days),
             unlimited: !empty($data['unlimited']),
-            comment: $data['comment'] ?: 'Назначена администратором: ' . auth()->user()->name,
+            comment: ($data['comment'] ?? null) ?: 'Назначена администратором: ' . auth()->user()->name,
             price: !empty($data['free']) ? 0 : null,
         );
 
         \Filament\Notifications\Notification::make()
             ->title('Подписка назначена')
-            ->body('«' . $tariff->name . '» для ' . $record->name . (!empty($data['unlimited']) ? ' (бессрочно)' : ' на ' . $data['days'] . ' дн.'))
+            ->body('«' . $tariff->name . '» для ' . $record->name
+                . (!empty($data['unlimited']) || $tariff->isFree() ? ' (бессрочно)' : ' на ' . ($data['days'] ?? $tariff->period_days) . ' дн.'))
             ->success()
             ->send();
     }
