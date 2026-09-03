@@ -25,6 +25,17 @@ class YooKassaService
         return (bool) (self::setting('yookassa_shop_id') && self::setting('yookassa_secret_key'));
     }
 
+    /**
+     * Разрешены ли магазину автоплатежи (сохранение карты, автопродление).
+     * В боевой ЮKassa опцию включает менеджер; до этого запросы с
+     * save_payment_method завершаются ошибкой — переключатель в админке
+     * (Настройки → Эквайринг) скрывает привязку карты, пока опция не активна.
+     */
+    public static function recurringEnabled(): bool
+    {
+        return self::isConfigured() && self::setting('yookassa_recurring_enabled') === '1';
+    }
+
     protected static function setting(string $key): ?string
     {
         return Setting::where('key', $key)->value('value');
@@ -79,8 +90,10 @@ class YooKassaService
      * Создаёт платёж в ЮKassa и возвращает URL платёжной страницы.
      * Записывает id платежа ЮKassa в gateway_order_id.
      * $savePaymentMethod — сохранить карту для последующих автосписаний.
+     * $methodType — заранее выбранный способ оплаты ('sbp', 'bank_card');
+     * при null ЮKassa покажет свой экран выбора метода.
      */
-    public static function createPayment(SubscriptionPayment $payment, string $returnUrl, bool $savePaymentMethod = false): string
+    public static function createPayment(SubscriptionPayment $payment, string $returnUrl, bool $savePaymentMethod = false, ?string $methodType = null): string
     {
         $description = self::descriptionFor($payment);
         $amount = self::amountFor($payment);
@@ -101,6 +114,10 @@ class YooKassaService
 
         if ($savePaymentMethod) {
             $body['save_payment_method'] = true;
+        }
+
+        if ($methodType) {
+            $body['payment_method_data'] = ['type' => $methodType];
         }
 
         $response = self::request()

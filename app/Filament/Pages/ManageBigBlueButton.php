@@ -71,6 +71,7 @@ class ManageBigBlueButton extends Page implements HasForms
             'offer_refund_processing_days' => Setting::where('key', 'offer_refund_processing_days')->value('value') ?: OfferSettings::OFFER_DEFAULTS['offer_refund_processing_days'],
             'yookassa_shop_id' => Setting::where('key', 'yookassa_shop_id')->value('value'),
             'yookassa_secret_key' => Setting::where('key', 'yookassa_secret_key')->value('value'),
+            'yookassa_recurring_enabled' => Setting::where('key', 'yookassa_recurring_enabled')->value('value') === '1',
         ]);
     }
 
@@ -248,6 +249,10 @@ class ManageBigBlueButton extends Page implements HasForms
                                             ->password()
                                             ->revealable()
                                             ->maxLength(255),
+                                        \Filament\Forms\Components\Toggle::make('yookassa_recurring_enabled')
+                                            ->label('Автоплатежи включены в ЮKassa')
+                                            ->helperText('Включайте после того, как менеджер ЮKassa активирует магазину автоплатежи (сохранение карты, автопродление). До этого привязка карты скрыта от пользователей — иначе платежи с сохранением карты завершаются ошибкой. В тестовом магазине автоплатежи доступны сразу.')
+                                            ->columnSpanFull(),
                                     ]),
                             ]),
                     ])
@@ -307,6 +312,7 @@ class ManageBigBlueButton extends Page implements HasForms
         // Acquiring (YooKassa)
         Setting::updateOrCreate(['key' => 'yookassa_shop_id'], ['value' => $data['yookassa_shop_id'] ?? '']);
         Setting::updateOrCreate(['key' => 'yookassa_secret_key'], ['value' => $data['yookassa_secret_key'] ?? '']);
+        Setting::updateOrCreate(['key' => 'yookassa_recurring_enabled'], ['value' => !empty($data['yookassa_recurring_enabled']) ? '1' : '0']);
 
         Notification::make()
             ->title('Настройки сохранены')

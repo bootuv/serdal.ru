@@ -98,42 +98,51 @@ class TariffResource extends Resource
                             ->required()
                             ->prefix('₽')
                             ->helperText('0 = бесплатный тариф')
-                            ->live(debounce: 500)
-                            ->afterStateUpdated(fn (Forms\Get $get, Forms\Set $set) => $set('yearly_discount', self::yearlyDiscount($get))),
+                            ->live(debounce: 500),
                         Forms\Components\TextInput::make('period_days')
                             ->label('Период подписки (дней)')
                             ->numeric()
                             ->minValue(1)
                             ->default(30)
                             ->required()
-                            ->live(debounce: 500)
-                            ->afterStateUpdated(fn (Forms\Get $get, Forms\Set $set) => $set('yearly_discount', self::yearlyDiscount($get))),
+                            ->live(debounce: 500),
                         Forms\Components\TextInput::make('yearly_price')
                             ->label('Цена за год')
                             ->numeric()
                             ->minValue(1)
                             ->prefix('₽')
-                            ->helperText(fn (Forms\Get $get) => self::fullYearPrice($get)
-                                ? 'Полная цена за год без скидки: ' . number_format(self::fullYearPrice($get), 0, '.', ' ') . ' ₽. Пусто = годовая оплата недоступна.'
-                                : 'Пусто = годовая оплата недоступна.')
                             ->live(debounce: 500)
-                            ->afterStateUpdated(fn (Forms\Get $get, Forms\Set $set) => $set('yearly_discount', self::yearlyDiscount($get))),
-                        Forms\Components\TextInput::make('yearly_discount')
-                            ->label('Скидка за год')
-                            ->numeric()
-                            ->minValue(0)
-                            ->maxValue(99)
-                            ->suffix('%')
-                            ->dehydrated(false)
-                            ->helperText('Считается автоматически от цены за год — или введите процент, и цена за год подставится сама. В базе не хранится.')
-                            ->live(debounce: 500)
-                            ->afterStateHydrated(fn (Forms\Components\TextInput $component, Forms\Get $get) => $component->state(self::yearlyDiscount($get)))
-                            ->afterStateUpdated(function ($state, Forms\Get $get, Forms\Set $set) {
-                                $full = self::fullYearPrice($get);
-                                if ($full && is_numeric($state)) {
-                                    $set('yearly_price', (int) round($full * (1 - (float) $state / 100)));
-                                }
-                            }),
+                            // Текущая скидка видна прямо в поле
+                            ->suffix(fn (Forms\Get $get) => ($d = self::yearlyDiscount($get)) !== null ? '−' . $d . '%' : null)
+                            ->helperText(fn (Forms\Get $get) => (self::fullYearPrice($get)
+                                ? 'Полная цена за год без скидки: ' . number_format(self::fullYearPrice($get), 0, '.', ' ') . ' ₽. '
+                                : '') . 'Пусто = годовая оплата недоступна.')
+                            // Кнопка «%»: задать цену через скидку в процентах
+                            ->suffixAction(
+                                Forms\Components\Actions\Action::make('setYearlyDiscount')
+                                    ->icon('heroicon-m-receipt-percent')
+                                    ->tooltip('Задать скидкой в процентах')
+                                    ->modalHeading('Скидка за годовую оплату')
+                                    ->modalDescription(fn (Forms\Get $get) => self::fullYearPrice($get)
+                                        ? 'Цена за год будет рассчитана от полной цены ' . number_format(self::fullYearPrice($get), 0, '.', ' ') . ' ₽.'
+                                        : 'Сначала укажите цену за период и период подписки.')
+                                    ->modalWidth('sm')
+                                    ->fillForm(fn (Forms\Get $get) => ['percent' => self::yearlyDiscount($get)])
+                                    ->form([
+                                        Forms\Components\TextInput::make('percent')
+                                            ->label('Скидка')
+                                            ->numeric()
+                                            ->minValue(0)
+                                            ->maxValue(99)
+                                            ->required()
+                                            ->suffix('%'),
+                                    ])
+                                    ->action(function (array $data, Forms\Get $get, Forms\Set $set) {
+                                        if ($full = self::fullYearPrice($get)) {
+                                            $set('yearly_price', (int) round($full * (1 - (float) $data['percent'] / 100)));
+                                        }
+                                    })
+                            ),
                         Forms\Components\Toggle::make('is_active')
                             ->label('Активен')
                             ->helperText('Неактивные тарифы скрыты с сайта и недоступны для покупки')

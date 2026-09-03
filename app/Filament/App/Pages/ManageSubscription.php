@@ -152,26 +152,40 @@ class ManageSubscription extends Page
             ->form(function (array $arguments) {
                 $tariff = Tariff::find($arguments['tariff'] ?? null);
 
-                // Сохранение карты предлагаем при оплате, если карта ещё не привязана
+                // Выбор способа оплаты показываем, если карта ещё не привязана
                 if (!$tariff || $tariff->isFree() || auth()->user()->yookassa_payment_method_id || !YooKassaService::isConfigured()) {
                     return [];
                 }
 
                 return [
+                    \Filament\Forms\Components\Radio::make('payment_method')
+                        ->label('Способ оплаты')
+                        // Ключи — типы payment_method_data ЮKassa
+                        ->options([
+                            'sbp' => 'СБП — приложение вашего банка (рекомендуем)',
+                            'sberbank' => 'SberPay',
+                            'tinkoff_bank' => 'T-Pay',
+                            'bank_card' => 'Банковская карта',
+                            'yoo_money' => 'ЮMoney',
+                        ])
+                        ->default('sbp')
+                        ->live(),
                     \Filament\Forms\Components\Checkbox::make('save_method')
                         ->label('Сохранить карту')
                         ->helperText('Следующие оплаты пройдут в один клик, без повторного ввода данных карты. Отвязать карту можно в любой момент на этой странице.')
+                        ->visible(fn(\Filament\Forms\Get $get) => $get('payment_method') === 'bank_card' && YooKassaService::recurringEnabled())
                         ->live(),
                     \Filament\Forms\Components\Checkbox::make('auto_renew')
                         ->label('Включить автопродление')
                         ->helperText('Подписка будет продлеваться автоматически в конце оплаченного периода — мы предупредим о списании заранее. Отключается в любой момент.')
-                        ->visible(fn(\Filament\Forms\Get $get) => (bool) $get('save_method')),
+                        ->visible(fn(\Filament\Forms\Get $get) => $get('payment_method') === 'bank_card' && $get('save_method') && YooKassaService::recurringEnabled()),
                 ];
             })
             ->action(fn(array $arguments, array $data) => $this->selectTariff(
                 (int) $arguments['tariff'],
                 (bool) ($data['save_method'] ?? false),
                 (bool) ($data['auto_renew'] ?? false),
+                $data['payment_method'] ?? null,
             ));
     }
 
@@ -248,10 +262,10 @@ class ManageSubscription extends Page
             return null;
         }
 
-        if (!YooKassaService::isConfigured()) {
+        if (!YooKassaService::recurringEnabled()) {
             Notification::make()
-                ->title('Онлайн-оплата подключается')
-                ->body('Привязать карту можно будет после подключения платёжного сервиса.')
+                ->title('Привязка карты пока недоступна')
+                ->body('Автоплатежи подключаются на стороне платёжного сервиса. Попробуйте позже.')
                 ->warning()
                 ->send();
             return null;
@@ -283,6 +297,7 @@ class ManageSubscription extends Page
                 $payment,
                 route('subscription.payment.return', $payment),
                 savePaymentMethod: true,
+                methodType: 'bank_card',
             );
         } catch (\Throwable $e) {
             $payment->update(['status' => SubscriptionPayment::STATUS_FAILED]);
@@ -311,10 +326,15 @@ class ManageSubscription extends Page
      * Выбор тарифа: бесплатный активируется сразу; платный — списание с сохранённой
      * карты в один клик, либо платёж с уводом на платёжную страницу.
      * $saveMethod — сохранить карту; $autoRenew — включить автопродление (требует $saveMethod).
+     * $method — выбранный способ оплаты (тип payment_method_data ЮKassa) или null.
      */
-    public function selectTariff(int $tariffId, bool $saveMethod = false, bool $autoRenew = false)
+    public function selectTariff(int $tariffId, bool $saveMethod = false, bool $autoRenew = false, ?string $method = null)
     {
         $user = auth()->user();
+
+        // Сохранение карты возможно только при оплате картой и только когда
+        // магазину включены автоплатежи — иначе ЮKassa отклонит платёж
+        $saveMethod = $saveMethod && $method === 'bank_card' && YooKassaService::recurringEnabled();
         $tariff = Tariff::active()->findOrFail($tariffId);
         $subscription = $user->activeSubscription();
 
@@ -402,6 +422,7 @@ class ManageSubscription extends Page
                 $payment,
                 route('subscription.payment.return', $payment),
                 savePaymentMethod: $saveMethod,
+                methodType: $method,
             );
         } catch (\Throwable $e) {
             $payment->update(['status' => SubscriptionPayment::STATUS_FAILED]);

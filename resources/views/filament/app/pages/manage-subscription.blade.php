@@ -124,14 +124,20 @@
                     <div>
                         <p class="text-sm font-medium text-gray-950 dark:text-white">Карта не привязана</p>
                         <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                            Привяжите карту, чтобы оплачивать в один клик и включить автопродление.
-                            Также карту можно сохранить при оплате тарифа.
+                            @if(\App\Services\YooKassaService::recurringEnabled())
+                                Привяжите карту, чтобы оплачивать в один клик и включить автопродление.
+                                Также карту можно сохранить при оплате тарифа.
+                            @else
+                                Оплата в один клик и автопродление скоро станут доступны.
+                            @endif
                         </p>
                     </div>
                 </div>
-                <div class="mt-auto">
-                    {{ $this->bindCardAction }}
-                </div>
+                @if(\App\Services\YooKassaService::recurringEnabled())
+                    <div class="mt-auto">
+                        {{ $this->bindCardAction }}
+                    </div>
+                @endif
             </div>
         @endif
     </x-filament::section>
