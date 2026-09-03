@@ -226,7 +226,7 @@ class SubscriptionTariffsTest extends TestCase
             'status' => \App\Models\SubscriptionPayment::STATUS_PENDING,
             'gateway' => 'yookassa',
             'gateway_order_id' => 'yk-save-1',
-            'meta' => ['save_method' => true],
+            'meta' => ['save_method' => true, 'auto_renew_opt_in' => true],
         ]);
 
         $this->actingAs($tutor)->get(route('subscription.payment.return', $payment));
@@ -235,6 +235,100 @@ class SubscriptionTariffsTest extends TestCase
         $this->assertEquals('pm-123', $tutor->yookassa_payment_method_id);
         $this->assertEquals('Bank card *4477', $tutor->payment_method_title);
         $this->assertTrue($tutor->auto_renew);
+    }
+
+    public function test_saving_card_without_opt_in_keeps_auto_renew_off(): void
+    {
+        \Illuminate\Support\Facades\Notification::fake();
+        \Illuminate\Support\Facades\Http::fake([
+            'api.yookassa.ru/*' => \Illuminate\Support\Facades\Http::response([
+                'id' => 'yk-save-2',
+                'status' => 'succeeded',
+                'payment_method' => ['id' => 'pm-456', 'saved' => true, 'title' => 'Bank card *1111'],
+            ]),
+        ]);
+
+        $tutor = $this->makeTutor();
+        $basic = Tariff::where('slug', 'basic')->first();
+
+        $payment = \App\Models\SubscriptionPayment::create([
+            'user_id' => $tutor->id,
+            'tariff_id' => $basic->id,
+            'amount' => $basic->price,
+            'status' => \App\Models\SubscriptionPayment::STATUS_PENDING,
+            'gateway' => 'yookassa',
+            'gateway_order_id' => 'yk-save-2',
+            'meta' => ['save_method' => true, 'auto_renew_opt_in' => false],
+        ]);
+
+        $this->actingAs($tutor)->get(route('subscription.payment.return', $payment));
+
+        $tutor = $tutor->fresh();
+        $this->assertEquals('pm-456', $tutor->yookassa_payment_method_id);
+        $this->assertFalse($tutor->auto_renew);
+    }
+
+    public function test_card_binding_saves_method_and_refunds_without_touching_subscription(): void
+    {
+        \Illuminate\Support\Facades\Notification::fake();
+        \Illuminate\Support\Facades\Http::fake([
+            'api.yookassa.ru/v3/refunds' => \Illuminate\Support\Facades\Http::response(['id' => 'r-1', 'status' => 'succeeded']),
+            'api.yookassa.ru/*' => \Illuminate\Support\Facades\Http::response([
+                'id' => 'yk-bind-1',
+                'status' => 'succeeded',
+                'payment_method' => ['id' => 'pm-bind', 'saved' => true, 'title' => 'Bank card *2222'],
+            ]),
+        ]);
+
+        $tutor = $this->makeTutor();
+        $basic = Tariff::where('slug', 'basic')->first();
+        SubscriptionService::activate($tutor, $basic);
+        $endsAt = $tutor->activeSubscription()->ends_at;
+
+        $payment = \App\Models\SubscriptionPayment::create([
+            'user_id' => $tutor->id,
+            'tariff_id' => $basic->id,
+            'amount' => 1,
+            'status' => \App\Models\SubscriptionPayment::STATUS_PENDING,
+            'gateway' => 'yookassa',
+            'gateway_order_id' => 'yk-bind-1',
+            'meta' => ['card_binding' => true, 'save_method' => true],
+        ]);
+
+        $this->actingAs($tutor)->get(route('subscription.payment.return', $payment));
+
+        $tutor = $tutor->fresh();
+        $this->assertEquals('pm-bind', $tutor->yookassa_payment_method_id);
+        $this->assertFalse($tutor->auto_renew);
+        // Рубль возвращён, подписка не продлилась
+        $this->assertEquals(\App\Models\SubscriptionPayment::STATUS_REFUNDED, $payment->fresh()->status);
+        $this->assertTrue($tutor->activeSubscription()->ends_at->equalTo($endsAt));
+    }
+
+    public function test_one_click_payment_with_saved_card(): void
+    {
+        \Illuminate\Support\Facades\Notification::fake();
+        \Illuminate\Support\Facades\Http::fake([
+            'api.yookassa.ru/*' => \Illuminate\Support\Facades\Http::response(['id' => 'yk-click-1', 'status' => 'succeeded']),
+        ]);
+
+        \App\Models\Setting::updateOrCreate(['key' => 'yookassa_shop_id'], ['value' => '123']);
+        \App\Models\Setting::updateOrCreate(['key' => 'yookassa_secret_key'], ['value' => 'test_key']);
+
+        $tutor = $this->makeTutor();
+        $tutor->update(['yookassa_payment_method_id' => 'pm-123', 'payment_method_title' => 'Bank card *4477']);
+        $basic = Tariff::where('slug', 'basic')->first();
+
+        Livewire::actingAs($tutor)
+            ->test(ManageSubscription::class)
+            ->call('selectTariff', $basic->id);
+
+        // Подписка активирована сразу, без ухода на платёжную страницу
+        $this->assertEquals($basic->id, $tutor->fresh()->activeSubscription()->tariff_id);
+        $this->assertEquals(
+            \App\Models\SubscriptionPayment::STATUS_PAID,
+            \App\Models\SubscriptionPayment::where('user_id', $tutor->id)->latest()->first()->status
+        );
     }
 
     public function test_auto_renewal_charges_saved_card_and_extends(): void

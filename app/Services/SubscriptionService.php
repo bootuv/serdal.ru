@@ -149,10 +149,11 @@ class SubscriptionService
     }
 
     /**
-     * Если учитель попросил сохранить карту для автопродления и ЮKassa
-     * подтвердила сохранение — привязываем способ оплаты и включаем автопродление.
+     * Если учитель попросил сохранить карту и ЮKassa подтвердила сохранение —
+     * привязываем способ оплаты. Автопродление включается только при отдельном
+     * согласии (meta.auto_renew_opt_in); уже включённое — не выключаем.
      */
-    protected static function storeSavedPaymentMethod(SubscriptionPayment $payment): void
+    public static function storeSavedPaymentMethod(SubscriptionPayment $payment): void
     {
         if (empty($payment->meta['save_method'])) {
             return;
@@ -161,10 +162,11 @@ class SubscriptionService
         $method = $payment->meta['status_response']['payment_method'] ?? null;
 
         if (($method['saved'] ?? false) && !empty($method['id'])) {
-            $payment->user->update([
+            $user = $payment->user;
+            $user->update([
                 'yookassa_payment_method_id' => $method['id'],
                 'payment_method_title' => $method['title'] ?? 'Банковская карта',
-                'auto_renew' => true,
+                'auto_renew' => $user->auto_renew || !empty($payment->meta['auto_renew_opt_in']),
             ]);
         }
     }

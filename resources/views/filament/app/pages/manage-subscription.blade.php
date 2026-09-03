@@ -88,11 +88,11 @@
         @endif
     </x-filament::section>
 
-    {{-- Автопродление и сохранённая карта --}}
-    @if(auth()->user()->yookassa_payment_method_id)
-        <x-filament::section>
-            <x-slot name="heading">Автопродление</x-slot>
+    {{-- Способ оплаты и автопродление --}}
+    <x-filament::section>
+        <x-slot name="heading">Способ оплаты</x-slot>
 
+        @if(auth()->user()->yookassa_payment_method_id)
             <div class="flex flex-wrap items-center justify-between gap-4">
                 <div class="flex items-center gap-3">
                     <x-heroicon-o-credit-card class="h-6 w-6 shrink-0 text-gray-400" />
@@ -104,7 +104,7 @@
                             @if(auth()->user()->auto_renew)
                                 Автопродление включено — подписка продлится автоматически в конце оплаченного периода.
                             @else
-                                Автопродление выключено.
+                                Автопродление выключено. Оплата проходит в один клик с сохранённой карты.
                             @endif
                         </p>
                     </div>
@@ -114,13 +114,30 @@
                         {{ auth()->user()->auto_renew ? 'Отключить автопродление' : 'Включить автопродление' }}
                     </x-filament::button>
                     <x-filament::button color="danger" outlined wire:click="removePaymentMethod"
-                        wire:confirm="Отвязать карту? Автопродление будет отключено.">
+                        wire:confirm="Отвязать карту? Автопродление будет отключено, а оплата снова будет проходить через платёжную страницу.">
                         Отвязать карту
                     </x-filament::button>
                 </div>
             </div>
-        </x-filament::section>
-    @endif
+        @else
+            <div class="flex flex-wrap items-center justify-between gap-4">
+                <div class="flex items-center gap-3">
+                    <x-heroicon-o-credit-card class="h-6 w-6 shrink-0 text-gray-400" />
+                    <div>
+                        <p class="text-sm font-medium text-gray-950 dark:text-white">Карта не привязана</p>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">
+                            Привяжите карту, чтобы оплачивать в один клик и включить автопродление.
+                            Также карту можно сохранить при оплате тарифа.
+                        </p>
+                    </div>
+                </div>
+                <x-filament::button color="gray" outlined wire:click="bindCard"
+                    wire:confirm="Для проверки карты спишется 1 ₽ и сразу вернётся обратно. Продолжить?">
+                    Привязать карту
+                </x-filament::button>
+            </div>
+        @endif
+    </x-filament::section>
 
     {{-- Выбор тарифа --}}
     <x-filament::section>
@@ -262,7 +279,11 @@
                     <div class="flex items-center justify-between gap-4 py-3">
                         <div class="min-w-0">
                             <p class="text-sm font-medium text-gray-950 dark:text-white">
-                                Тариф «{{ $payment->tariff->name }}» — {{ number_format($payment->amount, 0, ',', ' ') }} ₽{{ $payment->period_days >= 365 ? ' (за год)' : '' }}
+                                @if(!empty($payment->meta['card_binding']))
+                                    Привязка карты — 1 ₽ (возвращается)
+                                @else
+                                    Тариф «{{ $payment->tariff->name }}» — {{ number_format($payment->amount, 0, ',', ' ') }} ₽{{ $payment->period_days >= 365 ? ' (за год)' : '' }}
+                                @endif
                             </p>
                             <p class="text-sm text-gray-500 dark:text-gray-400">
                                 {{ $payment->created_at->format('d.m.Y H:i') }}
@@ -311,7 +332,7 @@
                 @endforeach
             </div>
 
-            <a href="{{ \App\Filament\App\Pages\PaymentHistory::getUrl() }}"
+            <a href="{{ \App\Filament\App\Pages\PaymentHistory::getUrl(panel: 'app') }}"
                 class="mt-3 inline-block text-sm font-medium text-primary-600 hover:underline dark:text-primary-400">
                 Все платежи и квитанции →
             </a>

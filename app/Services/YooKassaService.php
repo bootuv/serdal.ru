@@ -58,6 +58,10 @@ class YooKassaService
 
     protected static function descriptionFor(SubscriptionPayment $payment): string
     {
+        if (!empty($payment->meta['card_binding'])) {
+            return 'Привязка карты для оплаты подписки на serdal.ru';
+        }
+
         $period = $payment->period_days >= 365 ? ' (год)' : '';
 
         return 'Подписка «' . $payment->tariff->name . '»' . $period . ' на serdal.ru';
