@@ -18,7 +18,7 @@
                         @if($subscription->ends_at)
                             {{ $subscription->isComplimentary() ? 'Действует до' : 'Оплачен до' }}
                             {{ $subscription->ends_at->format('d.m.Y') }}
-                            ({{ $subscription->ends_at->diffForHumans() }})
+                            (осталось {{ max(0, (int) now()->diffInDays($subscription->ends_at, false)) }} дн.)
                         @else
                             Действует бессрочно
                         @endif
@@ -48,11 +48,10 @@
                             {{ number_format($subscription->tariff->price, 0, ',', ' ') }} ₽<span
                                 class="text-sm font-normal text-gray-500">/мес</span>
                         </p>
-                        @if(!$subscription->tariff->isFree() && $subscription->ends_at)
-                            <x-filament::button wire:click="selectTariff({{ $subscription->tariff_id }})" class="mt-2"
-                                icon="heroicon-o-arrow-path">
-                                Продлить
-                            </x-filament::button>
+                        @if($showRenew)
+                            <div class="mt-2">
+                                {{ ($this->selectTariffAction)(['tariff' => $subscription->tariff_id, 'renew' => true, 'primary' => true]) }}
+                            </div>
                         @endif
                     @endif
                 </div>
@@ -89,9 +88,69 @@
         @endif
     </x-filament::section>
 
+    {{-- Автопродление и сохранённая карта --}}
+    @if(auth()->user()->yookassa_payment_method_id)
+        <x-filament::section>
+            <x-slot name="heading">Автопродление</x-slot>
+
+            <div class="flex flex-wrap items-center justify-between gap-4">
+                <div class="flex items-center gap-3">
+                    <x-heroicon-o-credit-card class="h-6 w-6 shrink-0 text-gray-400" />
+                    <div>
+                        <p class="text-sm font-medium text-gray-950 dark:text-white">
+                            {{ auth()->user()->payment_method_title ?? 'Банковская карта' }}
+                        </p>
+                        <p class="text-sm {{ auth()->user()->auto_renew ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400' }}">
+                            @if(auth()->user()->auto_renew)
+                                Автопродление включено — подписка продлится автоматически в конце оплаченного периода.
+                            @else
+                                Автопродление выключено.
+                            @endif
+                        </p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <x-filament::button color="gray" outlined wire:click="toggleAutoRenew">
+                        {{ auth()->user()->auto_renew ? 'Отключить автопродление' : 'Включить автопродление' }}
+                    </x-filament::button>
+                    <x-filament::button color="danger" outlined wire:click="removePaymentMethod"
+                        wire:confirm="Отвязать карту? Автопродление будет отключено.">
+                        Отвязать карту
+                    </x-filament::button>
+                </div>
+            </div>
+        </x-filament::section>
+    @endif
+
     {{-- Выбор тарифа --}}
     <x-filament::section>
         <x-slot name="heading">Тарифы</x-slot>
+
+        @if($hasYearly)
+            {{-- Переключатель периода оплаты --}}
+            <div class="mb-5 flex items-center gap-2">
+                <div class="inline-flex rounded-lg bg-gray-100 p-1 dark:bg-white/5">
+                    <button type="button" wire:click="$set('billingPeriod', 'month')" @class([
+                        'rounded-md px-4 py-1.5 text-sm font-medium transition',
+                        'bg-white shadow text-gray-950 dark:bg-gray-800 dark:text-white' => $billingPeriod === 'month',
+                        'text-gray-500 dark:text-gray-400' => $billingPeriod !== 'month',
+                    ])>
+                        Помесячно
+                    </button>
+                    <button type="button" wire:click="$set('billingPeriod', 'year')" @class([
+                        'rounded-md px-4 py-1.5 text-sm font-medium transition',
+                        'bg-white shadow text-gray-950 dark:bg-gray-800 dark:text-white' => $billingPeriod === 'year',
+                        'text-gray-500 dark:text-gray-400' => $billingPeriod !== 'year',
+                    ])>
+                        На год
+                    </button>
+                </div>
+                @php($maxDiscount = $tariffs->max(fn($t) => $t->yearlyDiscountPercent()))
+                @if($maxDiscount > 0)
+                    <x-filament::badge color="success">выгода до {{ $maxDiscount }}%</x-filament::badge>
+                @endif
+            </div>
+        @endif
 
         <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
             @foreach($tariffs as $tariff)
@@ -111,10 +170,23 @@
                             <x-filament::badge color="warning">Популярный</x-filament::badge>
                         @endif
                     </div>
-                    <p class="mt-2 text-2xl font-bold text-gray-950 dark:text-white">
-                        {{ $tariff->isFree() ? '0 ₽' : number_format($tariff->price, 0, ',', ' ') . ' ₽' }}<span
-                            class="text-sm font-normal text-gray-500">/мес</span>
-                    </p>
+                    @if($billingPeriod === 'year' && $tariff->hasYearly())
+                        <p class="mt-2 text-2xl font-bold text-gray-950 dark:text-white">
+                            {{ number_format($tariff->yearly_price, 0, ',', ' ') }} ₽<span
+                                class="text-sm font-normal text-gray-500">/год</span>
+                        </p>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">
+                            ≈ {{ number_format((int) round($tariff->yearly_price / 12), 0, ',', ' ') }} ₽/мес
+                            @if($tariff->yearlyDiscountPercent() > 0)
+                                <span class="font-medium text-green-600 dark:text-green-400">−{{ $tariff->yearlyDiscountPercent() }}%</span>
+                            @endif
+                        </p>
+                    @else
+                        <p class="mt-2 text-2xl font-bold text-gray-950 dark:text-white">
+                            {{ $tariff->isFree() ? '0 ₽' : number_format($tariff->price, 0, ',', ' ') . ' ₽' }}<span
+                                class="text-sm font-normal text-gray-500">/мес</span>
+                        </p>
+                    @endif
                     {{-- Лимиты тарифа --}}
                     <ul class="mt-4 space-y-2">
                         <li class="flex items-start gap-2 text-sm font-medium text-gray-800 dark:text-gray-200">
@@ -190,20 +262,41 @@
                     <div class="flex items-center justify-between gap-4 py-3">
                         <div class="min-w-0">
                             <p class="text-sm font-medium text-gray-950 dark:text-white">
-                                Тариф «{{ $payment->tariff->name }}» — {{ number_format($payment->amount, 0, ',', ' ') }} ₽
+                                Тариф «{{ $payment->tariff->name }}» — {{ number_format($payment->amount, 0, ',', ' ') }} ₽{{ $payment->period_days >= 365 ? ' (за год)' : '' }}
                             </p>
                             <p class="text-sm text-gray-500 dark:text-gray-400">
                                 {{ $payment->created_at->format('d.m.Y H:i') }}
                             </p>
                         </div>
-                        <div class="shrink-0">
+                        <div class="flex shrink-0 items-center gap-2">
                             @switch($payment->status)
                                 @case(\App\Models\SubscriptionPayment::STATUS_PAID)
                                     <x-filament::badge color="success">Оплачен</x-filament::badge>
                                     @break
 
                                 @case(\App\Models\SubscriptionPayment::STATUS_PENDING)
-                                    <x-filament::badge color="warning">Ожидает оплаты</x-filament::badge>
+                                    @if($payment->isResumable())
+                                        {{-- Ссылка на оплату живёт ~час с момента создания платежа --}}
+                                        <div class="flex items-center gap-2"
+                                            x-data="{ left: {{ max(0, (int) now()->diffInSeconds($payment->created_at->copy()->addHour(), false)) }} }"
+                                            x-init="setInterval(() => { if (left > 0) left-- }, 1000)">
+                                            <template x-if="left > 0">
+                                                <div class="flex items-center gap-2">
+                                                    <span class="text-xs text-gray-500 dark:text-gray-400"
+                                                        x-text="'ссылка действует ещё ' + Math.floor(left / 60) + ':' + String(left % 60).padStart(2, '0')"></span>
+                                                    <x-filament::button size="sm" color="warning" outlined tag="a"
+                                                        href="{{ $payment->payment_url }}">
+                                                        Оплатить
+                                                    </x-filament::button>
+                                                </div>
+                                            </template>
+                                            <template x-if="left <= 0">
+                                                <x-filament::badge color="gray">Срок оплаты истёк</x-filament::badge>
+                                            </template>
+                                        </div>
+                                    @else
+                                        <x-filament::badge color="warning">Ожидает оплаты</x-filament::badge>
+                                    @endif
                                     @break
 
                                 @case(\App\Models\SubscriptionPayment::STATUS_REFUNDED)

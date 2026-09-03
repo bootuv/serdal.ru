@@ -91,16 +91,39 @@ class SubscriptionPaymentResource extends Resource
                         SubscriptionService::applyPaidPayment($record);
                         Notification::make()->title('Платёж подтверждён, подписка активирована')->success()->send();
                     }),
-                Tables\Actions\Action::make('markRefunded')
-                    ->label('Отметить возврат')
+                Tables\Actions\Action::make('refund')
+                    ->label('Оформить возврат')
                     ->icon('heroicon-o-arrow-uturn-left')
-                    ->color('gray')
+                    ->color('danger')
                     ->requiresConfirmation()
-                    ->modalDescription('Отметка в системе учёта. Сам возврат средств выполняется в личном кабинете ЮKassa.')
+                    ->modalHeading('Возврат платежа')
+                    ->modalDescription(fn(SubscriptionPayment $record) => $record->gateway_order_id
+                        ? 'Деньги (' . number_format($record->amount, 0, ',', ' ') . ' ₽) вернутся на карту плательщика через ЮKassa. Действие необратимо. Подписку, оплаченную этим платежом, при необходимости скорректируйте вручную в разделе «Подписки».'
+                        : 'У платежа нет идентификатора ЮKassa (создан вручную) — он будет только отмечен как возвращённый, без движения денег.')
                     ->visible(fn(SubscriptionPayment $record) => $record->status === SubscriptionPayment::STATUS_PAID)
                     ->action(function (SubscriptionPayment $record) {
-                        $record->update(['status' => SubscriptionPayment::STATUS_REFUNDED]);
-                        Notification::make()->title('Платёж отмечен как возвращённый')->success()->send();
+                        // Платёж без id шлюза — только отметка в учёте
+                        if (!$record->gateway_order_id) {
+                            $record->update(['status' => SubscriptionPayment::STATUS_REFUNDED]);
+                            Notification::make()->title('Платёж отмечен как возвращённый')->success()->send();
+                            return;
+                        }
+
+                        if (\App\Services\YooKassaService::refundPayment($record)) {
+                            $record->update(['status' => SubscriptionPayment::STATUS_REFUNDED]);
+                            Notification::make()
+                                ->title('Возврат оформлен')
+                                ->body('Деньги вернутся на карту плательщика в течение нескольких дней.')
+                                ->success()
+                                ->send();
+                        } else {
+                            $error = $record->fresh()->meta['refund_response']['description'] ?? 'Проверьте баланс магазина и статус платежа в личном кабинете ЮKassa.';
+                            Notification::make()
+                                ->title('Не удалось оформить возврат')
+                                ->body($error)
+                                ->danger()
+                                ->send();
+                        }
                     }),
             ])
             ->bulkActions([]);

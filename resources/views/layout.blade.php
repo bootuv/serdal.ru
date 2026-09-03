@@ -157,7 +157,7 @@
 
   @yield('content')
   <div class="footer-spacer"></div>
-  @php($legalRequisites = \App\Models\Setting::whereIn('key', ['legal_name', 'legal_inn', 'legal_ogrn'])->pluck('value', 'key'))
+  @php($legalRequisites = \App\Support\OfferSettings::legal())
   <section class="footer">
     <div class="footer-top">
       <div class="footer-brand">
@@ -181,7 +181,7 @@
         </div>
         <div class="footer-col">
           <div class="footer-col__title">Контакты</div>
-          <a href="mailto:info@serdal.ru">info@serdal.ru</a>
+          <a href="mailto:{{ $legalRequisites['legal_email'] }}">{{ $legalRequisites['legal_email'] }}</a>
           <a href="/login">Войти в кабинет</a>
         </div>
       </div>

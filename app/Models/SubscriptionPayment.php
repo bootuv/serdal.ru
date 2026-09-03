@@ -19,6 +19,7 @@ class SubscriptionPayment extends Model
         'tariff_id',
         'subscription_id',
         'amount',
+        'period_days',
         'status',
         'gateway',
         'gateway_order_id',
@@ -48,6 +49,17 @@ class SubscriptionPayment extends Model
     public function subscription()
     {
         return $this->belongsTo(Subscription::class);
+    }
+
+    /**
+     * Можно ли вернуться к оплате: платёж не завершён, а ссылка на платёжную
+     * страницу ЮKassa ещё действует (неоплаченные платежи шлюз отменяет ~через час).
+     */
+    public function isResumable(): bool
+    {
+        return $this->status === self::STATUS_PENDING
+            && $this->payment_url
+            && $this->created_at->gt(now()->subHour());
     }
 
     public function getStatusLabelAttribute(): string

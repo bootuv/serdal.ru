@@ -59,7 +59,57 @@ class SubscriptionTariffsTest extends TestCase
         $this->get('/offer')
             ->assertOk()
             ->assertSee('Публичная оферта')
-            ->assertSee('Возврат денежных средств');
+            ->assertSee('Возврат денежных средств')
+            // тарифы и их характеристики — из БД
+            ->assertSee('Тариф «Профи»')
+            ->assertSee('2 990 ₽')
+            ->assertSee('предоставляется бесплатно')
+            ->assertSee('До 12 участников в занятии')
+            ->assertSee('120 занятий в месяц')
+            ->assertSee('Подписка оформляется на 30 календарных дней')
+            // значения по умолчанию из OfferSettings
+            ->assertSee('14 календарных дней')
+            ->assertSee('10 рабочих дней')
+            ->assertSee('ЮKassa')
+            ->assertSee('info@serdal.ru')
+            ->assertSee('Для образовательных центров (B2B)')
+            ->assertDontSee('Редакция от');
+    }
+
+    public function test_public_offer_page_uses_admin_settings(): void
+    {
+        foreach ([
+            'legal_name' => 'ИП Тестов Тест Тестович',
+            'legal_inn' => '123456789012',
+            'legal_email' => 'billing@example.com',
+            'offer_edition_date' => '2026-09-03',
+            'offer_payment_provider' => 'CloudPayments',
+            'offer_payment_methods' => 'банковской картой',
+            'offer_refund_days' => '21',
+            'offer_refund_processing_days' => '3',
+            'b2b_enabled' => '0',
+        ] as $key => $value) {
+            \App\Models\Setting::updateOrCreate(['key' => $key], ['value' => $value]);
+        }
+
+        $this->get('/offer')
+            ->assertOk()
+            ->assertSee('ИП Тестов Тест Тестович')
+            ->assertSee('ИНН: 123456789012')
+            ->assertSee('billing@example.com')
+            ->assertSee('Редакция от 03.09.2026')
+            ->assertSee('CloudPayments')
+            ->assertSee('21 календарного дня')
+            ->assertSee('3 рабочих дней')
+            ->assertDontSee('ЮKassa')
+            ->assertDontSee('info@serdal.ru')
+            ->assertDontSee('Для образовательных центров (B2B)');
+
+        $this->get('/tariffs')
+            ->assertOk()
+            ->assertSee('21 день на возврат')
+            ->assertSee('CloudPayments')
+            ->assertSee('billing@example.com');
     }
 
     public function test_admin_tariff_pages_render(): void
@@ -111,6 +161,221 @@ class SubscriptionTariffsTest extends TestCase
             ->assertSee('Предоставлен бесплатно')
             ->assertSee('Оплата не требуется')
             ->assertDontSee('Продлить');
+    }
+
+    public function test_yearly_payment_extends_subscription_for_a_year(): void
+    {
+        \Illuminate\Support\Facades\Notification::fake();
+
+        $tutor = $this->makeTutor();
+        $basic = Tariff::where('slug', 'basic')->first();
+        $basic->update(['yearly_price' => $basic->price * 10]);
+
+        $payment = \App\Models\SubscriptionPayment::create([
+            'user_id' => $tutor->id,
+            'tariff_id' => $basic->id,
+            'amount' => $basic->yearly_price,
+            'period_days' => 365,
+            'status' => \App\Models\SubscriptionPayment::STATUS_PENDING,
+            'gateway' => 'yookassa',
+        ]);
+
+        SubscriptionService::applyPaidPayment($payment);
+
+        $subscription = $tutor->fresh()->activeSubscription();
+        $this->assertTrue($subscription->ends_at->isSameDay(now()->addDays(365)));
+        // Месячный лимит занятий действует и на годовой подписке
+        $this->assertEquals(0, SubscriptionService::lessonsUsedThisPeriod($tutor->fresh()));
+    }
+
+    public function test_renew_button_hidden_until_expiry_window(): void
+    {
+        $tutor = $this->makeTutor();
+        SubscriptionService::activate($tutor, Tariff::where('slug', 'basic')->first());
+
+        // Сразу после оплаты (30 дней до конца) кнопки «Продлить» нет
+        $this->actingAs($tutor)->get('/tutor/subscription')
+            ->assertOk()
+            ->assertDontSee('Продлить');
+
+        // За 10 дней до окончания — появляется
+        $tutor->activeSubscription()->update(['ends_at' => now()->addDays(10)]);
+        $this->actingAs($tutor)->get('/tutor/subscription')
+            ->assertOk()
+            ->assertSee('Продлить');
+    }
+
+    public function test_saved_payment_method_enables_auto_renew_after_payment(): void
+    {
+        \Illuminate\Support\Facades\Notification::fake();
+        \Illuminate\Support\Facades\Http::fake([
+            'api.yookassa.ru/*' => \Illuminate\Support\Facades\Http::response([
+                'id' => 'yk-save-1',
+                'status' => 'succeeded',
+                'payment_method' => ['id' => 'pm-123', 'saved' => true, 'title' => 'Bank card *4477'],
+            ]),
+        ]);
+
+        $tutor = $this->makeTutor();
+        $basic = Tariff::where('slug', 'basic')->first();
+
+        $payment = \App\Models\SubscriptionPayment::create([
+            'user_id' => $tutor->id,
+            'tariff_id' => $basic->id,
+            'amount' => $basic->price,
+            'status' => \App\Models\SubscriptionPayment::STATUS_PENDING,
+            'gateway' => 'yookassa',
+            'gateway_order_id' => 'yk-save-1',
+            'meta' => ['save_method' => true],
+        ]);
+
+        $this->actingAs($tutor)->get(route('subscription.payment.return', $payment));
+
+        $tutor = $tutor->fresh();
+        $this->assertEquals('pm-123', $tutor->yookassa_payment_method_id);
+        $this->assertEquals('Bank card *4477', $tutor->payment_method_title);
+        $this->assertTrue($tutor->auto_renew);
+    }
+
+    public function test_auto_renewal_charges_saved_card_and_extends(): void
+    {
+        \Illuminate\Support\Facades\Notification::fake();
+        \Illuminate\Support\Facades\Http::fake([
+            'api.yookassa.ru/*' => \Illuminate\Support\Facades\Http::response([
+                'id' => 'yk-auto-1',
+                'status' => 'succeeded',
+            ]),
+        ]);
+
+        $tutor = $this->makeTutor();
+        $basic = Tariff::where('slug', 'basic')->first();
+        SubscriptionService::activate($tutor, $basic);
+        $tutor->update(['auto_renew' => true, 'yookassa_payment_method_id' => 'pm-123']);
+        $tutor->activeSubscription()->update(['ends_at' => now()->addHours(12)]);
+        $endsAt = $tutor->activeSubscription()->ends_at;
+
+        $this->artisan('subscriptions:check')->assertSuccessful();
+
+        $subscription = $tutor->fresh()->activeSubscription();
+        $this->assertTrue($subscription->ends_at->isSameDay($endsAt->copy()->addDays(30)));
+
+        $autoPayment = \App\Models\SubscriptionPayment::where('user_id', $tutor->id)->latest()->first();
+        $this->assertEquals(\App\Models\SubscriptionPayment::STATUS_PAID, $autoPayment->status);
+        $this->assertTrue((bool) ($autoPayment->meta['auto_renew'] ?? false));
+
+        // Повторный запуск не создаёт второго списания
+        $this->artisan('subscriptions:check')->assertSuccessful();
+        $this->assertEquals(1, \App\Models\SubscriptionPayment::where('user_id', $tutor->id)->count());
+    }
+
+    public function test_failed_auto_renewal_notifies_teacher(): void
+    {
+        \Illuminate\Support\Facades\Notification::fake();
+        \Illuminate\Support\Facades\Http::fake([
+            'api.yookassa.ru/*' => \Illuminate\Support\Facades\Http::response([
+                'id' => 'yk-auto-2',
+                'status' => 'canceled',
+            ]),
+        ]);
+
+        $tutor = $this->makeTutor();
+        $basic = Tariff::where('slug', 'basic')->first();
+        SubscriptionService::activate($tutor, $basic);
+        $tutor->update(['auto_renew' => true, 'yookassa_payment_method_id' => 'pm-123']);
+        $tutor->activeSubscription()->update(['ends_at' => now()->addHours(12)]);
+
+        $this->artisan('subscriptions:check')->assertSuccessful();
+
+        \Illuminate\Support\Facades\Notification::assertSentTo($tutor, \App\Notifications\SubscriptionAutoRenewFailed::class);
+        $this->assertEquals(
+            \App\Models\SubscriptionPayment::STATUS_FAILED,
+            \App\Models\SubscriptionPayment::where('user_id', $tutor->id)->latest()->first()->status
+        );
+    }
+
+    public function test_admin_refund_calls_yookassa_api(): void
+    {
+        \Illuminate\Support\Facades\Http::fake([
+            'api.yookassa.ru/v3/refunds' => \Illuminate\Support\Facades\Http::response([
+                'id' => 'refund-1',
+                'status' => 'succeeded',
+            ]),
+        ]);
+
+        $tutor = $this->makeTutor();
+        $basic = Tariff::where('slug', 'basic')->first();
+
+        $payment = \App\Models\SubscriptionPayment::create([
+            'user_id' => $tutor->id,
+            'tariff_id' => $basic->id,
+            'amount' => $basic->price,
+            'status' => \App\Models\SubscriptionPayment::STATUS_PAID,
+            'gateway' => 'yookassa',
+            'gateway_order_id' => 'yk-refund-1',
+            'paid_at' => now(),
+        ]);
+
+        $this->assertTrue(\App\Services\YooKassaService::refundPayment($payment));
+        \Illuminate\Support\Facades\Http::assertSent(
+            fn($request) => str_contains($request->url(), '/v3/refunds')
+                && $request['payment_id'] === 'yk-refund-1'
+                && $request['amount']['value'] === number_format($basic->price, 2, '.', '')
+        );
+    }
+
+    public function test_stale_pending_payment_is_marked_failed(): void
+    {
+        \Illuminate\Support\Facades\Notification::fake();
+        \Illuminate\Support\Facades\Http::fake([
+            'api.yookassa.ru/*' => \Illuminate\Support\Facades\Http::response(['id' => 'yk-stale', 'status' => 'canceled']),
+        ]);
+
+        $tutor = $this->makeTutor();
+        $basic = Tariff::where('slug', 'basic')->first();
+
+        // Ушёл на оплату и не вернулся
+        $abandoned = \App\Models\SubscriptionPayment::create([
+            'user_id' => $tutor->id,
+            'tariff_id' => $basic->id,
+            'amount' => $basic->price,
+            'status' => \App\Models\SubscriptionPayment::STATUS_PENDING,
+            'gateway' => 'yookassa',
+            'gateway_order_id' => 'yk-stale',
+        ]);
+        $abandoned->forceFill(['created_at' => now()->subHours(2)])->save();
+
+        $this->artisan('subscriptions:check')->assertSuccessful();
+
+        $this->assertEquals(\App\Models\SubscriptionPayment::STATUS_FAILED, $abandoned->fresh()->status);
+    }
+
+    public function test_failed_payments_hidden_from_teacher_history(): void
+    {
+        $tutor = $this->makeTutor();
+        $basic = Tariff::where('slug', 'basic')->first();
+
+        \App\Models\SubscriptionPayment::create([
+            'user_id' => $tutor->id,
+            'tariff_id' => $basic->id,
+            'amount' => $basic->price,
+            'status' => \App\Models\SubscriptionPayment::STATUS_FAILED,
+            'gateway' => 'yookassa',
+        ]);
+        // Свежий незавершённый — виден и предлагает вернуться к оплате
+        \App\Models\SubscriptionPayment::create([
+            'user_id' => $tutor->id,
+            'tariff_id' => $basic->id,
+            'amount' => $basic->price,
+            'status' => \App\Models\SubscriptionPayment::STATUS_PENDING,
+            'gateway' => 'yookassa',
+            'payment_url' => 'https://yoomoney.ru/checkout/payments/v2/contract?orderId=test',
+        ]);
+
+        $this->actingAs($tutor)->get('/tutor/subscription')
+            ->assertOk()
+            ->assertDontSee('Не прошёл')
+            ->assertSee('ссылка действует ещё')
+            ->assertSee('https://yoomoney.ru/checkout/payments/v2/contract?orderId=test');
     }
 
     public function test_paid_subscription_is_not_complimentary(): void

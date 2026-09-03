@@ -64,6 +64,9 @@ class User extends Authenticatable implements FilamentUser
         'push_reminder_count',
         'vk_album_id',
         'commission_rate',
+        'yookassa_payment_method_id',
+        'payment_method_title',
+        'auto_renew',
     ];
 
     /**
@@ -91,6 +94,7 @@ class User extends Authenticatable implements FilamentUser
             'push_reminder_at' => 'datetime',
             'payment_blocked_at' => 'datetime',
             'commission_rate' => 'integer',
+            'auto_renew' => 'boolean',
         ];
     }
 

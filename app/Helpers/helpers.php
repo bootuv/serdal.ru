@@ -88,3 +88,25 @@ if (!function_exists('format_date')) {
         return $date->translatedFormat('j M Y');
     }
 }
+if (!function_exists('plural_ru')) {
+    /**
+     * Склонение существительного после числа: plural_ru(5, 'день', 'дня', 'дней') → «5 дней».
+     */
+    function plural_ru(int $number, string $one, string $few, string $many, bool $withNumber = true): string
+    {
+        $n = abs($number) % 100;
+        $n1 = $n % 10;
+
+        if ($n > 10 && $n < 20) {
+            $word = $many;
+        } elseif ($n1 > 1 && $n1 < 5) {
+            $word = $few;
+        } elseif ($n1 === 1) {
+            $word = $one;
+        } else {
+            $word = $many;
+        }
+
+        return $withNumber ? $number . ' ' . $word : $word;
+    }
+}

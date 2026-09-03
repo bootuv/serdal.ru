@@ -50,6 +50,12 @@ class TariffResource extends Resource
                             ->required()
                             ->prefix('₽')
                             ->helperText('0 = бесплатный тариф'),
+                        Forms\Components\TextInput::make('yearly_price')
+                            ->label('Цена за год')
+                            ->numeric()
+                            ->minValue(1)
+                            ->prefix('₽')
+                            ->helperText('Пусто = годовая оплата недоступна. Для скидки ~15% укажите цену 10 месяцев.'),
                         Forms\Components\TextInput::make('period_days')
                             ->label('Период подписки (дней)')
                             ->numeric()

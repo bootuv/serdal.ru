@@ -13,6 +13,7 @@ class Tariff extends Model
         'name',
         'slug',
         'price',
+        'yearly_price',
         'period_days',
         'lessons_per_month',
         'max_participants',
@@ -50,6 +51,26 @@ class Tariff extends Model
     public function isFree(): bool
     {
         return (int) $this->price === 0;
+    }
+
+    /**
+     * Доступна ли оплата за год.
+     */
+    public function hasYearly(): bool
+    {
+        return !$this->isFree() && $this->yearly_price !== null && $this->yearly_price > 0;
+    }
+
+    /**
+     * Скидка годовой оплаты относительно 12 месячных платежей, %.
+     */
+    public function yearlyDiscountPercent(): int
+    {
+        if (!$this->hasYearly() || $this->price <= 0) {
+            return 0;
+        }
+
+        return max(0, (int) round(100 - $this->yearly_price / ($this->price * 12) * 100));
     }
 
     // Человекочитаемые характеристики — используются на публичной странице и в кабинете

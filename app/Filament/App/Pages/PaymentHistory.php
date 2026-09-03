@@ -37,6 +37,8 @@ class PaymentHistory extends Page implements HasTable
             ->query(
                 SubscriptionPayment::query()
                     ->where('user_id', auth()->id())
+                    // Неудавшиеся попытки учителю не показываем (для сверки они остаются в админке)
+                    ->where('status', '!=', SubscriptionPayment::STATUS_FAILED)
                     ->with('tariff')
                     ->latest()
             )
@@ -67,6 +69,12 @@ class PaymentHistory extends Page implements HasTable
                     }),
             ])
             ->actions([
+                Tables\Actions\Action::make('resume')
+                    ->label(fn(SubscriptionPayment $record) => 'Оплатить · до ' . $record->created_at->copy()->addHour()->format('H:i'))
+                    ->icon('heroicon-o-credit-card')
+                    ->color('warning')
+                    ->url(fn(SubscriptionPayment $record) => $record->payment_url)
+                    ->visible(fn(SubscriptionPayment $record) => $record->isResumable()),
                 Tables\Actions\Action::make('receipt')
                     ->label('Квитанция')
                     ->icon('heroicon-o-arrow-down-tray')

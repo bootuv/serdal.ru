@@ -3,6 +3,7 @@
 namespace App\Filament\Pages;
 
 use App\Models\Setting;
+use App\Support\OfferSettings;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Tabs;
 use Filament\Forms\Components\TextInput;
@@ -63,6 +64,11 @@ class ManageBigBlueButton extends Page implements HasForms
             'legal_address' => Setting::where('key', 'legal_address')->value('value'),
             'legal_email' => Setting::where('key', 'legal_email')->value('value') ?? 'info@serdal.ru',
             'legal_phone' => Setting::where('key', 'legal_phone')->value('value'),
+            'offer_edition_date' => Setting::where('key', 'offer_edition_date')->value('value') ?: null,
+            'offer_payment_provider' => Setting::where('key', 'offer_payment_provider')->value('value') ?: OfferSettings::OFFER_DEFAULTS['offer_payment_provider'],
+            'offer_payment_methods' => Setting::where('key', 'offer_payment_methods')->value('value') ?: OfferSettings::OFFER_DEFAULTS['offer_payment_methods'],
+            'offer_refund_days' => Setting::where('key', 'offer_refund_days')->value('value') ?: OfferSettings::OFFER_DEFAULTS['offer_refund_days'],
+            'offer_refund_processing_days' => Setting::where('key', 'offer_refund_processing_days')->value('value') ?: OfferSettings::OFFER_DEFAULTS['offer_refund_processing_days'],
             'yookassa_shop_id' => Setting::where('key', 'yookassa_shop_id')->value('value'),
             'yookassa_secret_key' => Setting::where('key', 'yookassa_secret_key')->value('value'),
         ]);
@@ -197,6 +203,38 @@ class ManageBigBlueButton extends Page implements HasForms
                                             ->maxLength(32),
                                     ])->columns(2),
                             ]),
+                        Tabs\Tab::make('Оферта')
+                            ->schema([
+                                Section::make('Условия публичной оферты')
+                                    ->description('Подставляются в текст на страницах «Публичная оферта» и «Тарифы». Тарифы и их характеристики берутся из раздела «Тарифы», реквизиты — со вкладки «Реквизиты».')
+                                    ->schema([
+                                        \Filament\Forms\Components\DatePicker::make('offer_edition_date')
+                                            ->label('Дата редакции оферты')
+                                            ->helperText('Если не указана — строка «Редакция от …» не выводится.')
+                                            ->native(false)
+                                            ->displayFormat('d.m.Y'),
+                                        TextInput::make('offer_payment_provider')
+                                            ->label('Платёжный сервис')
+                                            ->helperText('Например: ЮKassa')
+                                            ->required()
+                                            ->maxLength(255),
+                                        TextInput::make('offer_payment_methods')
+                                            ->label('Способы оплаты (текст)')
+                                            ->helperText('Вставляется во фразу «Оплата производится … с помощью платёжного сервиса …»')
+                                            ->required()
+                                            ->maxLength(255),
+                                        TextInput::make('offer_refund_days')
+                                            ->label('Срок отказа от услуги (календарных дней)')
+                                            ->numeric()
+                                            ->minValue(0)
+                                            ->required(),
+                                        TextInput::make('offer_refund_processing_days')
+                                            ->label('Срок возврата средств (рабочих дней)')
+                                            ->numeric()
+                                            ->minValue(0)
+                                            ->required(),
+                                    ])->columns(2),
+                            ]),
                         Tabs\Tab::make('Эквайринг')
                             ->schema([
                                 Section::make('ЮKassa')
@@ -258,6 +296,13 @@ class ManageBigBlueButton extends Page implements HasForms
         foreach (['legal_name', 'legal_inn', 'legal_ogrn', 'legal_address', 'legal_email', 'legal_phone'] as $key) {
             Setting::updateOrCreate(['key' => $key], ['value' => $data[$key] ?? '']);
         }
+
+        // Offer terms
+        Setting::updateOrCreate(['key' => 'offer_edition_date'], ['value' => $data['offer_edition_date'] ?? '']);
+        Setting::updateOrCreate(['key' => 'offer_payment_provider'], ['value' => $data['offer_payment_provider'] ?? '']);
+        Setting::updateOrCreate(['key' => 'offer_payment_methods'], ['value' => $data['offer_payment_methods'] ?? '']);
+        Setting::updateOrCreate(['key' => 'offer_refund_days'], ['value' => (string) ($data['offer_refund_days'] ?? '')]);
+        Setting::updateOrCreate(['key' => 'offer_refund_processing_days'], ['value' => (string) ($data['offer_refund_processing_days'] ?? '')]);
 
         // Acquiring (YooKassa)
         Setting::updateOrCreate(['key' => 'yookassa_shop_id'], ['value' => $data['yookassa_shop_id'] ?? '']);

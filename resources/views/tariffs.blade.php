@@ -366,7 +366,7 @@
     <section class="page-title-section">
         <h1 class="h1">Тарифы</h1>
         <p class="p30 page-descriptions">Подписка для репетиторов и образовательных центров.<br>
-            Все тарифы включают полный доступ к платформе онлайн-занятий Serdal.</p>
+            Все тарифы включают полный доступ к платформе онлайн-занятий {{ $platform['name'] }}.</p>
     </section>
 
     <div class="tariff-section">
@@ -381,6 +381,14 @@
                     <div class="tariff-price">
                         {{ number_format($tariff->price, 0, ',', ' ') }} ₽<span>/мес</span>
                     </div>
+                    @if($tariff->hasYearly())
+                        <div style="margin-top: -12px; margin-bottom: 16px; font-size: 14px; line-height: 1.45; color: #666;">
+                            или {{ number_format($tariff->yearly_price, 0, ',', ' ') }} ₽ при оплате за год
+                            @if($tariff->yearlyDiscountPercent() > 0)
+                                <span style="color: #2fb344; font-weight: 600;">(−{{ $tariff->yearlyDiscountPercent() }}%)</span>
+                            @endif
+                        </div>
+                    @endif
                     <div class="tariff-specs">
                         <div><x-heroicon-m-user-group /> {{ $tariff->participants_label }}</div>
                         <div><x-heroicon-m-calendar-days /> {{ $tariff->lessons_label }}</div>
@@ -431,9 +439,14 @@
     <div class="tariff-info">
         {{-- Что такое подписка --}}
         <div class="tariff-about">
-            <h2 class="tariff-info__heading tariff-about__heading">Что такое подписка Serdal</h2>
+            <h2 class="tariff-info__heading tariff-about__heading">Что такое подписка {{ $platform['name'] }}</h2>
             <p class="p24">
-                Serdal — платформа для проведения онлайн-занятий. Подписка оформляется на 30 дней и даёт доступ
+                {{ $platform['name'] }} — платформа для проведения онлайн-занятий.
+                @if(count($periodDays) === 1)
+                    Подписка оформляется на {{ plural_ru($periodDays[0], 'день', 'дня', 'дней') }} и даёт доступ
+                @else
+                    Подписка даёт доступ
+                @endif
                 ко всем возможностям выбранного тарифа в течение оплаченного периода.
             </p>
             <div class="tariff-about__chips">
@@ -457,12 +470,12 @@
         <div class="tariff-steps">
             <div class="tariff-step">
                 <div class="tariff-step__number">1</div>
-                <p>Оплата банковской картой (МИР, Visa, Mastercard) или через СБП с помощью сервиса ЮKassa
+                <p>Оплата {{ $offer['payment_methods'] }} с помощью сервиса {{ $offer['payment_provider'] }}
                     в личном кабинете преподавателя.</p>
             </div>
             <div class="tariff-step">
                 <div class="tariff-step__number">2</div>
-                <p>Платёж обрабатывается на защищённой платёжной странице ЮKassa — данные карты
+                <p>Платёж обрабатывается на защищённой платёжной странице {{ $offer['payment_provider'] }} — данные карты
                     на нашем сервере не сохраняются.</p>
             </div>
             <div class="tariff-step">
@@ -480,10 +493,10 @@
         <div class="tariff-guarantees">
             <div class="tariff-guarantee">
                 <x-heroicon-o-arrow-uturn-left />
-                <h3>14 дней на возврат</h3>
+                <h3>{{ plural_ru($offer['refund_days'], 'день', 'дня', 'дней') }} на возврат</h3>
                 <p>Если сервис не был использован (не проведено ни одного занятия в оплаченном периоде),
-                    вы можете отказаться от подписки в течение 14 дней с момента оплаты и получить полный
-                    возврат средств.</p>
+                    вы можете отказаться от подписки в течение {{ plural_ru($offer['refund_days'], 'дня', 'дней', 'дней') }}
+                    с момента оплаты и получить полный возврат средств.</p>
             </div>
             <div class="tariff-guarantee">
                 <x-heroicon-o-shield-check />
@@ -495,12 +508,12 @@
                 <x-heroicon-o-credit-card />
                 <h3>Возврат на ту же карту</h3>
                 <p>Возврат осуществляется на ту же банковскую карту, с которой была произведена оплата,
-                    в срок до 10 рабочих дней.</p>
+                    в срок до {{ plural_ru($offer['refund_processing_days'], 'рабочего дня', 'рабочих дней', 'рабочих дней') }}.</p>
             </div>
             <div class="tariff-guarantee">
                 <x-heroicon-o-envelope />
                 <h3>Как оформить возврат</h3>
-                <p>Напишите на <a href="mailto:info@serdal.ru">info@serdal.ru</a> с указанием e-mail
+                <p>Напишите на <a href="mailto:{{ $legal['legal_email'] }}">{{ $legal['legal_email'] }}</a> с указанием e-mail
                     учётной записи и даты платежа.</p>
             </div>
         </div>

@@ -89,6 +89,7 @@ class SubscriptionService
 
     /**
      * Продлевает активную подписку на тот же тариф (после успешной оплаты).
+     * Срок продления берётся из оплаченного периода платежа (месяц или год).
      */
     public static function extend(Subscription $subscription, ?SubscriptionPayment $payment = null): Subscription
     {
@@ -97,7 +98,7 @@ class SubscriptionService
             : now();
 
         $subscription->update([
-            'ends_at' => $base->copy()->addDays($subscription->tariff->period_days),
+            'ends_at' => $base->copy()->addDays($payment?->period_days ?? $subscription->tariff->period_days),
             'status' => Subscription::STATUS_ACTIVE,
         ]);
 
@@ -130,11 +131,13 @@ class SubscriptionService
         if ($current && $current->tariff_id === $payment->tariff_id) {
             $subscription = self::extend($current, $payment);
         } else {
-            $subscription = self::activate($user, $payment->tariff, $payment);
+            $subscription = self::activate($user, $payment->tariff, $payment, days: $payment->period_days);
         }
 
         // При продлении сбрасываем флаг предупреждения, чтобы оно пришло и в новом периоде
         $subscription->update(['expiring_notified_at' => null]);
+
+        self::storeSavedPaymentMethod($payment);
 
         $user->notify(new \App\Notifications\SubscriptionPaid(
             $subscription->tariff->name,
@@ -143,6 +146,86 @@ class SubscriptionService
         ));
 
         return $subscription;
+    }
+
+    /**
+     * Если учитель попросил сохранить карту для автопродления и ЮKassa
+     * подтвердила сохранение — привязываем способ оплаты и включаем автопродление.
+     */
+    protected static function storeSavedPaymentMethod(SubscriptionPayment $payment): void
+    {
+        if (empty($payment->meta['save_method'])) {
+            return;
+        }
+
+        $method = $payment->meta['status_response']['payment_method'] ?? null;
+
+        if (($method['saved'] ?? false) && !empty($method['id'])) {
+            $payment->user->update([
+                'yookassa_payment_method_id' => $method['id'],
+                'payment_method_title' => $method['title'] ?? 'Банковская карта',
+                'auto_renew' => true,
+            ]);
+        }
+    }
+
+    /**
+     * Автопродление подписки по сохранённой карте. Вызывается планировщиком
+     * незадолго до окончания оплаченного периода.
+     * Возвращает итоговый статус платежа ЮKassa или null, если списание не выполнялось.
+     */
+    public static function attemptAutoRenewal(Subscription $subscription): ?string
+    {
+        $user = $subscription->user;
+        $tariff = $subscription->tariff;
+
+        if (!$user || !$user->auto_renew || !$user->yookassa_payment_method_id || $tariff->isFree()) {
+            return null;
+        }
+
+        // Не больше одной попытки на период: если недавно уже было автосписание
+        // (в любом статусе) — не повторяем, чтобы не задвоить платёж
+        $recentAttempt = SubscriptionPayment::where('user_id', $user->id)
+            ->where('meta->auto_renew', true)
+            ->where('created_at', '>=', now()->subDays(2))
+            ->exists();
+
+        if ($recentAttempt) {
+            return null;
+        }
+
+        // Период и сумма — как в последнем оплаченном платеже (месяц или год),
+        // цена — актуальная цена тарифа на момент списания
+        $lastPaid = SubscriptionPayment::where('user_id', $user->id)
+            ->where('tariff_id', $tariff->id)
+            ->where('status', SubscriptionPayment::STATUS_PAID)
+            ->latest('paid_at')
+            ->first();
+
+        $yearly = ($lastPaid?->period_days ?? 30) >= 365 && $tariff->hasYearly();
+
+        $payment = SubscriptionPayment::create([
+            'user_id' => $user->id,
+            'tariff_id' => $tariff->id,
+            'subscription_id' => $subscription->id,
+            'amount' => $yearly ? $tariff->yearly_price : $tariff->price,
+            'period_days' => $yearly ? 365 : $tariff->period_days,
+            'status' => SubscriptionPayment::STATUS_PENDING,
+            'gateway' => 'yookassa',
+            'meta' => ['auto_renew' => true],
+        ]);
+
+        $status = YooKassaService::createRecurringPayment($payment, $user->yookassa_payment_method_id);
+
+        if ($status === 'succeeded') {
+            self::applyPaidPayment($payment);
+        } elseif ($status === 'canceled') {
+            $payment->update(['status' => SubscriptionPayment::STATUS_FAILED]);
+            $user->notify(new \App\Notifications\SubscriptionAutoRenewFailed($tariff->name));
+        }
+        // pending / waiting_for_capture — дообработает вебхук ЮKassa
+
+        return $status;
     }
 
     /**
@@ -218,12 +301,14 @@ class SubscriptionService
     {
         $subscription = $user->activeSubscription();
 
-        $from = $subscription && $subscription->ends_at
-            // начало текущего оплаченного периода
-            ? $subscription->ends_at->copy()->subDays($subscription->tariff->period_days)
-            : now()->startOfMonth();
+        $from = now()->startOfMonth();
 
-        if ($subscription && $subscription->starts_at->gt($from)) {
+        if ($subscription && $subscription->ends_at) {
+            // Лимит занятий — месячный. Для оплаченных подписок (в том числе
+            // годовых) окно считаем 30-дневными циклами от даты начала подписки.
+            $cycle = intdiv((int) $subscription->starts_at->diffInDays(now()), 30);
+            $from = $subscription->starts_at->copy()->addDays($cycle * 30);
+        } elseif ($subscription && $subscription->starts_at->gt($from)) {
             $from = $subscription->starts_at;
         }
 

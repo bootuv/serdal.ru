@@ -39,43 +39,69 @@ class YooKassaService
     }
 
     /**
-     * Создаёт платёж в ЮKassa и возвращает URL платёжной страницы.
-     * Записывает id платежа ЮKassa в gateway_order_id.
+     * Данные для чека 54-ФЗ (используются, если в ЮKassa включена фискализация).
      */
-    public static function createPayment(SubscriptionPayment $payment, string $returnUrl): string
+    protected static function receiptFor(SubscriptionPayment $payment, string $description, array $amount): array
     {
-        $description = 'Подписка «' . $payment->tariff->name . '» на serdal.ru';
-        $amount = [
+        return [
+            'customer' => ['email' => $payment->user->email],
+            'items' => [[
+                'description' => $description,
+                'quantity' => '1.00',
+                'amount' => $amount,
+                'vat_code' => 1, // без НДС
+                'payment_subject' => 'service',
+                'payment_mode' => 'full_payment',
+            ]],
+        ];
+    }
+
+    protected static function descriptionFor(SubscriptionPayment $payment): string
+    {
+        $period = $payment->period_days >= 365 ? ' (год)' : '';
+
+        return 'Подписка «' . $payment->tariff->name . '»' . $period . ' на serdal.ru';
+    }
+
+    protected static function amountFor(SubscriptionPayment $payment): array
+    {
+        return [
             'value' => number_format($payment->amount, 2, '.', ''),
             'currency' => 'RUB',
         ];
+    }
+
+    /**
+     * Создаёт платёж в ЮKassa и возвращает URL платёжной страницы.
+     * Записывает id платежа ЮKassa в gateway_order_id.
+     * $savePaymentMethod — сохранить карту для последующих автосписаний.
+     */
+    public static function createPayment(SubscriptionPayment $payment, string $returnUrl, bool $savePaymentMethod = false): string
+    {
+        $description = self::descriptionFor($payment);
+        $amount = self::amountFor($payment);
+
+        $body = [
+            'amount' => $amount,
+            'capture' => true,
+            'confirmation' => [
+                'type' => 'redirect',
+                'return_url' => $returnUrl,
+            ],
+            'description' => $description,
+            'metadata' => [
+                'payment_id' => $payment->id,
+            ],
+            'receipt' => self::receiptFor($payment, $description, $amount),
+        ];
+
+        if ($savePaymentMethod) {
+            $body['save_payment_method'] = true;
+        }
 
         $response = self::request()
             ->withHeaders(['Idempotence-Key' => (string) Str::uuid()])
-            ->post(self::API_URL . 'payments', [
-                'amount' => $amount,
-                'capture' => true,
-                'confirmation' => [
-                    'type' => 'redirect',
-                    'return_url' => $returnUrl,
-                ],
-                'description' => $description,
-                'metadata' => [
-                    'payment_id' => $payment->id,
-                ],
-                // Данные для чека (54-ФЗ); используются, если в ЮKassa включена фискализация
-                'receipt' => [
-                    'customer' => ['email' => $payment->user->email],
-                    'items' => [[
-                        'description' => $description,
-                        'quantity' => '1.00',
-                        'amount' => $amount,
-                        'vat_code' => 1, // без НДС
-                        'payment_subject' => 'service',
-                        'payment_mode' => 'full_payment',
-                    ]],
-                ],
-            ]);
+            ->post(self::API_URL . 'payments', $body);
 
         $data = $response->json();
 
@@ -91,6 +117,86 @@ class YooKassaService
         ]);
 
         return $data['confirmation']['confirmation_url'];
+    }
+
+    /**
+     * Автосписание по сохранённому способу оплаты (без участия пользователя).
+     * Возвращает статус платежа ЮKassa: succeeded | pending | canceled.
+     */
+    public static function createRecurringPayment(SubscriptionPayment $payment, string $paymentMethodId): string
+    {
+        $description = self::descriptionFor($payment);
+        $amount = self::amountFor($payment);
+
+        $response = self::request()
+            ->withHeaders(['Idempotence-Key' => (string) Str::uuid()])
+            ->post(self::API_URL . 'payments', [
+                'amount' => $amount,
+                'capture' => true,
+                'payment_method_id' => $paymentMethodId,
+                'description' => $description . ' — автопродление',
+                'metadata' => [
+                    'payment_id' => $payment->id,
+                ],
+                'receipt' => self::receiptFor($payment, $description, $amount),
+            ]);
+
+        $data = $response->json();
+
+        if (!$response->successful() || empty($data['id'])) {
+            Log::error('[YooKassa] recurring payment failed', ['payment_id' => $payment->id, 'response' => $data]);
+
+            $payment->update(['meta' => array_merge($payment->meta ?? [], ['create_response' => $data])]);
+
+            return 'canceled';
+        }
+
+        $payment->update([
+            'gateway_order_id' => $data['id'],
+            'meta' => array_merge($payment->meta ?? [], ['create_response' => $data, 'status_response' => $data]),
+        ]);
+
+        return $data['status'] ?? 'pending';
+    }
+
+    /**
+     * Возврат платежа (полный или частичный) на карту плательщика.
+     * Возвращает true при успешном возврате.
+     */
+    public static function refundPayment(SubscriptionPayment $payment, ?int $amountRub = null): bool
+    {
+        if (!$payment->gateway_order_id) {
+            return false;
+        }
+
+        $description = self::descriptionFor($payment);
+        $amount = [
+            'value' => number_format($amountRub ?? $payment->amount, 2, '.', ''),
+            'currency' => 'RUB',
+        ];
+
+        $response = self::request()
+            ->withHeaders(['Idempotence-Key' => (string) Str::uuid()])
+            ->post(self::API_URL . 'refunds', [
+                'payment_id' => $payment->gateway_order_id,
+                'amount' => $amount,
+                'description' => 'Возврат: ' . $description,
+                'receipt' => self::receiptFor($payment, $description, $amount),
+            ]);
+
+        $data = $response->json();
+
+        $payment->update([
+            'meta' => array_merge($payment->meta ?? [], ['refund_response' => $data]),
+        ]);
+
+        if (!$response->successful() || !in_array($data['status'] ?? '', ['succeeded', 'pending'])) {
+            Log::error('[YooKassa] refund failed', ['payment_id' => $payment->id, 'response' => $data]);
+
+            return false;
+        }
+
+        return true;
     }
 
     /**

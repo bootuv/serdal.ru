@@ -34,6 +34,16 @@ class ManageSubscription extends Page
 
     protected static string $view = 'filament.app.pages.manage-subscription';
 
+    /**
+     * Период оплаты, выбранный переключателем «Помесячно / На год»: month | year.
+     */
+    public string $billingPeriod = 'month';
+
+    /**
+     * За сколько дней до окончания подписки показывать кнопку «Продлить».
+     */
+    const RENEW_WINDOW_DAYS = 14;
+
     public function mount(): void
     {
         // Сообщения после возврата с платёжной страницы банка
@@ -73,9 +83,15 @@ class ManageSubscription extends Page
             'scheduled' => $user->scheduledSubscription(),
             'expired' => $expired,
             'primaryTariffId' => $primaryTariffId,
+            // «Продлить» показываем незадолго до окончания, а не сразу после оплаты
+            'showRenew' => $subscription && !$subscription->tariff->isFree() && $subscription->ends_at
+                && now()->diffInDays($subscription->ends_at, false) <= self::RENEW_WINDOW_DAYS,
+            'hasYearly' => $tariffs->contains(fn(Tariff $t) => $t->hasYearly()),
             'tariffs' => $tariffs,
             'lessonsUsed' => SubscriptionService::lessonsUsedThisPeriod($user),
             'payments' => SubscriptionPayment::where('user_id', $user->id)
+                // Неудавшиеся попытки не показываем — они остаются в админке для сверки
+                ->where('status', '!=', SubscriptionPayment::STATUS_FAILED)
                 ->with('tariff')
                 ->latest()
                 ->take(20)
@@ -110,9 +126,13 @@ class ManageSubscription extends Page
             ->modalDescription(function (array $arguments) {
                 $tariff = Tariff::find($arguments['tariff'] ?? null);
                 $current = auth()->user()->activeSubscription();
+                $yearly = $this->billingPeriod === 'year' && $tariff?->hasYearly();
+                $periodText = $yearly
+                    ? ' на год (' . number_format($tariff->yearly_price, 0, ',', ' ') . ' ₽)'
+                    : '';
 
                 if (!empty($arguments['renew'])) {
-                    return 'Продлить тариф «' . $tariff?->name . '» и перейти к оплате?';
+                    return 'Продлить тариф «' . $tariff?->name . '»' . $periodText . ' и перейти к оплате?';
                 }
 
                 // Даунгрейд на бесплатный тариф при действующем оплаченном периоде —
@@ -124,18 +144,74 @@ class ManageSubscription extends Page
                 }
 
                 return 'Переключиться на тариф «' . $tariff?->name . '»'
-                    . ($tariff?->isFree() ? '' : ' и перейти к оплате') . '?';
+                    . ($tariff?->isFree() ? '' : $periodText . ' и перейти к оплате') . '?';
             })
             ->modalSubmitActionLabel('Переключиться')
             ->modalCancelActionLabel('Отмена')
-            ->action(fn(array $arguments) => $this->selectTariff((int) $arguments['tariff']));
+            ->form(function (array $arguments) {
+                $tariff = Tariff::find($arguments['tariff'] ?? null);
+
+                // Сохранение карты предлагаем при оплате, если карта ещё не привязана
+                if (!$tariff || $tariff->isFree() || auth()->user()->yookassa_payment_method_id || !YooKassaService::isConfigured()) {
+                    return [];
+                }
+
+                return [
+                    \Filament\Forms\Components\Checkbox::make('save_method')
+                        ->label('Сохранить карту и включить автопродление')
+                        ->helperText('Подписка будет продлеваться автоматически в конце оплаченного периода. Отключить можно в любой момент на этой странице.'),
+                ];
+            })
+            ->action(fn(array $arguments, array $data) => $this->selectTariff(
+                (int) $arguments['tariff'],
+                (bool) ($data['save_method'] ?? false),
+            ));
+    }
+
+    /**
+     * Включает/выключает автопродление по сохранённой карте.
+     */
+    public function toggleAutoRenew(): void
+    {
+        $user = auth()->user();
+
+        if (!$user->yookassa_payment_method_id) {
+            Notification::make()
+                ->title('Сначала привяжите карту')
+                ->body('Отметьте «Сохранить карту» при следующей оплате — после неё автопродление можно будет включить.')
+                ->info()
+                ->send();
+            return;
+        }
+
+        $user->update(['auto_renew' => !$user->auto_renew]);
+
+        Notification::make()
+            ->title($user->auto_renew ? 'Автопродление включено' : 'Автопродление выключено')
+            ->success()
+            ->send();
+    }
+
+    /**
+     * Отвязывает сохранённую карту и выключает автопродление.
+     */
+    public function removePaymentMethod(): void
+    {
+        auth()->user()->update([
+            'yookassa_payment_method_id' => null,
+            'payment_method_title' => null,
+            'auto_renew' => false,
+        ]);
+
+        Notification::make()->title('Карта отвязана, автопродление выключено')->success()->send();
     }
 
     /**
      * Выбор тарифа: бесплатный активируется сразу,
      * платный — создаёт платёж и уводит на платёжную страницу банка.
+     * $saveMethod — сохранить карту для автопродления.
      */
-    public function selectTariff(int $tariffId)
+    public function selectTariff(int $tariffId, bool $saveMethod = false)
     {
         $user = auth()->user();
         $tariff = Tariff::active()->findOrFail($tariffId);
@@ -182,18 +258,23 @@ class ManageSubscription extends Page
             return null;
         }
 
+        $yearly = $this->billingPeriod === 'year' && $tariff->hasYearly();
+
         $payment = SubscriptionPayment::create([
             'user_id' => $user->id,
             'tariff_id' => $tariff->id,
-            'amount' => $tariff->price,
+            'amount' => $yearly ? $tariff->yearly_price : $tariff->price,
+            'period_days' => $yearly ? 365 : $tariff->period_days,
             'status' => SubscriptionPayment::STATUS_PENDING,
             'gateway' => 'yookassa',
+            'meta' => $saveMethod ? ['save_method' => true] : null,
         ]);
 
         try {
             $url = YooKassaService::createPayment(
                 $payment,
                 route('subscription.payment.return', $payment),
+                savePaymentMethod: $saveMethod,
             );
         } catch (\Throwable $e) {
             $payment->update(['status' => SubscriptionPayment::STATUS_FAILED]);
