@@ -288,7 +288,7 @@ class SubscriptionTariffsTest extends TestCase
             'tariff_id' => $basic->id,
             'amount' => $basic->price,
             'status' => \App\Models\SubscriptionPayment::STATUS_PAID,
-            'gateway' => 'alfabank',
+            'gateway' => 'yookassa',
             'paid_at' => now(),
         ]);
         $pending = \App\Models\SubscriptionPayment::create([
@@ -296,7 +296,7 @@ class SubscriptionTariffsTest extends TestCase
             'tariff_id' => $basic->id,
             'amount' => $basic->price,
             'status' => \App\Models\SubscriptionPayment::STATUS_PENDING,
-            'gateway' => 'alfabank',
+            'gateway' => 'yookassa',
         ]);
 
         // Страница истории платежей
@@ -561,6 +561,61 @@ class SubscriptionTariffsTest extends TestCase
         SubscriptionService::applyPaidPayment($payment);
 
         \Illuminate\Support\Facades\Notification::assertSentTo($tutor, \App\Notifications\SubscriptionPaid::class);
+        $this->assertEquals($basic->id, $tutor->fresh()->activeSubscription()->tariff_id);
+    }
+
+    public function test_payment_return_confirms_status_via_yookassa_api(): void
+    {
+        \Illuminate\Support\Facades\Notification::fake();
+        \Illuminate\Support\Facades\Http::fake([
+            'api.yookassa.ru/*' => \Illuminate\Support\Facades\Http::response(['id' => 'yk-test-1', 'status' => 'succeeded']),
+        ]);
+
+        $tutor = $this->makeTutor();
+        $basic = Tariff::where('slug', 'basic')->first();
+
+        $payment = \App\Models\SubscriptionPayment::create([
+            'user_id' => $tutor->id,
+            'tariff_id' => $basic->id,
+            'amount' => $basic->price,
+            'status' => \App\Models\SubscriptionPayment::STATUS_PENDING,
+            'gateway' => 'yookassa',
+            'gateway_order_id' => 'yk-test-1',
+        ]);
+
+        $this->actingAs($tutor)
+            ->get(route('subscription.payment.return', $payment))
+            ->assertRedirect(route('filament.app.pages.subscription'));
+
+        $this->assertEquals(\App\Models\SubscriptionPayment::STATUS_PAID, $payment->fresh()->status);
+        $this->assertEquals($basic->id, $tutor->fresh()->activeSubscription()->tariff_id);
+    }
+
+    public function test_yookassa_webhook_activates_subscription(): void
+    {
+        \Illuminate\Support\Facades\Notification::fake();
+        \Illuminate\Support\Facades\Http::fake([
+            'api.yookassa.ru/*' => \Illuminate\Support\Facades\Http::response(['id' => 'yk-test-2', 'status' => 'succeeded']),
+        ]);
+
+        $tutor = $this->makeTutor();
+        $basic = Tariff::where('slug', 'basic')->first();
+
+        $payment = \App\Models\SubscriptionPayment::create([
+            'user_id' => $tutor->id,
+            'tariff_id' => $basic->id,
+            'amount' => $basic->price,
+            'status' => \App\Models\SubscriptionPayment::STATUS_PENDING,
+            'gateway' => 'yookassa',
+            'gateway_order_id' => 'yk-test-2',
+        ]);
+
+        $this->postJson('/payments/yookassa/callback', [
+            'event' => 'payment.succeeded',
+            'object' => ['id' => 'yk-test-2', 'status' => 'succeeded'],
+        ])->assertOk();
+
+        $this->assertEquals(\App\Models\SubscriptionPayment::STATUS_PAID, $payment->fresh()->status);
         $this->assertEquals($basic->id, $tutor->fresh()->activeSubscription()->tariff_id);
     }
 

@@ -15,8 +15,8 @@ return new class extends Migration
             $table->foreignId('subscription_id')->nullable()->constrained()->nullOnDelete();
             $table->unsignedInteger('amount'); // ₽
             $table->string('status')->default('pending'); // pending | paid | failed | refunded
-            $table->string('gateway')->default('alfabank');
-            $table->string('gateway_order_id')->nullable()->index(); // orderId из Альфа-Банка
+            $table->string('gateway')->default('yookassa');
+            $table->string('gateway_order_id')->nullable()->index(); // id платежа в ЮKassa
             $table->string('payment_url', 1024)->nullable();
             $table->timestamp('paid_at')->nullable();
             $table->json('meta')->nullable();

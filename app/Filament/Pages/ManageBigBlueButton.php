@@ -63,10 +63,8 @@ class ManageBigBlueButton extends Page implements HasForms
             'legal_address' => Setting::where('key', 'legal_address')->value('value'),
             'legal_email' => Setting::where('key', 'legal_email')->value('value') ?? 'info@serdal.ru',
             'legal_phone' => Setting::where('key', 'legal_phone')->value('value'),
-            'alfabank_username' => Setting::where('key', 'alfabank_username')->value('value'),
-            'alfabank_password' => Setting::where('key', 'alfabank_password')->value('value'),
-            'alfabank_gateway_url' => Setting::where('key', 'alfabank_gateway_url')->value('value'),
-            'alfabank_test_mode' => Setting::where('key', 'alfabank_test_mode')->value('value') === '1',
+            'yookassa_shop_id' => Setting::where('key', 'yookassa_shop_id')->value('value'),
+            'yookassa_secret_key' => Setting::where('key', 'yookassa_secret_key')->value('value'),
         ]);
     }
 
@@ -201,26 +199,17 @@ class ManageBigBlueButton extends Page implements HasForms
                             ]),
                         Tabs\Tab::make('Эквайринг')
                             ->schema([
-                                Section::make('Интернет-эквайринг Альфа-Банка')
-                                    ->description('Учётные данные API платёжного шлюза. Выдаются банком после одобрения заявки на подключение.')
+                                Section::make('ЮKassa')
+                                    ->description('Ключи из личного кабинета ЮKassa: Интеграция → Ключи API. Для тестовых платежей укажите shopId и ключ тестового магазина. Там же настройте HTTP-уведомления (payment.succeeded и payment.canceled) на адрес /payments/yookassa/callback.')
                                     ->schema([
-                                        TextInput::make('alfabank_username')
-                                            ->label('Логин API (userName)')
+                                        TextInput::make('yookassa_shop_id')
+                                            ->label('shopId (идентификатор магазина)')
                                             ->maxLength(255),
-                                        TextInput::make('alfabank_password')
-                                            ->label('Пароль API')
+                                        TextInput::make('yookassa_secret_key')
+                                            ->label('Секретный ключ')
                                             ->password()
                                             ->revealable()
                                             ->maxLength(255),
-                                        TextInput::make('alfabank_gateway_url')
-                                            ->label('URL шлюза (необязательно)')
-                                            ->placeholder('https://pay.alfabank.ru/payment/rest/')
-                                            ->helperText('Пусто = стандартный адрес: боевой или тестовый в зависимости от переключателя ниже.')
-                                            ->url()
-                                            ->maxLength(255),
-                                        \Filament\Forms\Components\Toggle::make('alfabank_test_mode')
-                                            ->label('Тестовый режим')
-                                            ->helperText('Платежи идут через тестовый контур банка (alfa.rbsuat.com), деньги не списываются.'),
                                     ]),
                             ]),
                     ])
@@ -270,11 +259,9 @@ class ManageBigBlueButton extends Page implements HasForms
             Setting::updateOrCreate(['key' => $key], ['value' => $data[$key] ?? '']);
         }
 
-        // Acquiring (Alfa-Bank)
-        Setting::updateOrCreate(['key' => 'alfabank_username'], ['value' => $data['alfabank_username'] ?? '']);
-        Setting::updateOrCreate(['key' => 'alfabank_password'], ['value' => $data['alfabank_password'] ?? '']);
-        Setting::updateOrCreate(['key' => 'alfabank_gateway_url'], ['value' => $data['alfabank_gateway_url'] ?? '']);
-        Setting::updateOrCreate(['key' => 'alfabank_test_mode'], ['value' => !empty($data['alfabank_test_mode']) ? '1' : '0']);
+        // Acquiring (YooKassa)
+        Setting::updateOrCreate(['key' => 'yookassa_shop_id'], ['value' => $data['yookassa_shop_id'] ?? '']);
+        Setting::updateOrCreate(['key' => 'yookassa_secret_key'], ['value' => $data['yookassa_secret_key'] ?? '']);
 
         Notification::make()
             ->title('Настройки сохранены')

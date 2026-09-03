@@ -57,7 +57,7 @@ class SubscriptionPaymentResource extends Resource
                         default => 'gray',
                     }),
                 Tables\Columns\TextColumn::make('gateway_order_id')
-                    ->label('ID заказа в банке')
+                    ->label('ID платежа в ЮKassa')
                     ->searchable()
                     ->copyable()
                     ->placeholder('—'),
@@ -80,12 +80,12 @@ class SubscriptionPaymentResource extends Resource
                     ->options(Tariff::orderBy('sort')->pluck('name', 'id')),
             ])
             ->actions([
-                // Ручное подтверждение — на случай, если оплата прошла, а колбэк банка не дошёл
+                // Ручное подтверждение — на случай, если оплата прошла, а уведомление ЮKassa не дошло
                 Tables\Actions\Action::make('markPaid')
                     ->label('Подтвердить оплату')
                     ->icon('heroicon-o-check')
                     ->requiresConfirmation()
-                    ->modalDescription('Подписка будет активирована/продлена, как при успешной оплате. Используйте, только если оплата подтверждена в личном кабинете банка.')
+                    ->modalDescription('Подписка будет активирована/продлена, как при успешной оплате. Используйте, только если оплата подтверждена в личном кабинете ЮKassa.')
                     ->visible(fn(SubscriptionPayment $record) => $record->status === SubscriptionPayment::STATUS_PENDING)
                     ->action(function (SubscriptionPayment $record) {
                         SubscriptionService::applyPaidPayment($record);
@@ -96,7 +96,7 @@ class SubscriptionPaymentResource extends Resource
                     ->icon('heroicon-o-arrow-uturn-left')
                     ->color('gray')
                     ->requiresConfirmation()
-                    ->modalDescription('Отметка в системе учёта. Сам возврат средств выполняется в личном кабинете банка.')
+                    ->modalDescription('Отметка в системе учёта. Сам возврат средств выполняется в личном кабинете ЮKassa.')
                     ->visible(fn(SubscriptionPayment $record) => $record->status === SubscriptionPayment::STATUS_PAID)
                     ->action(function (SubscriptionPayment $record) {
                         $record->update(['status' => SubscriptionPayment::STATUS_REFUNDED]);

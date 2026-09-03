@@ -457,12 +457,12 @@
         <div class="tariff-steps">
             <div class="tariff-step">
                 <div class="tariff-step__number">1</div>
-                <p>Оплата банковской картой (МИР, Visa, Mastercard) через интернет-эквайринг Альфа-Банка
+                <p>Оплата банковской картой (МИР, Visa, Mastercard) или через СБП с помощью сервиса ЮKassa
                     в личном кабинете преподавателя.</p>
             </div>
             <div class="tariff-step">
                 <div class="tariff-step__number">2</div>
-                <p>Платёж обрабатывается на защищённой платёжной странице банка — данные карты
+                <p>Платёж обрабатывается на защищённой платёжной странице ЮKassa — данные карты
                     на нашем сервере не сохраняются.</p>
             </div>
             <div class="tariff-step">

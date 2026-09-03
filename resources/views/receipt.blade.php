@@ -157,7 +157,7 @@
             </tr>
             <tr>
                 <td>Способ оплаты</td>
-                <td>Банковская карта{{ $payment->gateway === 'alfabank' ? ' (интернет-эквайринг Альфа-Банка)' : '' }}</td>
+                <td>Банковская карта{{ $payment->gateway === 'yookassa' ? ' (платёжный сервис ЮKassa)' : '' }}</td>
             </tr>
             @if($payment->gateway_order_id)
                 <tr>

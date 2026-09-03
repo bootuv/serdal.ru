@@ -4,7 +4,7 @@ namespace App\Filament\App\Pages;
 
 use App\Models\SubscriptionPayment;
 use App\Models\Tariff;
-use App\Services\AlfaBankService;
+use App\Services\YooKassaService;
 use App\Services\SubscriptionService;
 use Filament\Actions\Action;
 use Filament\Notifications\Notification;
@@ -172,7 +172,7 @@ class ManageSubscription extends Page
             return null;
         }
 
-        if (!AlfaBankService::isConfigured()) {
+        if (!YooKassaService::isConfigured()) {
             Notification::make()
                 ->title('Онлайн-оплата подключается')
                 ->body('Пока платные тарифы можно оформить через поддержку: info@serdal.ru — мы подключим тариф вручную.')
@@ -187,13 +187,12 @@ class ManageSubscription extends Page
             'tariff_id' => $tariff->id,
             'amount' => $tariff->price,
             'status' => SubscriptionPayment::STATUS_PENDING,
-            'gateway' => 'alfabank',
+            'gateway' => 'yookassa',
         ]);
 
         try {
-            $url = AlfaBankService::registerOrder(
+            $url = YooKassaService::createPayment(
                 $payment,
-                route('subscription.payment.return', $payment),
                 route('subscription.payment.return', $payment),
             );
         } catch (\Throwable $e) {

@@ -24,10 +24,10 @@ Route::get('/terms', [PageController::class, 'termsPage'])->name('terms');
 Route::get('/tariffs', [PageController::class, 'tariffsPage'])->name('tariffs');
 Route::get('/offer', [PageController::class, 'offerPage'])->name('offer');
 
-// Интернет-эквайринг Альфа-Банка: возврат с платёжной страницы и серверный колбэк
+// Интернет-эквайринг ЮKassa: возврат с платёжной страницы и серверное уведомление
 Route::get('/subscription/payment/{payment}/return', [\App\Http\Controllers\SubscriptionPaymentController::class, 'return'])
     ->name('subscription.payment.return');
-Route::match(['get', 'post'], '/payments/alfabank/callback', [\App\Http\Controllers\SubscriptionPaymentController::class, 'callback'])
+Route::post('/payments/yookassa/callback', [\App\Http\Controllers\SubscriptionPaymentController::class, 'callback'])
     ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class])
     ->name('subscription.payment.callback');
 

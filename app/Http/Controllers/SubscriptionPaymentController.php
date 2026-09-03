@@ -3,45 +3,48 @@
 namespace App\Http\Controllers;
 
 use App\Models\SubscriptionPayment;
-use App\Services\AlfaBankService;
 use App\Services\SubscriptionService;
+use App\Services\YooKassaService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 class SubscriptionPaymentController extends Controller
 {
     /**
-     * Возврат пользователя с платёжной страницы банка (returnUrl/failUrl).
-     * Статус платежа всегда перепроверяется запросом к шлюзу — параметрам URL не доверяем.
+     * Возврат пользователя с платёжной страницы ЮKassa (return_url).
+     * Статус платежа всегда перепроверяется запросом к API — параметрам URL не доверяем.
      */
     public function return(SubscriptionPayment $payment)
     {
-        $this->syncStatus($payment);
+        $status = $this->syncStatus($payment);
 
-        session()->flash('subscription_message', $payment->status === SubscriptionPayment::STATUS_PAID
-            ? ['type' => 'success', 'title' => 'Оплата прошла успешно — подписка активирована!']
-            : ['type' => 'danger', 'title' => 'Оплата не завершена. Если деньги списались — напишите в поддержку.']);
+        session()->flash('subscription_message', match ($status) {
+            SubscriptionPayment::STATUS_PAID => ['type' => 'success', 'title' => 'Оплата прошла успешно — подписка активирована!'],
+            SubscriptionPayment::STATUS_PENDING => ['type' => 'warning', 'title' => 'Платёж ещё обрабатывается. Подписка активируется автоматически после подтверждения оплаты.'],
+            default => ['type' => 'danger', 'title' => 'Оплата не завершена. Если деньги списались — напишите в поддержку.'],
+        });
 
         return redirect()->route('filament.app.pages.subscription');
     }
 
     /**
-     * Серверный колбэк-уведомление от банка (настраивается в личном кабинете эквайринга).
-     * Работает и без него: статус проверяется при возврате пользователя.
+     * Серверное уведомление от ЮKassa (настраивается в личном кабинете:
+     * Интеграция → HTTP-уведомления, события payment.succeeded и payment.canceled).
+     * Содержимому уведомления не доверяем — статус перепроверяется запросом к API.
      */
     public function callback(Request $request)
     {
-        $orderId = $request->input('mdOrder') ?? $request->input('orderId');
+        $paymentId = $request->input('object.id');
 
-        if (!$orderId) {
-            return response()->json(['error' => 'orderId is required'], 422);
+        if (!$paymentId) {
+            return response()->json(['error' => 'object.id is required'], 422);
         }
 
-        $payment = SubscriptionPayment::where('gateway_order_id', $orderId)->first();
+        $payment = SubscriptionPayment::where('gateway_order_id', $paymentId)->first();
 
         if (!$payment) {
-            Log::warning('[AlfaBank] callback for unknown order', ['orderId' => $orderId]);
-            return response()->json(['error' => 'unknown order'], 404);
+            Log::warning('[YooKassa] callback for unknown payment', ['yookassa_id' => $paymentId]);
+            return response()->json(['error' => 'unknown payment'], 404);
         }
 
         $this->syncStatus($payment);
@@ -50,18 +53,30 @@ class SubscriptionPaymentController extends Controller
     }
 
     /**
-     * Сверяет статус ожидающего платежа со шлюзом и активирует подписку при оплате.
+     * Сверяет статус ожидающего платежа с ЮKassa; при успехе активирует подписку.
+     * Возвращает итоговый статус платежа в наших терминах.
      */
-    protected function syncStatus(SubscriptionPayment $payment): void
+    protected function syncStatus(SubscriptionPayment $payment): string
     {
         if ($payment->status !== SubscriptionPayment::STATUS_PENDING) {
-            return; // уже обработан
+            return $payment->status; // уже обработан
         }
 
-        if (AlfaBankService::isOrderPaid($payment)) {
+        $status = YooKassaService::fetchStatus($payment);
+
+        if ($status === 'succeeded') {
             SubscriptionService::applyPaidPayment($payment);
-        } else {
-            $payment->update(['status' => SubscriptionPayment::STATUS_FAILED]);
+
+            return SubscriptionPayment::STATUS_PAID;
         }
+
+        if ($status === 'canceled') {
+            $payment->update(['status' => SubscriptionPayment::STATUS_FAILED]);
+
+            return SubscriptionPayment::STATUS_FAILED;
+        }
+
+        // pending / waiting_for_capture / ошибка запроса — ждём уведомление от ЮKassa
+        return SubscriptionPayment::STATUS_PENDING;
     }
 }
