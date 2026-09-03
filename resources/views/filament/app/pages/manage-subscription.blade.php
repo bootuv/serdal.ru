@@ -286,6 +286,16 @@
                             <p class="text-sm text-gray-500 dark:text-gray-400">
                                 {{ $payment->created_at->format('d.m.Y H:i') }}
                             </p>
+                            @if($payment->status === \App\Models\SubscriptionPayment::STATUS_REFUNDED)
+                                <p class="mt-1 text-xs text-blue-600 dark:text-blue-400">
+                                    @if(!empty($payment->meta['card_binding']))
+                                        Проверочный 1 ₽ возвращён на карту.
+                                    @else
+                                        Возврат оформлен {{ !empty($payment->meta['refunded_at']) ? \Illuminate\Support\Carbon::parse($payment->meta['refunded_at'])->format('d.m.Y') : $payment->updated_at->format('d.m.Y') }}.
+                                        Средства вернутся на карту, с которой была оплата, в течение {{ $refundProcessingDays }} рабочих дней.
+                                    @endif
+                                </p>
+                            @endif
                         </div>
                         <div class="flex shrink-0 items-center gap-2">
                             @switch($payment->status)
@@ -319,7 +329,7 @@
                                     @break
 
                                 @case(\App\Models\SubscriptionPayment::STATUS_REFUNDED)
-                                    <x-filament::badge color="gray">Возврат</x-filament::badge>
+                                    <x-filament::badge color="info">Возврат оформлен</x-filament::badge>
                                     @break
 
                                 @default

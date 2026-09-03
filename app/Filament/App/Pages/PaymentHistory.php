@@ -59,14 +59,30 @@ class PaymentHistory extends Page implements HasTable
                     ->formatStateUsing(fn(string $state) => match ($state) {
                         SubscriptionPayment::STATUS_PAID => 'Оплачен',
                         SubscriptionPayment::STATUS_PENDING => 'Ожидает оплаты',
-                        SubscriptionPayment::STATUS_REFUNDED => 'Возврат',
+                        SubscriptionPayment::STATUS_REFUNDED => 'Возврат оформлен',
                         default => 'Не прошёл',
                     })
                     ->color(fn(string $state) => match ($state) {
                         SubscriptionPayment::STATUS_PAID => 'success',
                         SubscriptionPayment::STATUS_PENDING => 'warning',
-                        SubscriptionPayment::STATUS_REFUNDED => 'gray',
+                        SubscriptionPayment::STATUS_REFUNDED => 'info',
                         default => 'danger',
+                    })
+                    ->tooltip(function (SubscriptionPayment $record) {
+                        if ($record->status !== SubscriptionPayment::STATUS_REFUNDED) {
+                            return null;
+                        }
+
+                        if (!empty($record->meta['card_binding'])) {
+                            return 'Проверочный 1 ₽ возвращён на карту.';
+                        }
+
+                        $date = !empty($record->meta['refunded_at'])
+                            ? \Illuminate\Support\Carbon::parse($record->meta['refunded_at'])->format('d.m.Y')
+                            : $record->updated_at->format('d.m.Y');
+                        $days = \App\Support\OfferSettings::offer()['refund_processing_days'];
+
+                        return "Возврат оформлен {$date}. Средства вернутся на карту, с которой была оплата, в течение {$days} рабочих дней.";
                     }),
             ])
             ->actions([

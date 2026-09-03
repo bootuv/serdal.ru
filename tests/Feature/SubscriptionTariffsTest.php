@@ -472,6 +472,44 @@ class SubscriptionTariffsTest extends TestCase
             ->assertSee('https://yoomoney.ru/checkout/payments/v2/contract?orderId=test');
     }
 
+    public function test_admin_refund_notifies_teacher_and_shows_in_history(): void
+    {
+        \Illuminate\Support\Facades\Notification::fake();
+        \Illuminate\Support\Facades\Http::fake([
+            'api.yookassa.ru/v3/refunds' => \Illuminate\Support\Facades\Http::response(['id' => 'r-2', 'status' => 'succeeded']),
+        ]);
+
+        $admin = $this->makeAdmin();
+        $tutor = $this->makeTutor();
+        $basic = Tariff::where('slug', 'basic')->first();
+
+        $payment = \App\Models\SubscriptionPayment::create([
+            'user_id' => $tutor->id,
+            'tariff_id' => $basic->id,
+            'amount' => $basic->price,
+            'status' => \App\Models\SubscriptionPayment::STATUS_PAID,
+            'gateway' => 'yookassa',
+            'gateway_order_id' => 'yk-refund-2',
+            'paid_at' => now(),
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(\App\Filament\Resources\SubscriptionPaymentResource\Pages\ListSubscriptionPayments::class)
+            ->callTableAction('refund', $payment);
+
+        $payment = $payment->fresh();
+        $this->assertEquals(\App\Models\SubscriptionPayment::STATUS_REFUNDED, $payment->status);
+        $this->assertNotEmpty($payment->meta['refunded_at']);
+
+        \Illuminate\Support\Facades\Notification::assertSentTo($tutor, \App\Notifications\SubscriptionRefunded::class);
+
+        // Учитель видит информацию о возврате в истории платежей
+        $this->actingAs($tutor)->get('/tutor/subscription')
+            ->assertOk()
+            ->assertSee('Возврат оформлен')
+            ->assertSee('рабочих дней');
+    }
+
     public function test_paid_subscription_is_not_complimentary(): void
     {
         $tutor = $this->makeTutor();

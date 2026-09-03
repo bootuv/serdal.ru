@@ -200,6 +200,10 @@ class YooKassaService
             return false;
         }
 
+        $payment->update([
+            'meta' => array_merge($payment->fresh()->meta ?? [], ['refunded_at' => now()->toIso8601String()]),
+        ]);
+
         return true;
     }
 

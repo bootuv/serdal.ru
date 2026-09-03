@@ -86,6 +86,7 @@ class ManageSubscription extends Page
             // «Продлить» показываем незадолго до окончания, а не сразу после оплаты
             'showRenew' => $subscription && !$subscription->tariff->isFree() && $subscription->ends_at
                 && now()->diffInDays($subscription->ends_at, false) <= self::RENEW_WINDOW_DAYS,
+            'refundProcessingDays' => \App\Support\OfferSettings::offer()['refund_processing_days'],
             'hasYearly' => $tariffs->contains(fn(Tariff $t) => $t->hasYearly()),
             'tariffs' => $tariffs,
             'lessonsUsed' => SubscriptionService::lessonsUsedThisPeriod($user),

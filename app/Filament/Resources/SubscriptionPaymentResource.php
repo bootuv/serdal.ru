@@ -104,16 +104,34 @@ class SubscriptionPaymentResource extends Resource
                     ->action(function (SubscriptionPayment $record) {
                         // Платёж без id шлюза — только отметка в учёте
                         if (!$record->gateway_order_id) {
-                            $record->update(['status' => SubscriptionPayment::STATUS_REFUNDED]);
+                            $record->update([
+                                'status' => SubscriptionPayment::STATUS_REFUNDED,
+                                'meta' => array_merge($record->meta ?? [], ['refunded_at' => now()->toIso8601String()]),
+                            ]);
+                            $record->user?->notify(new \App\Notifications\SubscriptionRefunded(
+                                $record->tariff->name,
+                                $record->amount,
+                                \App\Support\OfferSettings::offer()['refund_processing_days'],
+                            ));
                             Notification::make()->title('Платёж отмечен как возвращённый')->success()->send();
                             return;
                         }
 
                         if (\App\Services\YooKassaService::refundPayment($record)) {
                             $record->update(['status' => SubscriptionPayment::STATUS_REFUNDED]);
+
+                            // Уведомляем учителя о возврате (привязочные платежи — служебные)
+                            if (empty($record->meta['card_binding'])) {
+                                $record->user?->notify(new \App\Notifications\SubscriptionRefunded(
+                                    $record->tariff->name,
+                                    $record->amount,
+                                    \App\Support\OfferSettings::offer()['refund_processing_days'],
+                                ));
+                            }
+
                             Notification::make()
                                 ->title('Возврат оформлен')
-                                ->body('Деньги вернутся на карту плательщика в течение нескольких дней.')
+                                ->body('Деньги вернутся на карту плательщика в течение нескольких дней. Учителю отправлено уведомление.')
                                 ->success()
                                 ->send();
                         } else {
