@@ -199,6 +199,42 @@ class ManageSubscription extends Page
     }
 
     /**
+     * Кнопка «Привязать карту» с кастомной модалкой подтверждения.
+     */
+    public function bindCardAction(): Action
+    {
+        return Action::make('bindCard')
+            ->label('Привязать карту')
+            ->color('gray')
+            ->outlined()
+            ->requiresConfirmation()
+            ->modalIcon('heroicon-o-credit-card')
+            ->modalHeading('Привязка карты')
+            ->modalDescription('Для проверки карты спишется 1 ₽ и сразу вернётся обратно. После привязки оплата будет проходить в один клик.')
+            ->modalSubmitActionLabel('Привязать')
+            ->modalCancelActionLabel('Отмена')
+            ->action(fn() => $this->bindCard());
+    }
+
+    /**
+     * Кнопка «Отвязать карту» с кастомной модалкой подтверждения.
+     */
+    public function removeCardAction(): Action
+    {
+        return Action::make('removeCard')
+            ->label('Отвязать карту')
+            ->color('danger')
+            ->outlined()
+            ->requiresConfirmation()
+            ->modalIcon('heroicon-o-trash')
+            ->modalHeading('Отвязать карту?')
+            ->modalDescription('Автопродление будет отключено, а оплата снова будет проходить через платёжную страницу.')
+            ->modalSubmitActionLabel('Отвязать')
+            ->modalCancelActionLabel('Отмена')
+            ->action(fn() => $this->removePaymentMethod());
+    }
+
+    /**
      * Привязка карты без покупки: проверочный платёж на 1 ₽ с сохранением
      * способа оплаты; рубль возвращается сразу после подтверждения.
      */

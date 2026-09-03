@@ -1,6 +1,7 @@
 <x-filament-panels::page>
+    <div class="grid grid-cols-1 items-stretch gap-6 lg:grid-cols-2">
     {{-- Текущая подписка --}}
-    <x-filament::section>
+    <x-filament::section class="h-full">
         <x-slot name="heading">Текущий тариф</x-slot>
 
         @if($subscription)
@@ -89,18 +90,18 @@
     </x-filament::section>
 
     {{-- Способ оплаты и автопродление --}}
-    <x-filament::section>
+    <x-filament::section class="h-full">
         <x-slot name="heading">Способ оплаты</x-slot>
 
         @if(auth()->user()->yookassa_payment_method_id)
-            <div class="flex flex-wrap items-center justify-between gap-4">
-                <div class="flex items-center gap-3">
-                    <x-heroicon-o-credit-card class="h-6 w-6 shrink-0 text-gray-400" />
+            <div class="flex h-full flex-col gap-4">
+                <div class="flex items-start gap-3">
+                    <x-heroicon-o-credit-card class="mt-0.5 h-6 w-6 shrink-0 text-gray-400" />
                     <div>
                         <p class="text-sm font-medium text-gray-950 dark:text-white">
                             {{ auth()->user()->payment_method_title ?? 'Банковская карта' }}
                         </p>
-                        <p class="text-sm {{ auth()->user()->auto_renew ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400' }}">
+                        <p class="mt-1 text-sm {{ auth()->user()->auto_renew ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400' }}">
                             @if(auth()->user()->auto_renew)
                                 Автопродление включено — подписка продлится автоматически в конце оплаченного периода.
                             @else
@@ -109,35 +110,32 @@
                         </p>
                     </div>
                 </div>
-                <div class="flex items-center gap-2">
+                <div class="mt-auto flex flex-wrap items-center gap-2">
                     <x-filament::button color="gray" outlined wire:click="toggleAutoRenew">
                         {{ auth()->user()->auto_renew ? 'Отключить автопродление' : 'Включить автопродление' }}
                     </x-filament::button>
-                    <x-filament::button color="danger" outlined wire:click="removePaymentMethod"
-                        wire:confirm="Отвязать карту? Автопродление будет отключено, а оплата снова будет проходить через платёжную страницу.">
-                        Отвязать карту
-                    </x-filament::button>
+                    {{ $this->removeCardAction }}
                 </div>
             </div>
         @else
-            <div class="flex flex-wrap items-center justify-between gap-4">
-                <div class="flex items-center gap-3">
-                    <x-heroicon-o-credit-card class="h-6 w-6 shrink-0 text-gray-400" />
+            <div class="flex h-full flex-col gap-4">
+                <div class="flex items-start gap-3">
+                    <x-heroicon-o-credit-card class="mt-0.5 h-6 w-6 shrink-0 text-gray-400" />
                     <div>
                         <p class="text-sm font-medium text-gray-950 dark:text-white">Карта не привязана</p>
-                        <p class="text-sm text-gray-500 dark:text-gray-400">
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
                             Привяжите карту, чтобы оплачивать в один клик и включить автопродление.
                             Также карту можно сохранить при оплате тарифа.
                         </p>
                     </div>
                 </div>
-                <x-filament::button color="gray" outlined wire:click="bindCard"
-                    wire:confirm="Для проверки карты спишется 1 ₽ и сразу вернётся обратно. Продолжить?">
-                    Привязать карту
-                </x-filament::button>
+                <div class="mt-auto">
+                    {{ $this->bindCardAction }}
+                </div>
             </div>
         @endif
     </x-filament::section>
+    </div>
 
     {{-- Выбор тарифа --}}
     <x-filament::section>
