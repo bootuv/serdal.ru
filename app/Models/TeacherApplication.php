@@ -16,7 +16,6 @@ class TeacherApplication extends Model
         'email',
         'phone',
         'whatsup',
-        'instagram',
         'telegram',
         'about',
         'subjects',

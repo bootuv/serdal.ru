@@ -49,7 +49,6 @@ class User extends Authenticatable implements FilamentUser
         'extra_info',
         'phone',
         'whatsup',
-        'instagram',
         'telegram',
         'username',
         'is_active',

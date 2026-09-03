@@ -133,7 +133,6 @@ class TeacherApplicationResource extends Resource
                                     ->schema([
                                         Forms\Components\TextInput::make('whatsup')->label('WhatsApp'),
                                         Forms\Components\TextInput::make('telegram')->label('Telegram'),
-                                        Forms\Components\TextInput::make('instagram')->label('Instagram'),
                                     ])->columns(3),
                                 Forms\Components\Section::make('Профессиональные данные')
                                     ->schema([

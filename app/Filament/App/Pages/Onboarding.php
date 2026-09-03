@@ -40,20 +40,23 @@ class Onboarding extends Page implements HasForms
         $state = [
             'avatar' => $user->avatar,
             'whatsup' => $user->whatsup,
-            'instagram' => $user->instagram,
             'telegram' => $user->telegram,
         ];
 
-        // Уже добавленные цены (возврат в онбординг) — иначе репитер покажет
-        // одну пустую строку по умолчанию
+        // fill() с массивом не применяет дефолты полей, поэтому первую строку
+        // цен подставляем сами: шаг «Цены» сразу показывает открытую форму
         $existing = $user->lessonTypes()
             ->get(['type', 'payment_type', 'price', 'count_per_week', 'duration'])
             ->map->only(['type', 'payment_type', 'price', 'count_per_week', 'duration'])
             ->all();
 
-        if ($existing) {
-            $state['lesson_types'] = $existing;
-        }
+        $state['lesson_types'] = $existing ?: [[
+            'type' => LessonType::TYPE_INDIVIDUAL,
+            'payment_type' => 'per_lesson',
+            'price' => null,
+            'count_per_week' => null,
+            'duration' => 60,
+        ]];
 
         $this->form->fill($state);
     }
@@ -81,10 +84,9 @@ class Onboarding extends Page implements HasForms
                                 ->live()
                                 ->deleteUploadedFileUsing(\App\Helpers\FileUploadHelper::filamentDeleteCallback()),
 
-                            Forms\Components\Grid::make(3)
+                            Forms\Components\Grid::make(2)
                                 ->schema([
                                     Forms\Components\TextInput::make('whatsup')->label('WhatsApp')->placeholder('+7...'),
-                                    Forms\Components\TextInput::make('instagram')->label('Instagram')->prefix('@'),
                                     Forms\Components\TextInput::make('telegram')->label('Telegram')->prefix('@'),
                                 ]),
                         ]),
@@ -100,6 +102,8 @@ class Onboarding extends Page implements HasForms
                                 ->minItems(1)
                                 ->maxItems(2)
                                 ->reorderable(false)
+                                // Единственную цену удалить нельзя — шаг не должен оставаться пустым
+                                ->deletable(fn(Forms\Components\Repeater $component) => count($component->getState() ?? []) > 1)
                                 ->itemLabel(fn(array $state): string => match ($state['type'] ?? null) {
                                     LessonType::TYPE_INDIVIDUAL => 'Индивидуальные занятия',
                                     LessonType::TYPE_GROUP => 'Групповые занятия',
@@ -187,8 +191,12 @@ class Onboarding extends Page implements HasForms
                                 }),
                         ]),
                 ])
-                    ->nextAction(fn(\Filament\Forms\Components\Actions\Action $action) => $action->label('Далее'))
-                    ->previousAction(fn(\Filament\Forms\Components\Actions\Action $action) => $action->label('Назад'))
+                    ->nextAction(fn(\Filament\Forms\Components\Actions\Action $action) => $action
+                        ->label('Далее')
+                        ->size(\Filament\Support\Enums\ActionSize::Large))
+                    ->previousAction(fn(\Filament\Forms\Components\Actions\Action $action) => $action
+                        ->label('Назад')
+                        ->size(\Filament\Support\Enums\ActionSize::Large))
                     ->submitAction(new HtmlString(Blade::render(
                         '<x-filament::button type="submit" size="lg" icon="heroicon-m-check">Завершить настройку</x-filament::button>'
                     ))),
@@ -229,7 +237,6 @@ class Onboarding extends Page implements HasForms
         $user->update([
             'avatar' => $data['avatar'],
             'whatsup' => $data['whatsup'],
-            'instagram' => $data['instagram'],
             'telegram' => $data['telegram'],
             'is_profile_completed' => true,
         ]);

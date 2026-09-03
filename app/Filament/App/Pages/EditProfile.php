@@ -126,7 +126,6 @@ class EditProfile extends Page implements HasForms
                 Forms\Components\Group::make([
                     Forms\Components\TextInput::make('phone')->tel()->label('Телефон'),
                     Forms\Components\TextInput::make('whatsup')->tel()->label('WhatsApp'),
-                    Forms\Components\TextInput::make('instagram')->label('Instagram'),
                     Forms\Components\TextInput::make('telegram')->label('Telegram'),
                 ])->columns(2)->columnSpanFull(),
             ])

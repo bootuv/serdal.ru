@@ -154,7 +154,6 @@ class UserResource extends Resource
                 Group::make([
                     TextInput::make('phone')->tel()->label('Телефон'),
                     TextInput::make('whatsup')->tel()->label('WhatsApp'),
-                    TextInput::make('instagram')->label('Instagram'),
                     TextInput::make('telegram')->label('Telegram'),
                 ])->columns(2)->columnSpanFull(),
 

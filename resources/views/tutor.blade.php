@@ -165,7 +165,7 @@
         @endif
       </div>
       <div class="col-25">
-        @if($user->phone || $user->whatsup || $user->telegram || $user->instagram || $user->email)
+        @if($user->phone || $user->whatsup || $user->telegram || $user->email)
           <div class="content-card">
             <h4 class="h4">Способы связи</h4>
             <div class="contacts">
@@ -209,20 +209,6 @@
                       </div>
                     </div>
                     <div class="w-layout-blockcontainer contact-icon w-container"><img src="images/Telegram.svg"
-                        loading="lazy" alt="" class="icon-svg"></div>
-                  </div>
-                @endif
-                @if($user->instagram)
-                  <div class="param-list-item icon">
-                    <div class="param-item-label p18">Instagram</div>
-                    <div class="param-item-data">
-                      <div class="param-list-item-text">
-                        <a href="https://www.instagram.com/{{ $user->instagram }}" class="text-link w-inline-block">
-                          <div class="p18-medium">{{ "@" . $user->instagram }}</div>
-                        </a>
-                      </div>
-                    </div>
-                    <div class="w-layout-blockcontainer contact-icon w-container"><img src="images/Instagram.svg"
                         loading="lazy" alt="" class="icon-svg"></div>
                   </div>
                 @endif
