@@ -223,7 +223,10 @@ class SubscriptionService
         $user = $subscription->user;
         $tariff = $subscription->tariff;
 
-        if (!$user || !$user->auto_renew || !$user->yookassa_payment_method_id || $tariff->isFree()) {
+        // Удалённый или снятый с продажи тариф не продлеваем — пользователь
+        // выберет новый тариф сам, а подписка истечёт с обычными уведомлениями
+        if (!$user || !$user->auto_renew || !$user->yookassa_payment_method_id || $tariff->isFree()
+            || $tariff->trashed() || !$tariff->is_active) {
             return null;
         }
 

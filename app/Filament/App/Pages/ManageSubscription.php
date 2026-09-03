@@ -101,6 +101,16 @@ class ManageSubscription extends Page
     }
 
     /**
+     * Тариф нельзя оформить: удалён (мягко) или снят с продажи.
+     */
+    protected static function tariffUnavailable(int|string|null $tariffId): bool
+    {
+        $tariff = Tariff::withTrashed()->find($tariffId);
+
+        return !$tariff || $tariff->trashed() || !$tariff->is_active;
+    }
+
+    /**
      * Кнопка «Подключить» в карточке тарифа: кастомная модалка подтверждения
      * вместо системного confirm браузера.
      */
@@ -123,8 +133,18 @@ class ManageSubscription extends Page
             ->outlined(fn(array $arguments) => empty($arguments['primary']))
             ->requiresConfirmation()
             ->modalIcon('heroicon-o-credit-card')
-            ->modalHeading('Смена тарифа')
+            ->modalHeading(fn(array $arguments) => self::tariffUnavailable($arguments['tariff'] ?? null)
+                ? 'Тариф недоступен'
+                : 'Смена тарифа')
             ->modalDescription(function (array $arguments) {
+                // Тариф удалён или снят с продажи (например, продление подписки
+                // на архивный тариф) — предлагаем выбрать другой
+                if (self::tariffUnavailable($arguments['tariff'] ?? null)) {
+                    $name = Tariff::withTrashed()->find($arguments['tariff'] ?? null)?->name;
+
+                    return 'Тариф' . ($name ? ' «' . $name . '»' : '') . ' больше недоступен для оформления. Выберите другой тариф из списка.';
+                }
+
                 $tariff = Tariff::find($arguments['tariff'] ?? null);
                 $current = auth()->user()->activeSubscription();
                 $yearly = $this->billingPeriod === 'year' && $tariff?->hasYearly();
@@ -149,31 +169,33 @@ class ManageSubscription extends Page
             })
             ->modalSubmitActionLabel('Переключиться')
             ->modalCancelActionLabel('Отмена')
+            // Для недоступного тарифа оставляем только «Отмена» — оформлять нечего
+            ->modalSubmitAction(fn($action, array $arguments) => self::tariffUnavailable($arguments['tariff'] ?? null)
+                ? false
+                : $action)
             ->form(function (array $arguments) {
                 $tariff = Tariff::find($arguments['tariff'] ?? null);
 
                 // Выбор способа оплаты показываем, если карта ещё не привязана
-                if (!$tariff || $tariff->isFree() || auth()->user()->yookassa_payment_method_id || !YooKassaService::isConfigured()) {
+                if (!$tariff || !$tariff->is_active || $tariff->isFree() || auth()->user()->yookassa_payment_method_id || !YooKassaService::isConfigured()) {
                     return [];
                 }
 
-                // Метка метода с иконкой: HtmlString не экранируется в шаблоне радио
-                $option = fn (string $icon, string $label) => new \Illuminate\Support\HtmlString(
-                    '<span class="inline-flex items-center gap-2"><img src="' . asset('images/payment/' . $icon)
-                    . '" class="h-5 w-5 shrink-0 object-contain" alt="" />' . e($label) . '</span>'
-                );
+                // Ключи — типы payment_method_data ЮKassa
+                $methods = [
+                    'sbp' => ['icon' => 'sbp.svg', 'title' => 'СБП', 'subtitle' => 'Приложение вашего банка — рекомендуем'],
+                    'sberbank' => ['icon' => 'sberpay.svg', 'title' => 'SberPay', 'subtitle' => 'Быстрая оплата для клиентов Сбера'],
+                    'tinkoff_bank' => ['icon' => 'tpay.svg', 'title' => 'T-Pay', 'subtitle' => 'Приложение Т-Банка'],
+                    'bank_card' => ['icon' => 'card.svg', 'title' => 'Банковская карта', 'subtitle' => 'Любой банк'],
+                    'yoo_money' => ['icon' => 'yoomoney.png', 'title' => 'ЮMoney', 'subtitle' => 'Кошелёк или привязанная карта'],
+                ];
 
                 return [
                     \Filament\Forms\Components\Radio::make('payment_method')
                         ->label('Способ оплаты')
-                        // Ключи — типы payment_method_data ЮKassa
-                        ->options([
-                            'sbp' => $option('sbp.svg', 'СБП — приложение вашего банка (рекомендуем)'),
-                            'sberbank' => $option('sberpay.svg', 'SberPay'),
-                            'tinkoff_bank' => $option('tpay.svg', 'T-Pay'),
-                            'bank_card' => $option('card.svg', 'Банковская карта'),
-                            'yoo_money' => $option('yoomoney.png', 'ЮMoney'),
-                        ])
+                        ->options(array_map(fn($m) => $m['title'], $methods))
+                        ->view('filament.forms.components.payment-methods')
+                        ->viewData(['methods' => $methods])
                         ->default('sbp')
                         ->live(),
                     \Filament\Forms\Components\Checkbox::make('save_method')
@@ -341,6 +363,16 @@ class ManageSubscription extends Page
         // Сохранение карты возможно только при оплате картой и только когда
         // магазину включены автоплатежи — иначе ЮKassa отклонит платёж
         $saveMethod = $saveMethod && $method === 'bank_card' && YooKassaService::recurringEnabled();
+
+        if (self::tariffUnavailable($tariffId)) {
+            Notification::make()
+                ->title('Тариф больше недоступен')
+                ->body('Этот тариф снят с продажи. Выберите другой тариф из списка.')
+                ->warning()
+                ->send();
+            return null;
+        }
+
         $tariff = Tariff::active()->findOrFail($tariffId);
         $subscription = $user->activeSubscription();
 
