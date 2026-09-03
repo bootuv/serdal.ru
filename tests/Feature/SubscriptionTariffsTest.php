@@ -956,6 +956,50 @@ class SubscriptionTariffsTest extends TestCase
         $this->assertEquals(0, $tutor->fresh()->activeSubscription()->tariff->price);
     }
 
+    public function test_onboarding_yearly_billing_creates_yearly_payment(): void
+    {
+        \App\Models\Setting::updateOrCreate(['key' => 'yookassa_shop_id'], ['value' => '123']);
+        \App\Models\Setting::updateOrCreate(['key' => 'yookassa_secret_key'], ['value' => 'test_key']);
+
+        \Illuminate\Support\Facades\Http::fake([
+            'api.yookassa.ru/*' => \Illuminate\Support\Facades\Http::response([
+                'id' => 'yk-onb-year',
+                'status' => 'pending',
+                'confirmation' => ['confirmation_url' => 'https://pay.test/redirect-year'],
+            ]),
+        ]);
+
+        $basic = Tariff::where('slug', 'basic')->first();
+        $basic->update(['yearly_price' => $basic->price * 10]);
+
+        $tutor = User::factory()->create([
+            'role' => User::ROLE_TUTOR,
+            'username' => 'tutor' . uniqid(),
+            'is_active' => true,
+            'is_blocked' => false,
+            'is_profile_completed' => false,
+            'desired_tariff_id' => $basic->id,
+        ]);
+
+        \App\Models\LessonType::create([
+            'user_id' => $tutor->id,
+            'type' => \App\Models\LessonType::TYPE_INDIVIDUAL,
+            'payment_type' => 'per_lesson',
+            'price' => 1000,
+            'duration' => 60,
+        ]);
+
+        Livewire::actingAs($tutor)
+            ->test(\App\Filament\App\Pages\Onboarding::class)
+            ->set('data.billing_period', 'year')
+            ->call('submit')
+            ->assertRedirect('https://pay.test/redirect-year');
+
+        $payment = \App\Models\SubscriptionPayment::where('user_id', $tutor->id)->first();
+        $this->assertEquals($basic->yearly_price, (float) $payment->amount);
+        $this->assertEquals(365, $payment->period_days);
+    }
+
     public function test_onboarding_with_desired_tariff_without_yookassa_goes_to_dashboard(): void
     {
         $basic = Tariff::where('slug', 'basic')->first();

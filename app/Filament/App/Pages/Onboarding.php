@@ -65,9 +65,34 @@ class Onboarding extends Page implements HasForms
         // иначе бесплатный
         $desired = $user->desired_tariff_id ? Tariff::active()->find($user->desired_tariff_id) : null;
         $state['tariff_id'] = $desired?->id ?? Tariff::active()->where('price', 0)->value('id');
+        $state['billing_period'] = 'month';
         $state['payment_method'] = 'sbp';
 
         $this->form->fill($state);
+    }
+
+    /**
+     * Карточки тарифов для шага «Тариф» с учётом периода «Помесячно / На год».
+     */
+    protected function tariffCards(): array
+    {
+        $yearly = ($this->data['billing_period'] ?? 'month') === 'year';
+
+        return Tariff::active()->get()->mapWithKeys(function (Tariff $t) use ($yearly) {
+            $price = match (true) {
+                $t->isFree() => 'Бесплатно',
+                $yearly && $t->hasYearly() => number_format($t->yearly_price, 0, ',', ' ')
+                    . ' ₽/год (−' . $t->yearlyDiscountPercent() . '%)',
+                default => number_format($t->price, 0, ',', ' ') . ' ₽/мес',
+            };
+
+            return [$t->id => [
+                'title' => $t->name,
+                'price' => $price,
+                'subtitle' => $t->short_description ?: $t->participants_label,
+                'popular' => $t->is_popular,
+            ]];
+        })->all();
     }
 
     public function form(Form $form): Form
@@ -170,20 +195,23 @@ class Onboarding extends Page implements HasForms
                         ->description('Выберите подходящий план')
                         ->icon('heroicon-o-credit-card')
                         ->schema([
+                            Forms\Components\ToggleButtons::make('billing_period')
+                                ->hiddenLabel()
+                                ->options([
+                                    'month' => 'Помесячно',
+                                    'year' => 'На год' . (($d = Tariff::active()->get()->max(fn(Tariff $t) => $t->yearlyDiscountPercent())) > 0 ? ' — скидка до ' . $d . '%' : ''),
+                                ])
+                                ->default('month')
+                                ->grouped()
+                                ->live(),
+
                             Forms\Components\Radio::make('tariff_id')
                                 ->hiddenLabel()
                                 ->options(fn() => Tariff::active()->pluck('name', 'id')->all())
                                 ->view('filament.forms.components.tariff-picker')
-                                ->viewData([
-                                    'tariffs' => Tariff::active()->get()->mapWithKeys(fn(Tariff $t) => [$t->id => [
-                                        'title' => $t->name,
-                                        'price' => $t->isFree()
-                                            ? 'Бесплатно'
-                                            : number_format($t->price, 0, ',', ' ') . ' ₽/мес',
-                                        'subtitle' => $t->short_description ?: $t->participants_label,
-                                        'popular' => $t->is_popular,
-                                    ]])->all(),
-                                ])
+                                // form() перестраивается на каждый рендер, поэтому карточки
+                                // пересчитываются при переключении «Помесячно / На год»
+                                ->viewData(['tariffs' => $this->tariffCards()])
                                 ->required()
                                 ->live(),
 
@@ -200,11 +228,17 @@ class Onboarding extends Page implements HasForms
                                         return '';
                                     }
 
-                                    return YooKassaService::isConfigured()
-                                        ? 'После нажатия «Завершить настройку» вы перейдёте на защищённую страницу оплаты ('
-                                            . number_format($tariff->price, 0, ',', ' ') . ' ₽ за ' . $tariff->period_days
-                                            . ' дней). Тариф включится сразу после оплаты, до этого действует бесплатный «Старт».'
-                                        : 'Онлайн-оплата подключается — тариф можно будет оплатить позже в разделе «Подписка». Пока будет действовать бесплатный «Старт».';
+                                    if (!YooKassaService::isConfigured()) {
+                                        return 'Онлайн-оплата подключается — тариф можно будет оплатить позже в разделе «Подписка». Пока будет действовать бесплатный «Старт».';
+                                    }
+
+                                    $yearly = $get('billing_period') === 'year' && $tariff->hasYearly();
+                                    $amount = $yearly ? $tariff->yearly_price : $tariff->price;
+                                    $period = $yearly ? 'год' : $tariff->period_days . ' дней';
+
+                                    return 'После нажатия «Завершить настройку» вы перейдёте на защищённую страницу оплаты ('
+                                        . number_format($amount, 0, ',', ' ') . ' ₽ за ' . $period
+                                        . '). Тариф включится сразу после оплаты, до этого действует бесплатный «Старт».';
                                 })
                                 ->visible(fn(\Filament\Forms\Get $get) => ($t = Tariff::find($get('tariff_id'))) && !$t->isFree()),
                         ]),
@@ -284,11 +318,13 @@ class Onboarding extends Page implements HasForms
         $tariff = isset($data['tariff_id']) ? Tariff::active()->find($data['tariff_id']) : null;
 
         if ($tariff && !$tariff->isFree() && YooKassaService::isConfigured()) {
+            $yearly = ($data['billing_period'] ?? 'month') === 'year' && $tariff->hasYearly();
+
             $payment = SubscriptionPayment::create([
                 'user_id' => $user->id,
                 'tariff_id' => $tariff->id,
-                'amount' => $tariff->price,
-                'period_days' => $tariff->period_days,
+                'amount' => $yearly ? $tariff->yearly_price : $tariff->price,
+                'period_days' => $yearly ? 365 : $tariff->period_days,
                 'status' => SubscriptionPayment::STATUS_PENDING,
                 'gateway' => 'yookassa',
             ]);
