@@ -2,10 +2,6 @@
 
 namespace App\Filament\App\Pages;
 
-use Filament\Tables\Table;
-use Filament\Tables\Concerns\InteractsWithTable;
-use Filament\Tables\Contracts\HasTable;
-use Filament\Tables;
 use App\Models\LessonType;
 use Filament\Pages\Page;
 use Filament\Forms\Concerns\InteractsWithForms;
@@ -14,12 +10,13 @@ use Filament\Forms\Form;
 use Filament\Forms;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\HtmlString;
 use App\Models\User;
 
-class Onboarding extends Page implements HasForms, HasTable
+class Onboarding extends Page implements HasForms
 {
     use InteractsWithForms;
-    use InteractsWithTable;
 
     protected static ?string $navigationIcon = 'heroicon-o-document-text';
 
@@ -40,179 +37,163 @@ class Onboarding extends Page implements HasForms, HasTable
             return redirect()->route('filament.app.pages.dashboard');
         }
 
-        $this->form->fill([
+        $state = [
             'avatar' => $user->avatar,
             'whatsup' => $user->whatsup,
             'instagram' => $user->instagram,
             'telegram' => $user->telegram,
-        ]);
+        ];
+
+        // Уже добавленные цены (возврат в онбординг) — иначе репитер покажет
+        // одну пустую строку по умолчанию
+        $existing = $user->lessonTypes()
+            ->get(['type', 'payment_type', 'price', 'count_per_week', 'duration'])
+            ->map->only(['type', 'payment_type', 'price', 'count_per_week', 'duration'])
+            ->all();
+
+        if ($existing) {
+            $state['lesson_types'] = $existing;
+        }
+
+        $this->form->fill($state);
     }
 
     public function form(Form $form): Form
     {
         return $form
             ->schema([
-                Forms\Components\Section::make('Заполните профиль')
-                    ->description('Для начала работы необходимо заполнить информацию о себе.')
-                    ->schema([
-                        Forms\Components\FileUpload::make('avatar')
-                            ->label('Фото профиля')
-                            ->disk('s3')
-                            ->visibility('public')
-                            // Optimization: Do not check file existence/metadata on S3 during load
-                            ->fetchFileInformation(false)
-                            ->image()
-                            ->avatar()
-                            ->imageEditor()
-                            ->directory(fn() => 'avatars/' . auth()->id())
-                            ->live()
-                            ->deleteUploadedFileUsing(\App\Helpers\FileUploadHelper::filamentDeleteCallback()),
+                Forms\Components\Wizard::make([
+                    Forms\Components\Wizard\Step::make('Профиль')
+                        ->description('Фото и контакты')
+                        ->icon('heroicon-o-user-circle')
+                        ->schema([
+                            Forms\Components\FileUpload::make('avatar')
+                                ->label('Фото профиля')
+                                ->helperText('Ученики увидят его в расписании и на занятиях')
+                                ->disk('s3')
+                                ->visibility('public')
+                                // Optimization: Do not check file existence/metadata on S3 during load
+                                ->fetchFileInformation(false)
+                                ->image()
+                                ->avatar()
+                                ->imageEditor()
+                                ->directory(fn() => 'avatars/' . auth()->id())
+                                ->live()
+                                ->deleteUploadedFileUsing(\App\Helpers\FileUploadHelper::filamentDeleteCallback()),
 
-                        Forms\Components\Grid::make(3)
-                            ->schema([
-                                Forms\Components\TextInput::make('whatsup')->label('WhatsApp')->placeholder('+7...'),
-                                Forms\Components\TextInput::make('instagram')->label('Instagram')->prefix('@'),
-                                Forms\Components\TextInput::make('telegram')->label('Telegram')->prefix('@'),
-                            ]),
-                    ]),
+                            Forms\Components\Grid::make(3)
+                                ->schema([
+                                    Forms\Components\TextInput::make('whatsup')->label('WhatsApp')->placeholder('+7...'),
+                                    Forms\Components\TextInput::make('instagram')->label('Instagram')->prefix('@'),
+                                    Forms\Components\TextInput::make('telegram')->label('Telegram')->prefix('@'),
+                                ]),
+                        ]),
+
+                    Forms\Components\Wizard\Step::make('Цены для учеников')
+                        ->description('Сколько стоят ваши занятия')
+                        ->icon('heroicon-o-banknotes')
+                        ->schema([
+                            Forms\Components\Repeater::make('lesson_types')
+                                ->hiddenLabel()
+                                ->addActionLabel('Добавить вторую цену (для другого типа занятий)')
+                                ->defaultItems(1)
+                                ->minItems(1)
+                                ->maxItems(2)
+                                ->reorderable(false)
+                                ->itemLabel(fn(array $state): string => match ($state['type'] ?? null) {
+                                    LessonType::TYPE_INDIVIDUAL => 'Индивидуальные занятия',
+                                    LessonType::TYPE_GROUP => 'Групповые занятия',
+                                    default => 'Базовая цена',
+                                })
+                                ->columns(2)
+                                ->schema([
+                                    Forms\Components\Select::make('type')
+                                        ->label('Тип урока')
+                                        ->options([
+                                            LessonType::TYPE_INDIVIDUAL => 'Индивидуальный',
+                                            LessonType::TYPE_GROUP => 'Групповой',
+                                        ])
+                                        ->default(LessonType::TYPE_INDIVIDUAL)
+                                        ->required()
+                                        ->distinct()
+                                        ->selectablePlaceholder(false)
+                                        ->live()
+                                        ->afterStateUpdated(function ($state, \Filament\Forms\Set $set) {
+                                            $set('payment_type', $state === LessonType::TYPE_GROUP ? 'monthly' : 'per_lesson');
+                                        }),
+                                    Forms\Components\Select::make('payment_type')
+                                        ->label('Тип оплаты')
+                                        ->options([
+                                            'per_lesson' => 'Поурочная оплата',
+                                            'monthly' => 'Помесячная оплата',
+                                        ])
+                                        ->default('per_lesson')
+                                        ->required()
+                                        ->live()
+                                        ->selectablePlaceholder(false),
+                                    Forms\Components\TextInput::make('price')
+                                        ->label(fn(\Filament\Forms\Get $get) => $get('payment_type') === 'monthly' ? 'Цена за месяц' : 'Цена за урок')
+                                        ->numeric()
+                                        ->minValue(1)
+                                        ->suffix('₽')
+                                        ->required(),
+                                    Forms\Components\TextInput::make('duration')
+                                        ->label('Длительность')
+                                        ->numeric()
+                                        ->minValue(15)
+                                        ->default(60)
+                                        ->suffix('мин')
+                                        ->required(),
+                                    Forms\Components\TextInput::make('count_per_week')
+                                        ->label('Уроков в неделю')
+                                        ->numeric()
+                                        ->minValue(1)
+                                        ->required(fn(\Filament\Forms\Get $get) => $get('payment_type') === 'monthly')
+                                        ->visible(fn(\Filament\Forms\Get $get) => $get('payment_type') === 'monthly'),
+                                ]),
+                        ]),
+
+                    Forms\Components\Wizard\Step::make('Готово')
+                        ->description('Проверьте и завершите')
+                        ->icon('heroicon-o-rocket-launch')
+                        ->schema([
+                            Forms\Components\Placeholder::make('summary')
+                                ->hiddenLabel()
+                                ->content(function (\Filament\Forms\Get $get) {
+                                    $prices = collect($get('lesson_types') ?? [])
+                                        ->filter(fn($item) => !empty($item['price']))
+                                        ->map(function ($item) {
+                                            $type = ($item['type'] ?? null) === LessonType::TYPE_GROUP ? 'Групповой' : 'Индивидуальный';
+                                            $unit = ($item['payment_type'] ?? null) === 'monthly' ? '₽/мес' : '₽/урок';
+
+                                            return $type . ' — ' . number_format((float) $item['price'], 0, ',', ' ') . ' ' . $unit;
+                                        });
+
+                                    $desired = auth()->user()->desired_tariff_id
+                                        ? \App\Models\Tariff::active()->find(auth()->user()->desired_tariff_id)
+                                        : null;
+
+                                    $next = $desired && !$desired->isFree()
+                                        ? 'После завершения вы перейдёте к оплате выбранного тарифа «' . $desired->name . '».'
+                                        : 'После завершения вы получите доступ ко всем функциям платформы.';
+
+                                    return new HtmlString(
+                                        '<div class="text-sm leading-6">'
+                                        . '<p class="font-medium">Ваши цены для учеников:</p>'
+                                        . '<ul class="list-disc ps-5">' . $prices->map(fn($p) => '<li>' . e($p) . '</li>')->implode('') . '</ul>'
+                                        . '<p class="mt-3 text-gray-500 dark:text-gray-400">' . e($next) . '</p>'
+                                        . '</div>'
+                                    );
+                                }),
+                        ]),
+                ])
+                    ->nextAction(fn(\Filament\Forms\Components\Actions\Action $action) => $action->label('Далее'))
+                    ->previousAction(fn(\Filament\Forms\Components\Actions\Action $action) => $action->label('Назад'))
+                    ->submitAction(new HtmlString(Blade::render(
+                        '<x-filament::button type="submit" size="lg" icon="heroicon-m-check">Завершить настройку</x-filament::button>'
+                    ))),
             ])
             ->statePath('data');
-    }
-
-    public function table(Table $table): Table
-    {
-        return $table
-            ->query(LessonType::query()->where('user_id', Auth::id()))
-            ->heading('Цены для учеников')
-
-            ->modelLabel('Базовая цена')
-            ->pluralModelLabel('Цены для учеников')
-            ->emptyStateHeading('Цены для учеников не добавлены')
-            ->emptyStateDescription('Добавьте хотя бы одну базовую цену для старта.')
-            ->paginated(false)
-            ->headerActions([
-                Tables\Actions\CreateAction::make()
-                    ->label('Добавить')
-                    ->createAnother(false)
-                    ->visible(fn() => LessonType::where('user_id', Auth::id())->count() < 2)
-                    ->modalHeading('Добавить базовую цену')
-                    ->form([
-                        Forms\Components\Grid::make(1)->schema([
-                            Forms\Components\Select::make('type')
-                                ->label('Тип урока')
-                                ->options(function () {
-                                    $existingTypes = LessonType::where('user_id', Auth::id())
-                                        ->pluck('type')
-                                        ->toArray();
-
-                                    $types = [
-                                        LessonType::TYPE_INDIVIDUAL => 'Индивидуальный',
-                                        LessonType::TYPE_GROUP => 'Групповой',
-                                    ];
-
-                                    return array_diff_key($types, array_flip($existingTypes));
-                                })
-                                ->required()
-                                ->live()
-                                ->afterStateUpdated(function ($state, \Filament\Forms\Set $set) {
-                                    if ($state === LessonType::TYPE_INDIVIDUAL) {
-                                        $set('payment_type', 'per_lesson');
-                                    } elseif ($state === LessonType::TYPE_GROUP) {
-                                        $set('payment_type', 'monthly');
-                                    }
-                                }),
-                            Forms\Components\Select::make('payment_type')
-                                ->label('Тип оплаты')
-                                ->options([
-                                    'per_lesson' => 'Поурочная оплата',
-                                    'monthly' => 'Помесячная оплата',
-                                ])
-                                ->default('per_lesson')
-                                ->required()
-                                ->live()
-                                ->selectablePlaceholder(false),
-                            Forms\Components\TextInput::make('price')->label(fn(\Filament\Forms\Get $get) => $get('payment_type') === 'monthly' ? 'Цена за месяц' : 'Цена за урок')->numeric()->suffix('₽')->required(),
-                            Forms\Components\TextInput::make('count_per_week')
-                                ->label('Уроков в неделю')
-                                ->numeric()
-                                ->required(fn(\Filament\Forms\Get $get) => $get('payment_type') === 'monthly')
-                                ->visible(fn(\Filament\Forms\Get $get) => $get('payment_type') === 'monthly'),
-                            Forms\Components\TextInput::make('duration')->label('Длительность')->numeric()->suffix('мин')->required(),
-                        ]),
-                    ])
-                    ->mutateFormDataUsing(function (array $data): array {
-                        $data['user_id'] = Auth::id();
-                        return $data;
-                    }),
-            ])
-            ->columns([
-                Tables\Columns\TextColumn::make('type')
-                    ->label('Тип урока')
-                    ->formatStateUsing(fn(string $state): string => match ($state) {
-                        LessonType::TYPE_INDIVIDUAL => 'Индивидуальный',
-                        LessonType::TYPE_GROUP => 'Групповой',
-                        default => $state,
-                    }),
-                Tables\Columns\TextColumn::make('price')->label('Цена')->money('RUB'),
-                Tables\Columns\TextColumn::make('payment_type')
-                    ->label('Тип оплаты')
-                    ->formatStateUsing(fn(string $state): string => match ($state) {
-                        'per_lesson' => 'Поурочная',
-                        'monthly' => 'Помесячная',
-                        default => $state,
-                    }),
-                Tables\Columns\TextColumn::make('count_per_week')
-                    ->label('В неделю')
-                    ->suffix(' раз(а)')
-                    ->placeholder('-'),
-            ])
-            ->actions([
-                Tables\Actions\EditAction::make()->form([
-                    Forms\Components\Grid::make(1)->schema([
-                        Forms\Components\Select::make('type')
-                            ->label('Тип урока')
-                            ->options(function (?\App\Models\LessonType $record) {
-                                $existingTypesQuery = LessonType::where('user_id', Auth::id());
-                                if ($record) {
-                                    $existingTypesQuery->where('id', '!=', $record->id);
-                                }
-                                $existingTypes = $existingTypesQuery->pluck('type')->toArray();
-                                $types = [
-                                    LessonType::TYPE_INDIVIDUAL => 'Индивидуальный',
-                                    LessonType::TYPE_GROUP => 'Групповой',
-                                ];
-                                return array_diff_key($types, array_flip($existingTypes));
-                            })
-                            ->required()
-                            ->live()
-                            ->afterStateUpdated(function ($state, \Filament\Forms\Set $set) {
-                                if ($state === LessonType::TYPE_INDIVIDUAL) {
-                                    $set('payment_type', 'per_lesson');
-                                } elseif ($state === LessonType::TYPE_GROUP) {
-                                    $set('payment_type', 'monthly');
-                                }
-                            }),
-                        Forms\Components\Select::make('payment_type')
-                            ->label('Тип оплаты')
-                            ->options([
-                                'per_lesson' => 'Поурочная оплата',
-                                'monthly' => 'Помесячная оплата',
-                            ])
-                            ->default('per_lesson')
-                            ->required()
-                            ->live()
-                            ->selectablePlaceholder(false),
-                        Forms\Components\TextInput::make('price')->label(fn(\Filament\Forms\Get $get) => $get('payment_type') === 'monthly' ? 'Цена за месяц' : 'Цена за урок')->numeric()->suffix('₽')->required(),
-                        Forms\Components\TextInput::make('count_per_week')
-                            ->label('Уроков в неделю')
-                            ->numeric()
-                            ->required(fn(\Filament\Forms\Get $get) => $get('payment_type') === 'monthly')
-                            ->visible(fn(\Filament\Forms\Get $get) => $get('payment_type') === 'monthly'),
-                        Forms\Components\TextInput::make('duration')->label('Длительность')->numeric()->suffix('мин')->required(),
-                    ]),
-                ]),
-                Tables\Actions\DeleteAction::make(),
-            ]);
     }
 
     public function submit()
@@ -221,13 +202,17 @@ class Onboarding extends Page implements HasForms, HasTable
         $user = Auth::user();
 
         /** @var User $user */
-        if ($user->lessonTypes()->count() === 0) {
-            Notification::make()
-                ->title('Ошибка')
-                ->body('Пожалуйста, добавьте хотя бы одну базовую цену перед продолжением.')
-                ->danger()
-                ->send();
-            return;
+        // Пересоздаём базовые цены из шага «Цены для учеников»
+        $user->lessonTypes()->delete();
+
+        foreach ($data['lesson_types'] ?? [] as $item) {
+            $user->lessonTypes()->create([
+                'type' => $item['type'],
+                'payment_type' => $item['payment_type'],
+                'price' => $item['price'],
+                'duration' => $item['duration'],
+                'count_per_week' => ($item['payment_type'] ?? null) === 'monthly' ? ($item['count_per_week'] ?? null) : null,
+            ]);
         }
 
         // Process Avatar
