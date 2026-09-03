@@ -43,7 +43,8 @@ class SubscriptionPayment extends Model
 
     public function tariff()
     {
-        return $this->belongsTo(Tariff::class);
+        // withTrashed: история платежей должна показывать и удалённые тарифы
+        return $this->belongsTo(Tariff::class)->withTrashed();
     }
 
     public function subscription()

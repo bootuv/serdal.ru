@@ -43,7 +43,8 @@ class Subscription extends Model
 
     public function tariff()
     {
-        return $this->belongsTo(Tariff::class);
+        // withTrashed: подписка должна работать, даже если тариф удалили из продажи
+        return $this->belongsTo(Tariff::class)->withTrashed();
     }
 
     public function payments()

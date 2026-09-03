@@ -14,7 +14,7 @@ class EditTariff extends EditRecord
     {
         return [
             Actions\DeleteAction::make()
-                ->hidden(fn() => $this->record->subscriptions()->exists()),
+                ->modalDescription(fn() => TariffResource::deleteWarning($this->record)),
         ];
     }
 }

@@ -4,10 +4,24 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Tariff extends Model
 {
     use HasFactory;
+    use SoftDeletes;
+
+    protected static function booted(): void
+    {
+        // Слаг уникален на уровне БД — при мягком удалении освобождаем его,
+        // чтобы можно было создать новый тариф с тем же слагом.
+        static::deleted(function (self $tariff) {
+            if (!$tariff->isForceDeleting() && !str_contains($tariff->slug, '--deleted-')) {
+                $tariff->slug = $tariff->slug . '--deleted-' . $tariff->id;
+                $tariff->saveQuietly();
+            }
+        });
+    }
 
     protected $fillable = [
         'name',
