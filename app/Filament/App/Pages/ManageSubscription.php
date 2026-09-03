@@ -193,22 +193,8 @@ class ManageSubscription extends Page
                 }
 
                 // Ключи — типы payment_method_data ЮKassa
-                $methods = [
-                    'sbp' => ['icon' => 'sbp.svg', 'title' => 'СБП', 'subtitle' => 'Приложение вашего банка — рекомендуем'],
-                    'sberbank' => ['icon' => 'sberpay.svg', 'title' => 'SberPay', 'subtitle' => 'Быстрая оплата для клиентов Сбера'],
-                    'tinkoff_bank' => ['icon' => 'tpay.svg', 'title' => 'T-Pay', 'subtitle' => 'Приложение Т-Банка'],
-                    'bank_card' => ['icon' => 'card.svg', 'title' => 'Банковская карта', 'subtitle' => 'Любой банк'],
-                    'yoo_money' => ['icon' => 'yoomoney.png', 'title' => 'ЮMoney', 'subtitle' => 'Кошелёк или привязанная карта'],
-                ];
-
                 return [
-                    \Filament\Forms\Components\Radio::make('payment_method')
-                        ->label('Способ оплаты')
-                        ->options(array_map(fn($m) => $m['title'], $methods))
-                        ->view('filament.forms.components.payment-methods')
-                        ->viewData(['methods' => $methods])
-                        ->default('sbp')
-                        ->live(),
+                    self::paymentMethodField(),
                     \Filament\Forms\Components\Checkbox::make('save_method')
                         ->label('Сохранить карту')
                         ->helperText('Следующие оплаты пройдут в один клик, без повторного ввода данных карты. Отвязать карту можно в любой момент на этой странице.')
@@ -226,6 +212,29 @@ class ManageSubscription extends Page
                 (bool) ($data['auto_renew'] ?? false),
                 $data['payment_method'] ?? null,
             ));
+    }
+
+    /**
+     * Выбор способа оплаты карточками (СБП приоритетом). Ключи — типы
+     * payment_method_data ЮKassa. Используется также в онбординге.
+     */
+    public static function paymentMethodField(): \Filament\Forms\Components\Radio
+    {
+        $methods = [
+            'sbp' => ['icon' => 'sbp.svg', 'title' => 'СБП', 'subtitle' => 'Приложение вашего банка — рекомендуем'],
+            'sberbank' => ['icon' => 'sberpay.svg', 'title' => 'SberPay', 'subtitle' => 'Быстрая оплата для клиентов Сбера'],
+            'tinkoff_bank' => ['icon' => 'tpay.svg', 'title' => 'T-Pay', 'subtitle' => 'Приложение Т-Банка'],
+            'bank_card' => ['icon' => 'card.svg', 'title' => 'Банковская карта', 'subtitle' => 'Любой банк'],
+            'yoo_money' => ['icon' => 'yoomoney.png', 'title' => 'ЮMoney', 'subtitle' => 'Кошелёк или привязанная карта'],
+        ];
+
+        return \Filament\Forms\Components\Radio::make('payment_method')
+            ->label('Способ оплаты')
+            ->options(array_map(fn($m) => $m['title'], $methods))
+            ->view('filament.forms.components.payment-methods')
+            ->viewData(['methods' => $methods])
+            ->default('sbp')
+            ->live();
     }
 
     /**

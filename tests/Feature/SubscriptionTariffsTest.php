@@ -911,6 +911,53 @@ class SubscriptionTariffsTest extends TestCase
 
     public function test_onboarding_redirects_to_payment_of_desired_tariff(): void
     {
+        \App\Models\Setting::updateOrCreate(['key' => 'yookassa_shop_id'], ['value' => '123']);
+        \App\Models\Setting::updateOrCreate(['key' => 'yookassa_secret_key'], ['value' => 'test_key']);
+
+        \Illuminate\Support\Facades\Http::fake([
+            'api.yookassa.ru/*' => \Illuminate\Support\Facades\Http::response([
+                'id' => 'yk-onb-1',
+                'status' => 'pending',
+                'confirmation' => ['confirmation_url' => 'https://pay.test/redirect'],
+            ]),
+        ]);
+
+        $basic = Tariff::where('slug', 'basic')->first();
+
+        $tutor = User::factory()->create([
+            'role' => User::ROLE_TUTOR,
+            'username' => 'tutor' . uniqid(),
+            'is_active' => true,
+            'is_blocked' => false,
+            'is_profile_completed' => false,
+            'desired_tariff_id' => $basic->id,
+        ]);
+
+        \App\Models\LessonType::create([
+            'user_id' => $tutor->id,
+            'type' => \App\Models\LessonType::TYPE_INDIVIDUAL,
+            'payment_type' => 'per_lesson',
+            'price' => 1000,
+            'duration' => 60,
+        ]);
+
+        // Выбранный при заявке тариф предвыбран в шаге «Тариф»; после
+        // завершения — редирект на платёжную страницу ЮKassa
+        Livewire::actingAs($tutor)
+            ->test(\App\Filament\App\Pages\Onboarding::class)
+            ->call('submit')
+            ->assertRedirect('https://pay.test/redirect');
+
+        $payment = \App\Models\SubscriptionPayment::where('user_id', $tutor->id)->first();
+        $this->assertEquals($basic->id, $payment->tariff_id);
+        $this->assertEquals(\App\Models\SubscriptionPayment::STATUS_PENDING, $payment->status);
+
+        // Бесплатный тариф назначен как база до оплаты
+        $this->assertEquals(0, $tutor->fresh()->activeSubscription()->tariff->price);
+    }
+
+    public function test_onboarding_with_desired_tariff_without_yookassa_goes_to_dashboard(): void
+    {
         $basic = Tariff::where('slug', 'basic')->first();
 
         $tutor = User::factory()->create([
@@ -933,9 +980,8 @@ class SubscriptionTariffsTest extends TestCase
         Livewire::actingAs($tutor)
             ->test(\App\Filament\App\Pages\Onboarding::class)
             ->call('submit')
-            ->assertRedirect(ManageSubscription::getUrl(['pay' => $basic->id], panel: 'app'));
+            ->assertRedirect(route('filament.app.pages.dashboard'));
 
-        // Бесплатный тариф всё равно назначен как база до оплаты
         $this->assertEquals(0, $tutor->fresh()->activeSubscription()->tariff->price);
     }
 

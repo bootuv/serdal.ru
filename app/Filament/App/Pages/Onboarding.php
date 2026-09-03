@@ -3,6 +3,9 @@
 namespace App\Filament\App\Pages;
 
 use App\Models\LessonType;
+use App\Models\SubscriptionPayment;
+use App\Models\Tariff;
+use App\Services\YooKassaService;
 use Filament\Pages\Page;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
@@ -57,6 +60,12 @@ class Onboarding extends Page implements HasForms
             'count_per_week' => null,
             'duration' => 60,
         ]];
+
+        // Предвыбор тарифа: выбранный на публичной странице при подаче заявки,
+        // иначе бесплатный
+        $desired = $user->desired_tariff_id ? Tariff::active()->find($user->desired_tariff_id) : null;
+        $state['tariff_id'] = $desired?->id ?? Tariff::active()->where('price', 0)->value('id');
+        $state['payment_method'] = 'sbp';
 
         $this->form->fill($state);
     }
@@ -157,38 +166,47 @@ class Onboarding extends Page implements HasForms
                                 ]),
                         ]),
 
-                    Forms\Components\Wizard\Step::make('Готово')
-                        ->description('Проверьте и завершите')
-                        ->icon('heroicon-o-rocket-launch')
+                    Forms\Components\Wizard\Step::make('Тариф')
+                        ->description('Выберите подходящий план')
+                        ->icon('heroicon-o-credit-card')
                         ->schema([
-                            Forms\Components\Placeholder::make('summary')
+                            Forms\Components\Radio::make('tariff_id')
+                                ->hiddenLabel()
+                                ->options(fn() => Tariff::active()->pluck('name', 'id')->all())
+                                ->view('filament.forms.components.tariff-picker')
+                                ->viewData([
+                                    'tariffs' => Tariff::active()->get()->mapWithKeys(fn(Tariff $t) => [$t->id => [
+                                        'title' => $t->name,
+                                        'price' => $t->isFree()
+                                            ? 'Бесплатно'
+                                            : number_format($t->price, 0, ',', ' ') . ' ₽/мес',
+                                        'subtitle' => $t->short_description ?: $t->participants_label,
+                                        'popular' => $t->is_popular,
+                                    ]])->all(),
+                                ])
+                                ->required()
+                                ->live(),
+
+                            ManageSubscription::paymentMethodField()
+                                ->visible(fn(\Filament\Forms\Get $get) => YooKassaService::isConfigured()
+                                    && ($t = Tariff::find($get('tariff_id'))) && !$t->isFree()),
+
+                            Forms\Components\Placeholder::make('payment_note')
                                 ->hiddenLabel()
                                 ->content(function (\Filament\Forms\Get $get) {
-                                    $prices = collect($get('lesson_types') ?? [])
-                                        ->filter(fn($item) => !empty($item['price']))
-                                        ->map(function ($item) {
-                                            $type = ($item['type'] ?? null) === LessonType::TYPE_GROUP ? 'Групповой' : 'Индивидуальный';
-                                            $unit = ($item['payment_type'] ?? null) === 'monthly' ? '₽/мес' : '₽/урок';
+                                    $tariff = Tariff::find($get('tariff_id'));
 
-                                            return $type . ' — ' . number_format((float) $item['price'], 0, ',', ' ') . ' ' . $unit;
-                                        });
+                                    if (!$tariff || $tariff->isFree()) {
+                                        return '';
+                                    }
 
-                                    $desired = auth()->user()->desired_tariff_id
-                                        ? \App\Models\Tariff::active()->find(auth()->user()->desired_tariff_id)
-                                        : null;
-
-                                    $next = $desired && !$desired->isFree()
-                                        ? 'После завершения вы перейдёте к оплате выбранного тарифа «' . $desired->name . '».'
-                                        : 'После завершения вы получите доступ ко всем функциям платформы.';
-
-                                    return new HtmlString(
-                                        '<div class="text-sm leading-6">'
-                                        . '<p class="font-medium">Ваши цены для учеников:</p>'
-                                        . '<ul class="list-disc ps-5">' . $prices->map(fn($p) => '<li>' . e($p) . '</li>')->implode('') . '</ul>'
-                                        . '<p class="mt-3 text-gray-500 dark:text-gray-400">' . e($next) . '</p>'
-                                        . '</div>'
-                                    );
-                                }),
+                                    return YooKassaService::isConfigured()
+                                        ? 'После нажатия «Завершить настройку» вы перейдёте на защищённую страницу оплаты ('
+                                            . number_format($tariff->price, 0, ',', ' ') . ' ₽ за ' . $tariff->period_days
+                                            . ' дней). Тариф включится сразу после оплаты, до этого действует бесплатный «Старт».'
+                                        : 'Онлайн-оплата подключается — тариф можно будет оплатить позже в разделе «Подписка». Пока будет действовать бесплатный «Старт».';
+                                })
+                                ->visible(fn(\Filament\Forms\Get $get) => ($t = Tariff::find($get('tariff_id'))) && !$t->isFree()),
                         ]),
                 ])
                     ->nextAction(fn(\Filament\Forms\Components\Actions\Action $action) => $action
@@ -241,9 +259,10 @@ class Onboarding extends Page implements HasForms
             'is_profile_completed' => true,
         ]);
 
-        // Если тариф не был выбран при регистрации — подключаем бесплатный «Старт»
+        // Бесплатный «Старт» — база до оплаты, чтобы пользователь
+        // не остался без подписки, даже если передумает платить
         if (!$user->activeSubscription()) {
-            $freeTariff = \App\Models\Tariff::active()->where('price', 0)->first();
+            $freeTariff = Tariff::active()->where('price', 0)->first();
 
             if ($freeTariff) {
                 \App\Services\SubscriptionService::activate($user, $freeTariff);
@@ -261,14 +280,36 @@ class Onboarding extends Page implements HasForms
             ->success()
             ->send();
 
-        // Платный тариф, выбранный на публичной странице тарифов, — ведём
-        // сразу на страницу подписки с открытой формой оплаты
-        $desired = $user->desired_tariff_id
-            ? \App\Models\Tariff::active()->find($user->desired_tariff_id)
-            : null;
+        // Выбран платный тариф — сразу уводим на платёжную страницу
+        $tariff = isset($data['tariff_id']) ? Tariff::active()->find($data['tariff_id']) : null;
 
-        if ($desired && !$desired->isFree()) {
-            return redirect(ManageSubscription::getUrl(['pay' => $desired->id], panel: 'app'));
+        if ($tariff && !$tariff->isFree() && YooKassaService::isConfigured()) {
+            $payment = SubscriptionPayment::create([
+                'user_id' => $user->id,
+                'tariff_id' => $tariff->id,
+                'amount' => $tariff->price,
+                'period_days' => $tariff->period_days,
+                'status' => SubscriptionPayment::STATUS_PENDING,
+                'gateway' => 'yookassa',
+            ]);
+
+            try {
+                $url = YooKassaService::createPayment(
+                    $payment,
+                    route('subscription.payment.return', $payment),
+                    methodType: $data['payment_method'] ?? null,
+                );
+
+                return redirect()->away($url);
+            } catch (\Throwable $e) {
+                $payment->update(['status' => SubscriptionPayment::STATUS_FAILED]);
+                Notification::make()
+                    ->title('Не удалось создать платёж')
+                    ->body('Оплатить тариф «' . $tariff->name . '» можно в любой момент в разделе «Подписка».')
+                    ->warning()
+                    ->persistent()
+                    ->send();
+            }
         }
 
         return redirect()->route('filament.app.pages.dashboard');
