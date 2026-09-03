@@ -157,16 +157,22 @@ class ManageSubscription extends Page
                     return [];
                 }
 
+                // Метка метода с иконкой: HtmlString не экранируется в шаблоне радио
+                $option = fn (string $icon, string $label) => new \Illuminate\Support\HtmlString(
+                    '<span class="inline-flex items-center gap-2"><img src="' . asset('images/payment/' . $icon)
+                    . '" class="h-5 w-5 shrink-0 object-contain" alt="" />' . e($label) . '</span>'
+                );
+
                 return [
                     \Filament\Forms\Components\Radio::make('payment_method')
                         ->label('Способ оплаты')
                         // Ключи — типы payment_method_data ЮKassa
                         ->options([
-                            'sbp' => 'СБП — приложение вашего банка (рекомендуем)',
-                            'sberbank' => 'SberPay',
-                            'tinkoff_bank' => 'T-Pay',
-                            'bank_card' => 'Банковская карта',
-                            'yoo_money' => 'ЮMoney',
+                            'sbp' => $option('sbp.svg', 'СБП — приложение вашего банка (рекомендуем)'),
+                            'sberbank' => $option('sberpay.svg', 'SberPay'),
+                            'tinkoff_bank' => $option('tpay.svg', 'T-Pay'),
+                            'bank_card' => $option('card.svg', 'Банковская карта'),
+                            'yoo_money' => $option('yoomoney.png', 'ЮMoney'),
                         ])
                         ->default('sbp')
                         ->live(),
