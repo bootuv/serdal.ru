@@ -67,6 +67,7 @@ class User extends Authenticatable implements FilamentUser
         'yookassa_payment_method_id',
         'payment_method_title',
         'auto_renew',
+        'desired_tariff_id',
     ];
 
     /**

@@ -269,6 +269,16 @@ class Onboarding extends Page implements HasForms, HasTable
             ->success()
             ->send();
 
+        // Платный тариф, выбранный на публичной странице тарифов, — ведём
+        // сразу на страницу подписки с открытой формой оплаты
+        $desired = $user->desired_tariff_id
+            ? \App\Models\Tariff::active()->find($user->desired_tariff_id)
+            : null;
+
+        if ($desired && !$desired->isFree()) {
+            return redirect(ManageSubscription::getUrl(['pay' => $desired->id], panel: 'app'));
+        }
+
         return redirect()->route('filament.app.pages.dashboard');
     }
 }

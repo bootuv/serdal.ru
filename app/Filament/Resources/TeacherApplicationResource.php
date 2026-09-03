@@ -84,6 +84,10 @@ class TeacherApplicationResource extends Resource
                 Tables\Columns\TextColumn::make('email')
                     ->label('Email')
                     ->searchable(),
+                Tables\Columns\TextColumn::make('desiredTariff.name')
+                    ->label('Выбранный тариф')
+                    ->placeholder('—')
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Дата')
                     ->formatStateUsing(fn($state) => format_datetime($state))
@@ -210,6 +214,7 @@ class TeacherApplicationResource extends Resource
                             'is_active' => true,
                             'grade' => $record->grade,
                             'is_profile_completed' => false,
+                            'desired_tariff_id' => $record->desired_tariff_id,
                         ]);
 
                         if (!empty($record->subjects)) {

@@ -54,6 +54,17 @@ class ManageSubscription extends Page
                 ->{$message['type']}()
                 ->send();
         }
+
+        // ?pay=<id> — сразу открываем оплату тарифа (переход после онбординга,
+        // если тариф был выбран на публичной странице)
+        $payTariffId = request()->integer('pay');
+        if ($payTariffId && !self::tariffUnavailable($payTariffId)) {
+            $tariff = Tariff::find($payTariffId);
+
+            if ($tariff && !$tariff->isFree() && auth()->user()->activeSubscription()?->tariff_id !== $tariff->id) {
+                $this->mountAction('selectTariff', ['tariff' => $tariff->id, 'primary' => true]);
+            }
+        }
     }
 
     protected function getViewData(): array

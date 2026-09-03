@@ -23,7 +23,16 @@ class TeacherApplication extends Model
         'directs',
         'grade',
         'status',
+        'desired_tariff_id',
     ];
+
+    /**
+     * Тариф, выбранный на публичной странице тарифов перед подачей заявки.
+     */
+    public function desiredTariff()
+    {
+        return $this->belongsTo(Tariff::class, 'desired_tariff_id')->withTrashed();
+    }
 
     protected $casts = [
         'subjects' => 'array',

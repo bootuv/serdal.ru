@@ -407,7 +407,7 @@
                             @endforeach
                         </ul>
                     @endif
-                    <a href="{{ auth()->check() ? url('/tutor/subscription') : route('become-tutor') }}" class="tariff-button">
+                    <a href="{{ auth()->check() ? url('/tutor/subscription') : route('become-tutor', ['tariff' => $tariff->slug]) }}" class="tariff-button">
                         {{ $tariff->isFree() ? 'Начать бесплатно' : 'Подключить' }}
                     </a>
                 </div>

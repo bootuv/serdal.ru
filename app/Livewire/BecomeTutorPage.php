@@ -4,6 +4,7 @@ namespace App\Livewire;
 
 use App\Models\Direct;
 use App\Models\Subject;
+use App\Models\Tariff;
 use App\Models\TeacherApplication;
 use App\Models\User;
 use Filament\Forms;
@@ -23,15 +24,38 @@ class BecomeTutorPage extends Component implements HasForms
     public ?array $data = [];
     public bool $isSubmitted = false;
 
+    /** Тариф, выбранный на странице тарифов (?tariff=slug) — сохраняется в заявку. */
+    public ?int $desiredTariffId = null;
+
     public function mount(): void
     {
+        if ($slug = request('tariff')) {
+            $this->desiredTariffId = Tariff::active()->where('slug', $slug)->value('id');
+        }
+
         $this->form->fill();
+    }
+
+    public function desiredTariff(): ?Tariff
+    {
+        return $this->desiredTariffId ? Tariff::find($this->desiredTariffId) : null;
     }
 
     public function form(Form $form): Form
     {
         return $form
             ->schema([
+                Forms\Components\Placeholder::make('desired_tariff_note')
+                    ->hiddenLabel()
+                    ->content(function () {
+                        $tariff = $this->desiredTariff();
+
+                        return 'Вы выбрали тариф «' . $tariff->name . '»'
+                            . ($tariff->isFree() ? ' (бесплатный)' : ' — ' . number_format($tariff->price, 0, ',', ' ') . ' ₽/мес')
+                            . '. После одобрения заявки и настройки профиля '
+                            . ($tariff->isFree() ? 'он подключится автоматически.' : 'вы сможете сразу перейти к его оплате.');
+                    })
+                    ->visible(fn() => $this->desiredTariff() !== null),
                 Forms\Components\Section::make('Личные данные')
                     ->schema([
                         Forms\Components\Group::make([
@@ -140,7 +164,7 @@ class BecomeTutorPage extends Component implements HasForms
         }
 
         // Создаем заявку
-        $application = TeacherApplication::create($data);
+        $application = TeacherApplication::create($data + ['desired_tariff_id' => $this->desiredTariffId]);
 
         // Telegram-уведомление в чат техслужбы
         \App\Jobs\SendTeacherApplicationTelegramNotification::dispatch($application);

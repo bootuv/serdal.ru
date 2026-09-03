@@ -909,6 +909,36 @@ class SubscriptionTariffsTest extends TestCase
         $this->assertEquals(0, $subscription->tariff->price);
     }
 
+    public function test_onboarding_redirects_to_payment_of_desired_tariff(): void
+    {
+        $basic = Tariff::where('slug', 'basic')->first();
+
+        $tutor = User::factory()->create([
+            'role' => User::ROLE_TUTOR,
+            'username' => 'tutor' . uniqid(),
+            'is_active' => true,
+            'is_blocked' => false,
+            'is_profile_completed' => false,
+            'desired_tariff_id' => $basic->id,
+        ]);
+
+        \App\Models\LessonType::create([
+            'user_id' => $tutor->id,
+            'type' => \App\Models\LessonType::TYPE_INDIVIDUAL,
+            'payment_type' => 'per_lesson',
+            'price' => 1000,
+            'duration' => 60,
+        ]);
+
+        Livewire::actingAs($tutor)
+            ->test(\App\Filament\App\Pages\Onboarding::class)
+            ->call('submit')
+            ->assertRedirect(ManageSubscription::getUrl(['pay' => $basic->id], panel: 'app'));
+
+        // Бесплатный тариф всё равно назначен как база до оплаты
+        $this->assertEquals(0, $tutor->fresh()->activeSubscription()->tariff->price);
+    }
+
     public function test_onboarding_keeps_existing_subscription(): void
     {
         $tutor = User::factory()->create([
