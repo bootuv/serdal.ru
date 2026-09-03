@@ -510,6 +510,58 @@ class SubscriptionTariffsTest extends TestCase
             ->assertSee('рабочих дней');
     }
 
+    public function test_refund_shortens_subscription_by_paid_period(): void
+    {
+        \Illuminate\Support\Facades\Notification::fake();
+        \Illuminate\Support\Facades\Http::fake([
+            'api.yookassa.ru/v3/refunds' => \Illuminate\Support\Facades\Http::response(['id' => 'r-3', 'status' => 'succeeded']),
+        ]);
+
+        $admin = $this->makeAdmin();
+        $tutor = $this->makeTutor();
+        $basic = Tariff::where('slug', 'basic')->first();
+
+        // Две оплаты по месяцу: подписка на 60 дней
+        $first = \App\Models\SubscriptionPayment::create([
+            'user_id' => $tutor->id,
+            'tariff_id' => $basic->id,
+            'amount' => $basic->price,
+            'period_days' => 30,
+            'status' => \App\Models\SubscriptionPayment::STATUS_PENDING,
+            'gateway' => 'yookassa',
+            'gateway_order_id' => 'yk-r-a',
+        ]);
+        SubscriptionService::applyPaidPayment($first);
+        $second = \App\Models\SubscriptionPayment::create([
+            'user_id' => $tutor->id,
+            'tariff_id' => $basic->id,
+            'amount' => $basic->price,
+            'period_days' => 30,
+            'status' => \App\Models\SubscriptionPayment::STATUS_PENDING,
+            'gateway' => 'yookassa',
+            'gateway_order_id' => 'yk-r-b',
+        ]);
+        SubscriptionService::applyPaidPayment($second);
+
+        $endsBefore = $tutor->fresh()->activeSubscription()->ends_at;
+
+        // Возврат второго платежа: минус 30 дней, подписка остаётся активной
+        Livewire::actingAs($admin)
+            ->test(\App\Filament\Resources\SubscriptionPaymentResource\Pages\ListSubscriptionPayments::class)
+            ->callTableAction('refund', $second);
+
+        $subscription = $tutor->fresh()->activeSubscription();
+        $this->assertNotNull($subscription);
+        $this->assertTrue($subscription->ends_at->isSameDay($endsBefore->copy()->subDays(30)));
+
+        // Возврат первого платежа: срока не остаётся — подписка завершается
+        Livewire::actingAs($admin)
+            ->test(\App\Filament\Resources\SubscriptionPaymentResource\Pages\ListSubscriptionPayments::class)
+            ->callTableAction('refund', $first->fresh());
+
+        $this->assertNull($tutor->fresh()->activeSubscription());
+    }
+
     public function test_paid_subscription_is_not_complimentary(): void
     {
         $tutor = $this->makeTutor();

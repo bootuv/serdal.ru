@@ -149,6 +149,48 @@ class SubscriptionService
     }
 
     /**
+     * Корректирует подписку после возврата платежа: оплаченный возвращённым
+     * платежом период вычитается из срока подписки. Если срока не остаётся —
+     * подписка завершается сразу. Возвращает скорректированную подписку или null.
+     */
+    public static function applyRefund(SubscriptionPayment $payment): ?Subscription
+    {
+        $subscription = $payment->subscription
+            ?? $payment->user->subscriptions()->active()->where('tariff_id', $payment->tariff_id)->latest('starts_at')->first();
+
+        // Бессрочные (бесплатные/подаренные) подписки не трогаем
+        if (!$subscription || !$subscription->ends_at) {
+            return null;
+        }
+
+        $newEnd = $subscription->ends_at->copy()->subDays($payment->period_days);
+
+        if ($newEnd->isPast()) {
+            $subscription->update(['ends_at' => now(), 'status' => Subscription::STATUS_EXPIRED]);
+        } else {
+            $subscription->update(['ends_at' => $newEnd]);
+        }
+
+        // Запланированное переключение (например, даунгрейд на бесплатный тариф)
+        // сдвигаем на новую дату окончания, чтобы не было разрыва
+        $scheduled = $payment->user->scheduledSubscription();
+        if ($scheduled) {
+            $shift = $scheduled->ends_at
+                ? $scheduled->starts_at->diffInSeconds($scheduled->ends_at)
+                : null;
+            $newStart = $newEnd->isPast() ? now() : $newEnd;
+            $scheduled->update([
+                'starts_at' => $newStart,
+                'ends_at' => $shift ? $newStart->copy()->addSeconds($shift) : null,
+            ]);
+        }
+
+        unset(self::$canStartCache[$payment->user_id]);
+
+        return $subscription->fresh();
+    }
+
+    /**
      * Если учитель попросил сохранить карту и ЮKassa подтвердила сохранение —
      * привязываем способ оплаты. Автопродление включается только при отдельном
      * согласии (meta.auto_renew_opt_in); уже включённое — не выключаем.

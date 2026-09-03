@@ -16,6 +16,8 @@ class SubscriptionRefunded extends Notification implements ShouldBroadcast
         public string $tariffName,
         public int $amount,
         public int $processingDays,
+        public ?\Illuminate\Support\Carbon $newEndsAt = null,
+        public bool $subscriptionEnded = false,
     ) {
     }
 
@@ -34,9 +36,16 @@ class SubscriptionRefunded extends Notification implements ShouldBroadcast
     {
         $amountText = number_format($this->amount, 0, ',', ' ');
 
+        $subscriptionNote = '';
+        if ($this->subscriptionEnded) {
+            $subscriptionNote = ' Действие подписки завершено.';
+        } elseif ($this->newEndsAt) {
+            $subscriptionNote = ' Срок подписки скорректирован — тариф действует до ' . $this->newEndsAt->format('d.m.Y') . '.';
+        }
+
         return FilamentNotification::make()
             ->title('Возврат оформлен')
-            ->body("Возврат {$amountText} ₽ за тариф «{$this->tariffName}» оформлен. Средства вернутся на карту, с которой была оплата, в течение {$this->processingDays} рабочих дней.")
+            ->body("Возврат {$amountText} ₽ за тариф «{$this->tariffName}» оформлен. Средства вернутся на карту, с которой была оплата, в течение {$this->processingDays} рабочих дней.{$subscriptionNote}")
             ->icon('heroicon-o-arrow-uturn-left')
             ->iconColor('info')
             ->actions([

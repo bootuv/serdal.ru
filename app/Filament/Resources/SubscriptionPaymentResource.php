@@ -98,8 +98,8 @@ class SubscriptionPaymentResource extends Resource
                     ->requiresConfirmation()
                     ->modalHeading('Возврат платежа')
                     ->modalDescription(fn(SubscriptionPayment $record) => $record->gateway_order_id
-                        ? 'Деньги (' . number_format($record->amount, 0, ',', ' ') . ' ₽) вернутся на карту плательщика через ЮKassa. Действие необратимо. Подписку, оплаченную этим платежом, при необходимости скорректируйте вручную в разделе «Подписки».'
-                        : 'У платежа нет идентификатора ЮKassa (создан вручную) — он будет только отмечен как возвращённый, без движения денег.')
+                        ? 'Деньги (' . number_format($record->amount, 0, ',', ' ') . ' ₽) вернутся на карту плательщика через ЮKassa. Действие необратимо. Срок подписки автоматически уменьшится на оплаченный этим платежом период.'
+                        : 'У платежа нет идентификатора ЮKassa (создан вручную) — он будет отмечен как возвращённый без движения денег, срок подписки уменьшится на оплаченный период.')
                     ->visible(fn(SubscriptionPayment $record) => $record->status === SubscriptionPayment::STATUS_PAID)
                     ->action(function (SubscriptionPayment $record) {
                         // Платёж без id шлюза — только отметка в учёте
@@ -108,10 +108,13 @@ class SubscriptionPaymentResource extends Resource
                                 'status' => SubscriptionPayment::STATUS_REFUNDED,
                                 'meta' => array_merge($record->meta ?? [], ['refunded_at' => now()->toIso8601String()]),
                             ]);
+                            $adjusted = \App\Services\SubscriptionService::applyRefund($record);
                             $record->user?->notify(new \App\Notifications\SubscriptionRefunded(
                                 $record->tariff->name,
                                 $record->amount,
                                 \App\Support\OfferSettings::offer()['refund_processing_days'],
+                                newEndsAt: $adjusted?->isActive() ? $adjusted->ends_at : null,
+                                subscriptionEnded: $adjusted !== null && !$adjusted->isActive(),
                             ));
                             Notification::make()->title('Платёж отмечен как возвращённый')->success()->send();
                             return;
@@ -120,18 +123,28 @@ class SubscriptionPaymentResource extends Resource
                         if (\App\Services\YooKassaService::refundPayment($record)) {
                             $record->update(['status' => SubscriptionPayment::STATUS_REFUNDED]);
 
-                            // Уведомляем учителя о возврате (привязочные платежи — служебные)
+                            // Привязочные платежи — служебные: подписку не трогаем, учителя не уведомляем
+                            $adjusted = null;
                             if (empty($record->meta['card_binding'])) {
+                                $adjusted = \App\Services\SubscriptionService::applyRefund($record);
                                 $record->user?->notify(new \App\Notifications\SubscriptionRefunded(
                                     $record->tariff->name,
                                     $record->amount,
                                     \App\Support\OfferSettings::offer()['refund_processing_days'],
+                                    newEndsAt: $adjusted?->isActive() ? $adjusted->ends_at : null,
+                                    subscriptionEnded: $adjusted !== null && !$adjusted->isActive(),
                                 ));
                             }
 
+                            $subscriptionNote = match (true) {
+                                $adjusted === null => '',
+                                !$adjusted->isActive() => ' Подписка завершена.',
+                                default => ' Подписка сокращена до ' . $adjusted->ends_at->format('d.m.Y') . '.',
+                            };
+
                             Notification::make()
                                 ->title('Возврат оформлен')
-                                ->body('Деньги вернутся на карту плательщика в течение нескольких дней. Учителю отправлено уведомление.')
+                                ->body('Деньги вернутся на карту плательщика в течение нескольких дней. Учителю отправлено уведомление.' . $subscriptionNote)
                                 ->success()
                                 ->send();
                         } else {
