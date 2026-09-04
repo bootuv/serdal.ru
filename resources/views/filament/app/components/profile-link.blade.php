@@ -1,7 +1,19 @@
+{{--
+    Ссылка на публичную страницу преподавателя с копированием в буфер.
+    $inSidebar = true — вариант для мобильного меню (бургера): в шапке на узких экранах
+    места нет, поэтому там ссылка скрыта до lg, а в сайдбаре показывается только до lg.
+--}}
 @php
+    $inSidebar = $inSidebar ?? false;
     $fullUrl = route('tutors.show', ['username' => auth()->user()->username]);
     $displayUrl = preg_replace('#^https?://#', '', $fullUrl);
 @endphp
+
+@if($inSidebar)
+    {{-- Футер сайдбара: прижат к низу, отделён линией от навигации --}}
+    <div class="lg:hidden shrink-0 border-t border-gray-200 bg-white px-6 py-4 dark:border-white/10 dark:bg-gray-900">
+        <p class="mb-2 text-xs font-medium text-gray-500 dark:text-gray-400">Ваша публичная страница</p>
+@endif
 
 <div x-data="{
         url: '{{ $fullUrl }}',
@@ -19,9 +31,9 @@
             });
         }
     }"
-    class="flex items-center gap-2 px-3 pr-2 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 transition-all cursor-pointer group"
+    class="{{ $inSidebar ? 'flex w-full' : 'hidden lg:flex' }} items-center gap-2 px-3 pr-2 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 transition-all cursor-pointer group"
     style="height: 32px;" @click="copyToClipboard" title="Нажмите, чтобы скопировать ссылку">
-    <a href="{{ $fullUrl }}" target="_blank" class="text-sm font-medium hover:underline truncate max-w-[180px]"
+    <a href="{{ $fullUrl }}" target="_blank" class="text-sm font-medium hover:underline truncate {{ $inSidebar ? 'flex-1' : 'max-w-[180px]' }}"
         style="color: #D97706;" @click.stop>
         {{ $displayUrl }}
     </a>
@@ -40,3 +52,7 @@
         </svg>
     </button>
 </div>
+
+@if($inSidebar)
+    </div>
+@endif

@@ -40,6 +40,11 @@ class AppPanelProvider extends PanelProvider
                 'panels::global-search.after',
                 fn() => view('filament.app.components.profile-link')
             )
+            // На мобильных ссылка на публичный профиль уезжает из шапки в низ бургер-меню
+            ->renderHook(
+                \Filament\View\PanelsRenderHook::SIDEBAR_FOOTER,
+                fn() => view('filament.app.components.profile-link', ['inSidebar' => true])
+            )
             ->renderHook(
                 'panels::body.end',
                 fn() => \Illuminate\Support\Facades\Blade::render('@livewire(\'push-notification-modal\')')

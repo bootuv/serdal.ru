@@ -59,14 +59,13 @@ class YooKassaService
 
     /**
      * Способы оплаты, которые магазину разрешено сохранять для автосписаний.
-     * ЮKassa включает привязку каждого типа отдельно: сейчас активирована
-     * только привязка банковских карт (письмо CRM020429902 от 04.09.2026).
-     * Когда техслужба включит привязку счёта СБП / SberPay / ЮMoney —
-     * добавьте сюда 'sbp' / 'sberbank' / 'yoo_money'.
+     * Проверено запросами к боевому API 04.09.2026 (после активации опции
+     * по тикету CRM020429902): ЮKassa принимает save_payment_method для
+     * всех подключённых методов — карты, СБП, SberPay, T-Pay и ЮMoney.
      */
     public static function savableMethods(): array
     {
-        return ['bank_card'];
+        return ['sbp', 'sberbank', 'tinkoff_bank', 'bank_card', 'yoo_money'];
     }
 
     protected static function setting(string $key): ?string
@@ -76,10 +75,17 @@ class YooKassaService
 
     protected static function request()
     {
+        // Ретраим только сетевые сбои (таймаут, обрыв соединения) — это
+        // безопасно: все POST-запросы идут с Idempotence-Key. Ошибочные
+        // HTTP-ответы (4xx/5xx) не ретраим — с тем же ключом ЮKassa вернёт
+        // тот же результат.
         return Http::withBasicAuth(
             (string) self::shopId(),
             (string) self::secretKey(),
-        );
+        )
+            ->connectTimeout(10)
+            ->timeout(20)
+            ->retry(2, 1000, fn($exception) => $exception instanceof \Illuminate\Http\Client\ConnectionException);
     }
 
     /**

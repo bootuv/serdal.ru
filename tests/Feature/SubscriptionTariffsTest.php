@@ -1137,6 +1137,40 @@ class SubscriptionTariffsTest extends TestCase
         $this->assertEquals($basic->id, $tutor->fresh()->activeSubscription()->tariff_id);
     }
 
+    public function test_payment_return_survives_yookassa_downtime(): void
+    {
+        \App\Models\Setting::updateOrCreate(['key' => 'yookassa_shop_id'], ['value' => '123']);
+        \App\Models\Setting::updateOrCreate(['key' => 'yookassa_secret_key'], ['value' => 'test_key']);
+
+        // ЮKassa недоступна: соединение обрывается
+        \Illuminate\Support\Facades\Http::fake(function () {
+            throw new \Illuminate\Http\Client\ConnectionException('cURL error 28: SSL connection timeout');
+        });
+
+        $tutor = $this->makeTutor();
+        $basic = Tariff::where('slug', 'basic')->first();
+
+        $payment = \App\Models\SubscriptionPayment::create([
+            'user_id' => $tutor->id,
+            'tariff_id' => $basic->id,
+            'amount' => $basic->price,
+            'status' => \App\Models\SubscriptionPayment::STATUS_PENDING,
+            'gateway' => 'yookassa',
+            'gateway_order_id' => 'yk-down-1',
+        ]);
+
+        // Не 500, а мягкий редирект: статус доедет вебхуком
+        $this->actingAs($tutor)
+            ->get(route('subscription.payment.return', $payment))
+            ->assertRedirect(route('filament.app.pages.subscription'))
+            ->assertSessionHas('subscription_message');
+
+        $this->assertEquals(
+            \App\Models\SubscriptionPayment::STATUS_PENDING,
+            $payment->fresh()->status,
+        );
+    }
+
     public function test_payment_return_confirms_status_via_yookassa_api(): void
     {
         \Illuminate\Support\Facades\Notification::fake();

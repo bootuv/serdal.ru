@@ -60,7 +60,7 @@
     {{-- Срок истёк: сплошная красная плашка --}}
     <a href="{{ $subscriptionUrl }}"
         title="Срок действия тарифа «{{ $expired->tariff->name }}» истёк{{ $expired->ends_at ? ' ' . $expired->ends_at->format('d.m.Y') : '' }} — продлите подписку"
-        class="sub-badge hidden sm:flex items-center gap-2 px-3.5 rounded-xl transition-all"
+        class="sub-badge flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 rounded-xl transition-all"
         style="background: #dc2626; color: #fff; box-shadow: 0 2px 10px rgba(220, 38, 38, .35);">
         <span class="sub-badge__dot" style="background: #fff;"></span>
         <span class="text-sm">Срок истёк</span>
@@ -69,7 +69,7 @@
 @elseif(!$subscription)
     {{-- Подписки нет: яркая жёлтая плашка с призывом --}}
     <a href="{{ $subscriptionUrl }}" title="Подписка не оформлена — выберите тариф"
-        class="sub-badge hidden sm:flex items-center gap-2 px-3.5 rounded-xl transition-all"
+        class="sub-badge flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 rounded-xl transition-all"
         style="background: #fbbf24; color: #1f2937; box-shadow: 0 2px 10px rgba(251, 191, 36, .45);">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"
             class="w-4 h-4">
@@ -81,18 +81,18 @@
     {{-- Активный тариф: цвет зависит от уровня тарифа, при скором окончании — красная рамка и счётчик --}}
     <a href="{{ $subscriptionUrl }}"
         title="Тариф «{{ $subscription->tariff->name }}»{{ $endsLabel ? ' действует до ' . $endsLabel : '' }}{{ $isExpiring ? ' — продлите подписку' : '' }}"
-        class="sub-badge hidden sm:flex items-center gap-2 px-3.5 rounded-xl border-2 transition-all"
+        class="sub-badge flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 rounded-xl border-2 transition-all"
         style="background: {{ $palette['bg'] }}; border-color: {{ $isExpiring ? '#ef4444' : $palette['border'] }}; color: {{ $palette['fg'] }};">
         @if($isExpiring)
             <span class="sub-badge__dot"></span>
         @else
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"
-                class="w-4 h-4" style="color: {{ $palette['icon'] }};">
+                class="hidden sm:block w-4 h-4" style="color: {{ $palette['icon'] }};">
                 <path stroke-linecap="round" stroke-linejoin="round"
                     d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" />
             </svg>
         @endif
-        <span class="text-sm">{{ $subscription->tariff->name }}</span>
+        <span class="text-sm"><span class="font-medium" style="opacity: .75;">Тариф</span> {{ $subscription->tariff->name }}</span>
         @if($isExpiring)
             <span class="sub-badge__pill" style="background: #ef4444; color: #fff;">
                 {{ $daysLeft <= 0 ? 'истекает сегодня' : 'ещё ' . plural_ru($daysLeft, 'день', 'дня', 'дней') }}

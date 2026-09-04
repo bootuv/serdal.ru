@@ -16,7 +16,23 @@ class SubscriptionPaymentController extends Controller
      */
     public function return(SubscriptionPayment $payment)
     {
-        $status = $this->syncStatus($payment);
+        try {
+            $status = $this->syncStatus($payment);
+        } catch (\Illuminate\Http\Client\ConnectionException $e) {
+            // ЮKassa временно недоступна с нашего сервера — не показываем 500:
+            // статус доедет вебхуком или проверкой зависших платежей по крону
+            Log::warning('[YooKassa] status check failed on return page', [
+                'payment_id' => $payment->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            session()->flash('subscription_message', [
+                'type' => 'warning',
+                'title' => 'Платёж обрабатывается. Статус обновится автоматически в течение нескольких минут.',
+            ]);
+
+            return redirect()->route('filament.app.pages.subscription');
+        }
 
         if (!empty($payment->meta['card_binding'])) {
             session()->flash('subscription_message', $status === SubscriptionPayment::STATUS_PAID
