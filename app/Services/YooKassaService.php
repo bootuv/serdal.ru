@@ -12,17 +12,37 @@ use Illuminate\Support\Str;
  * Интеграция с ЮKassa (API v3).
  * Документация: https://yookassa.ru/developers/api
  *
- * Учётные данные задаются в админке: Настройки → Эквайринг
- * (shopId и секретный ключ из личного кабинета ЮKassa;
- * для тестового магазина — тестовые ключи, отдельный переключатель не нужен).
+ * Учётные данные задаются в админке: Настройки → Эквайринг. Хранятся две пары
+ * ключей — боевого и тестового магазина; какая используется, определяет
+ * переключатель «Тестовый режим» (yookassa_test_mode).
  */
 class YooKassaService
 {
     const API_URL = 'https://api.yookassa.ru/v3/';
 
+    /**
+     * Включён ли тестовый режим: запросы идут с ключами тестового магазина.
+     */
+    public static function isTestMode(): bool
+    {
+        return self::setting('yookassa_test_mode') === '1';
+    }
+
+    /** shopId активного магазина (боевого или тестового). */
+    public static function shopId(): ?string
+    {
+        return self::setting(self::isTestMode() ? 'yookassa_test_shop_id' : 'yookassa_shop_id');
+    }
+
+    /** Секретный ключ активного магазина (боевого или тестового). */
+    public static function secretKey(): ?string
+    {
+        return self::setting(self::isTestMode() ? 'yookassa_test_secret_key' : 'yookassa_secret_key');
+    }
+
     public static function isConfigured(): bool
     {
-        return (bool) (self::setting('yookassa_shop_id') && self::setting('yookassa_secret_key'));
+        return (bool) (self::shopId() && self::secretKey());
     }
 
     /**
@@ -33,7 +53,8 @@ class YooKassaService
      */
     public static function recurringEnabled(): bool
     {
-        return self::isConfigured() && self::setting('yookassa_recurring_enabled') === '1';
+        // В тестовом магазине автоплатежи доступны сразу, без активации менеджером
+        return self::isConfigured() && (self::isTestMode() || self::setting('yookassa_recurring_enabled') === '1');
     }
 
     protected static function setting(string $key): ?string
@@ -44,8 +65,8 @@ class YooKassaService
     protected static function request()
     {
         return Http::withBasicAuth(
-            (string) self::setting('yookassa_shop_id'),
-            (string) self::setting('yookassa_secret_key'),
+            (string) self::shopId(),
+            (string) self::secretKey(),
         );
     }
 

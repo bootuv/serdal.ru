@@ -1452,4 +1452,45 @@ class SubscriptionTariffsTest extends TestCase
             ->assertOk()
             ->assertSee('Дополнительные занятия');
     }
+
+    // Тестовый режим ЮKassa: отдельные ключи и быстрое переключение
+
+    public function test_yookassa_test_mode_switches_credentials(): void
+    {
+        \App\Models\Setting::updateOrCreate(['key' => 'yookassa_shop_id'], ['value' => 'live_shop']);
+        \App\Models\Setting::updateOrCreate(['key' => 'yookassa_secret_key'], ['value' => 'live_key']);
+        \App\Models\Setting::updateOrCreate(['key' => 'yookassa_test_shop_id'], ['value' => 'test_shop']);
+        \App\Models\Setting::updateOrCreate(['key' => 'yookassa_test_secret_key'], ['value' => 'test_key']);
+        \App\Models\Setting::updateOrCreate(['key' => 'yookassa_recurring_enabled'], ['value' => '0']);
+
+        // Боевой режим: боевые ключи, автоплатежи выключены переключателем
+        \App\Models\Setting::updateOrCreate(['key' => 'yookassa_test_mode'], ['value' => '0']);
+        $this->assertFalse(\App\Services\YooKassaService::isTestMode());
+        $this->assertEquals('live_shop', \App\Services\YooKassaService::shopId());
+        $this->assertEquals('live_key', \App\Services\YooKassaService::secretKey());
+        $this->assertTrue(\App\Services\YooKassaService::isConfigured());
+        $this->assertFalse(\App\Services\YooKassaService::recurringEnabled());
+
+        // Тестовый режим: тестовые ключи, автоплатежи доступны всегда
+        \App\Models\Setting::updateOrCreate(['key' => 'yookassa_test_mode'], ['value' => '1']);
+        $this->assertTrue(\App\Services\YooKassaService::isTestMode());
+        $this->assertEquals('test_shop', \App\Services\YooKassaService::shopId());
+        $this->assertEquals('test_key', \App\Services\YooKassaService::secretKey());
+        $this->assertTrue(\App\Services\YooKassaService::recurringEnabled());
+
+        // Тестовый режим без тестовых ключей — эквайринг не настроен
+        \App\Models\Setting::updateOrCreate(['key' => 'yookassa_test_shop_id'], ['value' => '']);
+        $this->assertFalse(\App\Services\YooKassaService::isConfigured());
+    }
+
+    public function test_admin_settings_page_shows_yookassa_test_mode_controls(): void
+    {
+        $admin = $this->makeAdmin();
+        \App\Models\Setting::updateOrCreate(['key' => 'yookassa_test_mode'], ['value' => '1']);
+
+        $this->actingAs($admin)->get('/admin/settings')
+            ->assertOk()
+            ->assertSee('Тестовый магазин')
+            ->assertSee('ЮKassa: тестовый режим');
+    }
 }
