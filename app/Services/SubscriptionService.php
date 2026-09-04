@@ -214,9 +214,26 @@ class SubscriptionService
     }
 
     /**
-     * Если учитель попросил сохранить карту и ЮKassa подтвердила сохранение —
-     * привязываем способ оплаты. Автопродление включается только при отдельном
-     * согласии (meta.auto_renew_opt_in); уже включённое — не выключаем.
+     * Название сохранённого способа оплаты, если ЮKassa не прислала title
+     * (для карты title есть всегда, для СБП/SberPay/T-Pay — не гарантирован).
+     */
+    public static function paymentMethodFallbackTitle(?string $type): string
+    {
+        return match ($type) {
+            'sbp' => 'СБП',
+            'sberbank' => 'SberPay',
+            'tinkoff_bank' => 'T-Pay',
+            'yoo_money' => 'ЮMoney',
+            'bank_card' => 'Банковская карта',
+            default => 'Сохранённый способ оплаты',
+        };
+    }
+
+    /**
+     * Если учитель попросил сохранить способ оплаты (карту, счёт СБП, SberPay,
+     * T-Pay, ЮMoney) и ЮKassa подтвердила сохранение — привязываем его.
+     * Автопродление включается только при отдельном согласии
+     * (meta.auto_renew_opt_in); уже включённое — не выключаем.
      */
     public static function storeSavedPaymentMethod(SubscriptionPayment $payment): void
     {
@@ -230,14 +247,14 @@ class SubscriptionService
             $user = $payment->user;
             $user->update([
                 'yookassa_payment_method_id' => $method['id'],
-                'payment_method_title' => $method['title'] ?? 'Банковская карта',
+                'payment_method_title' => $method['title'] ?? self::paymentMethodFallbackTitle($method['type'] ?? null),
                 'auto_renew' => $user->auto_renew || !empty($payment->meta['auto_renew_opt_in']),
             ]);
         }
     }
 
     /**
-     * Автопродление подписки по сохранённой карте. Вызывается планировщиком
+     * Автопродление подписки по сохранённому способу оплаты. Вызывается планировщиком
      * незадолго до окончания оплаченного периода.
      * Возвращает итоговый статус платежа ЮKassa или null, если списание не выполнялось.
      */

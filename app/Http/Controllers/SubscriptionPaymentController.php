@@ -20,8 +20,8 @@ class SubscriptionPaymentController extends Controller
 
         if (!empty($payment->meta['card_binding'])) {
             session()->flash('subscription_message', $status === SubscriptionPayment::STATUS_PAID
-                ? ['type' => 'success', 'title' => 'Карта привязана! Проверочный 1 ₽ вернётся на карту в течение нескольких дней.']
-                : ['type' => 'danger', 'title' => 'Не удалось привязать карту. Попробуйте ещё раз.']);
+                ? ['type' => 'success', 'title' => 'Способ оплаты привязан! Проверочный 1 ₽ вернётся в течение нескольких дней.']
+                : ['type' => 'danger', 'title' => 'Не удалось привязать способ оплаты. Попробуйте ещё раз.']);
         } elseif ($payment->isExtraLessons()) {
             session()->flash('subscription_message', match ($status) {
                 SubscriptionPayment::STATUS_PAID => ['type' => 'success', 'title' => 'Оплата прошла успешно — дополнительные занятия зачислены!'],
@@ -77,7 +77,7 @@ class SubscriptionPaymentController extends Controller
         $status = YooKassaService::fetchStatus($payment);
 
         if ($status === 'succeeded') {
-            // Привязка карты: сохраняем способ оплаты, возвращаем проверочный рубль,
+            // Привязка способа оплаты: сохраняем его, возвращаем проверочный рубль,
             // подписку не трогаем
             if (!empty($payment->meta['card_binding'])) {
                 $payment->update(['status' => SubscriptionPayment::STATUS_PAID, 'paid_at' => now()]);

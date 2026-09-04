@@ -68,7 +68,7 @@ class SubscriptionPayment extends Model
     public function getTitleAttribute(): string
     {
         if (!empty($this->meta['card_binding'])) {
-            return 'Привязка карты';
+            return 'Привязка способа оплаты';
         }
 
         if ($this->isExtraLessons()) {

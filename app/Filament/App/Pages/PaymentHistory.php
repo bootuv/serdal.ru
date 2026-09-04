@@ -74,7 +74,7 @@ class PaymentHistory extends Page implements HasTable
                         }
 
                         if (!empty($record->meta['card_binding'])) {
-                            return 'Проверочный 1 ₽ возвращён на карту.';
+                            return 'Проверочный 1 ₽ возвращён.';
                         }
 
                         $date = !empty($record->meta['refunded_at'])

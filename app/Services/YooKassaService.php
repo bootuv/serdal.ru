@@ -70,7 +70,7 @@ class YooKassaService
     protected static function descriptionFor(SubscriptionPayment $payment): string
     {
         if (!empty($payment->meta['card_binding'])) {
-            return 'Привязка карты для оплаты подписки на serdal.ru';
+            return 'Привязка способа оплаты для подписки на serdal.ru';
         }
 
         if ($payment->isExtraLessons()) {
@@ -93,7 +93,7 @@ class YooKassaService
     /**
      * Создаёт платёж в ЮKassa и возвращает URL платёжной страницы.
      * Записывает id платежа ЮKassa в gateway_order_id.
-     * $savePaymentMethod — сохранить карту для последующих автосписаний.
+     * $savePaymentMethod — сохранить способ оплаты (карта, СБП, SberPay, T-Pay, ЮMoney) для последующих автосписаний.
      * $methodType — заранее выбранный способ оплаты ('sbp', 'bank_card');
      * при null ЮKassa покажет свой экран выбора метода.
      */

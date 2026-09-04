@@ -26,7 +26,7 @@ class CheckSubscriptions extends Command
     public function handle(): int
     {
         // 0. Автопродление: подписки с включённым автосписанием, заканчивающиеся
-        // в ближайшие сутки — списываем с сохранённой карты
+        // в ближайшие сутки — списываем с сохранённого способа оплаты
         $renewals = Subscription::where('status', Subscription::STATUS_ACTIVE)
             ->whereNotNull('ends_at')
             ->where('ends_at', '>', now())

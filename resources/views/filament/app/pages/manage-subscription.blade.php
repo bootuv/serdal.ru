@@ -147,26 +147,50 @@
         <x-slot name="heading">Способ оплаты</x-slot>
 
         @if(auth()->user()->yookassa_payment_method_id)
+            @php($autoRenew = (bool) auth()->user()->auto_renew)
             <div class="flex h-full flex-col gap-4">
                 <div class="flex items-start gap-3">
                     <x-heroicon-o-credit-card class="mt-0.5 h-6 w-6 shrink-0 text-gray-400" />
-                    <div>
+                    <div class="min-w-0">
                         <p class="text-sm font-medium text-gray-950 dark:text-white">
-                            {{ auth()->user()->payment_method_title ?? 'Банковская карта' }}
+                            {{ auth()->user()->payment_method_title ?? 'Сохранённый способ оплаты' }}
                         </p>
-                        <p class="mt-1 text-sm {{ auth()->user()->auto_renew ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400' }}">
-                            @if(auth()->user()->auto_renew)
-                                Автопродление включено — подписка продлится автоматически в конце оплаченного периода.
-                            @else
-                                Автопродление выключено. Оплата проходит в один клик с сохранённой карты.
-                            @endif
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                            Оплата проходит в один клик, без повторного подтверждения в банке.
                         </p>
                     </div>
                 </div>
-                <div class="mt-auto flex flex-wrap items-center gap-2">
-                    <x-filament::button color="gray" outlined wire:click="toggleAutoRenew">
-                        {{ auth()->user()->auto_renew ? 'Отключить автопродление' : 'Включить автопродление' }}
-                    </x-filament::button>
+
+                {{-- Автопродление: описание слева, переключатель справа --}}
+                <div class="flex items-center justify-between gap-4 rounded-lg bg-gray-50 px-4 py-3 dark:bg-white/5">
+                    <div class="min-w-0">
+                        <p class="text-sm font-medium text-gray-950 dark:text-white">Автопродление</p>
+                        <p class="mt-0.5 text-sm {{ $autoRenew ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400' }}">
+                            @if($autoRenew)
+                                Подписка продлится автоматически в конце оплаченного периода — предупредим о списании заранее.
+                            @else
+                                Выключено — в конце периода подписку нужно будет продлить вручную.
+                            @endif
+                        </p>
+                    </div>
+                    <button
+                        type="button"
+                        role="switch"
+                        aria-checked="{{ $autoRenew ? 'true' : 'false' }}"
+                        aria-label="Автопродление"
+                        wire:click="toggleAutoRenew"
+                        wire:loading.attr="disabled"
+                        wire:target="toggleAutoRenew"
+                        class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:cursor-wait disabled:opacity-70 dark:focus:ring-offset-gray-900 {{ $autoRenew ? 'bg-primary-600' : 'bg-gray-200 dark:bg-white/10' }}"
+                    >
+                        <span
+                            aria-hidden="true"
+                            class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {{ $autoRenew ? 'translate-x-5' : 'translate-x-0' }}"
+                        ></span>
+                    </button>
+                </div>
+
+                <div class="mt-auto">
                     {{ $this->removeCardAction }}
                 </div>
             </div>
@@ -175,11 +199,11 @@
                 <div class="flex items-start gap-3">
                     <x-heroicon-o-credit-card class="mt-0.5 h-6 w-6 shrink-0 text-gray-400" />
                     <div>
-                        <p class="text-sm font-medium text-gray-950 dark:text-white">Карта не привязана</p>
+                        <p class="text-sm font-medium text-gray-950 dark:text-white">Способ оплаты не сохранён</p>
                         <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
                             @if(\App\Services\YooKassaService::recurringEnabled())
-                                Привяжите карту, чтобы оплачивать в один клик и включить автопродление.
-                                Также карту можно сохранить при оплате тарифа.
+                                Привяжите способ оплаты — карту, СБП, SberPay, T-Pay или ЮMoney, — чтобы оплачивать
+                                в один клик и включить автопродление. Также его можно сохранить при оплате тарифа.
                             @else
                                 Оплата в один клик и автопродление скоро станут доступны.
                             @endif
@@ -360,7 +384,7 @@
                         <div class="min-w-0">
                             <p class="text-sm font-medium text-gray-950 dark:text-white">
                                 @if(!empty($payment->meta['card_binding']))
-                                    Привязка карты — 1 ₽ (возвращается)
+                                    Привязка способа оплаты — 1 ₽ (возвращается)
                                 @elseif($payment->isExtraLessons())
                                     {{ $payment->title }} — {{ number_format($payment->amount, 0, ',', ' ') }} ₽
                                 @else
@@ -373,7 +397,7 @@
                             @if($payment->status === \App\Models\SubscriptionPayment::STATUS_REFUNDED)
                                 <p class="mt-1 text-xs text-blue-600 dark:text-blue-400">
                                     @if(!empty($payment->meta['card_binding']))
-                                        Проверочный 1 ₽ возвращён на карту.
+                                        Проверочный 1 ₽ возвращён.
                                     @else
                                         Возврат оформлен {{ !empty($payment->meta['refunded_at']) ? \Illuminate\Support\Carbon::parse($payment->meta['refunded_at'])->format('d.m.Y') : $payment->updated_at->format('d.m.Y') }}.
                                         Средства вернутся на карту, с которой была оплата, в течение {{ $refundProcessingDays }} рабочих дней.

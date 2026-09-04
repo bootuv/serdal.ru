@@ -204,15 +204,17 @@ class ManageSubscription extends Page
                 // Ключи — типы payment_method_data ЮKassa
                 return [
                     self::paymentMethodField(),
+                    // ЮKassa сохраняет для автоплатежей карту, счёт СБП, SberPay, T-Pay
+                    // и кошелёк ЮMoney — галочки доступны для любого способа
                     \Filament\Forms\Components\Checkbox::make('save_method')
-                        ->label('Сохранить карту')
-                        ->helperText('Следующие оплаты пройдут в один клик, без повторного ввода данных карты. Отвязать карту можно в любой момент на этой странице.')
-                        ->visible(fn(\Filament\Forms\Get $get) => $get('payment_method') === 'bank_card' && YooKassaService::recurringEnabled())
+                        ->label('Сохранить способ оплаты')
+                        ->helperText(self::smallHelperText('Следующие оплаты пройдут в один клик, без повторного подтверждения в банке. Отвязать способ оплаты можно в любой момент на этой странице. Для СБП банк должен поддерживать привязку счёта — ЮKassa покажет только такие банки.'))
+                        ->visible(fn() => YooKassaService::recurringEnabled())
                         ->live(),
                     \Filament\Forms\Components\Checkbox::make('auto_renew')
                         ->label('Включить автопродление')
-                        ->helperText('Подписка будет продлеваться автоматически в конце оплаченного периода — мы предупредим о списании заранее. Отключается в любой момент.')
-                        ->visible(fn(\Filament\Forms\Get $get) => $get('payment_method') === 'bank_card' && $get('save_method') && YooKassaService::recurringEnabled()),
+                        ->helperText(self::smallHelperText('Подписка будет продлеваться автоматически в конце оплаченного периода — мы предупредим о списании заранее. Отключается в любой момент.'))
+                        ->visible(fn(\Filament\Forms\Get $get) => $get('save_method') && YooKassaService::recurringEnabled()),
                 ];
             })
             ->action(fn(array $arguments, array $data) => $this->selectTariff(
@@ -221,6 +223,17 @@ class ManageSubscription extends Page
                 (bool) ($data['auto_renew'] ?? false),
                 $data['payment_method'] ?? null,
             ));
+    }
+
+    /**
+     * Длинные подсказки под чекбоксами в окне оплаты — уменьшенным шрифтом,
+     * чтобы не занимали половину модального окна.
+     */
+    protected static function smallHelperText(string $text): \Illuminate\Support\HtmlString
+    {
+        return new \Illuminate\Support\HtmlString(
+            '<span style="display: block; font-size: 12px; line-height: 1.45;">' . e($text) . '</span>'
+        );
     }
 
     /**
@@ -320,7 +333,7 @@ class ManageSubscription extends Page
     }
 
     /**
-     * Докупка занятий: списание с сохранённой карты в один клик, либо платёж
+     * Докупка занятий: списание с сохранённого способа оплаты в один клик, либо платёж
      * с уводом на платёжную страницу. Подписка не меняется — после оплаты
      * занятия зачисляются на баланс пользователя.
      */
@@ -358,7 +371,7 @@ class ManageSubscription extends Page
                 SubscriptionService::applyPaidPayment($payment);
                 Notification::make()
                     ->title('Оплачено')
-                    ->body('Списано с карты ' . ($user->payment_method_title ?? '') . '. Зачислено '
+                    ->body('Оплачено в один клик (' . ($user->payment_method_title ?? 'сохранённый способ оплаты') . '). Зачислено '
                         . $quantity . ' ' . SubscriptionService::lessonsWord($quantity) . '.')
                     ->success()
                     ->send();
@@ -420,7 +433,7 @@ class ManageSubscription extends Page
     }
 
     /**
-     * Включает/выключает автопродление по сохранённой карте.
+     * Включает/выключает автопродление по сохранённому способу оплаты.
      */
     public function toggleAutoRenew(): void
     {
@@ -428,8 +441,8 @@ class ManageSubscription extends Page
 
         if (!$user->yookassa_payment_method_id) {
             Notification::make()
-                ->title('Сначала привяжите карту')
-                ->body('Отметьте «Сохранить карту» при следующей оплате — после неё автопродление можно будет включить.')
+                ->title('Сначала сохраните способ оплаты')
+                ->body('Отметьте «Сохранить способ оплаты» при следующей оплате — после неё автопродление можно будет включить.')
                 ->info()
                 ->send();
             return;
@@ -444,35 +457,36 @@ class ManageSubscription extends Page
     }
 
     /**
-     * Кнопка «Привязать карту» с кастомной модалкой подтверждения.
+     * Кнопка «Привязать способ оплаты» с выбором способа (карта, СБП, SberPay,
+     * T-Pay, ЮMoney) и кастомной модалкой подтверждения.
      */
     public function bindCardAction(): Action
     {
         return Action::make('bindCard')
-            ->label('Привязать карту')
+            ->label('Привязать способ оплаты')
             ->color('gray')
             ->outlined()
-            ->requiresConfirmation()
             ->modalIcon('heroicon-o-credit-card')
-            ->modalHeading('Привязка карты')
-            ->modalDescription('Для проверки карты спишется 1 ₽ и сразу вернётся обратно. После привязки оплата будет проходить в один клик.')
+            ->modalHeading('Привязка способа оплаты')
+            ->modalDescription('Для проверки спишется 1 ₽ и сразу вернётся обратно. После привязки оплата будет проходить в один клик, а автопродление можно будет включить.')
             ->modalSubmitActionLabel('Привязать')
             ->modalCancelActionLabel('Отмена')
-            ->action(fn() => $this->bindCard());
+            ->form([self::paymentMethodField()])
+            ->action(fn(array $data) => $this->bindCard($data['payment_method'] ?? null));
     }
 
     /**
-     * Кнопка «Отвязать карту» с кастомной модалкой подтверждения.
+     * Кнопка «Отвязать» сохранённого способа оплаты с кастомной модалкой подтверждения.
      */
     public function removeCardAction(): Action
     {
         return Action::make('removeCard')
-            ->label('Отвязать карту')
+            ->label('Отвязать')
             ->color('danger')
             ->outlined()
             ->requiresConfirmation()
             ->modalIcon('heroicon-o-trash')
-            ->modalHeading('Отвязать карту?')
+            ->modalHeading('Отвязать способ оплаты?')
             ->modalDescription('Автопродление будет отключено, а оплата снова будет проходить через платёжную страницу.')
             ->modalSubmitActionLabel('Отвязать')
             ->modalCancelActionLabel('Отмена')
@@ -480,21 +494,22 @@ class ManageSubscription extends Page
     }
 
     /**
-     * Привязка карты без покупки: проверочный платёж на 1 ₽ с сохранением
-     * способа оплаты; рубль возвращается сразу после подтверждения.
+     * Привязка способа оплаты без покупки: проверочный платёж на 1 ₽ выбранным
+     * способом (карта, СБП, SberPay, T-Pay, ЮMoney) с сохранением; рубль
+     * возвращается сразу после подтверждения.
      */
-    public function bindCard()
+    public function bindCard(?string $method = null)
     {
         $user = auth()->user();
 
         if ($user->yookassa_payment_method_id) {
-            Notification::make()->title('Карта уже привязана')->info()->send();
+            Notification::make()->title('Способ оплаты уже привязан')->info()->send();
             return null;
         }
 
         if (!YooKassaService::recurringEnabled()) {
             Notification::make()
-                ->title('Привязка карты пока недоступна')
+                ->title('Привязка пока недоступна')
                 ->body('Автоплатежи подключаются на стороне платёжного сервиса. Попробуйте позже.')
                 ->warning()
                 ->send();
@@ -527,11 +542,11 @@ class ManageSubscription extends Page
                 $payment,
                 route('subscription.payment.return', $payment),
                 savePaymentMethod: true,
-                methodType: 'bank_card',
+                methodType: $method ?: 'sbp',
             );
         } catch (\Throwable $e) {
             $payment->update(['status' => SubscriptionPayment::STATUS_FAILED]);
-            Notification::make()->title('Не удалось привязать карту')->body($e->getMessage())->danger()->send();
+            Notification::make()->title('Не удалось привязать способ оплаты')->body($e->getMessage())->danger()->send();
             return null;
         }
 
@@ -539,7 +554,7 @@ class ManageSubscription extends Page
     }
 
     /**
-     * Отвязывает сохранённую карту и выключает автопродление.
+     * Отвязывает сохранённый способ оплаты и выключает автопродление.
      */
     public function removePaymentMethod(): void
     {
@@ -555,16 +570,16 @@ class ManageSubscription extends Page
     /**
      * Выбор тарифа: бесплатный активируется сразу; платный — списание с сохранённой
      * карты в один клик, либо платёж с уводом на платёжную страницу.
-     * $saveMethod — сохранить карту; $autoRenew — включить автопродление (требует $saveMethod).
+     * $saveMethod — сохранить способ оплаты; $autoRenew — включить автопродление (требует $saveMethod).
      * $method — выбранный способ оплаты (тип payment_method_data ЮKassa) или null.
      */
     public function selectTariff(int $tariffId, bool $saveMethod = false, bool $autoRenew = false, ?string $method = null)
     {
         $user = auth()->user();
 
-        // Сохранение карты возможно только при оплате картой и только когда
-        // магазину включены автоплатежи — иначе ЮKassa отклонит платёж
-        $saveMethod = $saveMethod && $method === 'bank_card' && YooKassaService::recurringEnabled();
+        // Сохранение способа оплаты возможно только когда магазину включены
+        // автоплатежи — иначе ЮKassa отклонит платёж
+        $saveMethod = $saveMethod && YooKassaService::recurringEnabled();
 
         if (self::tariffUnavailable($tariffId)) {
             Notification::make()
@@ -639,7 +654,7 @@ class ManageSubscription extends Page
                 SubscriptionService::applyPaidPayment($payment);
                 Notification::make()
                     ->title('Оплачено')
-                    ->body('Списано с карты ' . ($user->payment_method_title ?? '') . '. Тариф «' . $tariff->name . '» подключён.')
+                    ->body('Оплачено в один клик (' . ($user->payment_method_title ?? 'сохранённый способ оплаты') . '). Тариф «' . $tariff->name . '» подключён.')
                     ->success()
                     ->send();
                 return null;
