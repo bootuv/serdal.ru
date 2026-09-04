@@ -57,6 +57,18 @@ class YooKassaService
         return self::isConfigured() && (self::isTestMode() || self::setting('yookassa_recurring_enabled') === '1');
     }
 
+    /**
+     * Способы оплаты, которые магазину разрешено сохранять для автосписаний.
+     * ЮKassa включает привязку каждого типа отдельно: сейчас активирована
+     * только привязка банковских карт (письмо CRM020429902 от 04.09.2026).
+     * Когда техслужба включит привязку счёта СБП / SberPay / ЮMoney —
+     * добавьте сюда 'sbp' / 'sberbank' / 'yoo_money'.
+     */
+    public static function savableMethods(): array
+    {
+        return ['bank_card'];
+    }
+
     protected static function setting(string $key): ?string
     {
         return Setting::where('key', $key)->value('value');

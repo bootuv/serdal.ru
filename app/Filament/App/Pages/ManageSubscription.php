@@ -204,17 +204,20 @@ class ManageSubscription extends Page
                 // Ключи — типы payment_method_data ЮKassa
                 return [
                     self::paymentMethodField(),
-                    // ЮKassa сохраняет для автоплатежей карту, счёт СБП, SberPay, T-Pay
-                    // и кошелёк ЮMoney — галочки доступны для любого способа
+                    // Сохранение доступно не для всех способов: ЮKassa включает
+                    // привязку каждого типа отдельно (сейчас — только карты),
+                    // см. YooKassaService::savableMethods()
                     \Filament\Forms\Components\Checkbox::make('save_method')
                         ->label('Сохранить способ оплаты')
-                        ->helperText(self::smallHelperText('Следующие оплаты пройдут в один клик, без повторного подтверждения в банке. Отвязать способ оплаты можно в любой момент на этой странице. Для СБП банк должен поддерживать привязку счёта — ЮKassa покажет только такие банки.'))
-                        ->visible(fn() => YooKassaService::recurringEnabled())
+                        ->helperText(self::smallHelperText('Следующие оплаты пройдут в один клик, без повторного подтверждения в банке. Отвязать способ оплаты можно в любой момент на этой странице.'))
+                        ->visible(fn(\Filament\Forms\Get $get) => YooKassaService::recurringEnabled()
+                            && in_array($get('payment_method'), YooKassaService::savableMethods(), true))
                         ->live(),
                     \Filament\Forms\Components\Checkbox::make('auto_renew')
                         ->label('Включить автопродление')
                         ->helperText(self::smallHelperText('Подписка будет продлеваться автоматически в конце оплаченного периода — мы предупредим о списании заранее. Отключается в любой момент.'))
-                        ->visible(fn(\Filament\Forms\Get $get) => $get('save_method') && YooKassaService::recurringEnabled()),
+                        ->visible(fn(\Filament\Forms\Get $get) => $get('save_method') && YooKassaService::recurringEnabled()
+                            && in_array($get('payment_method'), YooKassaService::savableMethods(), true)),
                 ];
             })
             ->action(fn(array $arguments, array $data) => $this->selectTariff(
@@ -413,7 +416,7 @@ class ManageSubscription extends Page
      * Выбор способа оплаты карточками (СБП приоритетом). Ключи — типы
      * payment_method_data ЮKassa. Используется также в онбординге.
      */
-    public static function paymentMethodField(): \Filament\Forms\Components\Radio
+    public static function paymentMethodField(?array $only = null): \Filament\Forms\Components\Radio
     {
         $methods = [
             'sbp' => ['icon' => 'sbp.svg', 'title' => 'СБП', 'subtitle' => 'Приложение вашего банка — рекомендуем'],
@@ -423,12 +426,16 @@ class ManageSubscription extends Page
             'yoo_money' => ['icon' => 'yoomoney.png', 'title' => 'ЮMoney', 'subtitle' => 'Кошелёк или привязанная карта'],
         ];
 
+        if ($only !== null) {
+            $methods = array_intersect_key($methods, array_flip($only));
+        }
+
         return \Filament\Forms\Components\Radio::make('payment_method')
             ->label('Способ оплаты')
             ->options(array_map(fn($m) => $m['title'], $methods))
             ->view('filament.forms.components.payment-methods')
             ->viewData(['methods' => $methods])
-            ->default('sbp')
+            ->default(array_key_exists('sbp', $methods) ? 'sbp' : array_key_first($methods))
             ->live();
     }
 
@@ -462,16 +469,21 @@ class ManageSubscription extends Page
      */
     public function bindCardAction(): Action
     {
+        // Привязать можно только способы с включённой у ЮKassa привязкой
+        // (сейчас — банковская карта); при одном способе выбор не показываем
+        $savable = YooKassaService::savableMethods();
+        $single = count($savable) === 1;
+
         return Action::make('bindCard')
-            ->label('Привязать способ оплаты')
+            ->label($single ? 'Привязать карту' : 'Привязать способ оплаты')
             ->color('gray')
             ->outlined()
             ->modalIcon('heroicon-o-credit-card')
-            ->modalHeading('Привязка способа оплаты')
+            ->modalHeading($single ? 'Привязка карты' : 'Привязка способа оплаты')
             ->modalDescription('Для проверки спишется 1 ₽ и сразу вернётся обратно. После привязки оплата будет проходить в один клик, а автопродление можно будет включить.')
             ->modalSubmitActionLabel('Привязать')
             ->modalCancelActionLabel('Отмена')
-            ->form([self::paymentMethodField()])
+            ->form($single ? [] : [self::paymentMethodField($savable)])
             ->action(fn(array $data) => $this->bindCard($data['payment_method'] ?? null));
     }
 
@@ -537,12 +549,19 @@ class ManageSubscription extends Page
             'meta' => ['card_binding' => true, 'save_method' => true],
         ]);
 
+        // Только методы с включённой привязкой — иначе ЮKassa вернёт
+        // «This store can't make recurring payments»
+        $savable = YooKassaService::savableMethods();
+        if (!in_array($method, $savable, true)) {
+            $method = $savable[0];
+        }
+
         try {
             $url = YooKassaService::createPayment(
                 $payment,
                 route('subscription.payment.return', $payment),
                 savePaymentMethod: true,
-                methodType: $method ?: 'sbp',
+                methodType: $method,
             );
         } catch (\Throwable $e) {
             $payment->update(['status' => SubscriptionPayment::STATUS_FAILED]);
@@ -577,9 +596,12 @@ class ManageSubscription extends Page
     {
         $user = auth()->user();
 
-        // Сохранение способа оплаты возможно только когда магазину включены
-        // автоплатежи — иначе ЮKassa отклонит платёж
-        $saveMethod = $saveMethod && YooKassaService::recurringEnabled();
+        // Сохранение возможно только для способов с включённой привязкой
+        // и только когда магазину разрешены автоплатежи — иначе ЮKassa
+        // отклонит платёж («This store can't make recurring payments»)
+        $saveMethod = $saveMethod
+            && YooKassaService::recurringEnabled()
+            && in_array($method, YooKassaService::savableMethods(), true);
 
         if (self::tariffUnavailable($tariffId)) {
             Notification::make()
