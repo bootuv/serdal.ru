@@ -301,6 +301,14 @@
     border-top: none !important;
 }
 
+/* Модалки с иконкой в шапке: Filament сдвигает содержимое и футер
+   вправо (ps-[5.25rem]) под иконку. Держим одинаковый отступ по краям. */
+.fi-modal-content,
+.fi-modal-footer {
+    padding-inline-start: 1.5rem !important;
+    padding-inline-end: 1.5rem !important;
+}
+
 /* Global Counter Styling (Sidebar, Header, Messenger) */
 .fi-sidebar-item .fi-badge,
 .fi-sidebar-nav .fi-badge,
