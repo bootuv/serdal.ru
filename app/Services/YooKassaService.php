@@ -62,13 +62,15 @@ class YooKassaService
 
     /**
      * Способы оплаты, которые магазину разрешено сохранять для автосписаний.
-     * Проверено запросами к боевому API 04.09.2026 (после активации опции
-     * по тикету CRM020429902): ЮKassa принимает save_payment_method для
-     * всех подключённых методов — карты, СБП, SberPay, T-Pay и ЮMoney.
+     * ЮKassa включает привязку каждого типа отдельно. Боевому магазину 1453716
+     * включена только привязка карт (тикет CRM020429902; проверено запросами
+     * к API 04.09.2026 — на save_payment_method с sbp/sberbank/tinkoff_bank/
+     * yoo_money магазин отвечает 403 «can't make recurring payments»).
+     * Когда включат другие типы — добавьте их сюда.
      */
     public static function savableMethods(): array
     {
-        return ['sbp', 'sberbank', 'tinkoff_bank', 'bank_card', 'yoo_money'];
+        return ['bank_card'];
     }
 
     protected static function setting(string $key): ?string
@@ -107,6 +109,10 @@ class YooKassaService
                 . (self::isTestMode()
                     ? 'Включён тестовый режим — тестовому магазину автоплатежи не подключены.'
                     : 'Обратитесь в поддержку ЮKassa для включения автоплатежей.');
+        }
+
+        if (str_contains($description, "can't be saved for recurring")) {
+            return 'Этот способ оплаты нельзя сохранить для автосписаний — привяжите банковскую карту.';
         }
 
         return $description;
