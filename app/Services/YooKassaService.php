@@ -53,8 +53,11 @@ class YooKassaService
      */
     public static function recurringEnabled(): bool
     {
-        // В тестовом магазине автоплатежи доступны сразу, без активации менеджером
-        return self::isConfigured() && (self::isTestMode() || self::setting('yookassa_recurring_enabled') === '1');
+        // Автоплатежи включаются менеджером ЮKassa на конкретный магазин —
+        // тестовому их тоже включают отдельно (проверено 04.09.2026: тестовый
+        // магазин отвечал «can't make recurring payments»), поэтому решает
+        // только переключатель в админке
+        return self::isConfigured() && self::setting('yookassa_recurring_enabled') === '1';
     }
 
     /**
@@ -85,7 +88,28 @@ class YooKassaService
         )
             ->connectTimeout(10)
             ->timeout(20)
-            ->retry(2, 1000, fn($exception) => $exception instanceof \Illuminate\Http\Client\ConnectionException);
+            // throw: false — ошибочные HTTP-ответы (4xx/5xx) не выбрасывают
+            // исключение, их разбирают вызывающие методы по $response->json()
+            ->retry(2, 1000, fn($exception) => $exception instanceof \Illuminate\Http\Client\ConnectionException, throw: false);
+    }
+
+    /**
+     * Переводит типовые английские ошибки API ЮKassa в понятный текст.
+     */
+    protected static function humanizeError(?string $description): string
+    {
+        if (!$description) {
+            return 'Платёжный сервис недоступен, попробуйте позже.';
+        }
+
+        if (str_contains($description, "can't make recurring payments")) {
+            return 'Магазину не разрешено сохранение способов оплаты. '
+                . (self::isTestMode()
+                    ? 'Включён тестовый режим — тестовому магазину автоплатежи не подключены.'
+                    : 'Обратитесь в поддержку ЮKassa для включения автоплатежей.');
+        }
+
+        return $description;
     }
 
     /**
@@ -171,7 +195,7 @@ class YooKassaService
 
         if (!$response->successful() || empty($data['confirmation']['confirmation_url'])) {
             Log::error('[YooKassa] create payment failed', ['payment_id' => $payment->id, 'response' => $data]);
-            throw new \RuntimeException($data['description'] ?? 'Платёжный сервис недоступен, попробуйте позже.');
+            throw new \RuntimeException(self::humanizeError($data['description'] ?? null));
         }
 
         $payment->update([

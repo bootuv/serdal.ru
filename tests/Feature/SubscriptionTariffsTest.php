@@ -1505,12 +1505,17 @@ class SubscriptionTariffsTest extends TestCase
         $this->assertTrue(\App\Services\YooKassaService::isConfigured());
         $this->assertFalse(\App\Services\YooKassaService::recurringEnabled());
 
-        // Тестовый режим: тестовые ключи, автоплатежи доступны всегда
+        // Тестовый режим: тестовые ключи; автоплатежи и здесь решает
+        // переключатель — тестовому магазину их тоже включают отдельно
         \App\Models\Setting::updateOrCreate(['key' => 'yookassa_test_mode'], ['value' => '1']);
         $this->assertTrue(\App\Services\YooKassaService::isTestMode());
         $this->assertEquals('test_shop', \App\Services\YooKassaService::shopId());
         $this->assertEquals('test_key', \App\Services\YooKassaService::secretKey());
+        $this->assertFalse(\App\Services\YooKassaService::recurringEnabled());
+
+        \App\Models\Setting::updateOrCreate(['key' => 'yookassa_recurring_enabled'], ['value' => '1']);
         $this->assertTrue(\App\Services\YooKassaService::recurringEnabled());
+        \App\Models\Setting::updateOrCreate(['key' => 'yookassa_recurring_enabled'], ['value' => '0']);
 
         // Тестовый режим без тестовых ключей — эквайринг не настроен
         \App\Models\Setting::updateOrCreate(['key' => 'yookassa_test_shop_id'], ['value' => '']);
