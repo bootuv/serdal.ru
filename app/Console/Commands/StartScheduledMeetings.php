@@ -55,6 +55,9 @@ class StartScheduledMeetings extends Command
                 'reason' => $limitError,
             ]);
 
+            // Учитель должен узнать, что занятие не стартовало, а не ждать учеников молча
+            $room->user?->notify(new \App\Notifications\ScheduledLessonSkipped($room->name, $limitError));
+
             return;
         }
 

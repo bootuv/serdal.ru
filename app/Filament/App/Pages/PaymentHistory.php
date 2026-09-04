@@ -48,8 +48,8 @@ class PaymentHistory extends Page implements HasTable
                     ->dateTime('d.m.Y H:i')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('tariff.name')
-                    ->label('Тариф')
-                    ->formatStateUsing(fn($state, SubscriptionPayment $record) => !empty($record->meta['card_binding']) ? 'Привязка карты' : $state),
+                    ->label('Назначение')
+                    ->formatStateUsing(fn($state, SubscriptionPayment $record) => $record->title),
                 Tables\Columns\TextColumn::make('amount')
                     ->label('Сумма')
                     ->formatStateUsing(fn($state) => number_format($state, 0, ',', ' ') . ' ₽'),

@@ -126,6 +126,62 @@
             padding-top: 16px;
         }
 
+        /* Сворачиваемый список возможностей */
+        .tariff-details {
+            border-top: 1px solid #eee;
+            padding-top: 12px;
+            margin-bottom: 24px;
+        }
+
+        .tariff-details__toggle {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            cursor: pointer;
+            list-style: none;
+            font-size: 15px;
+            font-weight: 500;
+            color: #222;
+            user-select: none;
+        }
+
+        .tariff-details__toggle::-webkit-details-marker {
+            display: none;
+        }
+
+        .tariff-details__toggle:hover {
+            color: #000;
+        }
+
+        .tariff-details__label::before {
+            content: attr(data-closed);
+        }
+
+        .tariff-details[open] .tariff-details__label::before {
+            content: attr(data-open);
+        }
+
+        .tariff-details__chevron {
+            width: 18px;
+            height: 18px;
+            flex-shrink: 0;
+            color: #999;
+            transition: transform .2s ease;
+        }
+
+        .tariff-details[open] .tariff-details__chevron {
+            transform: rotate(180deg);
+        }
+
+        .tariff-details .tariff-features {
+            margin: 14px 0 0;
+        }
+
+        .tariff-details .tariff-extras {
+            margin-top: 14px;
+        }
+
         .tariff-extras li::before {
             content: "★";
             color: #ffc700;
@@ -395,17 +451,27 @@
                         <div><x-heroicon-m-clock /> {{ $tariff->duration_label }}</div>
                         <div><x-heroicon-m-video-camera /> {{ $tariff->recording_label }}</div>
                     </div>
-                    <ul class="tariff-features">
-                        @foreach($tariff->features ?? [] as $feature)
-                            <li>{{ $feature }}</li>
-                        @endforeach
-                    </ul>
-                    @if(!empty($tariff->extra_features))
-                        <ul class="tariff-features tariff-extras">
-                            @foreach($tariff->extra_features as $feature)
-                                <li>{{ $feature }}</li>
-                            @endforeach
-                        </ul>
+                    @php($featuresCount = count($tariff->features ?? []) + count($tariff->extra_features ?? []))
+                    @if($featuresCount > 0)
+                        {{-- Список возможностей свёрнут по умолчанию (нативный details, работает без JS) --}}
+                        <details class="tariff-details">
+                            <summary class="tariff-details__toggle">
+                                <span class="tariff-details__label" data-closed="Все возможности ({{ $featuresCount }})" data-open="Скрыть возможности"></span>
+                                <svg class="tariff-details__chevron" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd"/></svg>
+                            </summary>
+                            <ul class="tariff-features">
+                                @foreach($tariff->features ?? [] as $feature)
+                                    <li>{{ $feature }}</li>
+                                @endforeach
+                            </ul>
+                            @if(!empty($tariff->extra_features))
+                                <ul class="tariff-features tariff-extras">
+                                    @foreach($tariff->extra_features as $feature)
+                                        <li>{{ $feature }}</li>
+                                    @endforeach
+                                </ul>
+                            @endif
+                        </details>
                     @endif
                     <a href="{{ auth()->check() ? url('/tutor/subscription') : route('become-tutor', ['tariff' => $tariff->slug]) }}" class="tariff-button">
                         {{ $tariff->isFree() ? 'Начать бесплатно' : 'Подключить' }}
@@ -485,6 +551,12 @@
             <div class="tariff-step">
                 <div class="tariff-step__number">4</div>
                 <p>Тариф можно повысить или понизить в любой момент в личном кабинете.</p>
+            </div>
+            <div class="tariff-step">
+                <div class="tariff-step__number">5</div>
+                <p>Если занятия по тарифу закончились раньше конца месяца,
+                    можно докупить нужное количество по {{ number_format($extraLessonPrice, 0, ',', ' ') }} ₽ за занятие.
+                    Докупленные занятия не сгорают и сохраняются при смене тарифа.</p>
             </div>
         </div>
 

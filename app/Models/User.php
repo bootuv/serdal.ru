@@ -67,6 +67,7 @@ class User extends Authenticatable implements FilamentUser
         'payment_method_title',
         'auto_renew',
         'desired_tariff_id',
+        'extra_lessons_balance',
     ];
 
     /**
@@ -95,6 +96,7 @@ class User extends Authenticatable implements FilamentUser
             'payment_blocked_at' => 'datetime',
             'commission_rate' => 'integer',
             'auto_renew' => 'boolean',
+            'extra_lessons_balance' => 'integer',
         ];
     }
 

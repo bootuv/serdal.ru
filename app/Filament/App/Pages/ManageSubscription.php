@@ -65,6 +65,11 @@ class ManageSubscription extends Page
                 $this->mountAction('selectTariff', ['tariff' => $tariff->id, 'primary' => true]);
             }
         }
+
+        // ?buy=1 — сразу открываем докупку занятий (переход из модалки «Занятие недоступно»)
+        if (request()->boolean('buy') && SubscriptionService::canBuyExtraLessons(auth()->user())) {
+            $this->mountAction('buyExtraLessons', ['primary' => true]);
+        }
     }
 
     protected function getViewData(): array
@@ -101,6 +106,10 @@ class ManageSubscription extends Page
             'hasYearly' => $tariffs->contains(fn(Tariff $t) => $t->hasYearly()),
             'tariffs' => $tariffs,
             'lessonsUsed' => SubscriptionService::lessonsUsedThisPeriod($user),
+            'limitReached' => SubscriptionService::lessonLimitReached($user),
+            'periodResetsAt' => SubscriptionService::periodResetsAt($user),
+            'extraBalance' => (int) $user->extra_lessons_balance,
+            'canBuyExtra' => SubscriptionService::canBuyExtraLessons($user),
             'payments' => SubscriptionPayment::where('user_id', $user->id)
                 // Неудавшиеся попытки не показываем — они остаются в админке для сверки
                 ->where('status', '!=', SubscriptionPayment::STATUS_FAILED)
@@ -212,6 +221,179 @@ class ManageSubscription extends Page
                 (bool) ($data['auto_renew'] ?? false),
                 $data['payment_method'] ?? null,
             ));
+    }
+
+    /**
+     * Кнопка «Докупить занятия»: занятия сверх лимита тарифа по фиксированной
+     * цене за штуку. Количество выбирает учитель (до extraLessonsMax за раз).
+     */
+    public function buyExtraLessonsAction(): Action
+    {
+        return Action::make('buyExtraLessons')
+            ->label('Докупить занятия')
+            ->icon('heroicon-o-plus-circle')
+            ->color(fn(array $arguments) => !empty($arguments['primary']) ? 'primary' : 'gray')
+            ->outlined(fn(array $arguments) => empty($arguments['primary']))
+            ->modalIcon('heroicon-o-plus-circle')
+            ->modalHeading('Дополнительные занятия')
+            ->modalDescription(fn() => $this->extraLessonsDescription())
+            ->modalSubmitActionLabel('Оплатить')
+            ->modalCancelActionLabel('Отмена')
+            ->form(function () {
+                $price = SubscriptionService::extraLessonPrice();
+                $max = SubscriptionService::extraLessonsMax();
+
+                $fields = [
+                    \Filament\Forms\Components\TextInput::make('quantity')
+                        ->label('Сколько занятий докупить')
+                        ->numeric()
+                        ->integer()
+                        ->minValue(1)
+                        ->maxValue($max)
+                        ->default(1)
+                        ->required()
+                        ->live()
+                        ->suffix('× ' . number_format($price, 0, ',', ' ') . ' ₽')
+                        ->helperText("За одну покупку — до {$max}."),
+                    \Filament\Forms\Components\Placeholder::make('total')
+                        ->label('К оплате')
+                        ->content(function (\Filament\Forms\Get $get) use ($price, $max) {
+                            $qty = max(1, min((int) $get('quantity'), $max));
+                            $total = $qty * $price;
+                            $text = number_format($total, 0, ',', ' ') . ' ₽ за ' . $qty . ' ' . SubscriptionService::lessonsWord($qty);
+
+                            // Если сумма сопоставима с апгрейдом — подсказываем, что тариф выше выгоднее
+                            $upgrade = $this->nextTariffUp();
+                            if ($upgrade && $total >= $upgrade->price - (auth()->user()->activeSubscription()?->tariff->price ?? 0)) {
+                                $text .= '. Обратите внимание: тариф «' . $upgrade->name . '» даёт '
+                                    . $upgrade->lessons_label . ' за ' . number_format($upgrade->price, 0, ',', ' ') . ' ₽/мес.';
+                            }
+
+                            return $text;
+                        }),
+                ];
+
+                // Выбор способа оплаты показываем, если карта ещё не привязана
+                if (!auth()->user()->yookassa_payment_method_id) {
+                    $fields[] = self::paymentMethodField();
+                }
+
+                return $fields;
+            })
+            ->action(fn(array $data) => $this->buyExtraLessons(
+                (int) ($data['quantity'] ?? 1),
+                $data['payment_method'] ?? null,
+            ));
+    }
+
+    /**
+     * Текст модалки докупки: цена, правила, дата обновления лимита.
+     */
+    protected function extraLessonsDescription(): string
+    {
+        $user = auth()->user();
+        $price = number_format(SubscriptionService::extraLessonPrice(), 0, ',', ' ');
+        $resetsAt = SubscriptionService::periodResetsAt($user);
+
+        $text = "Одно занятие — {$price} ₽. Докупленные занятия не сгорают: расходуются после лимита тарифа "
+            . 'и переносятся в следующий период и при смене тарифа.';
+
+        if ($resetsAt) {
+            $text .= ' Лимит тарифа обновится ' . $resetsAt->format('d.m.Y') . '.';
+        }
+
+        return $text;
+    }
+
+    /**
+     * Ближайший тариф дороже текущего (для подсказки об апгрейде).
+     */
+    protected function nextTariffUp(): ?Tariff
+    {
+        $currentPrice = auth()->user()->activeSubscription()?->tariff->price ?? 0;
+
+        return Tariff::active()
+            ->where('price', '>', $currentPrice)
+            ->whereNotNull('lessons_per_month')
+            ->orderBy('price')
+            ->first();
+    }
+
+    /**
+     * Докупка занятий: списание с сохранённой карты в один клик, либо платёж
+     * с уводом на платёжную страницу. Подписка не меняется — после оплаты
+     * занятия зачисляются на баланс пользователя.
+     */
+    public function buyExtraLessons(int $quantity, ?string $method = null)
+    {
+        $user = auth()->user();
+
+        if (!SubscriptionService::canBuyExtraLessons($user)) {
+            Notification::make()
+                ->title('Докупка занятий недоступна')
+                ->body(YooKassaService::isConfigured()
+                    ? 'Докупать занятия можно только на тарифе с лимитом занятий.'
+                    : 'Онлайн-оплата подключается. Напишите в поддержку: info@serdal.ru.')
+                ->warning()
+                ->send();
+            return null;
+        }
+
+        $max = SubscriptionService::extraLessonsMax();
+        if ($quantity < 1 || $quantity > $max) {
+            Notification::make()
+                ->title("Укажите количество от 1 до {$max}")
+                ->warning()
+                ->send();
+            return null;
+        }
+
+        $payment = SubscriptionService::createExtraLessonsPayment($user, $quantity);
+
+        // Карта уже сохранена — списываем в один клик
+        if ($user->yookassa_payment_method_id) {
+            $status = YooKassaService::createRecurringPayment($payment, $user->yookassa_payment_method_id);
+
+            if ($status === 'succeeded') {
+                SubscriptionService::applyPaidPayment($payment);
+                Notification::make()
+                    ->title('Оплачено')
+                    ->body('Списано с карты ' . ($user->payment_method_title ?? '') . '. Зачислено '
+                        . $quantity . ' ' . SubscriptionService::lessonsWord($quantity) . '.')
+                    ->success()
+                    ->send();
+                return null;
+            }
+
+            if ($status === 'pending' || $status === 'waiting_for_capture') {
+                Notification::make()
+                    ->title('Платёж обрабатывается')
+                    ->body('Занятия зачислятся автоматически после подтверждения оплаты.')
+                    ->info()
+                    ->send();
+                return null;
+            }
+
+            // Списание не прошло — отправляем на обычную платёжную страницу
+        }
+
+        try {
+            $url = YooKassaService::createPayment(
+                $payment,
+                route('subscription.payment.return', $payment),
+                methodType: $method,
+            );
+        } catch (\Throwable $e) {
+            $payment->update(['status' => SubscriptionPayment::STATUS_FAILED]);
+            Notification::make()
+                ->title('Не удалось создать платёж')
+                ->body($e->getMessage())
+                ->danger()
+                ->send();
+            return null;
+        }
+
+        return redirect()->away($url);
     }
 
     /**

@@ -118,6 +118,8 @@ class PageController extends Controller
             'legal' => OfferSettings::legal(),
             'platform' => OfferSettings::platform(),
             'periodDays' => $tariffs->pluck('period_days')->unique()->values()->all(),
+            'extraLessonPrice' => \App\Services\SubscriptionService::extraLessonPrice(),
+            'extraLessonsMax' => \App\Services\SubscriptionService::extraLessonsMax(),
         ]);
     }
 
@@ -132,6 +134,8 @@ class PageController extends Controller
             'legal' => OfferSettings::legal(),
             'platform' => OfferSettings::platform(),
             'periodDays' => $tariffs->pluck('period_days')->unique()->values()->all(),
+            'extraLessonPrice' => \App\Services\SubscriptionService::extraLessonPrice(),
+            'extraLessonsMax' => \App\Services\SubscriptionService::extraLessonsMax(),
         ]);
     }
 }

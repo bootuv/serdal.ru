@@ -73,6 +73,10 @@ class YooKassaService
             return 'Привязка карты для оплаты подписки на serdal.ru';
         }
 
+        if ($payment->isExtraLessons()) {
+            return 'Дополнительные занятия (' . $payment->extra_lessons . ' шт.) на serdal.ru';
+        }
+
         $period = $payment->period_days >= 365 ? ' (год)' : '';
 
         return 'Подписка «' . $payment->tariff->name . '»' . $period . ' на serdal.ru';

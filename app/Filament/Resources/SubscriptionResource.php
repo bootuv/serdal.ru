@@ -111,6 +111,10 @@ class SubscriptionResource extends Resource
                     ->dateTime('d.m.Y')
                     ->placeholder('Бессрочно')
                     ->sortable(),
+                Tables\Columns\TextColumn::make('user.extra_lessons_balance')
+                    ->label('Докуплено занятий')
+                    ->placeholder('0')
+                    ->toggleable(),
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('tariff_id')

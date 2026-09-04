@@ -124,7 +124,8 @@ class UpcomingSessionsWidget extends BaseWidget
             ->recordUrl(fn(Room $record) => \App\Filament\App\Resources\RoomResource::getUrl('view', ['record' => $record]))
             ->paginated(false)
             ->actions([
-                Tables\Actions\Action::make('start')
+                // Модалка «Занятие недоступно» (лимит/срок подписки) — общая для всех кнопок «Начать»
+                \App\Filament\App\Support\LessonStartModal::apply(Tables\Actions\Action::make('start'))
                     ->label('Начать')
                     ->icon('heroicon-o-play')
                     ->color(fn(Room $record) => $record->next_start && $record->next_start->isPast() && !$record->next_start->addMinutes($record->duration ?? 45)->isPast() ? 'success' : 'gray')
@@ -133,14 +134,6 @@ class UpcomingSessionsWidget extends BaseWidget
                     ->url(fn(Room $record) => $record->is_running || \App\Services\SubscriptionService::canStartLesson(auth()->user()) === null
                         ? route('rooms.start', $record)
                         : null)
-                    ->requiresConfirmation()
-                    ->modalIcon('heroicon-o-credit-card')
-                    ->modalIconColor('warning')
-                    ->modalHeading('Занятие недоступно')
-                    ->modalDescription(fn() => \App\Services\SubscriptionService::canStartLesson(auth()->user()))
-                    ->modalSubmitActionLabel('Перейти к подписке')
-                    ->modalCancelActionLabel('Закрыть')
-                    ->action(fn($livewire) => $livewire->redirect(\App\Filament\App\Pages\ManageSubscription::getUrl()))
                     ->openUrlInNewTab()
                     ->visible(function (Room $record) {
                         if ($record->is_running) {

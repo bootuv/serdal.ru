@@ -20,6 +20,7 @@ class SubscriptionPayment extends Model
         'subscription_id',
         'amount',
         'period_days',
+        'extra_lessons',
         'status',
         'gateway',
         'gateway_order_id',
@@ -50,6 +51,31 @@ class SubscriptionPayment extends Model
     public function subscription()
     {
         return $this->belongsTo(Subscription::class);
+    }
+
+    /**
+     * Платёж за докупку занятий сверх лимита тарифа (а не за подписку).
+     */
+    public function isExtraLessons(): bool
+    {
+        return (int) $this->extra_lessons > 0;
+    }
+
+    /**
+     * Человекочитаемое название того, за что платёж: тариф, привязка карты
+     * или дополнительные занятия. Используется в истории, квитанции и уведомлениях.
+     */
+    public function getTitleAttribute(): string
+    {
+        if (!empty($this->meta['card_binding'])) {
+            return 'Привязка карты';
+        }
+
+        if ($this->isExtraLessons()) {
+            return 'Дополнительные занятия (' . $this->extra_lessons . ' ' . \App\Services\SubscriptionService::lessonsWord($this->extra_lessons) . ')';
+        }
+
+        return 'Тариф «' . $this->tariff->name . '»';
     }
 
     /**

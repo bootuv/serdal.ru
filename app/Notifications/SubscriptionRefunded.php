@@ -13,7 +13,7 @@ class SubscriptionRefunded extends Notification implements ShouldBroadcast
     use Queueable, BroadcastsNotification;
 
     public function __construct(
-        public string $tariffName,
+        public string $title, // «Тариф «Базовый»» или «Дополнительные занятия (4 занятия)»
         public int $amount,
         public int $processingDays,
         public ?\Illuminate\Support\Carbon $newEndsAt = null,
@@ -45,7 +45,7 @@ class SubscriptionRefunded extends Notification implements ShouldBroadcast
 
         return FilamentNotification::make()
             ->title('Возврат оформлен')
-            ->body("Возврат {$amountText} ₽ за тариф «{$this->tariffName}» оформлен. Средства вернутся на карту, с которой была оплата, в течение {$this->processingDays} рабочих дней.{$subscriptionNote}")
+            ->body("Возврат {$amountText} ₽ оформлен ({$this->title}). Средства вернутся на карту, с которой была оплата, в течение {$this->processingDays} рабочих дней.{$subscriptionNote}")
             ->icon('heroicon-o-arrow-uturn-left')
             ->iconColor('info')
             ->actions([

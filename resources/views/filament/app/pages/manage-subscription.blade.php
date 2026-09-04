@@ -5,8 +5,10 @@
         <x-slot name="heading">Текущий тариф</x-slot>
 
         @if($subscription)
-            <div class="flex flex-wrap items-start justify-between gap-4">
-                <div>
+            @php($limit = $subscription->tariff->lessons_per_month)
+            @php($percent = $limit ? min(100, (int) round($lessonsUsed / $limit * 100)) : 0)
+            <div class="flex items-start justify-between gap-4">
+                <div class="min-w-0">
                     <p class="text-xl font-bold text-gray-950 dark:text-white">
                         {{ $subscription->tariff->name }}
                         @if($subscription->tariff->isFree())
@@ -30,14 +32,8 @@
                             «{{ $scheduled->tariff->name }}» — после окончания оплаченного периода.
                         </p>
                     @endif
-                    <p class="mt-3 text-sm text-gray-600 dark:text-gray-300">
-                        Занятий проведено в этом периоде:
-                        <span class="font-semibold text-gray-950 dark:text-white">
-                            {{ $lessonsUsed }}@if($subscription->tariff->lessons_per_month) из {{ $subscription->tariff->lessons_per_month }}@endif
-                        </span>
-                    </p>
                 </div>
-                <div class="text-right">
+                <div class="shrink-0 text-right">
                     @if($subscription->isComplimentary())
                         <p class="text-2xl font-bold text-gray-950 dark:text-white">
                             <span class="line-through">{{ number_format($subscription->tariff->price, 0, ',', ' ') }} ₽</span><span
@@ -57,6 +53,56 @@
                     @endif
                 </div>
             </div>
+
+            {{-- Занятия в периоде --}}
+            <div class="mt-4 border-t border-gray-200 pt-4 dark:border-white/10">
+                <div class="flex items-center justify-between gap-4 text-sm">
+                    <span class="text-gray-600 dark:text-gray-300">Занятий в этом периоде</span>
+                    <span @class([
+                        'font-semibold',
+                        'text-danger-600 dark:text-danger-400' => $limitReached,
+                        'text-gray-950 dark:text-white' => !$limitReached,
+                    ])>
+                        {{ $lessonsUsed }}@if($limit) из {{ $limit }}@endif
+                        @if($extraBalance > 0)
+                            <span class="font-normal text-gray-500 dark:text-gray-400">+ {{ $extraBalance }} докупл.</span>
+                        @endif
+                    </span>
+                </div>
+                @if($limit)
+                    <div class="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-white/10">
+                        <div @class([
+                            'h-full rounded-full',
+                            'bg-danger-500' => $limitReached,
+                            'bg-primary-500' => !$limitReached,
+                        ]) style="width: {{ $percent }}%"></div>
+                    </div>
+                    <p @class([
+                        'mt-2 text-xs',
+                        'text-danger-600 dark:text-danger-400' => $limitReached && $extraBalance <= 0,
+                        'text-gray-500 dark:text-gray-400' => !$limitReached || $extraBalance > 0,
+                    ])>
+                        @if($limitReached)
+                            Лимит тарифа исчерпан{{ $periodResetsAt ? ', обновится ' . $periodResetsAt->format('d.m.Y') : '' }}.
+                            @if($extraBalance > 0)
+                                Занятия проводятся за счёт докупленных.
+                            @else
+                                Чтобы проводить занятия сейчас — докупите их или перейдите на тариф выше.
+                            @endif
+                        @else
+                            @if($periodResetsAt) Лимит обновится {{ $periodResetsAt->format('d.m.Y') }}. @endif
+                            @if($extraBalance > 0)
+                                Докупленные занятия не сгорают и расходуются после лимита.
+                            @endif
+                        @endif
+                    </p>
+                    @if($canBuyExtra)
+                        <div class="mt-3">
+                            {{ ($this->buyExtraLessonsAction)(['primary' => $limitReached && $extraBalance <= 0]) }}
+                        </div>
+                    @endif
+                @endif
+            </div>
         @elseif($expired)
             <div class="flex flex-wrap items-start justify-between gap-4">
                 <div>
@@ -71,6 +117,13 @@
                         @endif
                         Продлите подписку, чтобы продолжить проводить занятия.
                     </p>
+                    @if($extraBalance > 0)
+                        <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">
+                            Докупленных занятий на балансе:
+                            <span class="font-semibold text-gray-950 dark:text-white">{{ $extraBalance }}</span>
+                            — они сохранятся и после продления.
+                        </p>
+                    @endif
                 </div>
                 <div class="text-right">
                     <p class="text-2xl font-bold text-gray-950 dark:text-white">
@@ -228,25 +281,48 @@
                         </li>
                     </ul>
 
-                    {{-- Дополнительные возможности --}}
-                    <ul class="mt-3 space-y-2 border-t border-gray-200 pt-3 dark:border-white/10">
-                        @foreach($tariff->features ?? [] as $feature)
-                            <li class="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-300">
-                                <x-heroicon-m-check class="mt-0.5 h-4 w-4 shrink-0 text-green-500" />
-                                {{ $feature }}
-                            </li>
-                        @endforeach
-                    </ul>
-                    {{-- Доп. сервисы тарифа --}}
-                    @if(!empty($tariff->extra_features))
-                        <ul class="mt-3 space-y-2 border-t border-gray-200 pt-3 dark:border-white/10">
-                            @foreach($tariff->extra_features as $feature)
-                                <li class="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-300">
-                                    <x-heroicon-m-star class="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
-                                    {{ $feature }}
-                                </li>
-                            @endforeach
-                        </ul>
+                    {{-- Возможности тарифа: свёрнуты по умолчанию, чтобы карточки не растягивались --}}
+                    @php($featuresCount = count($tariff->features ?? []) + count($tariff->extra_features ?? []))
+                    @if($featuresCount > 0)
+                        <div
+                            x-data="{ open: false }"
+                            class="mt-3 border-t border-gray-200 pt-3 dark:border-white/10"
+                        >
+                            <button
+                                type="button"
+                                x-on:click="open = !open"
+                                x-bind:aria-expanded="open"
+                                class="flex w-full items-center justify-between gap-2 text-sm font-medium text-gray-700 hover:text-primary-600 dark:text-gray-300 dark:hover:text-primary-400"
+                            >
+                                <span x-text="open ? 'Скрыть возможности' : 'Все возможности ({{ $featuresCount }})'">Все возможности ({{ $featuresCount }})</span>
+                                <x-heroicon-m-chevron-down
+                                    class="h-4 w-4 shrink-0 text-gray-400 transition-transform duration-200"
+                                    x-bind:class="{ 'rotate-180': open }"
+                                />
+                            </button>
+                            <div x-show="open" x-collapse x-cloak>
+                                {{-- Дополнительные возможности --}}
+                                <ul class="mt-3 space-y-2">
+                                    @foreach($tariff->features ?? [] as $feature)
+                                        <li class="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-300">
+                                            <x-heroicon-m-check class="mt-0.5 h-4 w-4 shrink-0 text-green-500" />
+                                            {{ $feature }}
+                                        </li>
+                                    @endforeach
+                                </ul>
+                                {{-- Доп. сервисы тарифа --}}
+                                @if(!empty($tariff->extra_features))
+                                    <ul class="mt-3 space-y-2 border-t border-gray-200 pt-3 dark:border-white/10">
+                                        @foreach($tariff->extra_features as $feature)
+                                            <li class="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-300">
+                                                <x-heroicon-m-star class="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
+                                                {{ $feature }}
+                                            </li>
+                                        @endforeach
+                                    </ul>
+                                @endif
+                            </div>
+                        </div>
                     @endif
                     <div class="mt-auto pt-5">
                         @if($isCurrent)
@@ -285,6 +361,8 @@
                             <p class="text-sm font-medium text-gray-950 dark:text-white">
                                 @if(!empty($payment->meta['card_binding']))
                                     Привязка карты — 1 ₽ (возвращается)
+                                @elseif($payment->isExtraLessons())
+                                    {{ $payment->title }} — {{ number_format($payment->amount, 0, ',', ' ') }} ₽
                                 @else
                                     Тариф «{{ $payment->tariff->name }}» — {{ number_format($payment->amount, 0, ',', ' ') }} ₽{{ $payment->period_days >= 365 ? ' (за год)' : '' }}
                                 @endif

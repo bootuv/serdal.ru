@@ -72,6 +72,8 @@ class ManageBigBlueButton extends Page implements HasForms
             'yookassa_shop_id' => Setting::where('key', 'yookassa_shop_id')->value('value'),
             'yookassa_secret_key' => Setting::where('key', 'yookassa_secret_key')->value('value'),
             'yookassa_recurring_enabled' => Setting::where('key', 'yookassa_recurring_enabled')->value('value') === '1',
+            'extra_lesson_price' => \App\Services\SubscriptionService::extraLessonPrice(),
+            'extra_lessons_max' => \App\Services\SubscriptionService::extraLessonsMax(),
         ]);
     }
 
@@ -254,6 +256,21 @@ class ManageBigBlueButton extends Page implements HasForms
                                             ->helperText('Включайте после того, как менеджер ЮKassa активирует магазину автоплатежи (сохранение карты, автопродление). До этого привязка карты скрыта от пользователей — иначе платежи с сохранением карты завершаются ошибкой. В тестовом магазине автоплатежи доступны сразу.')
                                             ->columnSpanFull(),
                                     ]),
+                                Section::make('Дополнительные занятия')
+                                    ->description('Учитель может докупить занятия сверх лимита тарифа. Докупленные занятия не сгорают, расходуются после лимита тарифа и переносятся при смене тарифа. Цена намеренно выше стоимости занятия внутри тарифа — это страховка, а не замена апгрейду.')
+                                    ->schema([
+                                        TextInput::make('extra_lesson_price')
+                                            ->label('Цена одного занятия, ₽')
+                                            ->numeric()
+                                            ->minValue(1)
+                                            ->required(),
+                                        TextInput::make('extra_lessons_max')
+                                            ->label('Максимум за одну покупку')
+                                            ->numeric()
+                                            ->minValue(1)
+                                            ->maxValue(100)
+                                            ->required(),
+                                    ])->columns(2),
                             ]),
                     ])
                     ->persistTabInQueryString()
@@ -313,6 +330,10 @@ class ManageBigBlueButton extends Page implements HasForms
         Setting::updateOrCreate(['key' => 'yookassa_shop_id'], ['value' => $data['yookassa_shop_id'] ?? '']);
         Setting::updateOrCreate(['key' => 'yookassa_secret_key'], ['value' => $data['yookassa_secret_key'] ?? '']);
         Setting::updateOrCreate(['key' => 'yookassa_recurring_enabled'], ['value' => !empty($data['yookassa_recurring_enabled']) ? '1' : '0']);
+
+        // Extra lessons
+        Setting::updateOrCreate(['key' => 'extra_lesson_price'], ['value' => (string) max(1, (int) ($data['extra_lesson_price'] ?? 0))]);
+        Setting::updateOrCreate(['key' => 'extra_lessons_max'], ['value' => (string) max(1, (int) ($data['extra_lessons_max'] ?? 0))]);
 
         Notification::make()
             ->title('Настройки сохранены')

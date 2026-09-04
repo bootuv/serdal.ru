@@ -19,7 +19,7 @@ class TeacherCleanupTest extends TestCase
     /** @test */
     public function it_cleans_up_teacher_resources_and_files_on_delete()
     {
-        Storage::fake('public');
+        // Все пользовательские файлы (аватары, вложения, презентации) хранятся на s3
         Storage::fake('s3');
 
         // Create teacher
@@ -29,8 +29,8 @@ class TeacherCleanupTest extends TestCase
             'last_name' => 'Doe',
         ]);
 
-        // Avatar
-        $avatarPath = UploadedFile::fake()->image('avatar.jpg')->store('avatars', 'public');
+        // Avatar (все формы загружают аватар на s3, модель удаляет оттуда же)
+        $avatarPath = UploadedFile::fake()->image('avatar.jpg')->store('avatars', 's3');
         $teacher->update(['avatar' => $avatarPath]);
 
         // Create Room with presentation
@@ -46,7 +46,7 @@ class TeacherCleanupTest extends TestCase
         ]);
 
         // Create Homework with attachment
-        $homeworkAttachment = UploadedFile::fake()->create('homework.pdf', 100)->store('homeworks', 'public');
+        $homeworkAttachment = UploadedFile::fake()->create('homework.pdf', 100)->store('homeworks', 's3');
         $homework = Homework::create([
             'teacher_id' => $teacher->id,
             'room_id' => $room->id,
@@ -65,7 +65,7 @@ class TeacherCleanupTest extends TestCase
             'first_name' => 'Jane',
             'last_name' => 'Smith',
         ]);
-        $submissionAttachment = UploadedFile::fake()->create('submission.pdf', 100)->store('submissions', 'public');
+        $submissionAttachment = UploadedFile::fake()->create('submission.pdf', 100)->store('submissions', 's3');
         $submission = HomeworkSubmission::create([
             'homework_id' => $homework->id,
             'student_id' => $student->id,
@@ -92,10 +92,10 @@ class TeacherCleanupTest extends TestCase
         $this->assertDatabaseHas('homework_submissions', ['id' => $submission->id]);
         $this->assertDatabaseHas('messages', ['id' => $message->id]);
 
-        Storage::disk('public')->assertExists($avatarPath);
+        Storage::disk('s3')->assertExists($avatarPath);
         Storage::disk('s3')->assertExists($presentationPath);
-        Storage::disk('public')->assertExists($homeworkAttachment);
-        Storage::disk('public')->assertExists($submissionAttachment);
+        Storage::disk('s3')->assertExists($homeworkAttachment);
+        Storage::disk('s3')->assertExists($submissionAttachment);
         Storage::disk('s3')->assertExists($messageAttachment);
 
         // Delete Teacher
@@ -111,10 +111,10 @@ class TeacherCleanupTest extends TestCase
         $this->assertDatabaseMissing('rooms', ['id' => $room->id]);
 
         // Verify File Deletion
-        Storage::disk('public')->assertMissing($avatarPath);
+        Storage::disk('s3')->assertMissing($avatarPath);
         Storage::disk('s3')->assertMissing($presentationPath);
-        Storage::disk('public')->assertMissing($homeworkAttachment);
-        Storage::disk('public')->assertMissing($submissionAttachment);
+        Storage::disk('s3')->assertMissing($homeworkAttachment);
+        Storage::disk('s3')->assertMissing($submissionAttachment);
         Storage::disk('s3')->assertMissing($messageAttachment);
     }
 }

@@ -22,6 +22,12 @@ class SubscriptionPaymentController extends Controller
             session()->flash('subscription_message', $status === SubscriptionPayment::STATUS_PAID
                 ? ['type' => 'success', 'title' => 'Карта привязана! Проверочный 1 ₽ вернётся на карту в течение нескольких дней.']
                 : ['type' => 'danger', 'title' => 'Не удалось привязать карту. Попробуйте ещё раз.']);
+        } elseif ($payment->isExtraLessons()) {
+            session()->flash('subscription_message', match ($status) {
+                SubscriptionPayment::STATUS_PAID => ['type' => 'success', 'title' => 'Оплата прошла успешно — дополнительные занятия зачислены!'],
+                SubscriptionPayment::STATUS_PENDING => ['type' => 'warning', 'title' => 'Платёж ещё обрабатывается. Занятия зачислятся автоматически после подтверждения оплаты.'],
+                default => ['type' => 'danger', 'title' => 'Оплата не завершена. Если деньги списались — напишите в поддержку.'],
+            });
         } else {
             session()->flash('subscription_message', match ($status) {
                 SubscriptionPayment::STATUS_PAID => ['type' => 'success', 'title' => 'Оплата прошла успешно — подписка активирована!'],

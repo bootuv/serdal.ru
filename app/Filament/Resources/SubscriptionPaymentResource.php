@@ -41,7 +41,8 @@ class SubscriptionPaymentResource extends Resource
                     ->label('Преподаватель')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('tariff.name')
-                    ->label('Тариф'),
+                    ->label('Назначение')
+                    ->formatStateUsing(fn(SubscriptionPayment $record) => $record->title),
                 Tables\Columns\TextColumn::make('amount')
                     ->label('Сумма')
                     ->money('rub'),
@@ -85,11 +86,14 @@ class SubscriptionPaymentResource extends Resource
                     ->label('Подтвердить оплату')
                     ->icon('heroicon-o-check')
                     ->requiresConfirmation()
-                    ->modalDescription('Подписка будет активирована/продлена, как при успешной оплате. Используйте, только если оплата подтверждена в личном кабинете ЮKassa.')
+                    ->modalDescription(fn(SubscriptionPayment $record) => ($record->isExtraLessons()
+                        ? 'Дополнительные занятия будут зачислены на баланс учителя, как при успешной оплате.'
+                        : 'Подписка будет активирована/продлена, как при успешной оплате.')
+                        . ' Используйте, только если оплата подтверждена в личном кабинете ЮKassa.')
                     ->visible(fn(SubscriptionPayment $record) => $record->status === SubscriptionPayment::STATUS_PENDING)
                     ->action(function (SubscriptionPayment $record) {
                         SubscriptionService::applyPaidPayment($record);
-                        Notification::make()->title('Платёж подтверждён, подписка активирована')->success()->send();
+                        Notification::make()->title($record->isExtraLessons() ? 'Платёж подтверждён, занятия зачислены' : 'Платёж подтверждён, подписка активирована')->success()->send();
                     }),
                 Tables\Actions\Action::make('refund')
                     ->label('Оформить возврат')
@@ -97,9 +101,15 @@ class SubscriptionPaymentResource extends Resource
                     ->color('danger')
                     ->requiresConfirmation()
                     ->modalHeading('Возврат платежа')
-                    ->modalDescription(fn(SubscriptionPayment $record) => $record->gateway_order_id
-                        ? 'Деньги (' . number_format($record->amount, 0, ',', ' ') . ' ₽) вернутся на карту плательщика через ЮKassa. Действие необратимо. Срок подписки автоматически уменьшится на оплаченный этим платежом период.'
-                        : 'У платежа нет идентификатора ЮKassa (создан вручную) — он будет отмечен как возвращённый без движения денег, срок подписки уменьшится на оплаченный период.')
+                    ->modalDescription(function (SubscriptionPayment $record) {
+                        $effect = $record->isExtraLessons()
+                            ? 'Докупленные занятия (' . $record->extra_lessons . ') спишутся с баланса учителя.'
+                            : 'Срок подписки автоматически уменьшится на оплаченный этим платежом период.';
+
+                        return $record->gateway_order_id
+                            ? 'Деньги (' . number_format($record->amount, 0, ',', ' ') . ' ₽) вернутся на карту плательщика через ЮKassa. Действие необратимо. ' . $effect
+                            : 'У платежа нет идентификатора ЮKassa (создан вручную) — он будет отмечен как возвращённый без движения денег. ' . $effect;
+                    })
                     ->visible(fn(SubscriptionPayment $record) => $record->status === SubscriptionPayment::STATUS_PAID)
                     ->action(function (SubscriptionPayment $record) {
                         // Платёж без id шлюза — только отметка в учёте
@@ -110,7 +120,7 @@ class SubscriptionPaymentResource extends Resource
                             ]);
                             $adjusted = \App\Services\SubscriptionService::applyRefund($record);
                             $record->user?->notify(new \App\Notifications\SubscriptionRefunded(
-                                $record->tariff->name,
+                                $record->title,
                                 $record->amount,
                                 \App\Support\OfferSettings::offer()['refund_processing_days'],
                                 newEndsAt: $adjusted?->isActive() ? $adjusted->ends_at : null,
@@ -128,7 +138,7 @@ class SubscriptionPaymentResource extends Resource
                             if (empty($record->meta['card_binding'])) {
                                 $adjusted = \App\Services\SubscriptionService::applyRefund($record);
                                 $record->user?->notify(new \App\Notifications\SubscriptionRefunded(
-                                    $record->tariff->name,
+                                    $record->title,
                                     $record->amount,
                                     \App\Support\OfferSettings::offer()['refund_processing_days'],
                                     newEndsAt: $adjusted?->isActive() ? $adjusted->ends_at : null,

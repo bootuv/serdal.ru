@@ -51,7 +51,8 @@ class SubscriptionTariffsTest extends TestCase
             ->assertOk()
             ->assertSee('Старт')
             ->assertSee('Профи')
-            ->assertSee('Гарантийные условия');
+            ->assertSee('Гарантийные условия')
+            ->assertSee('докупить нужное количество по 100 ₽ за занятие');
     }
 
     public function test_public_offer_page_renders(): void
@@ -67,6 +68,9 @@ class SubscriptionTariffsTest extends TestCase
             ->assertSee('До 12 участников в занятии')
             ->assertSee('120 занятий в месяц')
             ->assertSee('Подписка оформляется на 30 календарных дней')
+            ->assertSee('Дополнительные занятия')
+            ->assertSee('100 ₽ за одно занятие')
+            ->assertSee('не более 10 занятий за одну покупку')
             // значения по умолчанию из OfferSettings
             ->assertSee('14 календарных дней')
             ->assertSee('10 рабочих дней')
@@ -1202,5 +1206,250 @@ class SubscriptionTariffsTest extends TestCase
         $this->assertEquals(Subscription::STATUS_CANCELLED, $first->fresh()->status);
         $this->assertEquals($basic->id, $tutor->fresh()->activeSubscription()->tariff_id);
         $this->assertNotNull($tutor->activeSubscription()->ends_at);
+    }
+    // ---------------------------------------------------------------
+    // Дополнительные занятия сверх лимита тарифа
+    // ---------------------------------------------------------------
+
+    protected function exhaustLessonLimit(User $tutor, \App\Models\Room $room, Tariff $tariff): void
+    {
+        for ($i = 0; $i < $tariff->lessons_per_month; $i++) {
+            $this->makeCompletedLesson($tutor, $room);
+        }
+        SubscriptionService::flushCanStartCache();
+    }
+
+    public function test_extra_lessons_allow_starting_lesson_when_limit_reached(): void
+    {
+        $tutor = $this->makeTutor();
+        $start = Tariff::where('slug', 'start')->first();
+        SubscriptionService::activate($tutor, $start);
+        $tutor->activeSubscription()->update(['starts_at' => now()->subDay()]);
+        $room = $this->makeRoom($tutor);
+        $this->exhaustLessonLimit($tutor, $room, $start);
+
+        // Без докупленных — блокировка с предложением докупить
+        $error = SubscriptionService::canStartLesson($tutor->fresh());
+        $this->assertStringContainsString('Докупите занятия', $error);
+        $this->assertTrue(SubscriptionService::lessonLimitReached($tutor->fresh()));
+
+        // С докупленными — можно
+        $tutor->update(['extra_lessons_balance' => 2]);
+        SubscriptionService::flushCanStartCache();
+        $this->assertNull(SubscriptionService::canStartLesson($tutor->fresh()));
+    }
+
+    public function test_completed_lesson_over_limit_consumes_extra_balance(): void
+    {
+        $tutor = $this->makeTutor();
+        $start = Tariff::where('slug', 'start')->first();
+        SubscriptionService::activate($tutor, $start);
+        $tutor->activeSubscription()->update(['starts_at' => now()->subDay()]);
+        $room = $this->makeRoom($tutor);
+        $this->exhaustLessonLimit($tutor, $room, $start);
+        $tutor->update(['extra_lessons_balance' => 2]);
+
+        // Занятие идёт, затем завершается (как при вебхуке BBB)
+        $session = \App\Models\MeetingSession::create([
+            'user_id' => $tutor->id,
+            'room_id' => $room->id,
+            'meeting_id' => $room->meeting_id,
+            'started_at' => now()->subHour(),
+            'status' => 'running',
+            'participant_count' => 0,
+        ]);
+        $session->update(['status' => 'completed', 'ended_at' => now(), 'participant_count' => 3]);
+
+        $this->assertTrue($session->fresh()->extra_lesson);
+        $this->assertEquals(1, $tutor->fresh()->extra_lessons_balance);
+        // Лимит тарифа докупленным занятием не расходуется
+        $this->assertEquals($start->lessons_per_month, SubscriptionService::lessonsUsedThisPeriod($tutor->fresh()));
+
+        // Пустая комната (без учеников) баланс не тратит
+        $empty = \App\Models\MeetingSession::create([
+            'user_id' => $tutor->id,
+            'room_id' => $room->id,
+            'meeting_id' => $room->meeting_id,
+            'started_at' => now()->subHour(),
+            'status' => 'running',
+            'participant_count' => 0,
+        ]);
+        $empty->update(['status' => 'completed', 'ended_at' => now(), 'participant_count' => 1]);
+        $this->assertFalse($empty->fresh()->extra_lesson);
+        $this->assertEquals(1, $tutor->fresh()->extra_lessons_balance);
+
+        // Занятие в пределах лимита баланс не трогает
+        $within = $this->makeTutor();
+        SubscriptionService::activate($within, $start);
+        $within->update(['extra_lessons_balance' => 1]);
+        $roomWithin = $this->makeRoom($within);
+        $s = \App\Models\MeetingSession::create([
+            'user_id' => $within->id,
+            'room_id' => $roomWithin->id,
+            'meeting_id' => $roomWithin->meeting_id,
+            'started_at' => now()->subHour(),
+            'status' => 'running',
+        ]);
+        $s->update(['status' => 'completed', 'ended_at' => now(), 'participant_count' => 2]);
+        $this->assertFalse($s->fresh()->extra_lesson);
+        $this->assertEquals(1, $within->fresh()->extra_lessons_balance);
+    }
+
+    public function test_buy_extra_lessons_with_saved_card_credits_balance(): void
+    {
+        \Illuminate\Support\Facades\Notification::fake();
+        \Illuminate\Support\Facades\Http::fake([
+            'api.yookassa.ru/*' => \Illuminate\Support\Facades\Http::response(['id' => 'yk-extra-1', 'status' => 'succeeded']),
+        ]);
+        \App\Models\Setting::updateOrCreate(['key' => 'yookassa_shop_id'], ['value' => '123']);
+        \App\Models\Setting::updateOrCreate(['key' => 'yookassa_secret_key'], ['value' => 'test_key']);
+        \App\Models\Setting::updateOrCreate(['key' => 'extra_lesson_price'], ['value' => '150']);
+
+        $tutor = $this->makeTutor();
+        $tutor->update(['yookassa_payment_method_id' => 'pm-123', 'payment_method_title' => 'Bank card *4477']);
+        $basic = Tariff::where('slug', 'basic')->first();
+        SubscriptionService::activate($tutor, $basic);
+        $subscriptionId = $tutor->activeSubscription()->id;
+
+        Livewire::actingAs($tutor)
+            ->test(ManageSubscription::class)
+            ->call('buyExtraLessons', 4);
+
+        $payment = \App\Models\SubscriptionPayment::where('user_id', $tutor->id)->latest()->first();
+        $this->assertTrue($payment->isExtraLessons());
+        $this->assertEquals(4, $payment->extra_lessons);
+        $this->assertEquals(600, $payment->amount);
+        $this->assertEquals(\App\Models\SubscriptionPayment::STATUS_PAID, $payment->status);
+        $this->assertEquals('Дополнительные занятия (4 занятия)', $payment->title);
+
+        $this->assertEquals(4, $tutor->fresh()->extra_lessons_balance);
+        // Подписка не изменилась
+        $this->assertEquals($subscriptionId, $tutor->fresh()->activeSubscription()->id);
+        \Illuminate\Support\Facades\Notification::assertSentTo($tutor, \App\Notifications\ExtraLessonsPurchased::class);
+        \Illuminate\Support\Facades\Notification::assertNotSentTo($tutor, \App\Notifications\SubscriptionPaid::class);
+
+        // Квитанция и история показывают докупку
+        $this->actingAs($tutor)->get(route('subscription.payment.receipt', $payment))
+            ->assertOk()
+            ->assertSee('Дополнительные занятия');
+        $this->actingAs($tutor)->get('/tutor/subscription')
+            ->assertOk()
+            ->assertSee('Дополнительные занятия (4 занятия)');
+    }
+
+    public function test_buy_extra_lessons_rejects_quantity_over_max(): void
+    {
+        \App\Models\Setting::updateOrCreate(['key' => 'yookassa_shop_id'], ['value' => '123']);
+        \App\Models\Setting::updateOrCreate(['key' => 'yookassa_secret_key'], ['value' => 'test_key']);
+
+        $tutor = $this->makeTutor();
+        SubscriptionService::activate($tutor, Tariff::where('slug', 'start')->first());
+
+        Livewire::actingAs($tutor)
+            ->test(ManageSubscription::class)
+            ->call('buyExtraLessons', SubscriptionService::extraLessonsMax() + 1);
+
+        $this->assertEquals(0, \App\Models\SubscriptionPayment::where('user_id', $tutor->id)->count());
+        $this->assertEquals(0, $tutor->fresh()->extra_lessons_balance);
+    }
+
+    public function test_extra_lessons_refund_decrements_balance(): void
+    {
+        $tutor = $this->makeTutor();
+        SubscriptionService::activate($tutor, Tariff::where('slug', 'start')->first());
+        $tutor->update(['extra_lessons_balance' => 3]);
+
+        $payment = SubscriptionService::createExtraLessonsPayment($tutor, 5);
+        $payment->update(['status' => \App\Models\SubscriptionPayment::STATUS_REFUNDED]);
+
+        $this->assertNull(SubscriptionService::applyRefund($payment));
+        // Не ниже нуля
+        $this->assertEquals(0, $tutor->fresh()->extra_lessons_balance);
+    }
+
+    public function test_subscription_page_shows_extra_lessons_state(): void
+    {
+        \App\Models\Setting::updateOrCreate(['key' => 'yookassa_shop_id'], ['value' => '123']);
+        \App\Models\Setting::updateOrCreate(['key' => 'yookassa_secret_key'], ['value' => 'test_key']);
+
+        $tutor = $this->makeTutor();
+        $start = Tariff::where('slug', 'start')->first();
+        SubscriptionService::activate($tutor, $start);
+        $tutor->activeSubscription()->update(['starts_at' => now()->subDay()]);
+        $tutor->update(['extra_lessons_balance' => 2]);
+        $room = $this->makeRoom($tutor);
+        $this->exhaustLessonLimit($tutor, $room, $start);
+
+        $this->actingAs($tutor)->get('/tutor/subscription')
+            ->assertOk()
+            ->assertSee('Докупить занятия')
+            ->assertSee('Лимит тарифа исчерпан')
+            ->assertSee('Занятия проводятся за счёт докупленных')
+            ->assertSee('+ 2 докупл.');
+
+        // Нулевой баланс докупленных не показываем — лишний шум
+        $tutor->update(['extra_lessons_balance' => 0]);
+        $this->actingAs($tutor)->get('/tutor/subscription')
+            ->assertOk()
+            ->assertDontSee('докупл.')
+            ->assertSee('докупите их или перейдите на тариф выше');
+    }
+
+    public function test_extra_lessons_persist_across_tariff_switch(): void
+    {
+        $tutor = $this->makeTutor();
+        SubscriptionService::activate($tutor, Tariff::where('slug', 'start')->first());
+        $tutor->update(['extra_lessons_balance' => 3]);
+
+        SubscriptionService::activate($tutor, Tariff::where('slug', 'basic')->first());
+
+        $this->assertEquals(3, $tutor->fresh()->extra_lessons_balance);
+    }
+    public function test_start_lesson_modal_offers_extra_lessons_when_limit_reached(): void
+    {
+        $tutor = $this->makeTutor();
+        $start = Tariff::where('slug', 'start')->first();
+        SubscriptionService::activate($tutor, $start);
+        $tutor->activeSubscription()->update(['starts_at' => now()->subDay()]);
+        $room = $this->makeRoom($tutor);
+        $this->exhaustLessonLimit($tutor, $room, $start);
+
+        // Страницы с кнопкой «Начать» рендерятся при заблокированном запуске
+        $this->actingAs($tutor)->get('/tutor/rooms')->assertOk();
+        $this->actingAs($tutor)->get('/tutor/rooms/' . $room->id)->assertOk();
+
+        // Модалка на странице комнаты: докупить (основная) + тариф выше
+        Livewire::actingAs($tutor)
+            ->test(\App\Filament\App\Resources\RoomResource\Pages\ViewRoom::class, ['record' => $room->id])
+            ->mountAction('start')
+            ->assertSee('Занятие недоступно')
+            ->assertSee('Докупите занятия')
+            ->assertSee('Докупить занятия')
+            ->assertSee('Тариф выше');
+
+        // Модалка в таблице комнат
+        Livewire::actingAs($tutor)
+            ->test(\App\Filament\App\Resources\RoomResource\Pages\ListRooms::class)
+            ->mountTableAction('start', $room)
+            ->assertSee('Докупить занятия')
+            ->assertSee('Тариф выше');
+
+        // Истёкшая подписка — предложение докупить неуместно, ведём к тарифам
+        $tutor->activeSubscription()->update(['ends_at' => now()->subDay()]);
+        SubscriptionService::flushCanStartCache();
+        Livewire::actingAs($tutor)
+            ->test(\App\Filament\App\Resources\RoomResource\Pages\ViewRoom::class, ['record' => $room->id])
+            ->mountAction('start')
+            ->assertSee('Перейти к подписке')
+            ->assertDontSee('Тариф выше');
+    }
+
+    public function test_admin_settings_page_shows_extra_lessons_settings(): void
+    {
+        $admin = $this->makeAdmin();
+
+        $this->actingAs($admin)->get('/admin/settings')
+            ->assertOk()
+            ->assertSee('Дополнительные занятия');
     }
 }

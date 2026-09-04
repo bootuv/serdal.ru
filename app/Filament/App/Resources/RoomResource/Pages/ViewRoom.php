@@ -76,7 +76,8 @@ class ViewRoom extends ViewRecord
                 ->badgeColor('warning')
                 ->url(fn() => \App\Filament\App\Pages\Messenger::getUrl(['room' => $this->record->id])),
 
-            Actions\Action::make('start')
+            // Модалка «Занятие недоступно» (лимит/срок подписки) — общая для всех кнопок «Начать»
+            \App\Filament\App\Support\LessonStartModal::apply(Actions\Action::make('start'))
                 ->label('Начать занятие')
                 ->icon('heroicon-o-play')
                 ->color(fn() => $this->record->next_start && $this->record->next_start->isPast() && !$this->record->next_start->addMinutes($this->record->duration ?? 45)->isPast() ? 'success' : 'gray')
@@ -84,14 +85,6 @@ class ViewRoom extends ViewRecord
                 ->url(fn() => $this->record->is_running || \App\Services\SubscriptionService::canStartLesson(auth()->user()) === null
                     ? route('rooms.start', $this->record)
                     : null)
-                ->requiresConfirmation()
-                ->modalIcon('heroicon-o-credit-card')
-                ->modalIconColor('warning')
-                ->modalHeading('Занятие недоступно')
-                ->modalDescription(fn() => \App\Services\SubscriptionService::canStartLesson(auth()->user()))
-                ->modalSubmitActionLabel('Перейти к подписке')
-                ->modalCancelActionLabel('Закрыть')
-                ->action(fn($livewire) => $livewire->redirect(\App\Filament\App\Pages\ManageSubscription::getUrl()))
                 ->openUrlInNewTab()
                 ->visible(function () {
                     if ($this->record->is_running) {

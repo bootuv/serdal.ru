@@ -152,8 +152,13 @@
             </tr>
             <tr>
                 <td>Услуга</td>
-                <td>Подписка на платформу Serdal, тариф «{{ $payment->tariff->name }}»
-                    ({{ $payment->tariff->period_days }} дней)</td>
+                @if($payment->isExtraLessons())
+                    <td>Дополнительные занятия на платформе Serdal — {{ $payment->extra_lessons }} шт.
+                        ({{ number_format($payment->amount / $payment->extra_lessons, 0, ',', ' ') }} ₽ за занятие)</td>
+                @else
+                    <td>Подписка на платформу Serdal, тариф «{{ $payment->tariff->name }}»
+                        ({{ $payment->period_days ?: $payment->tariff->period_days }} дней)</td>
+                @endif
             </tr>
             <tr>
                 <td>Способ оплаты</td>

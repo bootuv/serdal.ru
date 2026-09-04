@@ -18,6 +18,7 @@ class MeetingSession extends Model
         'ended_at',
         'status',
         'participant_count',
+        'extra_lesson',
         'analytics_data',
         'settings_snapshot',
         'pricing_snapshot',
@@ -31,6 +32,7 @@ class MeetingSession extends Model
         'analytics_data' => 'array',
         'settings_snapshot' => 'array',
         'pricing_snapshot' => 'array',
+        'extra_lesson' => 'boolean',
         'deletion_requested_at' => 'datetime',
     ];
 
@@ -43,6 +45,13 @@ class MeetingSession extends Model
                     \App\Services\PaymentRecordService::handleCompletedSession($session);
                 } catch (\Throwable $e) {
                     \Illuminate\Support\Facades\Log::error("[Payments] handleCompletedSession failed for session {$session->id}: " . $e->getMessage());
+                }
+
+                // Лимит тарифа исчерпан — занятие списывается с докупленных
+                try {
+                    \App\Services\SubscriptionService::consumeExtraLessonIfNeeded($session);
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::error("[Subscription] consumeExtraLessonIfNeeded failed for session {$session->id}: " . $e->getMessage());
                 }
             }
         });
