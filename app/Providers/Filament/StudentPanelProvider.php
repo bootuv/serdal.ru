@@ -44,6 +44,17 @@ class StudentPanelProvider extends PanelProvider
                 'panels::page.start',
                 fn() => auth()->check() ? view('filament.student.payment-banner') : ''
             )
+            // Постоянная ссылка на чат техподдержки внизу сайдбара
+            ->renderHook(
+                \Filament\View\PanelsRenderHook::SIDEBAR_FOOTER,
+                fn() => auth()->check() ? view('filament.components.support-link') : ''
+            )
+            ->userMenuItems([
+                \Filament\Navigation\MenuItem::make()
+                    ->label('Техподдержка')
+                    ->icon('heroicon-o-chat-bubble-left-right')
+                    ->url(fn() => route('filament.student.pages.messenger', ['support' => 1])),
+            ])
             // При блокировке за неоплату прячем сайдбар и кнопку его открытия:
             // ученику доступна только страница «Оплата»
             ->renderHook(

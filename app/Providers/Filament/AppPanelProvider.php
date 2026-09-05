@@ -45,6 +45,11 @@ class AppPanelProvider extends PanelProvider
                 \Filament\View\PanelsRenderHook::SIDEBAR_FOOTER,
                 fn() => view('filament.app.components.profile-link', ['inSidebar' => true])
             )
+            // Постоянная ссылка на чат техподдержки внизу сайдбара
+            ->renderHook(
+                \Filament\View\PanelsRenderHook::SIDEBAR_FOOTER,
+                fn() => view('filament.components.support-link')
+            )
             ->renderHook(
                 'panels::body.end',
                 fn() => \Illuminate\Support\Facades\Blade::render('@livewire(\'push-notification-modal\')')
@@ -82,6 +87,10 @@ class AppPanelProvider extends PanelProvider
                     ->label('Платежи')
                     ->icon('heroicon-o-banknotes')
                     ->url(fn() => \App\Filament\App\Pages\PaymentHistory::getUrl()),
+                \Filament\Navigation\MenuItem::make()
+                    ->label('Техподдержка')
+                    ->icon('heroicon-o-chat-bubble-left-right')
+                    ->url(fn() => route('filament.app.pages.messenger', ['support' => 1])),
             ])
             ->brandLogo(fn() => asset('images/Logo.svg'))
             ->darkModeBrandLogo(fn() => asset('images/Logo-white.svg'))
@@ -96,9 +105,6 @@ class AppPanelProvider extends PanelProvider
                 Pages\Dashboard::class,
             ])
             ->discoverWidgets(in: app_path('Filament/App/Widgets'), for: 'App\\Filament\\App\\Widgets')
-            ->widgets([
-                \App\Filament\Widgets\DashboardWelcomeOverview::class,
-            ])
             ->middleware([
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,

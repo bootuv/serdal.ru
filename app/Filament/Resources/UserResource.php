@@ -67,10 +67,6 @@ class UserResource extends Resource
                         ->label('Отчество')
                         ->maxLength(255),
                 ])->columns(3)->columnSpanFull(),
-                TextInput::make('status')
-                    ->label('Статус')
-                    ->maxLength(255)
-                    ->columnSpanFull(),
                 TextInput::make('email')
                     ->label('Электронная почта')
                     ->required()

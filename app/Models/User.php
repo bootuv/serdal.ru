@@ -44,7 +44,6 @@ class User extends Authenticatable implements FilamentUser
         'role',
         'grade',
         'avatar',
-        'status',
         'about',
         'extra_info',
         'phone',
@@ -226,6 +225,19 @@ class User extends Authenticatable implements FilamentUser
     public function reviews()
     {
         return $this->hasMany(Review::class);
+    }
+
+    /**
+     * Самое дешёвое занятие (по цене за урок) среди загруженных типов занятий.
+     * Если переданы форматы, учитываются только они — так карточка совпадает с фильтром.
+     */
+    public function cheapestLesson(array $formats = []): ?LessonType
+    {
+        return $this->lessonTypes
+            ->when($formats, fn ($types) => $types->whereIn('type', $formats))
+            ->filter(fn (LessonType $lesson) => $lesson->pricePerLesson() !== null)
+            ->sortBy(fn (LessonType $lesson) => $lesson->pricePerLesson())
+            ->first();
     }
 
     /** Отзывы, оставленные учениками об этом преподавателе */

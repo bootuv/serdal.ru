@@ -9,7 +9,6 @@
       $user->subjectsList ? 'Предметы: ' . $user->subjectsList . '.' : null,
       $tutorTopics ? 'Направления: ' . implode(', ', $tutorTopics) . '.' : null,
       $user->displayGrade ? 'Ученики: ' . $user->displayGrade . '.' : null,
-      $user->status ? \App\Support\Seo::text($user->status, 120) : null,
       'Онлайн-занятия, отзывы учеников и контакты.',
   ])), 300);
 @endphp
@@ -60,12 +59,6 @@
         <span class="profile-rating__value">{{ number_format($ratingAvg, 1, ',', '') }}</span>
         <span class="profile-rating__count">{{ plural_ru($reviewsTotal, 'отзыв', 'отзыва', 'отзывов') }}</span>
       </a>
-    @endif
-    @if(!empty($user->status) && trim(strip_tags($user->status)) !== '')
-      <div class="status">
-        <div class="status-arrow"></div>
-        <div class="p24">{{ $user->status }}</div>
-      </div>
     @endif
     @if(!empty($user->subjects_list) && trim(strip_tags($user->subjects_list)) !== '')
       <div class="tutor-subjects p24">{{ $user->subjects_list }}</div>

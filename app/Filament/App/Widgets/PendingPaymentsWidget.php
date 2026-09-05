@@ -16,8 +16,8 @@ class PendingPaymentsWidget extends BaseWidget
 
     protected int|string|array $columnSpan = 'full';
 
-    // Между приветствием (-1) и «Ближайшими занятиями» (1)
-    protected static ?int $sort = 0;
+    // Между «Моим тарифом» (0) и «Ближайшими занятиями» (2)
+    protected static ?int $sort = 1;
 
     public static function canView(): bool
     {

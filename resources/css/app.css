@@ -242,9 +242,10 @@
     display: none !important;
 }
 
-/* Smaller navigation badges in sidebar */
+/* Smaller navigation badges in sidebar (включая «Чат техподдержки» в футере сайдбара) */
 .fi-sidebar-nav .fi-badge,
-.fi-sidebar-item .fi-badge {
+.fi-sidebar-item .fi-badge,
+.fi-sidebar-support .fi-badge {
     font-size: 0.65rem !important;
     padding: 0.15rem 0.4rem !important;
     min-width: 1.1rem !important;
@@ -309,9 +310,38 @@
     padding-inline-end: 1.5rem !important;
 }
 
+/* Мессенджер: колонка со списком чатов не выше экрана, при переполнении
+   прокручивается сам список. Внутренние обёртки секции Filament по умолчанию
+   не flex, поэтому без этого секция растягивается под все чаты. */
+.messenger-list-panel .fi-section {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 0%;
+    min-height: 0;
+}
+
+.messenger-list-panel .fi-section-content-ctn,
+.messenger-list-panel .fi-section-content {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 0%;
+    min-height: 0;
+}
+
+.messenger-list-panel .messenger-list-container {
+    min-height: 0;
+}
+
+/* Без внутреннего отступа секции: список прокручивается от самой
+   разделительной линии под заголовком, отступ задан внутри списка (p-2) */
+.messenger-list-panel .fi-section-content {
+    padding: 0;
+}
+
 /* Global Counter Styling (Sidebar, Header, Messenger) */
 .fi-sidebar-item .fi-badge,
 .fi-sidebar-nav .fi-badge,
+.fi-sidebar-support .fi-badge,
 .fi-topbar .fi-badge,
 .fi-topbar .fi-icon-btn-badge,
 .messenger-list-container .fi-badge {

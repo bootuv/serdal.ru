@@ -1,8 +1,8 @@
 <x-filament-panels::page>
-    <div class="flex flex-col md:flex-row gap-3" style="height: calc(100vh - 10rem);">
+    <div class="flex flex-col md:flex-row gap-3" style="height: calc(100vh - 8rem);">
         {{-- Список чатов --}}
         <div @class([
-            'md:flex-shrink-0 flex flex-col px-3 pt-0 pb-6 md:p-0',
+            'messenger-list-panel md:flex-shrink-0 flex flex-col min-h-0 px-3 pt-0 pb-6 md:p-0',
             'hidden md:flex' => $mobileShowChat,
         ]) style="min-width: 400px;">
             <x-filament::section class="flex-1 flex flex-col">
@@ -14,7 +14,7 @@
                     </div>
                 </x-slot>
 
-                <div class="space-y-2 -mx-4 -mb-4 flex-1 overflow-y-auto messenger-list-container">
+                <div class="space-y-2 p-2 flex-1 overflow-y-auto messenger-list-container">
                     @foreach($chatItems as $item)
                         @if($item['type'] === 'support')
                             {{-- Чат поддержки --}}

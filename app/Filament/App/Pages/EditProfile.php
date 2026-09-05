@@ -71,10 +71,6 @@ class EditProfile extends Page implements HasForms
                         ->label('Отчество')
                         ->maxLength(255),
                 ])->columns(3)->columnSpanFull(),
-                Forms\Components\TextInput::make('status')
-                    ->label('Статус')
-                    ->maxLength(255)
-                    ->columnSpanFull(),
                 Forms\Components\TextInput::make('email')
                     ->label('Электронная почта')
                     ->required()

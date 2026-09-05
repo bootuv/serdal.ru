@@ -224,7 +224,7 @@
     </div>
     <div class="specialists-list" id="specialists-list">
       @forelse($specialists as $specialist)
-        @include('partials.specialist-item', ['specialist' => $specialist])
+        @include('partials.specialist-item', ['specialist' => $specialist, 'lessonFormats' => $lessonFormats])
       @empty
         @include('partials.specialists-empty')
       @endforelse

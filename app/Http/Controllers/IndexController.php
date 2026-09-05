@@ -35,22 +35,38 @@ class IndexController extends Controller
             ->where('is_rejected', false)
             ->whereHas('user', fn ($u) => $u->where('role', User::ROLE_STUDENT));
 
-        $perLessonPrice = fn ($q) => $q
-            ->where('payment_type', 'per_lesson')
-            ->where('price', '>', 0);
-
-        // «Цена за урок» в карточке и в фильтре — это самое дешёвое занятие с поурочной оплатой.
+        // «Цена за урок» в карточке и в фильтре — самое дешёвое занятие специалиста.
+        // Помесячная цена пересчитывается в цену за урок (см. LessonType::pricePerLessonSql()).
         // Если выбран формат занятий, минимум считается только по нему.
         $lessonFormats = array_intersect(
             (array) $request->input('lesson_format', []),
             [LessonType::TYPE_INDIVIDUAL, LessonType::TYPE_GROUP]
         );
 
+        $pricePerLesson = LessonType::pricePerLessonSql();
+
+        $pricedLessons = function ($q) use ($lessonFormats) {
+            $q->priced();
+            if ($lessonFormats) {
+                $q->whereIn('type', $lessonFormats);
+            }
+        };
+
+        // Подзапрос «минимальная цена за урок» для текущего пользователя (users.id)
+        $minPriceSub = function () use ($pricedLessons, $pricePerLesson) {
+            $sub = LessonType::query()
+                ->selectRaw("min({$pricePerLesson})")
+                ->whereColumn('lesson_types.user_id', 'users.id');
+            $pricedLessons($sub);
+
+            return $sub;
+        };
+
         // Границы ползунка цены — по реальным ценам активных специалистов, округлённые до шага
         $priceBounds = LessonType::query()
             ->whereIn('user_id', User::isSpecialist()->where('is_active', true)->select('id'))
-            ->tap($perLessonPrice)
-            ->selectRaw('min(price) as min_price, max(price) as max_price')
+            ->priced()
+            ->selectRaw("min({$pricePerLesson}) as min_price, max({$pricePerLesson}) as max_price")
             ->first();
         $priceMinBound = (int) floor(($priceBounds->min_price ?? 0) / self::PRICE_STEP) * self::PRICE_STEP;
         $priceMaxBound = (int) ceil(($priceBounds->max_price ?? 0) / self::PRICE_STEP) * self::PRICE_STEP;
@@ -64,22 +80,17 @@ class IndexController extends Controller
             $priceMax = null;
         }
 
-        $pricedLessons = function ($q) use ($perLessonPrice, $lessonFormats) {
-            $perLessonPrice($q);
-            if ($lessonFormats) {
-                $q->whereIn('type', $lessonFormats);
-            }
-        };
-
         $queryBuilder = User::isSpecialist()
             ->where('is_active', true)
+            ->select('users.*')
+            ->addSelect(['min_price' => $minPriceSub()])
+            ->with(['directs', 'subjects', 'lessonTypes'])
             ->withCount([
                 'meetingSessions as recent_sessions_count' => fn ($q) => $q->where('started_at', '>=', now()->subDays(30)),
                 'meetingSessions as total_sessions_count',
                 'receivedReviews as reviews_count' => $publishedReviews,
             ])
-            ->withAvg(['receivedReviews as rating_avg' => $publishedReviews], 'rating')
-            ->withMin(['lessonTypes as min_price' => $pricedLessons], 'price');
+            ->withAvg(['receivedReviews as rating_avg' => $publishedReviews], 'rating');
 
         if ($request->has('user_type')) {
             $types = array_intersect((array) $request->input('user_type'), [User::ROLE_MENTOR, User::ROLE_TUTOR]);
@@ -115,22 +126,11 @@ class IndexController extends Controller
             $queryBuilder->whereHas('lessonTypes', fn ($q) => $q->whereIn('type', $lessonFormats));
         }
 
-        if ($priceMin !== null || $priceMax !== null) {
-            $minPriceSub = function () use ($pricedLessons) {
-                $sub = LessonType::query()
-                    ->selectRaw('min(price)')
-                    ->whereColumn('lesson_types.user_id', 'users.id');
-                $pricedLessons($sub);
-
-                return $sub;
-            };
-
-            if ($priceMin !== null) {
-                $queryBuilder->where($minPriceSub(), '>=', $priceMin);
-            }
-            if ($priceMax !== null) {
-                $queryBuilder->where($minPriceSub(), '<=', $priceMax);
-            }
+        if ($priceMin !== null) {
+            $queryBuilder->where($minPriceSub(), '>=', $priceMin);
+        }
+        if ($priceMax !== null) {
+            $queryBuilder->where($minPriceSub(), '<=', $priceMax);
         }
 
         $ratingMin = $request->input('rating_min', '');
@@ -165,7 +165,7 @@ class IndexController extends Controller
         if ($request->ajax()) {
             $html = '';
             foreach ($specialists as $specialist) {
-                $html .= view('partials.specialist-item', compact('specialist'))->render();
+                $html .= view('partials.specialist-item', compact('specialist', 'lessonFormats'))->render();
             }
 
             if ($offset === 0 && $specialists->isEmpty()) {
@@ -181,6 +181,7 @@ class IndexController extends Controller
 
         return view('index', [
             'specialists'   => $specialists,
+            'lessonFormats' => $lessonFormats,
             'totalCount'    => $totalCount,
             'sort'          => $sort,
             'sorts'         => self::SORTS,

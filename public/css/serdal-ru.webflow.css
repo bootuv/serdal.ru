@@ -1044,9 +1044,14 @@ a {
   cursor: grabbing;
 }
 
-.list-item-grade-price {
-  grid-column-gap: 6px;
-  grid-row-gap: 6px;
+/* Цена в карточке: наверху правой колонки, на линии с именем */
+
+.list-item-subject-grade {
+  grid-row-gap: 12px;
+}
+
+.list-item-subject-grade-text {
+  grid-row-gap: 8px;
   flex-flow: column;
   align-items: inherit;
   display: flex;
@@ -1054,6 +1059,26 @@ a {
 
 .list-item-price {
   color: var(--black);
+  align-items: baseline;
+  grid-column-gap: 6px;
+  font-size: 24px;
+  line-height: 30px;
+  font-weight: 500;
+  white-space: nowrap;
+  display: inline-flex;
+}
+
+.list-item-price-unit {
+  color: var(--gray);
+  font-size: 16px;
+  line-height: 22px;
+  font-weight: 400;
+}
+
+/* Цена, пересчитанная из помесячной: пунктир намекает на подсказку */
+.list-item-price.is-estimate .list-item-price-value {
+  border-bottom: 1px dotted var(--gray);
+  cursor: help;
 }
 
 .specialists-list {
@@ -1273,32 +1298,6 @@ a {
 }
 
 
-.status {
-  border: 1px solid var(--brand-main);
-  background-color: var(--brand-main-light);
-  text-align: center;
-  border-radius: 24px;
-  justify-content: center;
-  align-items: center;
-  max-width: 800px;
-  margin-top: 24px;
-  padding: 16px 24px;
-  position: relative;
-}
-
-.status-arrow {
-  border-style: solid;
-  border-width: 1px 0 0 1px;
-  border-color: var(--brand-main);
-  background-color: var(--brand-main-light);
-  width: 18px;
-  height: 18px;
-  margin-left: -9px;
-  position: absolute;
-  inset: -9px auto auto 50%;
-  transform: rotate(45deg);
-}
-
 .body-2 {
   font-family: Inter, sans-serif;
   font-size: 24px;
@@ -1505,28 +1504,33 @@ a {
   position: relative;
 }
 
-.list-item-rating {
-  grid-column-gap: 3px;
-  grid-row-gap: 3px;
-  background-color: var(--white);
-  color: var(--black);
-  border-radius: 24px;
-  align-items: center;
-  padding: 2px 8px 2px 6px;
-  font-size: 15px;
-  font-weight: 600;
-  line-height: 20px;
-  display: inline-flex;
-  position: absolute;
-  right: -6px;
-  bottom: -6px;
-  box-shadow: 0 1px 4px #0000001f;
-  white-space: nowrap;
+/* Аватар в списке специалистов крупнее, чем в отзывах (общий класс) */
+.specialist-list-item .list-item-userpic {
+  border-radius: 28px;
+  width: 128px;
+  height: 128px;
 }
 
-.list-item-rating svg {
-  width: 14px;
-  height: 14px;
+/* Третья строка карточки: оценка и число отзывов */
+.list-item-meta {
+  color: var(--gray);
+  align-items: center;
+  grid-column-gap: 8px;
+  white-space: nowrap;
+  display: flex;
+}
+
+.list-item-meta-rating {
+  color: var(--black);
+  font-weight: 600;
+  align-items: center;
+  grid-column-gap: 4px;
+  display: inline-flex;
+}
+
+.list-item-meta-rating svg {
+  width: 18px;
+  height: 18px;
   fill: #ffa41c;
   flex-shrink: 0;
 }
@@ -2061,10 +2065,6 @@ a {
     min-height: 700px;
   }
 
-  .status {
-    padding: 12px 16px;
-  }
-
   .content.reviews-content {
     grid-column-gap: 40px;
     grid-row-gap: 40px;
@@ -2365,17 +2365,15 @@ a {
     padding: 12px 16px;
   }
 
-  .list-item-rating {
-    padding: 1px 6px 1px 5px;
-    font-size: 13px;
-    line-height: 18px;
-    right: -4px;
-    bottom: -4px;
+  .specialist-list-item .list-item-userpic {
+    border-radius: 16px;
+    width: 72px;
+    height: 72px;
   }
 
-  .list-item-rating svg {
-    width: 12px;
-    height: 12px;
+  .list-item-meta-rating svg {
+    width: 16px;
+    height: 16px;
   }
 
   .p24-medium {
@@ -2561,6 +2559,11 @@ a {
 }
 
 @media screen and (max-width: 479px) {
+  .list-item-price {
+    font-size: 20px;
+    line-height: 26px;
+  }
+
   /* Кнопка «Фильтры» по содержимому, сортировке — остальное место; без иконки и мельче шрифт */
   .filters-open {
     flex: 0 0 auto;
