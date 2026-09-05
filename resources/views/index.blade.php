@@ -219,9 +219,6 @@
       </div>
     </div>
 
-    <div class="specialists-count p18" id="specialists-count" data-count="{{ $totalCount }}">
-      {{ plural_ru($totalCount, 'специалист', 'специалиста', 'специалистов') }}
-    </div>
     <div class="specialists-list" id="specialists-list">
       @forelse($specialists as $specialist)
         @include('partials.specialist-item', ['specialist' => $specialist, 'lessonFormats' => $lessonFormats])
