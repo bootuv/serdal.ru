@@ -1,13 +1,12 @@
 @extends('layout')
 
-@section('title', 'Публичная оферта - ' . $platform['name'])
+@section('title', 'Публичная оферта — ' . $platform['name'])
 
-@section('meta')
-    <meta name="description"
-        content="Публичная оферта на оказание услуг платформы онлайн-обучения {{ $platform['name'] }}: условия подписки, порядок оплаты и возврата средств, реквизиты.">
-    <meta property="og:title" content="Публичная оферта - {{ $platform['name'] }}">
-    <meta property="og:description" content="Публичная оферта на оказание услуг платформы онлайн-обучения {{ $platform['name'] }}.">
-@endsection
+@section('description', 'Публичная оферта на оказание услуг платформы онлайн-обучения ' . $platform['name'] . ': условия подписки, порядок оплаты и возврата средств, реквизиты.')
+
+@push('jsonld')
+    {!! \App\Support\Seo::jsonLd(\App\Support\Seo::breadcrumbs([['name' => 'Публичная оферта', 'url' => \App\Support\Seo::canonical()]])) !!}
+@endpush
 
 @section('content')
     @php

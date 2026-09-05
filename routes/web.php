@@ -8,6 +8,12 @@ use App\Http\Controllers\RoomController;
 
 Route::get('/', [IndexController::class, 'index']);
 
+// Файлы для поисковых систем и ИИ-краулеров
+Route::get('/robots.txt', [\App\Http\Controllers\SeoController::class, 'robots'])->name('seo.robots');
+Route::get('/sitemap.xml', [\App\Http\Controllers\SeoController::class, 'sitemap'])->name('seo.sitemap');
+Route::get('/llms.txt', [\App\Http\Controllers\SeoController::class, 'llms'])->name('seo.llms');
+Route::get('/llms-full.txt', [\App\Http\Controllers\SeoController::class, 'llmsFull'])->name('seo.llms-full');
+
 
 
 // Help Center (база знаний) — публичные страницы

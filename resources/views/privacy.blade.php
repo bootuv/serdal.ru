@@ -1,13 +1,12 @@
 @extends('layout')
 
-@section('title', 'Политика конфиденциальности - Serdal')
+@section('title', 'Политика конфиденциальности — Serdal')
 
-@section('meta')
-    <meta name="description"
-        content="Политика конфиденциальности платформы онлайн репетиторов Serdal. Узнайте, как мы собираем, используем и защищаем вашу персональную информацию.">
-    <meta property="og:title" content="Политика конфиденциальности - Serdal">
-    <meta property="og:description" content="Политика конфиденциальности платформы онлайн репетиторов Serdal">
-@endsection
+@section('description', 'Политика конфиденциальности платформы онлайн-репетиторов Serdal: как мы собираем, используем и защищаем персональные данные пользователей.')
+
+@push('jsonld')
+    {!! \App\Support\Seo::jsonLd(\App\Support\Seo::breadcrumbs([['name' => 'Политика конфиденциальности', 'url' => \App\Support\Seo::canonical()]])) !!}
+@endpush
 
 @section('content')
 

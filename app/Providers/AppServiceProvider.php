@@ -19,6 +19,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // SEO-настройки читаются один раз за запрос; после изменения в админке сбрасываем их и кэш sitemap/llms
+        \App\Models\Setting::saved(fn () => \App\Support\SeoSettings::flush());
+        \App\Models\Setting::deleted(fn () => \App\Support\SeoSettings::flush());
+
         // Подпись колонки на каждой ячейке: мобильный CSS (resources/css/app.css)
         // рендерит таблицы карточками «метка: значение» через content: attr(data-label)
         \Filament\Tables\Columns\Column::configureUsing(function (\Filament\Tables\Columns\Column $column) {

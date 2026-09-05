@@ -1,13 +1,12 @@
 @extends('layout')
 
-@section('title', 'Условия использования - Serdal')
+@section('title', 'Условия использования — Serdal')
 
-@section('meta')
-    <meta name="description"
-        content="Условия использования платформы онлайн репетиторов Serdal. Правила и условия для преподавателей, менторов и учеников.">
-    <meta property="og:title" content="Условия использования - Serdal">
-    <meta property="og:description" content="Условия использования платформы онлайн репетиторов Serdal">
-@endsection
+@section('description', 'Условия использования платформы онлайн-репетиторов Serdal. Правила и условия для преподавателей, менторов и учеников.')
+
+@push('jsonld')
+    {!! \App\Support\Seo::jsonLd(\App\Support\Seo::breadcrumbs([['name' => 'Условия использования', 'url' => \App\Support\Seo::canonical()]])) !!}
+@endpush
 
 @section('content')
 

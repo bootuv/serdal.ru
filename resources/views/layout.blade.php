@@ -3,11 +3,44 @@
 
 <head>
   <meta charset="utf-8">
-  <title>@yield('title', 'Serdal')</title>
+  @php
+    $seoTitle = trim($__env->yieldContent('title', \App\Support\Seo::defaultTitle()));
+    $seoDescription = \App\Support\Seo::text($__env->yieldContent('description', \App\Support\Seo::defaultDescription()), 300);
+    $seoCanonical = trim($__env->yieldContent('canonical', \App\Support\Seo::canonical()));
+    $seoImage = trim($__env->yieldContent('og_image', \App\Support\Seo::defaultImage()));
+    $seoType = trim($__env->yieldContent('og_type', 'website'));
+    $seoRobots = \App\Support\Seo::robots(trim($__env->yieldContent('robots', '')));
+    $seoSiteName = \App\Support\Seo::siteName();
+  @endphp
+  <title>{{ $seoTitle }}</title>
   <meta content="width=device-width, initial-scale=1" name="viewport">
-  @yield('meta')
-  <meta property="og:site_name" content="Serdal">
+  <meta name="description" content="{{ $seoDescription }}">
+  <meta name="robots" content="{{ $seoRobots }}">
+  <link rel="canonical" href="{{ $seoCanonical }}">
+  <meta property="og:site_name" content="{{ $seoSiteName }}">
   <meta property="og:locale" content="ru_RU">
+  <meta property="og:type" content="{{ $seoType }}">
+  <meta property="og:title" content="{{ $seoTitle }}">
+  <meta property="og:description" content="{{ $seoDescription }}">
+  <meta property="og:url" content="{{ $seoCanonical }}">
+  <meta property="og:image" content="{{ $seoImage }}">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="{{ $seoTitle }}">
+  <meta name="twitter:description" content="{{ $seoDescription }}">
+  <meta name="twitter:image" content="{{ $seoImage }}">
+  @yield('meta')
+  @include('partials.favicon')
+  <meta name="theme-color" content="#ffe500">
+  @if(\App\Support\SeoSettings::get('seo_yandex_verification') !== '')
+  <meta name="yandex-verification" content="{{ \App\Support\SeoSettings::get('seo_yandex_verification') }}">
+  @endif
+  @if(\App\Support\SeoSettings::get('seo_google_verification') !== '')
+  <meta name="google-site-verification" content="{{ \App\Support\SeoSettings::get('seo_google_verification') }}">
+  @endif
+  {!! \App\Support\Seo::jsonLd(\App\Support\Seo::organization()) !!}
+  {!! \App\Support\Seo::jsonLd(\App\Support\Seo::website()) !!}
+  @stack('jsonld')
+  {!! \App\Support\SeoSettings::get('seo_head_extra') !!}
   <link href="/css/normalize.css" rel="stylesheet" type="text/css">
   <link href="/css/webflow.css" rel="stylesheet" type="text/css">
   <link href="/css/serdal-ru.webflow.css" rel="stylesheet" type="text/css">

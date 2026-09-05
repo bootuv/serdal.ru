@@ -1,12 +1,14 @@
 @extends('layout')
 
-@section('title', $audienceLabel . ' - Центр помощи Serdal')
+@section('title', $audienceLabel . ' — Центр помощи Serdal')
+@section('description', 'Центр помощи Serdal — ' . mb_strtolower($audienceLabel) . ': видеоинструкции и статьи по работе с платформой онлайн-занятий.')
 
-@section('meta')
-    <meta name="description"
-        content="Центр помощи Serdal — {{ mb_strtolower($audienceLabel) }}: видеоинструкции и статьи по работе с платформой.">
-    <meta property="og:title" content="{{ $audienceLabel }} - Центр помощи Serdal">
-@endsection
+@push('jsonld')
+    {!! \App\Support\Seo::jsonLd(\App\Support\Seo::breadcrumbs([
+        ['name' => 'Центр помощи', 'url' => \App\Support\Seo::url(route('help.index', [], false))],
+        ['name' => $audienceLabel, 'url' => \App\Support\Seo::canonical()],
+    ])) !!}
+@endpush
 
 @section('styles')
     <link href="/css/help.css" rel="stylesheet" type="text/css">

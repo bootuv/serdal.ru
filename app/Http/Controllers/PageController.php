@@ -80,6 +80,7 @@ class PageController extends Controller
             ->whereHas('user', fn($q) => $q->where('role', User::ROLE_STUDENT));
 
         $reviewsTotal = (clone $reviewsQuery)->count();
+        $ratingAvg = $reviewsTotal > 0 ? (float) (clone $reviewsQuery)->avg('rating') : null;
 
         $reviews = $reviewsQuery
             ->latest()
@@ -89,7 +90,7 @@ class PageController extends Controller
 
         $reviewsHasMore = $reviewsTotal > 20;
 
-        return view('tutor', compact('user', 'lessonTypeIndividual', 'lessonTypeGroup', 'reviews', 'reviewsHasMore'));
+        return view('tutor', compact('user', 'lessonTypeIndividual', 'lessonTypeGroup', 'reviews', 'reviewsHasMore', 'reviewsTotal', 'ratingAvg'));
     }
 
     public function aboutPage()

@@ -1,14 +1,31 @@
 @extends('layout')
 
-@section('title', $article->title . ' - Центр помощи Serdal')
+@section('title', $article->title . ' — Центр помощи Serdal')
+@section('description', $article->excerpt ?: \App\Support\Seo::text($article->content, 160) ?: $article->title . ' — инструкция по платформе Serdal')
+@section('og_type', 'article')
 
-@section('meta')
-    <meta name="description" content="{{ $article->excerpt ?: $article->title . ' — инструкция по платформе Serdal' }}">
-    <meta property="og:title" content="{{ $article->title }} - Центр помощи Serdal">
-    @if($article->excerpt)
-        <meta property="og:description" content="{{ $article->excerpt }}">
-    @endif
-@endsection
+@push('jsonld')
+    {!! \App\Support\Seo::jsonLd(\App\Support\Seo::breadcrumbs([
+        ['name' => 'Центр помощи', 'url' => \App\Support\Seo::url(route('help.index', [], false))],
+        ['name' => $category->audience_label, 'url' => \App\Support\Seo::url(route('help.section', $category->audience_slug, false))],
+        ['name' => $category->name, 'url' => \App\Support\Seo::url(route('help.category', [$category->audience_slug, $category->slug], false))],
+        ['name' => $article->title, 'url' => \App\Support\Seo::canonical()],
+    ])) !!}
+    {!! \App\Support\Seo::jsonLd(array_filter([
+        '@type' => 'TechArticle',
+        'headline' => $article->title,
+        'description' => $article->excerpt ?: \App\Support\Seo::text($article->content, 200),
+        'articleSection' => $category->name,
+        'audience' => ['@type' => 'Audience', 'audienceType' => $category->audience_label],
+        'inLanguage' => 'ru-RU',
+        'datePublished' => optional($article->created_at)->toAtomString(),
+        'dateModified' => optional($article->updated_at)->toAtomString(),
+        'author' => ['@id' => \App\Support\Seo::url('#organization')],
+        'publisher' => ['@id' => \App\Support\Seo::url('#organization')],
+        'mainEntityOfPage' => \App\Support\Seo::canonical(),
+        'isPartOf' => ['@id' => \App\Support\Seo::url('#website')],
+    ])) !!}
+@endpush
 
 @section('styles')
     <link href="/css/help.css" rel="stylesheet" type="text/css">

@@ -1,13 +1,34 @@
 @extends('layout')
 
-@section('title', 'Тарифы - Serdal')
+@section('title', 'Тарифы для репетиторов — Serdal')
+@section('description', 'Тарифы платформы онлайн-обучения Serdal для репетиторов и образовательных центров: бесплатный старт, цены на подписку, состав пакетов, порядок оплаты и возврата.')
 
-@section('meta')
-    <meta name="description"
-        content="Тарифы платформы онлайн-обучения Serdal для репетиторов и образовательных центров: цены, характеристики, состав пакетов и условия оплаты.">
-    <meta property="og:title" content="Тарифы - Serdal">
-    <meta property="og:description" content="Тарифы платформы онлайн-обучения Serdal: цены, характеристики и состав пакетов.">
-@endsection
+@push('jsonld')
+    @php
+        $tariffOffers = $tariffs->map(fn ($tariff) => array_filter(array: [
+            '@type' => 'Offer',
+            'name' => 'Тариф «' . $tariff->name . '»',
+            'description' => \App\Support\Seo::text($tariff->short_description, 200) ?: null,
+            'price' => (string) (int) $tariff->price,
+            'priceCurrency' => 'RUB',
+            'url' => \App\Support\Seo::canonical() . '#' . $tariff->slug,
+            'availability' => 'https://schema.org/InStock',
+            'eligibleDuration' => ['@type' => 'QuantitativeValue', 'value' => $tariff->period_days ?? 30, 'unitCode' => 'DAY'],
+            'seller' => ['@id' => \App\Support\Seo::url('#organization')],
+        ], callback: fn ($value) => $value !== null && $value !== ''))->values()->all();
+    @endphp
+    {!! \App\Support\Seo::jsonLd(\App\Support\Seo::breadcrumbs([['name' => 'Тарифы', 'url' => \App\Support\Seo::canonical()]])) !!}
+    {!! \App\Support\Seo::jsonLd([
+        '@type' => 'Service',
+        'name' => 'Подписка ' . $platform['name'] . ' для преподавателей',
+        'serviceType' => 'Платформа для онлайн-занятий',
+        'description' => 'Доступ к виртуальным комнатам, интерактивной доске, записям занятий, расписанию, домашним заданиям и учёту оплат.',
+        'provider' => ['@id' => \App\Support\Seo::url('#organization')],
+        'areaServed' => 'RU',
+        'url' => \App\Support\Seo::canonical(),
+        'offers' => $tariffOffers,
+    ]) !!}
+@endpush
 
 @section('styles')
     <style>
@@ -272,18 +293,27 @@
             gap: 24px;
         }
 
+        .tariff-step {
+            display: flex;
+            flex-direction: column;
+            background: var(--bg1, #ebf5f4);
+            border-radius: 24px;
+            padding: 28px;
+        }
+
         .tariff-step__number {
             display: flex;
             align-items: center;
             justify-content: center;
-            width: 56px;
-            height: 56px;
+            width: 48px;
+            height: 48px;
             margin-bottom: 20px;
-            border-radius: 18px;
+            border-radius: 14px;
             background: var(--brand-main, #ffe500);
-            font-size: 26px;
-            font-weight: 500;
+            font-size: 22px;
+            font-weight: 600;
             line-height: 1;
+            color: var(--black, #202323);
         }
 
         .tariff-step p {
@@ -291,6 +321,55 @@
             font-size: 16px;
             line-height: 1.55;
             color: var(--gray, #5f6262);
+        }
+
+        /* Порядок оплаты — докупка занятий */
+        .tariff-addon {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            align-items: center;
+            gap: 20px 24px;
+            margin-top: 24px;
+            background: var(--brand-main-light, #fffbd6);
+            border: 1px solid var(--brand-main, #ffe500);
+            border-radius: 24px;
+            padding: 28px 32px;
+        }
+
+        .tariff-addon__icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 56px;
+            height: 56px;
+            border-radius: 18px;
+            background: var(--brand-main, #ffe500);
+        }
+
+        .tariff-addon__icon svg {
+            width: 28px;
+            height: 28px;
+            color: var(--black, #202323);
+        }
+
+        .tariff-addon h3 {
+            margin: 0 0 6px;
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--black, #202323);
+        }
+
+        .tariff-addon p {
+            margin: 0;
+            font-size: 16px;
+            line-height: 1.55;
+            color: var(--gray, #5f6262);
+        }
+
+        .tariff-addon strong {
+            font-weight: 600;
+            color: var(--black, #202323);
+            white-space: nowrap;
         }
 
         /* Гарантии и возврат */
@@ -413,6 +492,15 @@
             .tariff-steps,
             .tariff-guarantees {
                 grid-template-columns: 1fr;
+            }
+
+            .tariff-step {
+                padding: 24px;
+            }
+
+            .tariff-addon {
+                grid-template-columns: 1fr;
+                padding: 24px;
             }
         }
     </style>
@@ -552,10 +640,13 @@
                 <div class="tariff-step__number">4</div>
                 <p>Тариф можно повысить или понизить в любой момент в личном кабинете.</p>
             </div>
-            <div class="tariff-step">
-                <div class="tariff-step__number">5</div>
-                <p>Если занятия по тарифу закончились раньше конца месяца,
-                    можно докупить нужное количество по {{ number_format($extraLessonPrice, 0, ',', ' ') }} ₽ за занятие.
+        </div>
+        <div class="tariff-addon">
+            <div class="tariff-addon__icon"><x-heroicon-o-plus-circle /></div>
+            <div>
+                <h3>Докупка занятий</h3>
+                <p>Если занятия по тарифу закончились раньше конца месяца, можно докупить нужное количество
+                    по <strong>{{ number_format($extraLessonPrice, 0, ',', ' ') }} ₽ за занятие</strong>.
                     Докупленные занятия не сгорают и сохраняются при смене тарифа.</p>
             </div>
         </div>

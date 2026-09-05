@@ -2,13 +2,12 @@
 
 @section('title', 'О платформе — Serdal')
 
-@section('meta')
-    <meta name="description"
-        content="Serdal — платформа для онлайн-занятий с репетиторами и менторами: видеоуроки в браузере, интерактивная доска, записи занятий, расписание, домашние задания и материалы в одном кабинете.">
-    <meta property="og:title" content="О платформе — Serdal">
-    <meta property="og:description"
-        content="Видеозанятия в браузере, интерактивная доска, записи уроков, расписание, домашние задания и материалы — всё в одном месте.">
-@endsection
+@section('description', 'Serdal — платформа для онлайн-занятий с репетиторами и менторами: видеоуроки в браузере, интерактивная доска, записи занятий, расписание, домашние задания и материалы в одном кабинете.')
+
+@push('jsonld')
+    {!! \App\Support\Seo::jsonLd(\App\Support\Seo::breadcrumbs([['name' => 'О платформе', 'url' => \App\Support\Seo::canonical()]])) !!}
+    {!! \App\Support\Seo::jsonLd(['@type' => 'AboutPage', 'name' => 'О платформе Serdal', 'url' => \App\Support\Seo::canonical(), 'about' => ['@id' => \App\Support\Seo::url('#organization')], 'inLanguage' => 'ru-RU']) !!}
+@endpush
 
 @section('styles')
     <style>

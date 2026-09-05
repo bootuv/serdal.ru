@@ -4,6 +4,10 @@ namespace App\Filament\Pages;
 
 use App\Models\Setting;
 use App\Support\OfferSettings;
+use App\Support\SeoSettings;
+use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\Toggle;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Tabs;
 use Filament\Forms\Components\TextInput;
@@ -85,7 +89,37 @@ class ManageBigBlueButton extends Page implements HasForms
             'yookassa_recurring_enabled' => Setting::where('key', 'yookassa_recurring_enabled')->value('value') === '1',
             'extra_lesson_price' => \App\Services\SubscriptionService::extraLessonPrice(),
             'extra_lessons_max' => \App\Services\SubscriptionService::extraLessonsMax(),
-        ];
+        ] + $this->seoState();
+    }
+
+    /** Значения SEO-настроек для формы: тексты с дефолтами, файлы — только загруженные. */
+    protected function seoState(): array
+    {
+        $state = [];
+        foreach (array_keys(SeoSettings::DEFAULTS) as $key) {
+            $value = SeoSettings::get($key);
+            $state[$key] = match (true) {
+                in_array($key, SeoSettings::FILE_KEYS, true) => $value !== '' ? $value : null,
+                in_array($key, ['seo_indexing_enabled', 'seo_ai_crawlers_enabled'], true) => $value !== '0',
+                default => $value,
+            };
+        }
+
+        return $state;
+    }
+
+    /** Поле загрузки картинки для SEO-настроек: хранится на s3 в папке seo. */
+    protected function seoImageUpload(string $key, string $label): FileUpload
+    {
+        return FileUpload::make($key)
+            ->label($label)
+            ->disk('s3')
+            ->directory('seo')
+            ->visibility('public')
+            ->fetchFileInformation(false)
+            ->image()
+            ->imagePreviewHeight('120')
+            ->maxSize(2048);
     }
 
     public function form(Form $form): Form
@@ -249,6 +283,96 @@ class ManageBigBlueButton extends Page implements HasForms
                                             ->required(),
                                     ])->columns(2),
                             ]),
+                        Tabs\Tab::make('SEO')
+                            ->badge(fn() => SeoSettings::enabled('seo_indexing_enabled') ? null : 'noindex')
+                            ->badgeColor('danger')
+                            ->schema([
+                                Section::make('Заголовки и описания')
+                                    ->description('Используются в <title>, meta description и превью ссылок в соцсетях и мессенджерах. Страницы со своими заголовками (репетиторы, тарифы, центр помощи) эти значения не переопределяют. Оптимальная длина: заголовок до 60 символов, описание 120–160.')
+                                    ->schema([
+                                        TextInput::make('seo_site_name')
+                                            ->label('Название сайта')
+                                            ->helperText('Подпись og:site_name и название организации в разметке schema.org.')
+                                            ->required()
+                                            ->maxLength(100),
+                                        TextInput::make('seo_default_title')
+                                            ->label('Заголовок по умолчанию')
+                                            ->helperText('Для страниц без собственного заголовка.')
+                                            ->required()
+                                            ->maxLength(120),
+                                        Textarea::make('seo_default_description')
+                                            ->label('Описание по умолчанию')
+                                            ->rows(3)
+                                            ->required()
+                                            ->maxLength(300)
+                                            ->columnSpanFull(),
+                                        TextInput::make('seo_home_title')
+                                            ->label('Заголовок главной страницы')
+                                            ->required()
+                                            ->maxLength(120)
+                                            ->columnSpanFull(),
+                                        Textarea::make('seo_home_description')
+                                            ->label('Описание главной страницы')
+                                            ->rows(3)
+                                            ->required()
+                                            ->maxLength(300)
+                                            ->columnSpanFull(),
+                                    ])->columns(2),
+                                Section::make('Картинки')
+                                    ->description('Если файл не загружен, используется стандартный из папки проекта. Файлы хранятся на CDN.')
+                                    ->schema([
+                                        $this->seoImageUpload('seo_og_image', 'Картинка для соцсетей (og:image)')
+                                            ->helperText('Показывается в превью ссылки в Telegram, WhatsApp, VK и др. Рекомендуемый размер 1200×630, JPG или PNG до 2 МБ.')
+                                            ->imageCropAspectRatio('1200:630')
+                                            ->imageResizeTargetWidth('1200')
+                                            ->imageResizeTargetHeight('630')
+                                            ->imageResizeMode('cover'),
+                                        $this->seoImageUpload('seo_logo', 'Логотип для поисковиков')
+                                            ->helperText('Логотип организации в разметке schema.org: поисковики показывают его в карточке компании. Квадратный или горизонтальный PNG на прозрачном фоне.'),
+                                        $this->seoImageUpload('seo_apple_touch_icon', 'Иконка для iOS и Android')
+                                            ->helperText('Показывается при добавлении сайта на главный экран телефона. PNG 180×180 или больше.')
+                                            ->imageCropAspectRatio('1:1'),
+                                    ])->columns(2),
+                                Section::make('Индексация')
+                                    ->description('Управляет robots.txt и meta robots на всех публичных страницах.')
+                                    ->schema([
+                                        Toggle::make('seo_indexing_enabled')
+                                            ->label('Разрешить индексацию сайта')
+                                            ->helperText('Выключайте только на тестовом стенде: все страницы получат noindex, а robots.txt закроет сайт целиком.')
+                                            ->live()
+                                            ->columnSpanFull(),
+                                        Toggle::make('seo_ai_crawlers_enabled')
+                                            ->label('Разрешить ИИ-краулеры')
+                                            ->helperText('Включено: ChatGPT, Claude, Perplexity и другие ИИ-ассистенты могут читать публичные страницы и находить сайт, в robots.txt есть ссылка на llms.txt. Выключено: боты, собирающие данные для обучения моделей, получают запрет.')
+                                            ->columnSpanFull(),
+                                        TextInput::make('seo_yandex_verification')
+                                            ->label('Код подтверждения Яндекс Вебмастера')
+                                            ->helperText('Значение content из мета-тега yandex-verification.')
+                                            ->maxLength(100),
+                                        TextInput::make('seo_google_verification')
+                                            ->label('Код подтверждения Google Search Console')
+                                            ->helperText('Значение content из мета-тега google-site-verification.')
+                                            ->maxLength(100),
+                                    ])->columns(2),
+                                Section::make('Дополнительно')
+                                    ->schema([
+                                        Textarea::make('seo_social_links')
+                                            ->label('Ссылки на соцсети и каталоги')
+                                            ->helperText('По одной ссылке в строке: Telegram, VK, YouTube, Дзен, отзовики. Попадают в разметку организации (sameAs) — поисковики связывают их с сайтом.')
+                                            ->rows(4)
+                                            ->placeholder("https://t.me/serdal\nhttps://vk.com/serdal"),
+                                        Textarea::make('seo_llms_description')
+                                            ->label('Описание сайта для ИИ (llms.txt)')
+                                            ->helperText('Один абзац о том, что это за сайт и для кого. Отдаётся ИИ-ассистентам по адресу /llms.txt вместе со ссылками на разделы, тарифами и списком преподавателей.')
+                                            ->rows(5)
+                                            ->maxLength(1000),
+                                        Textarea::make('seo_head_extra')
+                                            ->label('Дополнительный код в <head>')
+                                            ->helperText('Счётчики Яндекс Метрики, Google Analytics, пиксели и другие теги. Вставляется на все публичные страницы как есть — проверяйте корректность HTML.')
+                                            ->rows(6)
+                                            ->columnSpanFull(),
+                                    ])->columns(2),
+                            ]),
                         Tabs\Tab::make('Эквайринг')
                             ->badge(fn() => \App\Services\YooKassaService::isTestMode() ? 'тест' : null)
                             ->badgeColor('warning')
@@ -405,6 +529,20 @@ class ManageBigBlueButton extends Page implements HasForms
         // Extra lessons
         Setting::updateOrCreate(['key' => 'extra_lesson_price'], ['value' => (string) max(1, (int) ($data['extra_lesson_price'] ?? 0))]);
         Setting::updateOrCreate(['key' => 'extra_lessons_max'], ['value' => (string) max(1, (int) ($data['extra_lessons_max'] ?? 0))]);
+
+        // SEO
+        foreach (array_keys(SeoSettings::DEFAULTS) as $key) {
+            $value = $data[$key] ?? null;
+            if (in_array($key, ['seo_indexing_enabled', 'seo_ai_crawlers_enabled'], true)) {
+                $value = !empty($value) ? '1' : '0';
+            } elseif (is_array($value)) {
+                $value = (string) (reset($value) ?: '');
+            } else {
+                $value = trim((string) $value);
+            }
+            Setting::updateOrCreate(['key' => $key], ['value' => $value]);
+        }
+        SeoSettings::flush();
 
         Notification::make()
             ->title('Настройки сохранены')

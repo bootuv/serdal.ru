@@ -1,5 +1,12 @@
 @extends('layout')
 
+@section('title', 'Отзывы учеников о репетиторах — Serdal')
+@section('description', 'Отзывы учеников и родителей о занятиях с репетиторами и менторами на платформе Serdal. Реальный опыт онлайн-обучения: подготовка к экзаменам, школьные предметы, языки.')
+
+@push('jsonld')
+    {!! \App\Support\Seo::jsonLd(\App\Support\Seo::breadcrumbs([['name' => 'Отзывы', 'url' => \App\Support\Seo::canonical()]])) !!}
+@endpush
+
 @section('content')
 
   <section class="page-title-section">

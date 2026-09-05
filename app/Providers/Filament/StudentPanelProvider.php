@@ -71,7 +71,10 @@ class StudentPanelProvider extends PanelProvider
             ->brandLogo(fn() => asset('images/Logo.svg'))
             ->darkModeBrandLogo(fn() => asset('images/Logo-white.svg'))
             ->brandLogoHeight('2rem')
-            ->favicon(asset('images/favicon.ico'))
+            ->renderHook(
+                \Filament\View\PanelsRenderHook::HEAD_START,
+                fn() => view('partials.favicon')
+            )
             ->discoverResources(in: app_path('Filament/Student/Resources'), for: 'App\\Filament\\Student\\Resources')
             ->discoverPages(in: app_path('Filament/Student/Pages'), for: 'App\\Filament\\Student\\Pages')
             ->pages([

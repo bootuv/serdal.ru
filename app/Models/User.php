@@ -228,6 +228,12 @@ class User extends Authenticatable implements FilamentUser
         return $this->hasMany(Review::class);
     }
 
+    /** Отзывы, оставленные учениками об этом преподавателе */
+    public function receivedReviews()
+    {
+        return $this->hasMany(Review::class, 'teacher_id');
+    }
+
     public function rooms()
     {
         return $this->hasMany(Room::class);

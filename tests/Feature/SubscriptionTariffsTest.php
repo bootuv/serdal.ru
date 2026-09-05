@@ -52,7 +52,8 @@ class SubscriptionTariffsTest extends TestCase
             ->assertSee('Старт')
             ->assertSee('Профи')
             ->assertSee('Гарантийные условия')
-            ->assertSee('докупить нужное количество по 100 ₽ за занятие');
+            ->assertSee('Докупка занятий')
+            ->assertSee('100 ₽ за занятие');
     }
 
     public function test_public_offer_page_renders(): void

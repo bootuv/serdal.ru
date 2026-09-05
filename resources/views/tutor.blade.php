@@ -1,15 +1,51 @@
 @extends('layout')
 
-@section('title')
-  {{ $user->name }} - Преподаватель Serdal
-@endsection
+@php
+  $tutorSubjects = $user->subjects->pluck('name')->all();
+  $tutorTopics = $user->directs->pluck('name')->all();
+  $tutorTitle = $user->name . ($user->subjectsList ? ' — репетитор: ' . mb_strtolower($user->subjectsList) : ' — ' . mb_strtolower($user->displayRole)) . ' | Serdal';
+  $tutorDescription = \App\Support\Seo::text(implode(' ', array_filter([
+      $user->name . ' — ' . mb_strtolower($user->displayRole) . ' на платформе Serdal.',
+      $user->subjectsList ? 'Предметы: ' . $user->subjectsList . '.' : null,
+      $tutorTopics ? 'Направления: ' . implode(', ', $tutorTopics) . '.' : null,
+      $user->displayGrade ? 'Ученики: ' . $user->displayGrade . '.' : null,
+      $user->status ? \App\Support\Seo::text($user->status, 120) : null,
+      'Онлайн-занятия, отзывы учеников и контакты.',
+  ])), 300);
+@endphp
+
+@section('title', $tutorTitle)
+@section('description', $tutorDescription)
+@section('og_type', 'profile')
+@section('og_image', $user->avatarUrl)
 
 @section('meta')
-  <meta property="og:title" content="{{ $user->name }} - Репетитор Serdal">
-  <meta property="og:description" content="{{ $user->subjects_list }} - {{ $user->status }}">
-  <meta property="og:image" content="{{ $user->avatarUrl }}">
-  <meta property="og:type" content="profile">
+  <meta property="profile:username" content="{{ $user->username }}">
 @endsection
+
+@push('jsonld')
+  {!! \App\Support\Seo::jsonLd(\App\Support\Seo::breadcrumbs([
+      ['name' => 'Репетиторы', 'url' => \App\Support\Seo::url('/#specialists')],
+      ['name' => $user->name, 'url' => \App\Support\Seo::canonical()],
+  ])) !!}
+  {!! \App\Support\Seo::jsonLd([
+      '@type' => 'ProfilePage',
+      'url' => \App\Support\Seo::canonical(),
+      'inLanguage' => 'ru-RU',
+      'dateModified' => optional($user->updated_at)->toAtomString(),
+      'isPartOf' => ['@id' => \App\Support\Seo::url('#website')],
+      'mainEntity' => array_filter([
+          '@type' => 'Person',
+          'name' => $user->name,
+          'url' => \App\Support\Seo::canonical(),
+          'image' => $user->avatarUrl,
+          'jobTitle' => $user->displayRole,
+          'description' => $tutorDescription,
+          'knowsAbout' => array_values(array_unique(array_merge($tutorSubjects, $tutorTopics))) ?: null,
+          'memberOf' => ['@id' => \App\Support\Seo::url('#organization')],
+      ]),
+  ]) !!}
+@endpush
 
 @section('content')
 
@@ -17,7 +53,14 @@
     <div class="profile-pic-wrapper">
       <img src="{{ $user->avatarUrl }}" loading="lazy" width="280" height="280" alt="" sizes="280px" class="profile-pic">
     </div>
-    <h2 class="h3 tutor-name">{{ $user->name }}</h2>
+    <h1 class="h3 tutor-name">{{ $user->name }}</h1>
+    @if($ratingAvg !== null)
+      <a href="#teacher-reviews" class="profile-rating">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.95 6.1 6.7.9-4.9 4.7 1.2 6.7L12 17.7l-5.95 3.2 1.2-6.7-4.9-4.7 6.7-.9L12 2.5z"/></svg>
+        <span class="profile-rating__value">{{ number_format($ratingAvg, 1, ',', '') }}</span>
+        <span class="profile-rating__count">{{ plural_ru($reviewsTotal, 'отзыв', 'отзыва', 'отзывов') }}</span>
+      </a>
+    @endif
     @if(!empty($user->status) && trim(strip_tags($user->status)) !== '')
       <div class="status">
         <div class="status-arrow"></div>

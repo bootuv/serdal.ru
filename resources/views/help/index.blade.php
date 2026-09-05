@@ -1,13 +1,15 @@
 @extends('layout')
 
-@section('title', 'Центр помощи - Serdal')
+@section('title', 'Центр помощи — Serdal')
+@section('description', 'База знаний платформы Serdal: видеоинструкции и статьи по использованию платформы для учеников и репетиторов. Как проводить занятия, вести расписание, домашние задания и оплаты.')
+@if($query !== '')
+    @section('robots', 'noindex, follow')
+    @section('canonical', \App\Support\Seo::url(route('help.index', [], false)))
+@endif
 
-@section('meta')
-    <meta name="description"
-        content="База знаний платформы Serdal: видеоинструкции и статьи по использованию платформы для учеников и репетиторов.">
-    <meta property="og:title" content="Центр помощи - Serdal">
-    <meta property="og:description" content="Видеоинструкции и статьи по использованию платформы Serdal">
-@endsection
+@push('jsonld')
+    {!! \App\Support\Seo::jsonLd(\App\Support\Seo::breadcrumbs([['name' => 'Центр помощи', 'url' => \App\Support\Seo::url(route('help.index', [], false))]])) !!}
+@endpush
 
 @section('styles')
     <link href="/css/help.css" rel="stylesheet" type="text/css">

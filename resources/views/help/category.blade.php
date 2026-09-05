@@ -1,12 +1,15 @@
 @extends('layout')
 
-@section('title', $category->name . ' - Центр помощи Serdal')
+@section('title', $category->name . ' — Центр помощи Serdal')
+@section('description', $category->description ?: 'Инструкции по использованию платформы Serdal: ' . $category->name . '. Раздел «' . $category->audience_label . '».')
 
-@section('meta')
-    <meta name="description"
-        content="{{ $category->description ?: 'Инструкции по использованию платформы Serdal: ' . $category->name }}">
-    <meta property="og:title" content="{{ $category->name }} - Центр помощи Serdal">
-@endsection
+@push('jsonld')
+    {!! \App\Support\Seo::jsonLd(\App\Support\Seo::breadcrumbs([
+        ['name' => 'Центр помощи', 'url' => \App\Support\Seo::url(route('help.index', [], false))],
+        ['name' => $category->audience_label, 'url' => \App\Support\Seo::url(route('help.section', $category->audience_slug, false))],
+        ['name' => $category->name, 'url' => \App\Support\Seo::canonical()],
+    ])) !!}
+@endpush
 
 @section('styles')
     <link href="/css/help.css" rel="stylesheet" type="text/css">
