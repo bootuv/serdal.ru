@@ -63,14 +63,13 @@ class YooKassaService
     /**
      * Способы оплаты, которые магазину разрешено сохранять для автосписаний.
      * ЮKassa включает привязку каждого типа отдельно. Боевому магазину 1453716
-     * включены карта, СБП, T-Pay и ЮMoney (тикет CRM020429902; проверено
-     * запросами к API 05.09.2026 — успешное создание платежа со
-     * save_payment_method). SberPay сохранение не поддерживает: на sberbank
-     * магазин отвечает «this payment method can't be saved».
+     * включены все методы (тикет CRM020429902): карта, СБП, T-Pay и ЮMoney
+     * проверены запросами к API 05.09.2026, SberPay менеджер включил
+     * дополнительно 07.09.2026 по отдельному запросу.
      */
     public static function savableMethods(): array
     {
-        return ['sbp', 'tinkoff_bank', 'bank_card', 'yoo_money'];
+        return ['sbp', 'sberbank', 'tinkoff_bank', 'bank_card', 'yoo_money'];
     }
 
     protected static function setting(string $key): ?string
