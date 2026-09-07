@@ -133,6 +133,9 @@ class EditRoom extends EditRecord
         // Find newly added participants
         $addedParticipantIds = array_diff($newParticipantIds, $this->previousParticipantIds);
 
+        // Новым участникам назначаем все задания, привязанные к этому занятию
+        $this->record->attachParticipantsToHomeworks($addedParticipantIds);
+
         // In Admin panel, teacher is the room owner
         $teacher = $this->record->user;
 

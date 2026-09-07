@@ -421,3 +421,14 @@
 .payment-record-cards > div {
     padding-top: 0.5rem !important;
 }
+
+/* Список учеников: колонка «Назначенные занятия».
+   Filament подчёркивает текст ячейки-ссылки при наведении на строку — убираем это
+   для тега и кружка «+N», а название занятия подчёркиваем только при наведении на сам тег. */
+.fi-ta-text-item-label:has(.student-rooms) {
+    text-decoration-line: none !important;
+}
+
+.student-rooms-tag:hover > span {
+    text-decoration-line: underline;
+}

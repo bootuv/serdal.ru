@@ -33,35 +33,7 @@ class ViewStudent extends ViewRecord
                 ->icon('heroicon-o-trash')
                 ->requiresConfirmation()
                 ->action(function () {
-                    $record = $this->record;
-                    $teacher = auth()->user();
-                    $teacher->students()->detach($record);
-
-                    // Remove student from all teacher's rooms
-                    $teacherRooms = \App\Models\Room::where('user_id', $teacher->id)->get();
-                    foreach ($teacherRooms as $room) {
-                        $room->participants()->detach($record->id);
-                    }
-
-                    // Check if student can leave a review
-                    $studentId = (string) $record->id;
-                    $hasCompletedLesson = \App\Models\MeetingSession::whereHas('room', function ($q) use ($teacher) {
-                        $q->where('user_id', $teacher->id);
-                    })
-                        ->where(function ($q) use ($studentId) {
-                            $q->whereJsonContains('analytics_data->participants', ['user_id' => $studentId])
-                                ->orWhereJsonContains('analytics_data->participants', ['user_id' => (int) $studentId]);
-                        })
-                        ->exists();
-
-                    $hasExistingReview = \App\Models\Review::where('user_id', $record->id)
-                        ->where('teacher_id', $teacher->id)
-                        ->exists();
-
-                    $canLeaveReview = $hasCompletedLesson && !$hasExistingReview;
-
-                    // Notify the student
-                    $record->notify(new \App\Notifications\TeacherRemoved($teacher, $canLeaveReview));
+                    StudentResource::removeStudentFromList($this->record);
 
                     \Filament\Notifications\Notification::make()
                         ->title('Ученик удален из списка')

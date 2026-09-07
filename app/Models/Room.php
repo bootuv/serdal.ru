@@ -108,6 +108,52 @@ class Room extends Model
         return $this->hasMany(Message::class);
     }
 
+    /**
+     * Домашние задания, привязанные к этому занятию
+     */
+    public function homeworks()
+    {
+        return $this->hasMany(Homework::class);
+    }
+
+    /**
+     * Назначить участникам все задания, привязанные к занятию.
+     *
+     * Вызывается при добавлении учеников в занятие: задание, созданное для
+     * группы, должно быть видно всем её участникам, включая тех, кто
+     * присоединился после создания задания. Уже назначенные ученики
+     * пропускаются. Уведомление отправляется только о видимых заданиях
+     * с ещё не истёкшим сроком сдачи.
+     *
+     * @param  array<int>  $studentIds
+     */
+    public function attachParticipantsToHomeworks(array $studentIds, bool $notify = true): void
+    {
+        $studentIds = array_values(array_unique(array_map('intval', $studentIds)));
+
+        if (empty($studentIds)) {
+            return;
+        }
+
+        $this->homeworks()->with('students:id')->get()->each(function (Homework $homework) use ($studentIds, $notify) {
+            $missingIds = array_diff($studentIds, $homework->students->pluck('id')->all());
+
+            if (empty($missingIds)) {
+                return;
+            }
+
+            $homework->students()->syncWithoutDetaching($missingIds);
+
+            if (! $notify || ! $homework->is_visible || $homework->is_overdue) {
+                return;
+            }
+
+            User::whereIn('id', $missingIds)->get()->each(
+                fn (User $student) => $student->notify(new \App\Notifications\NewHomework($homework))
+            );
+        });
+    }
+
     public function sessions()
     {
         return $this->hasMany(MeetingSession::class);

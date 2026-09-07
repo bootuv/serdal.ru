@@ -5,6 +5,7 @@ namespace App\Filament\App\Resources;
 use App\Filament\App\Resources\StudentResource\Pages;
 use App\Filament\App\Resources\StudentResource\RelationManagers;
 use App\Models\PaymentRecord;
+use App\Models\Room;
 use App\Models\User;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -158,6 +159,9 @@ class StudentResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(fn(Builder $query) => $query->with([
+                'assignedRooms' => fn($query) => $query->where('rooms.user_id', auth()->id()),
+            ]))
             ->columns([
                 Tables\Columns\TextColumn::make('name')
                     ->label('Имя')
@@ -172,36 +176,19 @@ class StudentResource extends Resource
                             </div>'
                         );
                     }),
-                Tables\Columns\TextColumn::make('assignedRooms.name')
+                Tables\Columns\TextColumn::make('assigned_rooms')
                     ->label('Назначенные занятия')
-                    ->formatStateUsing(function (string $state, User $record) {
-                        // We need to fetch the actual rooms to inspect their Type
-                        // Since getStateUsing isn't creating the state objects fully here for standard badges to work with icons per-item easily in a list,
-                        // we will override the state processing or just render HTML ourselves.
-                        // Actually, standard TextColumn with separator can be tricky with per-item icons.
-                        // Better to use a custom view or formatStateUsing returning HTML.
-            
-                        $rooms = $record->assignedRooms()
-                            ->where('rooms.user_id', auth()->id())
-                            ->get(['name', 'type']);
-
-                        if ($rooms->isEmpty()) {
-                            return null;
-                        }
-
-                        $badges = $rooms->map(function ($room) {
-                            $isGroup = $room->type === 'group';
-                            $icon = $isGroup
-                                ? '<svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" /></svg>'
-                                : '<svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" /></svg>';
-
-                            $colorClasses = 'text-gray-700 ring-1 ring-inset ring-gray-600/20 dark:text-gray-300 dark:ring-gray-400/30';
-
-                            return "<span class=\"inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium {$colorClasses}\">{$icon} <span>" . e($room->name) . "</span></span>";
-                        })->join(' ');
-
-                        return new \Illuminate\Support\HtmlString('<div class="flex flex-wrap gap-1.5">' . $badges . '</div>');
-                    }),
+                    ->state(fn(User $record) => static::assignedRoomsBadges($record))
+                    // Ни одного занятия — вместо пустой ячейки ссылка, открывающая окно назначения
+                    ->placeholder(fn(User $record) => new \Illuminate\Support\HtmlString(
+                        '<button type="button" ' . static::assignRoomTrigger($record) . ' class="inline-flex items-center gap-1 text-sm font-medium text-primary-600 hover:text-primary-500 dark:text-primary-400">'
+                        . '<svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>'
+                        . '<span>Назначить занятие</span></button>'
+                    ))
+                    // Ячейка, как и вся строка, ведёт в профиль ученика. Действие регистрируем через колонку,
+                    // но открывают его только тег занятия, кружок «+N» и ссылка (см. assignRoomTrigger)
+                    ->url(fn(User $record): string => Pages\ViewStudent::getUrl([$record]))
+                    ->action(static::assignRoomAction()),
                 Tables\Columns\TextColumn::make('payment_status')
                     ->label('Оплата')
                     ->state(function (User $record) {
@@ -326,6 +313,13 @@ class StudentResource extends Resource
                     ->icon('heroicon-o-banknotes')
                     ->color('gray')
                     ->button(),
+                static::deleteFromListAction()
+                    ->iconButton()
+                    // В таблице иконка неброская серая, но подтверждение в окне остаётся красным
+                    ->color('gray')
+                    ->modalSubmitAction(fn(\Filament\Actions\StaticAction $action) => $action->color('danger'))
+                    // Небольшой отступ от кнопки «Оплата»
+                    ->extraAttributes(['style' => 'margin-inline-start: 0.5rem;']),
             ])
             ->recordUrl(fn(User $record): string => Pages\ViewStudent::getUrl([$record]))
             ->bulkActions([
@@ -333,6 +327,267 @@ class StudentResource extends Resource
                 //     Tables\Actions\DeleteBulkAction::make(),
                 // ]),
             ]);
+    }
+
+    /**
+     * Занятия текущего учителя, в которые добавлен ученик.
+     * Отношение подгружается одним запросом на всю таблицу (см. modifyQueryUsing),
+     * фильтр по учителю дублируем в памяти на случай ленивой загрузки.
+     */
+    public static function teacherRoomsOf(User $record): \Illuminate\Support\Collection
+    {
+        return $record->assignedRooms
+            ->where('user_id', auth()->id())
+            ->sortBy('name')
+            ->values();
+    }
+
+    /**
+     * Первое назначенное занятие и счётчик остальных для колонки таблицы. Null — ученик никуда не добавлен.
+     */
+    public static function assignedRoomsBadges(User $record): ?\Illuminate\Support\HtmlString
+    {
+        $rooms = static::teacherRoomsOf($record);
+
+        if ($rooms->isEmpty()) {
+            return null;
+        }
+
+        $colorClasses = 'text-gray-700 ring-1 ring-inset ring-gray-600/20 dark:text-gray-300 dark:ring-gray-400/30';
+
+        // В таблице показываем только первое занятие, остальные сворачиваем в кружок «+N»
+        $first = $rooms->first();
+        $rest = $rooms->slice(1);
+
+        $isGroup = $first->type === 'group';
+        $icon = $isGroup
+            ? '<svg class="w-4 h-4 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" /></svg>'
+            : '<svg class="w-4 h-4 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" /></svg>';
+
+        $trigger = static::assignRoomTrigger($record);
+
+        $html = "<button type=\"button\" {$trigger} class=\"student-rooms-tag inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium transition hover:bg-gray-50 dark:hover:bg-white/5 {$colorClasses}\">{$icon} <span>" . e($first->name) . "</span></button>";
+
+        if ($rest->isNotEmpty()) {
+            $hiddenNames = $rest->pluck('name')->map(fn(string $name) => e($name))->join(', ');
+
+            $html .= "<button type=\"button\" {$trigger} class=\"inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-100 text-xs font-medium transition hover:bg-gray-50 {$colorClasses} dark:bg-white/5 dark:hover:bg-white/10\" title=\"{$hiddenNames}\">+" . $rest->count() . '</button>';
+        }
+
+        return new \Illuminate\Support\HtmlString('<div class="student-rooms flex items-center gap-1.5">' . $html . '</div>');
+    }
+
+    /**
+     * Атрибуты для элемента, открывающего окно назначения занятий этому ученику.
+     * .stop — чтобы клик не ушёл в строку таблицы, .prevent — чтобы не сработала ссылка на профиль.
+     */
+    protected static function assignRoomTrigger(User $record): string
+    {
+        return 'wire:click.stop.prevent="mountTableAction(\'assign_room\', \'' . e($record->getKey()) . '\')"';
+    }
+
+    /**
+     * Все занятия текущего учителя с количеством участников — варианты для окна назначения.
+     */
+    public static function teacherRoomsForAssignment(): \Illuminate\Support\Collection
+    {
+        return Room::query()
+            ->where('user_id', auth()->id())
+            ->withCount('participants')
+            ->orderBy('name')
+            ->get();
+    }
+
+    /**
+     * Действие «Назначить занятие»: окно со списком занятий учителя,
+     * где можно отметить несколько занятий или снять уже назначенные.
+     */
+    public static function assignRoomAction(): Tables\Actions\Action
+    {
+        return Tables\Actions\Action::make('assign_room')
+            ->label('Назначить занятие')
+            ->icon('heroicon-o-plus')
+            ->modalHeading(fn(User $record) => "Занятия — {$record->name}")
+            ->modalDescription('Отметьте занятия, в которых должен участвовать ученик. Снимите отметку, чтобы убрать его из занятия.')
+            ->modalWidth('md')
+            ->modalSubmitActionLabel('Сохранить')
+            ->modalSubmitAction(fn($action) => static::teacherRoomsForAssignment()->isNotEmpty() ? $action : false)
+            ->modalCancelActionLabel(fn() => static::teacherRoomsForAssignment()->isNotEmpty() ? 'Отмена' : 'Закрыть')
+            ->form(fn(User $record) => static::getAssignRoomFormSchema($record))
+            ->action(fn(User $record, array $data) => static::syncStudentRooms($record, $data));
+    }
+
+    public static function getAssignRoomFormSchema(User $record): array
+    {
+        $rooms = static::teacherRoomsForAssignment();
+
+        if ($rooms->isEmpty()) {
+            $createUrl = RoomResource::getUrl('create');
+
+            return [
+                Forms\Components\Placeholder::make('no_rooms')
+                    ->hiddenLabel()
+                    ->content(new \Illuminate\Support\HtmlString(
+                        '<p class="text-sm text-gray-600 dark:text-gray-400">У вас пока нет занятий. Создайте занятие, а затем назначьте его ученику.</p>'
+                        . '<a href="' . e($createUrl) . '" class="mt-3 inline-flex items-center gap-1 text-sm font-medium text-primary-600 hover:text-primary-500 dark:text-primary-400">'
+                        . 'Создать занятие →</a>'
+                    )),
+            ];
+        }
+
+        $assignedIds = static::teacherRoomsOf($record)->pluck('id')->all();
+
+        return [
+            Forms\Components\CheckboxList::make('room_ids')
+                ->hiddenLabel()
+                ->options($rooms->mapWithKeys(fn(Room $room) => [$room->id => e($room->name)]))
+                ->descriptions($rooms->mapWithKeys(fn(Room $room) => [
+                    $room->id => ($room->type === 'group' ? 'Группа' : 'Индивидуально')
+                        . ' · ' . plural_ru($room->participants_count, 'ученик', 'ученика', 'учеников'),
+                ]))
+                ->default($assignedIds)
+                ->searchable($rooms->count() > 8)
+                ->bulkToggleable($rooms->count() > 1)
+                ->columns(1),
+        ];
+    }
+
+    /**
+     * Приводит участие ученика в занятиях учителя к отмеченному набору:
+     * добавляет в новые занятия, убирает из снятых.
+     */
+    public static function syncStudentRooms(User $record, array $data): void
+    {
+        $teacher = auth()->user();
+
+        $teacherRooms = Room::where('user_id', $teacher->id)->get()->keyBy('id');
+
+        // Чужие id отбрасываем — назначать можно только свои занятия
+        $wantedIds = collect($data['room_ids'] ?? [])
+            ->map(fn($id) => (int) $id)
+            ->filter(fn(int $id) => $teacherRooms->has($id))
+            ->unique()
+            ->values();
+
+        $currentIds = $record->assignedRooms()
+            ->where('rooms.user_id', $teacher->id)
+            ->pluck('rooms.id');
+
+        $addedIds = $wantedIds->diff($currentIds)->values();
+        $removedIds = $currentIds->diff($wantedIds)->values();
+
+        foreach ($addedIds as $roomId) {
+            $room = $teacherRooms[$roomId];
+            $room->participants()->attach($record->id);
+            static::refreshRoomType($room);
+
+            // Как и при добавлении через форму занятия: выдаём ученику задания этого занятия
+            $room->attachParticipantsToHomeworks([$record->id]);
+
+            $record->notify(new \App\Notifications\TeacherAssignedLesson($room, $teacher));
+        }
+
+        foreach ($removedIds as $roomId) {
+            $room = $teacherRooms[$roomId];
+            $room->participants()->detach($record->id);
+            static::refreshRoomType($room);
+        }
+
+        // Таблица перерисуется в этом же запросе — сбрасываем загруженное отношение
+        $record->unsetRelation('assignedRooms');
+
+        if ($addedIds->isEmpty() && $removedIds->isEmpty()) {
+            Notification::make()
+                ->title('Изменений нет')
+                ->info()
+                ->send();
+
+            return;
+        }
+
+        $parts = [];
+
+        if ($addedIds->isNotEmpty()) {
+            $parts[] = 'Назначено: ' . $addedIds->map(fn(int $id) => '«' . $teacherRooms[$id]->name . '»')->join(', ');
+        }
+
+        if ($removedIds->isNotEmpty()) {
+            $parts[] = 'Снято: ' . $removedIds->map(fn(int $id) => '«' . $teacherRooms[$id]->name . '»')->join(', ');
+        }
+
+        Notification::make()
+            ->title('Занятия ученика обновлены')
+            ->body(implode('. ', $parts) . '.')
+            ->success()
+            ->send();
+    }
+
+    /**
+     * attach()/detach() не сохраняют комнату, поэтому тип пересчитываем сами (как в EditRoom).
+     */
+    protected static function refreshRoomType(Room $room): void
+    {
+        $participantCount = $room->participants()->count();
+
+        $room->updateQuietly([
+            'type' => match (true) {
+                $participantCount === 0 => 'pending',
+                $participantCount === 1 => 'individual',
+                default => 'group',
+            },
+        ]);
+    }
+
+    /**
+     * Действие «Удалить из списка» с подтверждением. Используется и в таблице, и в профиле ученика.
+     */
+    public static function deleteFromListAction(): Tables\Actions\Action
+    {
+        return Tables\Actions\Action::make('delete_from_list')
+            ->label('Удалить из списка')
+            ->color('danger')
+            ->icon('heroicon-o-trash')
+            ->requiresConfirmation()
+            ->action(function (User $record) {
+                static::removeStudentFromList($record);
+
+                Notification::make()
+                    ->title('Ученик удален из списка')
+                    ->success()
+                    ->send();
+            });
+    }
+
+    /**
+     * Убирает ученика из списка учителя: снимает связь, удаляет из всех занятий
+     * и уведомляет ученика (с предложением оставить отзыв, если были занятия).
+     */
+    public static function removeStudentFromList(User $record): void
+    {
+        $teacher = auth()->user();
+        $teacher->students()->detach($record);
+
+        // Убираем ученика из всех занятий учителя
+        Room::where('user_id', $teacher->id)->get()->each(function (Room $room) use ($record) {
+            $room->participants()->detach($record->id);
+        });
+
+        // Может ли ученик оставить отзыв: было хотя бы одно занятие и отзыва ещё нет
+        $studentId = (string) $record->id;
+        $hasCompletedLesson = \App\Models\MeetingSession::whereHas('room', function ($q) use ($teacher) {
+            $q->where('user_id', $teacher->id);
+        })
+            ->where(function ($q) use ($studentId) {
+                $q->whereJsonContains('analytics_data->participants', ['user_id' => $studentId])
+                    ->orWhereJsonContains('analytics_data->participants', ['user_id' => (int) $studentId]);
+            })
+            ->exists();
+
+        $hasExistingReview = \App\Models\Review::where('user_id', $record->id)
+            ->where('teacher_id', $teacher->id)
+            ->exists();
+
+        $record->notify(new \App\Notifications\TeacherRemoved($teacher, $hasCompletedLesson && !$hasExistingReview));
     }
 
     /**
