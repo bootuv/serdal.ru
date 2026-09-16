@@ -11,7 +11,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // Временные файлы Livewire: укорачиваем слишком длинные имена (см. контроллер)
+        $this->app->bind(
+            \Livewire\Features\SupportFileUploads\FileUploadController::class,
+            \App\Http\Controllers\LivewireFileUploadController::class,
+        );
     }
 
     /**

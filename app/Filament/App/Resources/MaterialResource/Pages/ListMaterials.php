@@ -126,6 +126,58 @@ class ListMaterials extends Page
             return;
         }
 
+        // Страховка: если временный файл не записался на диск (нет места, права,
+        // слишком длинное имя), штатный Livewire вернул бы пустой путь, и правило
+        // «file» упало бы с 500 (UnableToRetrieveMetadata для livewire-tmp).
+        // Основная защита — LivewireFileUploadController; здесь отбрасываем
+        // такие элементы и сообщаем о проблеме вместо белого экрана.
+        $lost = 0;
+
+        $this->pendingFiles = array_values(array_filter($this->pendingFiles, function ($file) use (&$lost) {
+            $ok = $file instanceof \Livewire\Features\SupportFileUploads\TemporaryUploadedFile
+                && $file->getFilename() !== ''
+                && $file->exists();
+
+            if (! $ok) {
+                $lost++;
+            }
+
+            return $ok;
+        }));
+
+        if ($lost > 0) {
+            \Illuminate\Support\Facades\Log::error('Материалы: временный файл не сохранился на диске сервера', [
+                'user_id' => auth()->id(),
+                'lost' => $lost,
+                'received' => count($this->pendingFiles),
+                'disk' => \Livewire\Features\SupportFileUploads\FileUploadConfiguration::disk(),
+                'directory' => \Livewire\Features\SupportFileUploads\FileUploadConfiguration::path(),
+            ]);
+        }
+
+        if ($lost > 0 && empty($this->pendingFiles)) {
+            $this->uploadingMeta = [];
+            $this->dispatch('close-modal', id: "{$this->getId()}-action");
+
+            Notification::make()
+                ->title('Не удалось загрузить')
+                ->body('Сервер не смог сохранить файлы. Попробуйте позже или сообщите в поддержку.')
+                ->danger()
+                ->persistent()
+                ->send();
+
+            return;
+        }
+
+        if ($lost > 0) {
+            Notification::make()
+                ->title('Часть файлов не загрузилась')
+                ->body("Сервер не смог сохранить файлов: {$lost}. Остальные можно загрузить.")
+                ->warning()
+                ->persistent()
+                ->send();
+        }
+
         try {
             $this->validate(
                 ['pendingFiles.*' => 'file|max:204800'],
@@ -211,8 +263,16 @@ class ListMaterials extends Page
 
                 $created = 0;
 
-                foreach ($this->pendingFiles as $file) {
+                foreach ($this->pendingFiles as $index => $file) {
+                    // Во временном файле имя может быть укорочено (лимит длины имени
+                    // на диске) — полное название берём из метаданных, присланных браузером,
+                    // если они относятся к этому же файлу
                     $originalName = $file->getClientOriginalName();
+                    $metaName = $this->uploadingMeta[$index]['name'] ?? null;
+
+                    if ($metaName && str_starts_with($metaName, pathinfo($originalName, PATHINFO_FILENAME))) {
+                        $originalName = $metaName;
+                    }
 
                     // Сжимает изображения, кладёт на S3 в teacher-materials/{id}, удаляет temp
                     $path = FileUploadHelper::processAndStoreFile($file, 'teacher-materials');
