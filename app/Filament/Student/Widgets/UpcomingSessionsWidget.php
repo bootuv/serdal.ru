@@ -28,6 +28,9 @@ class UpcomingSessionsWidget extends BaseWidget
         $now = now();
         $in24Hours = $now->copy()->addHours(24);
 
+        // Преподаватели, к чьим занятиям ученик сейчас не допускается из-за просроченной оплаты
+        $blockedTeacherIds = \App\Services\PaymentRecordService::blockedTeacherIds(auth()->id());
+
         return $table
             ->query(
                 Room::query()
@@ -109,7 +112,9 @@ class UpcomingSessionsWidget extends BaseWidget
                     ->color('warning')
                     ->url(fn(Room $record) => route('rooms.connect', $record))
                     ->openUrlInNewTab()
-                    ->visible(fn(Room $record) => $record->is_running),
+                    ->visible(fn(Room $record) => $record->is_running && !in_array($record->user_id, $blockedTeacherIds)),
+                \App\Filament\Student\Resources\RoomResource::paymentBlockedAction()
+                    ->visible(fn(Room $record) => in_array($record->user_id, $blockedTeacherIds)),
             ]);
     }
 }

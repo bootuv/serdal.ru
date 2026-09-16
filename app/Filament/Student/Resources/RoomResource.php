@@ -4,6 +4,7 @@ namespace App\Filament\Student\Resources;
 
 use App\Filament\Student\Resources\RoomResource\Pages;
 use App\Models\Room;
+use App\Services\PaymentRecordService;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -37,6 +38,9 @@ class RoomResource extends Resource
 
     public static function table(Table $table): Table
     {
+        // Преподаватели, к чьим занятиям ученик сейчас не допускается из-за просроченной оплаты
+        $blockedTeacherIds = PaymentRecordService::blockedTeacherIds(auth()->id());
+
         return $table
             ->query(
                 Room::query()->whereHas('participants', function (Builder $query) {
@@ -74,10 +78,27 @@ class RoomResource extends Resource
                     ->button()
                     ->color('warning')
                     ->icon('heroicon-m-arrow-right-end-on-rectangle')
-                    ->visible(fn(Room $record) => $record->is_running)
+                    ->visible(fn(Room $record) => $record->is_running && !in_array($record->user_id, $blockedTeacherIds))
                     ->openUrlInNewTab(),
+                static::paymentBlockedAction()
+                    ->visible(fn(Room $record) => in_array($record->user_id, $blockedTeacherIds)),
             ])
             ->bulkActions([]);
+    }
+
+    /**
+     * Вместо «Присоединиться»: доступ к занятиям этого преподавателя закрыт до отметки оплаты.
+     * Используется в списке занятий, на странице занятия и в «Ближайших занятиях».
+     */
+    public static function paymentBlockedAction(): Tables\Actions\Action
+    {
+        return Tables\Actions\Action::make('payment_blocked')
+            ->label('Доступ ограничен')
+            ->tooltip('Есть занятия, не оплаченные в срок. Присоединиться можно будет после того, как преподаватель отметит оплату.')
+            ->url(fn() => \App\Filament\Student\Pages\PaymentDebts::getUrl())
+            ->button()
+            ->color('danger')
+            ->icon('heroicon-m-lock-closed');
     }
 
     public static function getPages(): array

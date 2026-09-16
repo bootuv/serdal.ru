@@ -82,8 +82,24 @@ class ViewRoom extends ViewRecord
                 ->color('warning')
                 ->url(fn() => route('rooms.connect', $this->record))
                 ->openUrlInNewTab()
-                ->visible(fn() => $this->record->is_running),
+                ->visible(fn() => $this->record->is_running && !$this->isPaymentBlocked()),
+
+            Actions\Action::make('payment_blocked')
+                ->label('Доступ ограничен')
+                ->tooltip('Есть занятия, не оплаченные в срок. Присоединиться можно будет после того, как преподаватель отметит оплату.')
+                ->icon('heroicon-m-lock-closed')
+                ->color('danger')
+                ->url(fn() => \App\Filament\Student\Pages\PaymentDebts::getUrl())
+                ->visible(fn() => $this->isPaymentBlocked()),
         ];
+    }
+
+    /**
+     * Закрыт ли ученику доступ к занятиям этого преподавателя из-за просроченной оплаты.
+     */
+    protected function isPaymentBlocked(): bool
+    {
+        return auth()->user()->isPaymentBlockedFor($this->record->user_id);
     }
 
     public function infolist(Infolist $infolist): Infolist

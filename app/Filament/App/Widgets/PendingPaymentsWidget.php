@@ -28,6 +28,9 @@ class PendingPaymentsWidget extends BaseWidget
 
     public function table(Table $table): Table
     {
+        // Ученики, которым сейчас закрыт доступ к занятиям этого учителя (лимит занятий с долгом исчерпан)
+        $blockedStudentIds = \App\Services\PaymentRecordService::blockedStudentIds(auth()->id());
+
         return $table
             ->query(
                 PaymentRecord::query()
@@ -55,8 +58,8 @@ class PendingPaymentsWidget extends BaseWidget
                 Tables\Columns\TextColumn::make('due_date')
                     ->label('Оплата')
                     // Статусы и цвета — как в колонке «Оплата» на странице «Ученики»
-                    ->state(function (PaymentRecord $record): string {
-                        if ($record->student?->payment_blocked_at) {
+                    ->state(function (PaymentRecord $record) use ($blockedStudentIds): string {
+                        if (in_array((int) $record->student_id, $blockedStudentIds)) {
                             return 'Заблокирован';
                         }
 
@@ -71,7 +74,7 @@ class PendingPaymentsWidget extends BaseWidget
                         }
 
                         return $record->isOverdue()
-                            ? 'Срок оплаты был ' . $record->due_date->format('d.m.Y')
+                            ? \App\Filament\App\Resources\StudentResource::overduePaymentTooltip($record->student)
                             : 'Оплата до ' . $record->due_date->format('d.m.Y');
                     }),
             ])

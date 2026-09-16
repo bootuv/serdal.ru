@@ -63,7 +63,7 @@ class PaymentRecord extends Model
 
     public function isOverdue(): bool
     {
-        return $this->status === self::STATUS_UNPAID && $this->due_date->isPast() && !$this->due_date->isToday();
+        return $this->status === self::STATUS_UNPAID && $this->due_date->lt(today());
     }
 
     /**
@@ -89,7 +89,8 @@ class PaymentRecord extends Model
     }
 
     /**
-     * Отметить оплату/отмену и пересчитать блокировку ученика.
+     * Отметить оплату/отмену. Блокировка занятий вычисляется из статуса записи,
+     * поэтому снимается сама.
      */
     public function markAs(string $status, ?int $markedBy = null): void
     {
@@ -98,23 +99,19 @@ class PaymentRecord extends Model
             'paid_at' => $status === self::STATUS_PAID ? now() : null,
             'marked_by' => $markedBy,
         ]);
-
-        \App\Services\PaymentRecordService::recalculateBlock($this->student);
     }
 
     /**
      * Продлить срок оплаты: просроченным — от сегодня, остальным — от текущего срока.
-     * Сбрасывает отметку о напоминании и снимает блокировку, если долгов не осталось.
+     * Сбрасывает отметку о напоминании; блокировка занятий снимается сама.
      */
     public function extendDue(int $days): void
     {
-        $base = $this->due_date->isPast() ? today() : $this->due_date;
+        $base = $this->due_date->lt(today()) ? today() : $this->due_date;
 
         $this->update([
             'due_date' => $base->copy()->addDays($days),
             'reminded_at' => null,
         ]);
-
-        \App\Services\PaymentRecordService::recalculateBlock($this->student);
     }
 }

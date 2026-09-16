@@ -282,6 +282,21 @@ class RoomController extends Controller
      */
     public function connect(Room $room)
     {
+        // Ученик с просроченной оплатой перед владельцем комнаты к занятию не допускается.
+        // Это единственная точка входа в BBB для участников, поэтому проверка здесь —
+        // кнопки в интерфейсе лишь дублируют её.
+        if (auth()->check() && $room->user_id !== auth()->id()
+            && \App\Services\PaymentRecordService::isBlockedForTeacher(auth()->id(), $room->user_id)) {
+            \Filament\Notifications\Notification::make()
+                ->title('Занятие недоступно')
+                ->body("У вас есть занятия у преподавателя {$room->user?->name}, не оплаченные в срок. Доступ откроется, как только преподаватель отметит оплату.")
+                ->danger()
+                ->persistent()
+                ->send();
+
+            return redirect()->route('filament.student.pages.payment-debts');
+        }
+
         // Apply Custom BBB Settings if available (from Room owner)
         $owner = $room->user;
         if ($owner && $owner->bbb_url && $owner->bbb_secret) {

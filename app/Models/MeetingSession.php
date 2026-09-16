@@ -67,6 +67,23 @@ class MeetingSession extends Model
         return $this->belongsTo(Room::class);
     }
 
+    /**
+     * Присутствовал ли пользователь на занятии. Источник — снимок на момент завершения
+     * (pricing_snapshot), для старых сессий без снимка — analytics_data.
+     */
+    public function attendedBy(int $userId): bool
+    {
+        $snapshotParticipants = $this->pricing_snapshot['participants'] ?? null;
+
+        if (is_array($snapshotParticipants)) {
+            return collect($snapshotParticipants)
+                ->contains(fn($p) => (int) ($p['user_id'] ?? 0) === $userId && ($p['attended'] ?? false));
+        }
+
+        return collect($this->analytics_data['participants'] ?? [])
+            ->contains(fn($p) => (int) ($p['user_id'] ?? 0) === $userId);
+    }
+
     public function getStudentAttendance(): array
     {
         // Use pricing_snapshot if available (immutable historical data)

@@ -111,9 +111,23 @@
                                     $now = now();
                                     $isToday = $event['start']->isToday();
                                     $isOngoing = ($event['is_running'] ?? false) && ($isToday || $event['type'] === 'running');
+                                    // Доступ к занятиям этого преподавателя закрыт из-за просроченной оплаты
+                                    $isPaymentBlocked = in_array($event['teacher_id'] ?? null, $blockedTeacherIds ?? []);
                                 @endphp
                                 
-                                @if($isOngoing)
+                                @if($isOngoing && $isPaymentBlocked)
+                                    {{-- Занятие идёт, но ученик к нему не допускается до отметки оплаты --}}
+                                    <x-filament::button
+                                        tag="a"
+                                        :href="\App\Filament\Student\Pages\PaymentDebts::getUrl()"
+                                        color="danger"
+                                        size="xs"
+                                        icon="heroicon-m-lock-closed"
+                                        title="Есть занятия, не оплаченные в срок. Присоединиться можно будет после того, как преподаватель отметит оплату."
+                                        class="w-full justify-center">
+                                        Доступ ограничен
+                                    </x-filament::button>
+                                @elseif($isOngoing)
                                     {{-- Show Join button for ongoing lessons --}}
                                     <x-filament::button
                                         tag="a"

@@ -1,27 +1,40 @@
 <x-filament-panels::page>
-    @if($isBlocked)
-        <div class="rounded-xl p-4 ring-1"
-            style="background-color: rgba(239, 68, 68, 0.08); --tw-ring-color: rgba(239, 68, 68, 0.35);">
-            <div class="flex items-start gap-3">
-                <x-heroicon-o-lock-closed class="w-6 h-6 shrink-0" style="color: #ef4444;" />
-                <div>
-                    <p class="text-sm font-semibold text-gray-950 dark:text-white">Личный кабинет ограничен</p>
-                    <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">
-                        У вас есть занятия, которые не были оплачены в срок. Доступ к кабинету восстановится
-                        автоматически, как только преподаватель отметит оплату. Пожалуйста, свяжитесь с преподавателем
-                        и договоритесь об оплате.
-                    </p>
-                </div>
-            </div>
-        </div>
-    @endif
-
     @forelse($recordsByTeacher as $teacherRecords)
         @php($teacher = $teacherRecords->first()->teacher)
         <x-filament::section>
             <x-slot name="heading">
                 Преподаватель: {{ $teacher?->name ?? 'Неизвестен' }}
             </x-slot>
+
+            @php($debt = $debtStatuses[$teacherRecords->first()->teacher_id]['status'] ?? null)
+            @if($debt && $debt['blocked'])
+                <x-slot name="headerEnd">
+                    <x-filament::badge color="danger" icon="heroicon-m-lock-closed">
+                        Доступ к занятиям ограничен
+                    </x-filament::badge>
+                </x-slot>
+                <p class="mb-3 text-sm text-gray-600 dark:text-gray-300">
+                    После срока оплаты вы посетили
+                    {{ trans_choice('{1} :count занятие|[2,4] :count занятия|[5,*] :count занятий', $debt['lessons_with_debt']) }},
+                    поэтому присоединиться к занятиям этого преподавателя пока нельзя.
+                    Доступ откроется автоматически, как только преподаватель отметит оплату.
+                </p>
+            @elseif($debt)
+                <x-slot name="headerEnd">
+                    <x-filament::badge color="warning" icon="heroicon-m-exclamation-triangle">
+                        Срок оплаты прошёл
+                    </x-filament::badge>
+                </x-slot>
+                <p class="mb-3 text-sm text-gray-600 dark:text-gray-300">
+                    @if($debt['lessons_left'] <= 1)
+                        После следующего занятия доступ к занятиям этого преподавателя закроется до отметки оплаты.
+                    @else
+                        Доступ к занятиям этого преподавателя закроется через
+                        {{ trans_choice('{1} :count занятие|[2,4] :count занятия|[5,*] :count занятий', $debt['lessons_left']) }},
+                        если оплата не будет отмечена.
+                    @endif
+                </p>
+            @endif
 
             <div class="divide-y divide-gray-200 dark:divide-gray-700">
                 @foreach($teacherRecords as $record)

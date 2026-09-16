@@ -52,7 +52,6 @@ class User extends Authenticatable implements FilamentUser
         'username',
         'is_active',
         'is_blocked',
-        'payment_blocked_at',
         'google_access_token',
         'google_refresh_token',
         'google_token_expires_at',
@@ -92,7 +91,6 @@ class User extends Authenticatable implements FilamentUser
             'grade' => 'json',
             'google_token_expires_at' => 'datetime',
             'push_reminder_at' => 'datetime',
-            'payment_blocked_at' => 'datetime',
             'commission_rate' => 'integer',
             'auto_renew' => 'boolean',
             'extra_lessons_balance' => 'integer',
@@ -287,6 +285,15 @@ class User extends Authenticatable implements FilamentUser
     public function issuedPaymentRecords()
     {
         return $this->hasMany(PaymentRecord::class, 'teacher_id');
+    }
+
+    /**
+     * Закрыт ли этому ученику доступ к занятиям преподавателя из-за просроченной оплаты.
+     * Вычисляется из записей об оплате, нигде не хранится.
+     */
+    public function isPaymentBlockedFor(int $teacherId): bool
+    {
+        return \App\Services\PaymentRecordService::isBlockedForTeacher($this->id, $teacherId);
     }
 
     public function messages()

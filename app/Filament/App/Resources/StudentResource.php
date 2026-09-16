@@ -7,6 +7,7 @@ use App\Filament\App\Resources\StudentResource\RelationManagers;
 use App\Models\PaymentRecord;
 use App\Models\Room;
 use App\Models\User;
+use App\Services\PaymentRecordService;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -217,8 +218,9 @@ class StudentResource extends Resource
                         $overdue = $unpaid->filter(fn(PaymentRecord $r) => $r->isOverdue());
 
                         if ($overdue->isNotEmpty()) {
-                            // Кабинет ученика заблокирован за неоплату; долг — в подсказке
-                            if ($record->payment_blocked_at) {
+                            // Посетил лимит занятий с просроченным долгом: не допускается к занятиям
+                            // этого учителя, пока оплата не отмечена; подробности — в подсказке
+                            if (PaymentRecordService::isBlockedForTeacher($record->id, auth()->id())) {
                                 return 'Заблокирован';
                             }
 
@@ -238,13 +240,7 @@ class StudentResource extends Resource
                         }
 
                         if (str_starts_with($state, 'Просрочено')) {
-                            $due = PaymentRecord::overdue()
-                                ->where('teacher_id', auth()->id())
-                                ->where('student_id', $record->id)
-                                ->orderBy('due_date')
-                                ->first()?->due_date;
-
-                            return $due ? 'Срок оплаты был ' . $due->format('d.m.Y') : null;
+                            return static::overduePaymentTooltip($record);
                         }
 
                         if ($state === 'Ожидает оплаты') {
@@ -617,13 +613,29 @@ class StudentResource extends Resource
      */
     public static function blockedPaymentTooltip(User $student): string
     {
-        $overdueCount = PaymentRecord::overdue()
-            ->where('teacher_id', auth()->id())
-            ->where('student_id', $student->id)
-            ->count();
+        $status = PaymentRecordService::debtStatus($student->id, auth()->id());
 
-        return 'Просрочено: ' . trans_choice('{1} :count занятие|[2,4] :count занятия|[5,*] :count занятий', $overdueCount)
-            . '. Кабинет ученика заблокирован, разблокируется после отметки оплаты.';
+        return 'Просрочено: ' . trans_choice('{1} :count занятие|[2,4] :count занятия|[5,*] :count занятий', $status['overdue_count'])
+            . ', срок оплаты был ' . $status['debt_since']?->format('d.m.Y')
+            . '. С тех пор ученик посетил ' . trans_choice('{1} :count занятие|[2,4] :count занятия|[5,*] :count занятий', $status['lessons_with_debt'])
+            . ' и больше не может подключаться к вашим занятиям, пока вы не отметите оплату или не продлите срок.';
+    }
+
+    /**
+     * Подсказка для статуса «Просрочено»: сколько занятий осталось до блокировки.
+     */
+    public static function overduePaymentTooltip(User $student): string
+    {
+        $status = PaymentRecordService::debtStatus($student->id, auth()->id());
+
+        $text = 'Срок оплаты был ' . $status['debt_since']?->format('d.m.Y') . '. ';
+
+        if ($status['lessons_with_debt'] > 0) {
+            $text .= 'С тех пор ученик посетил ' . trans_choice('{1} :count занятие|[2,4] :count занятия|[5,*] :count занятий', $status['lessons_with_debt']) . '. ';
+        }
+
+        return $text . 'Ещё ' . trans_choice('{1} :count занятие|[2,4] :count занятия|[5,*] :count занятий', $status['lessons_left'])
+            . ' с долгом — и доступ к вашим занятиям для ученика закроется до отметки оплаты.';
     }
 
     /**

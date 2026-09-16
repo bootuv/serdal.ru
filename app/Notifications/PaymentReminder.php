@@ -36,7 +36,7 @@ class PaymentReminder extends Notification implements ShouldBroadcast
 
         return FilamentNotification::make()
             ->title('Напоминание об оплате')
-            ->body("У вас есть неоплаченные занятия у {$teacherName}. Пожалуйста, не забудьте про оплату.")
+            ->body("У вас есть неоплаченные занятия у {$teacherName}. Пожалуйста, не забудьте про оплату, иначе доступ к занятиям этого преподавателя будет ограничен.")
             ->icon('heroicon-o-banknotes')
             ->iconColor('warning')
             ->actions([

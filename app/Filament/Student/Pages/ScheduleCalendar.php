@@ -77,6 +77,8 @@ class ScheduleCalendar extends Page
         return [
             'schedules' => $schedules,
             'events' => $this->generateCalendarEvents($schedules),
+            // Преподаватели, к чьим занятиям ученик сейчас не допускается из-за просроченной оплаты
+            'blockedTeacherIds' => \App\Services\PaymentRecordService::blockedTeacherIds($user->id),
         ];
     }
 
@@ -94,6 +96,7 @@ class ScheduleCalendar extends Page
                     $events[] = [
                         'id' => $schedule->id,
                         'room_id' => $schedule->room_id,
+                        'teacher_id' => $schedule->room->user_id,
                         'title' => $schedule->room->name,
                         'start' => $schedule->scheduled_at,
                         'end' => $schedule->scheduled_at->copy()->addMinutes($schedule->duration_minutes),
@@ -112,6 +115,7 @@ class ScheduleCalendar extends Page
                         $events[] = [
                             'id' => $schedule->id,
                             'room_id' => $schedule->room_id,
+                            'teacher_id' => $schedule->room->user_id,
                             'title' => $schedule->room->name,
                             'start' => $dt,
                             'end' => $dt->copy()->addMinutes($schedule->duration_minutes),
@@ -147,6 +151,7 @@ class ScheduleCalendar extends Page
                 $events[] = [
                     'id' => 'running-' . $room->id,
                     'room_id' => $room->id,
+                    'teacher_id' => $room->user_id,
                     'title' => $room->name,
                     'start' => $now->copy()->startOfHour(),
                     'end' => $now->copy()->addHour(),

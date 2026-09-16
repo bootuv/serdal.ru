@@ -84,7 +84,7 @@ class LessonTypeResource extends Resource
                     ->visible(fn(Forms\Get $get) => $get('payment_type') === 'monthly'),
                 Forms\Components\TextInput::make('payment_due_days')
                     ->label('Срок оплаты после занятия (дней)')
-                    ->helperText('Через сколько дней после проведённого занятия ученик должен оплатить. После этого срока ученик увидит напоминание в кабинете.')
+                    ->helperText('Через сколько дней после проведённого занятия ученик должен оплатить. После этого срока ученик увидит напоминание в кабинете, а после ' . \App\Services\PaymentRecordService::BLOCK_AFTER_LESSONS . ' занятий с просроченным долгом не сможет подключаться к вашим занятиям, пока вы не отметите оплату.')
                     ->numeric()
                     ->minValue(1)
                     ->maxValue(30)
@@ -93,7 +93,7 @@ class LessonTypeResource extends Resource
                     ->visible(fn(Forms\Get $get) => $get('payment_type') === 'per_lesson'),
                 Forms\Components\TextInput::make('payment_due_day')
                     ->label('Оплата до числа месяца')
-                    ->helperText('До какого числа каждого месяца ученик должен внести оплату. После этой даты ученик увидит напоминание в кабинете.')
+                    ->helperText('До какого числа каждого месяца ученик должен внести оплату. После этой даты ученик увидит напоминание в кабинете, а после ' . \App\Services\PaymentRecordService::BLOCK_AFTER_LESSONS . ' занятий с просроченным долгом не сможет подключаться к вашим занятиям, пока вы не отметите оплату.')
                     ->numeric()
                     ->minValue(1)
                     ->maxValue(28)

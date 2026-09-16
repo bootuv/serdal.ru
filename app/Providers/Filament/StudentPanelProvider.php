@@ -55,15 +55,6 @@ class StudentPanelProvider extends PanelProvider
                     ->icon('heroicon-o-chat-bubble-left-right')
                     ->url(fn() => route('filament.student.pages.messenger', ['support' => 1])),
             ])
-            // При блокировке за неоплату прячем сайдбар и кнопку его открытия:
-            // ученику доступна только страница «Оплата»
-            ->renderHook(
-                'panels::styles.after',
-                fn() => auth()->user()?->payment_blocked_at
-                    ? new \Illuminate\Support\HtmlString('<style>.fi-sidebar, .fi-topbar-open-sidebar-btn, .fi-topbar-close-sidebar-btn, .fi-sidebar-close-overlay { display: none !important; }</style>')
-                    : ''
-            )
-
             ->databaseNotifications()
             ->databaseNotificationsPolling('30s')
             ->colors([
@@ -109,7 +100,6 @@ class StudentPanelProvider extends PanelProvider
             ->authMiddleware([
                 Authenticate::class,
                 \App\Http\Middleware\CheckUserActive::class,
-                \App\Http\Middleware\CheckStudentPaymentBlocked::class,
             ]);
     }
 }

@@ -26,10 +26,10 @@ use Illuminate\Support\Str;
  *   Учитель:  pay-teacher@demo.ru  → /tutor
  *   Ученики:  pay-paid@demo.ru            — всё оплачено (+ одно отменённое в истории)
  *             pay-pending@demo.ru         — ожидает оплаты, срок не прошёл (баннера нет)
- *             pay-overdue@demo.ru         — просрочка → баннер в кабинете
- *             pay-blocked@demo.ru         — заблокирован → редирект на страницу «Оплата»
+ *             pay-overdue@demo.ru         — просрочка, посетил 1 занятие с долгом → предупреждение
+ *             pay-blocked@demo.ru         — посетил лимит занятий с долгом → занятия этого учителя недоступны
  *             pay-monthly-paid@demo.ru    — помесячная, месяц оплачен
- *             pay-monthly-overdue@demo.ru — помесячная, месяц просрочен → баннер
+ *             pay-monthly-overdue@demo.ru — помесячная, месяц не оплачен → после срока предупреждение
  *             pay-free@demo.ru            — бесплатный ученик, оплата не отслеживается
  *             pay-override@demo.ru        — персональная помесячная оплата (override)
  *             pay-extra-1..6@demo.ru      — обычная история: оплачено + свежее начисление
@@ -72,18 +72,20 @@ class PaymentDemoSeeder extends Seeder
         $room = $this->createRoom($teacher, 'Неорганическая химия — Адам', $adam);
         $this->createLessonRecord($teacher, $adam, $room, 1, PaymentRecord::STATUS_UNPAID); // срок через 2 дня
 
-        // ── Кейс 3: просрочка → баннер в кабинете, но ещё не заблокирован ──
+        // ── Кейс 3: просрочка, одно занятие посещено с долгом → предупреждение, занятия ещё доступны ──
         $ibragim = $this->createStudent($teacher, 'pay-overdue@demo.ru', 'Ибрагим Костоев');
         $room = $this->createRoom($teacher, 'Химия ЕГЭ — Ибрагим', $ibragim);
         $this->createLessonRecord($teacher, $ibragim, $room, 8, PaymentRecord::STATUS_UNPAID);  // просрочено 5 дней
-        $this->createLessonRecord($teacher, $ibragim, $room, 6, PaymentRecord::STATUS_UNPAID);  // просрочено 3 дня
+        $this->createLessonRecord($teacher, $ibragim, $room, 2, PaymentRecord::STATUS_UNPAID);  // посещено с долгом, срок ещё не прошёл
 
-        // ── Кейс 4: продолжил ходить с долгом → кабинет заблокирован ──
+        // ── Кейс 4: посетил BLOCK_AFTER_LESSONS занятий с долгом → занятия этого учителя недоступны ──
+        // Блокировка вычисляется из записей и истории занятий (PaymentRecordService::debtStatus), флага нет
         $musa = $this->createStudent($teacher, 'pay-blocked@demo.ru', 'Муса Плиев');
         $room = $this->createRoom($teacher, 'Химия ОГЭ — Муса', $musa);
-        $this->createLessonRecord($teacher, $musa, $room, 15, PaymentRecord::STATUS_UNPAID); // старый долг
-        $this->createLessonRecord($teacher, $musa, $room, 2, PaymentRecord::STATUS_UNPAID);  // пришёл с долгом
-        $musa->update(['payment_blocked_at' => now()->subDay()]);
+        $this->createLessonRecord($teacher, $musa, $room, 15, PaymentRecord::STATUS_UNPAID); // просрочено 12 дней
+        foreach (range(1, \App\Services\PaymentRecordService::BLOCK_AFTER_LESSONS) as $i) {
+            $this->createLessonRecord($teacher, $musa, $room, 2 + $i * 3, PaymentRecord::STATUS_UNPAID); // занятия с долгом
+        }
 
         // ── Кейсы 5 и 6: помесячная оплата ──
         $marem = $this->createStudent($teacher, 'pay-monthly-paid@demo.ru', 'Марем Аушева');

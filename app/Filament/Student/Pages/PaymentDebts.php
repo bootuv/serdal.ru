@@ -3,6 +3,7 @@
 namespace App\Filament\Student\Pages;
 
 use App\Models\PaymentRecord;
+use App\Services\PaymentRecordService;
 use Filament\Pages\Page;
 
 class PaymentDebts extends Page
@@ -12,11 +13,6 @@ class PaymentDebts extends Page
     protected static ?string $navigationLabel = 'Оплата';
 
     protected static ?string $title = 'Оплата занятий';
-
-    public function getTitle(): string
-    {
-        return auth()->user()?->payment_blocked_at ? 'Доступ ограничен' : 'Оплата занятий';
-    }
 
     protected static ?string $slug = 'payment-debts';
 
@@ -63,7 +59,8 @@ class PaymentDebts extends Page
         return [
             'recordsByTeacher' => $records,
             'paidRecords' => $paidRecords,
-            'isBlocked' => auth()->user()->payment_blocked_at !== null,
+            // Состояние долга по каждому преподавателю с просрочкой: заблокирован или сколько занятий осталось
+            'debtStatuses' => PaymentRecordService::debtStatuses(auth()->id()),
         ];
     }
 }
