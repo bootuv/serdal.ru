@@ -99,7 +99,13 @@ php artisan route:cache
 php artisan view:cache
 php artisan event:cache
 
+echo "==> systemd-юниты"
+bash deploy/install-systemd.sh
+
 echo "==> Перезапуск сервисов"
+# Воркер выгрузки записей (serdal-queue-recordings) перезапускаем мягко: queue:restart даёт
+# дождаться конца текущей задачи, а systemctl restart оборвал бы многоминутную выгрузку в S3.
+php artisan queue:restart
 sudo systemctl restart "$PHP_FPM"
 sudo systemctl restart serdal-queue.service
 sudo systemctl restart serdal-reverb.service
@@ -107,6 +113,6 @@ sudo systemctl restart serdal-pulse.service
 
 sleep 3
 echo "==> Статус"
-systemctl is-active "$PHP_FPM" serdal-queue serdal-reverb serdal-pulse
+systemctl is-active "$PHP_FPM" serdal-queue serdal-queue-recordings serdal-reverb serdal-pulse
 
 echo "==> Готово: $(git rev-parse --short HEAD)"

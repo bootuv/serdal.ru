@@ -28,29 +28,55 @@ class RecordingStorageService
                 mkdir(dirname($tempPath), 0755, true);
             }
 
-            $dlResponse = Http::withoutVerifying()->timeout(600)->connectTimeout(30)->sink($tempPath)->get($videoUrl);
+            $dlResponse = Http::withoutVerifying()->timeout(1800)->connectTimeout(30)->sink($tempPath)->get($videoUrl);
 
             if ($dlResponse->failed()) {
                 Log::error('S3 Recording: Download failed', ['status' => $dlResponse->status()]);
                 return null;
             }
 
+            clearstatcache(true, $tempPath);
             $fileSize = filesize($tempPath);
+            $expectedSize = (int) $dlResponse->header('Content-Length');
+
+            // Оборванное скачивание нельзя выгружать: после выгрузки оригинал удаляется с BBB
+            if (!$fileSize || ($expectedSize > 0 && $fileSize !== $expectedSize)) {
+                Log::error('S3 Recording: Downloaded file is incomplete', [
+                    'size' => $fileSize,
+                    'expected' => $expectedSize,
+                ]);
+                return null;
+            }
+
             Log::info('S3 Recording: File downloaded', ['size' => $fileSize]);
 
             // Step 2: Upload to S3
             $s3Path = "recordings/{$teacherId}/{$filename}";
+            $startedAt = microtime(true);
 
-            $uploaded = Storage::disk('s3')->put(
-                $s3Path,
-                fopen($tempPath, 'r'),
-                'public'
-            );
+            // Диск с throw=true: иначе put() молча вернёт false и причина ошибки потеряется
+            $stream = fopen($tempPath, 'r');
+            try {
+                $uploaded = $this->throwingDisk()->put($s3Path, $stream, 'public');
+            } finally {
+                if (is_resource($stream)) {
+                    fclose($stream);
+                }
+            }
 
             if (!$uploaded) {
                 Log::error('S3 Recording: Failed to upload to S3', ['path' => $s3Path]);
                 return null;
             }
+
+            $seconds = max(microtime(true) - $startedAt, 0.001);
+            $speed = round($fileSize / 1048576 / $seconds, 2);
+
+            // Медленный канал — первопричина зависших выгрузок, поэтому скорость пишем в лог
+            Log::log($speed < 2 ? 'warning' : 'info', 'S3 Recording: Upload speed', [
+                'seconds' => round($seconds, 1),
+                'mb_per_sec' => $speed,
+            ]);
 
             // Step 3: Get public URL
             $s3Url = rtrim(config('filesystems.disks.s3.url', ''), '/');
@@ -152,6 +178,78 @@ class RecordingStorageService
             Log::error('S3 Recording: Delete failed', ['message' => $e->getMessage()]);
             return false;
         }
+    }
+
+    /**
+     * Отменяет незавершённые multipart-загрузки старше $olderThanHours часов.
+     * Они остаются, когда воркер убит посреди выгрузки, и занимают оплачиваемое место.
+     *
+     * @return int  Количество отменённых загрузок
+     */
+    public function abortStaleMultipartUploads(int $olderThanHours = 24): int
+    {
+        $client = Storage::disk('s3')->getClient();
+        $bucket = config('filesystems.disks.s3.bucket');
+        $prefix = trim((string) config('filesystems.disks.s3.root'), '/');
+        $prefix = ($prefix !== '' ? $prefix . '/' : '') . 'recordings/';
+        $cutoff = now()->subHours($olderThanHours);
+        $aborted = 0;
+
+        $pages = $client->getPaginator('ListMultipartUploads', [
+            'Bucket' => $bucket,
+            'Prefix' => $prefix,
+        ]);
+
+        foreach ($pages as $page) {
+            foreach ($page['Uploads'] ?? [] as $upload) {
+                if ($cutoff->lt($upload['Initiated'])) {
+                    continue;
+                }
+
+                try {
+                    $client->abortMultipartUpload([
+                        'Bucket' => $bucket,
+                        'Key' => $upload['Key'],
+                        'UploadId' => $upload['UploadId'],
+                    ]);
+                    $aborted++;
+                } catch (\Throwable $e) {
+                    Log::warning('S3 Recording: Failed to abort multipart upload', [
+                        'key' => $upload['Key'],
+                        'message' => $e->getMessage(),
+                    ]);
+                }
+            }
+        }
+
+        return $aborted;
+    }
+
+    /**
+     * Удаляет временные файлы записей, брошенные убитыми воркерами.
+     *
+     * @return int  Количество удалённых файлов
+     */
+    public function cleanupStaleTempFiles(int $olderThanHours = 6): int
+    {
+        $deleted = 0;
+        $cutoff = now()->subHours($olderThanHours)->getTimestamp();
+
+        foreach (glob(storage_path('app/temp/recording_*.m4v')) ?: [] as $file) {
+            if (filemtime($file) < $cutoff && @unlink($file)) {
+                $deleted++;
+            }
+        }
+
+        return $deleted;
+    }
+
+    /**
+     * S3-диск, который бросает исключения вместо молчаливого false.
+     */
+    protected function throwingDisk(): \Illuminate\Contracts\Filesystem\Filesystem
+    {
+        return Storage::build(array_merge(config('filesystems.disks.s3'), ['throw' => true]));
     }
 
     /**

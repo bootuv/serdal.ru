@@ -1,0 +1,23 @@
+[Unit]
+Description=Serdal.ru Queue Worker: recordings upload to S3 (long jobs)
+After=network.target
+PartOf=serdal.target
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/serdal.ru
+# Реальный таймаут задаёт $timeout задачи UploadRecordingToStorage (7200), --timeout — страховка.
+# retry_after подключения redis-long (config/queue.php, 7500) обязан быть больше таймаута.
+ExecStart=/usr/bin/php artisan queue:work redis-long --queue=recordings --sleep=5 --tries=3 --timeout=7200 --max-time=14400
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=serdal-queue-recordings
+MemoryMax=512M
+# Остановка не должна обрывать многоминутную выгрузку: ждём завершения задачи
+TimeoutStopSec=7300
+
+[Install]
+WantedBy=serdal.target multi-user.target

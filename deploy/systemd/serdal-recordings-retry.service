@@ -1,0 +1,11 @@
+[Unit]
+Description=Serdal.ru: retry stuck recording uploads, cleanup leftovers
+After=network.target
+
+[Service]
+Type=oneshot
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/serdal.ru
+ExecStart=/usr/bin/php artisan recordings:retry-uploads
+SyslogIdentifier=serdal-recordings-retry

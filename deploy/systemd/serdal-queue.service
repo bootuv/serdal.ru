@@ -1,0 +1,23 @@
+[Unit]
+Description=Serdal.ru Queue Worker
+After=network.target
+PartOf=serdal.target
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/serdal.ru
+ExecStart=/usr/bin/php artisan queue:work redis --sleep=3 --tries=3 --max-time=3600
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=serdal-queue
+# WatchdogSec не ставить: artisan queue:work не шлёт sd_notify, и systemd убивал
+# воркер каждые 5 минут вместе с выполняющейся задачей.
+MemoryMax=512M
+# Даём текущей задаче завершиться при остановке/рестарте
+TimeoutStopSec=90
+
+[Install]
+WantedBy=serdal.target

@@ -25,3 +25,7 @@ Schedule::command('subscriptions:check')->hourly();
 
 // Delete lesson recordings older than the tariff retention period
 Schedule::command('recordings:cleanup')->dailyAt('04:00');
+
+// Re-queue S3 uploads for recordings stuck in «Загрузка», clean up killed uploads' leftovers.
+// На проде дополнительно запускается systemd-таймером serdal-recordings-retry.timer.
+Schedule::command('recordings:retry-uploads')->hourly()->withoutOverlapping();

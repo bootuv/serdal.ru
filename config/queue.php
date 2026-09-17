@@ -72,6 +72,19 @@ return [
             'after_commit' => false,
         ],
 
+        // Долгие задачи (выгрузка записей занятий в S3). Отдельное подключение нужно ради
+        // большого retry_after: он обязан быть больше $timeout задачи, иначе Redis отдаст
+        // задачу второму воркеру, пока первый ещё грузит файл. Обслуживается отдельным
+        // воркером (serdal-queue-recordings.service), чтобы не блокировать основную очередь.
+        'redis-long' => [
+            'driver' => 'redis',
+            'connection' => env('REDIS_QUEUE_CONNECTION', 'default'),
+            'queue' => 'recordings',
+            'retry_after' => (int) env('REDIS_LONG_QUEUE_RETRY_AFTER', 7500),
+            'block_for' => null,
+            'after_commit' => false,
+        ],
+
     ],
 
     /*
