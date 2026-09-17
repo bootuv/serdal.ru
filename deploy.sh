@@ -113,6 +113,6 @@ sudo systemctl restart serdal-pulse.service
 
 sleep 3
 echo "==> Статус"
-systemctl is-active "$PHP_FPM" serdal-queue serdal-queue-recordings serdal-reverb serdal-pulse
+systemctl is-active "$PHP_FPM" serdal-queue serdal-queue-recordings serdal-scheduler.timer serdal-reverb serdal-pulse
 
 echo "==> Готово: $(git rev-parse --short HEAD)"

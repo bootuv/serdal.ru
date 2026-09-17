@@ -8,9 +8,6 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote')->hourly();
 
-// Start scheduled meetings every minute
-Schedule::command('meetings:start-scheduled')->everyMinute();
-
 // Update next_start date for expired lessons
 Schedule::command('room:update-next-start')->everyMinute();
 
@@ -27,5 +24,4 @@ Schedule::command('subscriptions:check')->hourly();
 Schedule::command('recordings:cleanup')->dailyAt('04:00');
 
 // Re-queue S3 uploads for recordings stuck in «Загрузка», clean up killed uploads' leftovers.
-// На проде дополнительно запускается systemd-таймером serdal-recordings-retry.timer.
 Schedule::command('recordings:retry-uploads')->hourly()->withoutOverlapping();

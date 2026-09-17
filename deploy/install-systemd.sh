@@ -23,8 +23,18 @@ for unit in "$SRC"/*; do
     fi
 done
 
+# Юниты, которых больше нет в репозитории (recordings:retry-uploads теперь запускает планировщик)
+for name in serdal-recordings-retry.timer serdal-recordings-retry.service; do
+    if [ -f "$DST/$name" ]; then
+        sudo systemctl disable --now "$name" >/dev/null 2>&1 || true
+        sudo rm -f "$DST/$name"
+        echo "    удалён $name"
+        changed=1
+    fi
+done
+
 if [ "$changed" = 1 ]; then
     sudo systemctl daemon-reload
 fi
 
-sudo systemctl enable --now serdal-queue-recordings.service serdal-recordings-retry.timer >/dev/null
+sudo systemctl enable --now serdal-queue-recordings.service serdal-scheduler.timer >/dev/null
