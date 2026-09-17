@@ -1,0 +1,13 @@
+# /etc/fail2ban/jail.local
+[DEFAULT]
+bantime  = 1h
+findtime = 10m
+maxretry = 5
+# Повторные нарушители получают бан дольше: 1ч → 2ч → 4ч ... до недели
+bantime.increment = true
+bantime.maxtime   = 1w
+backend = systemd
+
+[sshd]
+enabled = true
+mode    = aggressive

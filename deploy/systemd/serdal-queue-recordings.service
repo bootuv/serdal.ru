@@ -1,7 +1,6 @@
 [Unit]
 Description=Serdal.ru Queue Worker: recordings upload to S3 (long jobs)
 After=network.target
-PartOf=serdal.target
 
 [Service]
 User=www-data
@@ -20,4 +19,4 @@ MemoryMax=512M
 TimeoutStopSec=7300
 
 [Install]
-WantedBy=serdal.target multi-user.target
+WantedBy=multi-user.target

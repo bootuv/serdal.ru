@@ -1,7 +1,6 @@
 [Unit]
 Description=Serdal.ru Queue Worker
 After=network.target
-PartOf=serdal.target
 
 [Service]
 User=www-data
@@ -20,4 +19,4 @@ MemoryMax=512M
 TimeoutStopSec=90
 
 [Install]
-WantedBy=serdal.target
+WantedBy=multi-user.target

@@ -37,4 +37,9 @@ if [ "$changed" = 1 ]; then
     sudo systemctl daemon-reload
 fi
 
-sudo systemctl enable --now serdal-queue-recordings.service serdal-scheduler.timer >/dev/null
+# Раньше юниты были WantedBy=serdal.target, которого не существует, — после перезагрузки
+# сервера они не стартовали. reenable пересоздаёт симлинки под актуальный [Install].
+sudo systemctl reenable serdal-queue.service serdal-queue-recordings.service \
+    serdal-reverb.service serdal-pulse.service serdal-scheduler.timer >/dev/null 2>&1
+sudo rm -rf "$DST/serdal.target.wants"
+sudo systemctl start serdal-queue-recordings.service serdal-scheduler.timer

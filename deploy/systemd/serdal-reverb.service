@@ -1,13 +1,13 @@
 [Unit]
 Description=Serdal.ru Reverb WebSocket
 After=network.target
-PartOf=serdal.target
 
 [Service]
+# Слушаем только localhost: наружу WebSocket отдаёт nginx (location /app/ → 127.0.0.1:6001)
 User=www-data
 Group=www-data
 WorkingDirectory=/var/www/serdal.ru
-ExecStart=/usr/bin/php8.4 artisan reverb:start --host=0.0.0.0 --port=6001
+ExecStart=/usr/bin/php8.4 artisan reverb:start --host=127.0.0.1 --port=6001
 Restart=always
 RestartSec=5
 SyslogIdentifier=serdal-reverb
@@ -17,4 +17,4 @@ StandardOutput=journal
 StandardError=journal
 
 [Install]
-WantedBy=serdal.target
+WantedBy=multi-user.target
