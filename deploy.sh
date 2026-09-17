@@ -6,6 +6,9 @@
 #   APP_DIR     — каталог приложения (по умолчанию /var/www/serdal.ru)
 #   BRANCH      — ветка для деплоя (по умолчанию main)
 #   PHP_FPM     — имя сервиса php-fpm (по умолчанию php8.4-fpm)
+#   PHP_BIN     — CLI-интерпретатор (по умолчанию /usr/bin/php8.4). Должен совпадать по версии
+#                 с PHP_FPM и с ExecStart в deploy/systemd: системный /usr/bin/php на сервере —
+#                 другая версия, и очередь с планировщиком работали не на том PHP, что сайт.
 #   ASSETS_SHA  — если задан, ассеты берутся из $APP_DIR/builds/$ASSETS_SHA (их туда
 #                 заливает CI). Если пусто — фронтенд собирается локально, на сервере.
 #   BUILDS_KEEP — сколько старых сборок ассетов держать (по умолчанию 3)
@@ -15,12 +18,24 @@ set -euo pipefail
 APP_DIR="${APP_DIR:-/var/www/serdal.ru}"
 BRANCH="${BRANCH:-main}"
 PHP_FPM="${PHP_FPM:-php8.4-fpm}"
+PHP_BIN="${PHP_BIN:-/usr/bin/php8.4}"
 ASSETS_SHA="${ASSETS_SHA:-}"
 BUILDS_KEEP="${BUILDS_KEEP:-3}"
 
 cd "$APP_DIR"
 
 echo "==> Каталог: $APP_DIR, ветка: $BRANCH"
+
+# Проверяем до любых изменений: если у $PHP_BIN нет расширений, которых требуют
+# зависимости (bcmath, zip, ...), падаем сейчас, а не после переключения кода.
+echo "==> Проверка расширений $("$PHP_BIN" -r 'echo PHP_VERSION;')"
+COMPOSER_BIN="$(command -v composer)"
+# (системный composer старый и под PHP 8.4 сыплет Deprecated — отфильтровываем)
+"$PHP_BIN" "$COMPOSER_BIN" check-platform-reqs --no-dev --no-interaction >/dev/null 2>&1 || {
+    "$PHP_BIN" "$COMPOSER_BIN" check-platform-reqs --no-dev --no-interaction 2>&1 | grep -E ' (missing|failed)' || true
+    echo "!! У $PHP_BIN не хватает расширений — установите пакеты php8.4-<ext> и повторите деплой"
+    exit 1
+}
 
 OLD_REF="$(git rev-parse HEAD)"
 git fetch --prune origin "$BRANCH"
@@ -41,7 +56,7 @@ changed() {
 
 if changed '^composer\.(json|lock)$'; then
     echo "==> composer install"
-    composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
+    "$PHP_BIN" "$COMPOSER_BIN" install --no-dev --optimize-autoloader --no-interaction --prefer-dist
 else
     echo "==> composer install пропущен (зависимости не менялись)"
 fi
@@ -90,14 +105,14 @@ fi
 
 # --- Laravel ----------------------------------------------------------------
 echo "==> Миграции"
-php artisan migrate --force
+"$PHP_BIN" artisan migrate --force
 
 echo "==> Кэши"
-php artisan optimize:clear
-php artisan config:cache
-php artisan route:cache
-php artisan view:cache
-php artisan event:cache
+"$PHP_BIN" artisan optimize:clear
+"$PHP_BIN" artisan config:cache
+"$PHP_BIN" artisan route:cache
+"$PHP_BIN" artisan view:cache
+"$PHP_BIN" artisan event:cache
 
 echo "==> systemd-юниты"
 bash deploy/install-systemd.sh
@@ -105,7 +120,7 @@ bash deploy/install-systemd.sh
 echo "==> Перезапуск сервисов"
 # Воркер выгрузки записей (serdal-queue-recordings) перезапускаем мягко: queue:restart даёт
 # дождаться конца текущей задачи, а systemctl restart оборвал бы многоминутную выгрузку в S3.
-php artisan queue:restart
+"$PHP_BIN" artisan queue:restart
 sudo systemctl restart "$PHP_FPM"
 sudo systemctl restart serdal-queue.service
 sudo systemctl restart serdal-reverb.service

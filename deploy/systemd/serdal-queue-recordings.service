@@ -9,7 +9,7 @@ Group=www-data
 WorkingDirectory=/var/www/serdal.ru
 # Реальный таймаут задаёт $timeout задачи UploadRecordingToStorage (7200), --timeout — страховка.
 # retry_after подключения redis-long (config/queue.php, 7500) обязан быть больше таймаута.
-ExecStart=/usr/bin/php artisan queue:work redis-long --queue=recordings --sleep=5 --tries=3 --timeout=7200 --max-time=14400
+ExecStart=/usr/bin/php8.4 artisan queue:work redis-long --queue=recordings --sleep=5 --tries=3 --timeout=7200 --max-time=14400
 Restart=always
 RestartSec=10
 StandardOutput=journal

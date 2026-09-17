@@ -7,7 +7,7 @@ PartOf=serdal.target
 User=www-data
 Group=www-data
 WorkingDirectory=/var/www/serdal.ru
-ExecStart=/usr/bin/php artisan queue:work redis --sleep=3 --tries=3 --max-time=3600
+ExecStart=/usr/bin/php8.4 artisan queue:work redis --sleep=3 --tries=3 --max-time=3600
 Restart=always
 RestartSec=5
 StandardOutput=journal

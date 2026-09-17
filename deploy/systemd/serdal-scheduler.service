@@ -7,5 +7,5 @@ Type=oneshot
 User=www-data
 Group=www-data
 WorkingDirectory=/var/www/serdal.ru
-ExecStart=/usr/bin/php artisan schedule:run
+ExecStart=/usr/bin/php8.4 artisan schedule:run
 SyslogIdentifier=serdal-scheduler
