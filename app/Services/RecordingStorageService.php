@@ -156,16 +156,7 @@ class RecordingStorageService
     public function deleteFromS3(string $s3Url): bool
     {
         try {
-            // Extract S3 path from URL taking root into account
-            $baseUrl = rtrim(config('filesystems.disks.s3.url', ''), '/');
-            $root = config('filesystems.disks.s3.root');
-            if ($root) {
-                $baseUrl .= '/' . trim($root, '/');
-            }
-            $baseUrl .= '/';
-
-            $path = str_replace($baseUrl, '', $s3Url);
-            $path = ltrim($path, '/');
+            $path = $this->pathFromUrl($s3Url);
 
             if (Storage::disk('s3')->exists($path)) {
                 Storage::disk('s3')->delete($path);
@@ -178,6 +169,21 @@ class RecordingStorageService
             Log::error('S3 Recording: Delete failed', ['message' => $e->getMessage()]);
             return false;
         }
+    }
+
+    /**
+     * Путь файла на S3-диске (относительно root) по его публичному URL
+     */
+    public function pathFromUrl(string $s3Url): string
+    {
+        $baseUrl = rtrim(config('filesystems.disks.s3.url', ''), '/');
+        $root = config('filesystems.disks.s3.root');
+        if ($root) {
+            $baseUrl .= '/' . trim($root, '/');
+        }
+        $baseUrl .= '/';
+
+        return ltrim(str_replace($baseUrl, '', $s3Url), '/');
     }
 
     /**

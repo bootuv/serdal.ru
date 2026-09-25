@@ -8,7 +8,6 @@
                         class="absolute inset-0 w-full h-full"
                         src="{{ $record->s3_url }}"
                         controls
-                        controlslist="nodownload"
                         preload="metadata"
                         playsinline
                     >
@@ -62,12 +61,23 @@
         @endif
 
         {{-- Back Button --}}
-        <div>
+        <div class="flex flex-wrap items-center justify-between gap-4">
             <a href="{{ \App\Filament\App\Resources\RecordingResource::getUrl() }}"
                 class="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors">
                 <x-heroicon-o-arrow-left class="w-4 h-4" />
                 Назад к записям
             </a>
+
+            @if($record->s3_url)
+                <x-filament::button
+                    tag="a"
+                    :href="route('recordings.download', $record)"
+                    icon="heroicon-m-arrow-down-tray"
+                    color="gray"
+                >
+                    Скачать запись
+                </x-filament::button>
+            @endif
         </div>
     </div>
 </x-filament-panels::page>

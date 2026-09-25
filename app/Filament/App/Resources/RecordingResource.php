@@ -95,6 +95,13 @@ class RecordingResource extends Resource
                     ->url(fn(Recording $record) => static::getUrl('view', ['record' => $record]))
                     ->visible(fn(Recording $record) => !empty($record->s3_url)),
 
+                Tables\Actions\Action::make('download')
+                    ->label('Скачать')
+                    ->icon('heroicon-m-arrow-down-tray')
+                    ->color('gray')
+                    ->url(fn(Recording $record) => route('recordings.download', $record))
+                    ->visible(fn(Recording $record) => !empty($record->s3_url)),
+
                 Tables\Actions\Action::make('open_bbb')
                     ->label('Открыть в BBB')
                     ->icon('heroicon-m-arrow-top-right-on-square')
