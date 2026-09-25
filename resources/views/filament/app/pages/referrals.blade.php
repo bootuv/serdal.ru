@@ -63,6 +63,11 @@
                 </x-filament::button>
             </div>
         </div>
+
+        <div class="mt-3 flex items-start gap-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800 ring-1 ring-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:ring-amber-500/30">
+            <x-filament::icon icon="heroicon-o-information-circle" class="mt-0.5 h-5 w-5 shrink-0" />
+            <p>Приглашение засчитается, если коллега зарегистрируется по вашей ссылке.</p>
+        </div>
     </x-filament::section>
 
     {{-- Статистика и приглашённые --}}

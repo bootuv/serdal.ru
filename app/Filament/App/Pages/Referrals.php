@@ -96,6 +96,7 @@ class Referrals extends Page
             'referrerBonus' => ReferralService::referrerBonus(),
             'referredBonus' => ReferralService::referredBonus(),
             'monthlyLimit' => ReferralService::monthlyLimit(),
+            'cookieDays' => ReferralService::cookieDays(),
             'stats' => ReferralService::stats($user),
             'invited' => $pending->concat($invited)->values(),
         ];
