@@ -3,6 +3,8 @@
 namespace App\Filament\App\Support;
 
 use App\Filament\App\Pages\ManageSubscription;
+use App\Filament\App\Pages\Referrals;
+use App\Services\ReferralService;
 use App\Services\SubscriptionService;
 use Filament\Actions\MountableAction;
 
@@ -30,6 +32,14 @@ class LessonStartModal
                         ->label('Тариф выше')
                         ->color('gray')
                         ->url(ManageSubscription::getUrl()),
+                    ...(ReferralService::enabled() ? [
+                        $action->makeModalAction('referral')
+                            ->label('+' . ReferralService::referrerBonus() . ' за приглашение')
+                            ->icon('heroicon-o-gift')
+                            ->color('gray')
+                            ->link()
+                            ->url(Referrals::getUrl(panel: 'app')),
+                    ] : []),
                 ]
                 : [])
             ->action(fn($livewire) => $livewire->redirect(self::limitReached()

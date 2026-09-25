@@ -218,4 +218,77 @@ class ReferralProgramTest extends TestCase
 
         $this->actingAs($admin)->get('/admin/referral-rewards')->assertOk();
     }
+
+    public function test_dashboard_banner_waits_for_delay_and_hides_on_dismiss(): void
+    {
+        $fresh = $this->makeTutor();
+        $this->assertFalse(ReferralService::shouldShowBanner($fresh));
+
+        $tutor = $this->makeTutor(['created_at' => now()->subDays(10)]);
+        $this->assertTrue(ReferralService::shouldShowBanner($tutor));
+
+        $this->actingAs($tutor);
+        Livewire::test(\App\Filament\App\Widgets\ReferralBannerWidget::class)
+            ->assertSee('Приглашайте коллег')
+            ->call('dismiss')
+            ->assertDontSee('Приглашайте коллег');
+
+        $this->assertFalse(ReferralService::shouldShowBanner($tutor->fresh()));
+
+        // Через месяц баннер возвращается
+        $this->travel(31)->days();
+        $this->assertTrue(ReferralService::shouldShowBanner($tutor->fresh()));
+    }
+
+    public function test_banner_can_be_disabled_in_settings(): void
+    {
+        Setting::updateOrCreate(['key' => 'referral_banner_enabled'], ['value' => '0']);
+
+        $tutor = $this->makeTutor(['created_at' => now()->subDays(10)]);
+
+        $this->assertFalse(ReferralService::shouldShowBanner($tutor));
+    }
+
+    public function test_dashboard_shows_banner_and_sidebar_item(): void
+    {
+        $tutor = $this->makeTutor(['created_at' => now()->subDays(10)]);
+        SubscriptionService::activate($tutor, Tariff::where('slug', 'start')->first());
+
+        $this->actingAs($tutor)
+            ->get('/tutor')
+            ->assertOk()
+            ->assertSeeLivewire(\App\Filament\App\Widgets\ReferralBannerWidget::class)
+            ->assertSee('Пригласить коллегу');
+    }
+
+    public function test_limit_hint_shown_when_lessons_run_out(): void
+    {
+        $tutor = $this->makeTutor();
+        $start = Tariff::where('slug', 'start')->first();
+        SubscriptionService::activate($tutor, $start)->update(['starts_at' => now()->subDay()]);
+        $room = \App\Models\Room::create([
+            'user_id' => $tutor->id,
+            'name' => 'Занятие',
+            'meeting_id' => 'meet-' . uniqid(),
+            'moderator_pw' => 'mp',
+            'attendee_pw' => 'ap',
+        ]);
+
+        for ($i = 0; $i < $start->lessons_per_month; $i++) {
+            \App\Models\MeetingSession::create([
+                'user_id' => $tutor->id,
+                'room_id' => $room->id,
+                'meeting_id' => 'm' . $i,
+                'status' => 'completed',
+                'participant_count' => 2,
+                'started_at' => now()->subHours(2),
+                'ended_at' => now()->subHour(),
+            ]);
+        }
+        SubscriptionService::flushCanStartCache();
+
+        $this->actingAs($tutor);
+        Livewire::test(\App\Filament\App\Widgets\TariffLimitsWidget::class)
+            ->assertSee('пригласите коллегу');
+    }
 }

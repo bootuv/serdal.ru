@@ -89,6 +89,9 @@
                                 </x-filament::button>
                             </div>
                         @endif
+                        @if($limitReached || $lessonsLow)
+                            @include('filament.app.components.referral-hint')
+                        @endif
                     @else
                         <p class="mt-1 flex items-baseline gap-2">
                             <span class="text-3xl font-bold text-gray-950 dark:text-white">∞</span>

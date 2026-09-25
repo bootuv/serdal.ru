@@ -94,6 +94,9 @@ class ManageBigBlueButton extends Page implements HasForms
             'referral_bonus_referred' => \App\Services\ReferralService::referredBonus(),
             'referral_monthly_limit' => \App\Services\ReferralService::monthlyLimit(),
             'referral_cookie_days' => \App\Services\ReferralService::cookieDays(),
+            'referral_banner_enabled' => \App\Models\Setting::where('key', 'referral_banner_enabled')->value('value') !== '0',
+            'referral_banner_delay_days' => \App\Services\ReferralService::bannerDelayDays(),
+            'referral_banner_snooze_days' => \App\Services\ReferralService::bannerSnoozeDays(),
         ] + $this->seoState();
     }
 
@@ -469,6 +472,26 @@ class ManageBigBlueButton extends Page implements HasForms
                                             ->maxValue(365)
                                             ->required(),
                                     ])->columns(2),
+                                Section::make('Баннер на инфопанели')
+                                    ->description('Компактная карточка с приглашением на главной странице кабинета учителя. Учитель может закрыть её — тогда она вернётся через заданное число дней. Подсказка «пригласите коллегу» у исчерпанного лимита занятий и пункт в меню показываются всегда, пока программа включена.')
+                                    ->schema([
+                                        Toggle::make('referral_banner_enabled')
+                                            ->label('Показывать баннер')
+                                            ->columnSpanFull(),
+                                        TextInput::make('referral_banner_delay_days')
+                                            ->label('Показывать через, дней после регистрации')
+                                            ->helperText('Чтобы новичок сначала освоился. 0 — сразу.')
+                                            ->numeric()
+                                            ->minValue(0)
+                                            ->maxValue(365)
+                                            ->required(),
+                                        TextInput::make('referral_banner_snooze_days')
+                                            ->label('После закрытия скрывать на, дней')
+                                            ->numeric()
+                                            ->minValue(1)
+                                            ->maxValue(3650)
+                                            ->required(),
+                                    ])->columns(2),
                             ]),
                     ])
                     ->persistTabInQueryString()
@@ -578,6 +601,9 @@ class ManageBigBlueButton extends Page implements HasForms
         Setting::updateOrCreate(['key' => 'referral_bonus_referred'], ['value' => (string) max(0, (int) ($data['referral_bonus_referred'] ?? 0))]);
         Setting::updateOrCreate(['key' => 'referral_monthly_limit'], ['value' => (string) max(0, (int) ($data['referral_monthly_limit'] ?? 0))]);
         Setting::updateOrCreate(['key' => 'referral_cookie_days'], ['value' => (string) max(1, (int) ($data['referral_cookie_days'] ?? 0))]);
+        Setting::updateOrCreate(['key' => 'referral_banner_enabled'], ['value' => !empty($data['referral_banner_enabled']) ? '1' : '0']);
+        Setting::updateOrCreate(['key' => 'referral_banner_delay_days'], ['value' => (string) max(0, (int) ($data['referral_banner_delay_days'] ?? 0))]);
+        Setting::updateOrCreate(['key' => 'referral_banner_snooze_days'], ['value' => (string) max(1, (int) ($data['referral_banner_snooze_days'] ?? 0))]);
 
         // SEO
         foreach (array_keys(SeoSettings::DEFAULTS) as $key) {

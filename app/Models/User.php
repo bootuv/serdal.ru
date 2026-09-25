@@ -68,6 +68,7 @@ class User extends Authenticatable implements FilamentUser
         'extra_lessons_balance',
         'referral_code',
         'referred_by_id',
+        'referral_banner_hidden_until',
     ];
 
     /**
@@ -96,6 +97,7 @@ class User extends Authenticatable implements FilamentUser
             'commission_rate' => 'integer',
             'auto_renew' => 'boolean',
             'extra_lessons_balance' => 'integer',
+            'referral_banner_hidden_until' => 'datetime',
         ];
     }
 

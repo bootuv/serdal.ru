@@ -90,7 +90,7 @@ class AppPanelProvider extends PanelProvider
                 \Filament\Navigation\MenuItem::make()
                     ->label('Пригласить коллегу')
                     ->icon('heroicon-o-gift')
-                    ->url(fn() => \App\Filament\App\Pages\Referrals::getUrl())
+                    ->url(fn() => \App\Filament\App\Pages\Referrals::getUrl(panel: 'app'))
                     ->visible(fn() => \App\Services\ReferralService::enabled()),
                 \Filament\Navigation\MenuItem::make()
                     ->label('Техподдержка')

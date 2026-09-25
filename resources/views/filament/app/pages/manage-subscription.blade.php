@@ -101,6 +101,9 @@
                             {{ ($this->buyExtraLessonsAction)(['primary' => $limitReached && $extraBalance <= 0]) }}
                         </div>
                     @endif
+                    @if($limitReached && $extraBalance <= 0)
+                        @include('filament.app.components.referral-hint')
+                    @endif
                 @endif
             </div>
         @elseif($expired)

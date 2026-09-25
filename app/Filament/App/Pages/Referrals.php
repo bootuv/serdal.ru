@@ -20,12 +20,32 @@ class Referrals extends Page
 
     protected static string $view = 'filament.app.pages.referrals';
 
-    /**
-     * Страница доступна из выпадающего меню профиля, в сайдбаре не показывается.
-     */
+    // Нижняя группа сайдбара (отделена чертой), последним пунктом
+    protected static ?string $navigationGroup = '';
+
+    protected static ?int $navigationSort = 99;
+
     public static function shouldRegisterNavigation(): bool
     {
-        return false;
+        return ReferralService::enabled();
+    }
+
+    /** Метка «+10» у пункта меню — сколько занятий даёт одно приглашение. */
+    public static function getNavigationBadge(): ?string
+    {
+        $bonus = ReferralService::referrerBonus();
+
+        return $bonus > 0 ? '+' . $bonus : null;
+    }
+
+    public static function getNavigationBadgeColor(): ?string
+    {
+        return 'success';
+    }
+
+    public static function getNavigationBadgeTooltip(): ?string
+    {
+        return 'Занятий за каждого приглашённого коллегу';
     }
 
     public static function canAccess(): bool

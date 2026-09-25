@@ -1420,13 +1420,13 @@ class SubscriptionTariffsTest extends TestCase
             ->assertSee('Докупить занятия')
             ->assertSee('Лимит тарифа исчерпан')
             ->assertSee('Занятия проводятся за счёт докупленных')
-            ->assertSee('+ 2 докупл.');
+            ->assertSee('+ 2 доп.');
 
         // Нулевой баланс докупленных не показываем — лишний шум
         $tutor->update(['extra_lessons_balance' => 0]);
         $this->actingAs($tutor)->get('/tutor/subscription')
             ->assertOk()
-            ->assertDontSee('докупл.')
+            ->assertDontSee('+ 0 доп.')
             ->assertSee('докупите их или перейдите на тариф выше');
     }
 

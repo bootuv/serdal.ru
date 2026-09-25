@@ -25,6 +25,9 @@ class ReferralService
         'referral_bonus_referred' => '5',
         'referral_monthly_limit' => '0',
         'referral_cookie_days' => '30',
+        'referral_banner_enabled' => '1',
+        'referral_banner_delay_days' => '3',
+        'referral_banner_snooze_days' => '30',
     ];
 
     protected static function setting(string $key): string
@@ -61,6 +64,46 @@ class ReferralService
     public static function cookieDays(): int
     {
         return max(1, (int) self::setting('referral_cookie_days'));
+    }
+
+    /** Показывать баннер программы на инфопанели учителя. */
+    public static function bannerEnabled(): bool
+    {
+        return self::enabled() && self::setting('referral_banner_enabled') === '1';
+    }
+
+    /** Через сколько дней после регистрации учитель впервые видит баннер. */
+    public static function bannerDelayDays(): int
+    {
+        return max(0, (int) self::setting('referral_banner_delay_days'));
+    }
+
+    /** На сколько дней баннер скрывается после нажатия «×». */
+    public static function bannerSnoozeDays(): int
+    {
+        return max(1, (int) self::setting('referral_banner_snooze_days'));
+    }
+
+    /**
+     * Баннер показывается учителю, который уже освоился (прошло N дней с
+     * регистрации) и не скрыл его недавно.
+     */
+    public static function shouldShowBanner(User $user): bool
+    {
+        if (!self::bannerEnabled()) {
+            return false;
+        }
+
+        if ($user->created_at && $user->created_at->gt(now()->subDays(self::bannerDelayDays()))) {
+            return false;
+        }
+
+        return !$user->referral_banner_hidden_until || $user->referral_banner_hidden_until->isPast();
+    }
+
+    public static function hideBanner(User $user): void
+    {
+        $user->forceFill(['referral_banner_hidden_until' => now()->addDays(self::bannerSnoozeDays())])->save();
     }
 
     /** Бонус пригласившему за оплату тарифа платежа. */
