@@ -33,6 +33,32 @@
                 </p>
             </div>
 
+            @if ($referrer = $this->referrer())
+                @php($bonus = \App\Services\ReferralService::referredBonus())
+                {{-- Приглашение от коллеги по партнёрской программе --}}
+                <div class="flex items-start gap-4 rounded-lg bg-indigo-50 p-5 ring-1 ring-indigo-200 dark:bg-indigo-500/10 dark:ring-indigo-500/30 sm:items-center">
+                    <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-white">
+                        <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M21 11.25v8.25a1.5 1.5 0 0 1-1.5 1.5H5.25a1.5 1.5 0 0 1-1.5-1.5v-8.25M12 4.875A2.625 2.625 0 1 0 9.375 7.5H12m0-2.625V7.5m0-2.625A2.625 2.625 0 1 1 14.625 7.5H12m0 0V21m-8.625-9.75h18c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125h-18c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125Z" />
+                        </svg>
+                    </div>
+                    <div class="min-w-0">
+                        <p class="text-base font-semibold text-gray-900 dark:text-white">
+                            Вас пригласил(а) {{ $referrer->name }}
+                        </p>
+                        <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">
+                            @if ($bonus > 0)
+                                После первой оплаты тарифа вы получите
+                                <span class="font-semibold text-indigo-700 dark:text-indigo-300">+{{ $bonus }} {{ \App\Services\SubscriptionService::lessonsWord($bonus) }} в подарок</span>.
+                                Бонусные занятия не сгорают.
+                            @else
+                                Заполните анкету — после одобрения заявки вы сможете сразу начать работу.
+                            @endif
+                        </p>
+                    </div>
+                </div>
+            @endif
+
             <div class="bg-white dark:bg-gray-800 py-8 px-4 shadow sm:rounded-lg sm:px-10">
                 <form wire:submit="create" class="space-y-6">
                     {{ $this->form }}

@@ -70,17 +70,6 @@ class BecomeTutorPage extends Component implements HasForms
                             . ($tariff->isFree() ? 'он подключится автоматически.' : 'вы сможете сразу перейти к его оплате.');
                     })
                     ->visible(fn() => $this->desiredTariff() !== null),
-                Forms\Components\Placeholder::make('referral_note')
-                    ->hiddenLabel()
-                    ->content(function () {
-                        $bonus = \App\Services\ReferralService::referredBonus();
-
-                        return 'Вас пригласил(а) ' . $this->referrer()->name . '.'
-                            . ($bonus > 0
-                                ? ' После первой оплаты тарифа вы получите +' . $bonus . ' ' . \App\Services\SubscriptionService::lessonsWord($bonus) . ' в подарок.'
-                                : '');
-                    })
-                    ->visible(fn() => $this->referrer() !== null),
                 Forms\Components\Section::make('Личные данные')
                     ->schema([
                         Forms\Components\Group::make([
