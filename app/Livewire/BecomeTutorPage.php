@@ -27,13 +27,27 @@ class BecomeTutorPage extends Component implements HasForms
     /** Тариф, выбранный на странице тарифов (?tariff=slug) — сохраняется в заявку. */
     public ?int $desiredTariffId = null;
 
+    /** Реферальный код пригласившего учителя (из cookie ссылки /r/{code} или ?ref=). */
+    #[\Livewire\Attributes\Locked]
+    public ?string $referralCode = null;
+
     public function mount(): void
     {
         if ($slug = request('tariff')) {
             $this->desiredTariffId = Tariff::active()->where('slug', $slug)->value('id');
         }
 
+        $this->referralCode = request('ref') ?: request()->cookie(\App\Services\ReferralService::COOKIE);
+
         $this->form->fill();
+    }
+
+    /** Пригласивший учитель — показываем плашку «Вас пригласил…». */
+    public function referrer(): ?User
+    {
+        return \App\Services\ReferralService::enabled()
+            ? \App\Services\ReferralService::findReferrer($this->referralCode)
+            : null;
     }
 
     public function desiredTariff(): ?Tariff
@@ -56,6 +70,17 @@ class BecomeTutorPage extends Component implements HasForms
                             . ($tariff->isFree() ? 'он подключится автоматически.' : 'вы сможете сразу перейти к его оплате.');
                     })
                     ->visible(fn() => $this->desiredTariff() !== null),
+                Forms\Components\Placeholder::make('referral_note')
+                    ->hiddenLabel()
+                    ->content(function () {
+                        $bonus = \App\Services\ReferralService::referredBonus();
+
+                        return 'Вас пригласил(а) ' . $this->referrer()->name . '.'
+                            . ($bonus > 0
+                                ? ' После первой оплаты тарифа вы получите +' . $bonus . ' ' . \App\Services\SubscriptionService::lessonsWord($bonus) . ' в подарок.'
+                                : '');
+                    })
+                    ->visible(fn() => $this->referrer() !== null),
                 Forms\Components\Section::make('Личные данные')
                     ->schema([
                         Forms\Components\Group::make([
@@ -164,7 +189,12 @@ class BecomeTutorPage extends Component implements HasForms
         }
 
         // Создаем заявку
-        $application = TeacherApplication::create($data + ['desired_tariff_id' => $this->desiredTariffId]);
+        $referrer = \App\Services\ReferralService::referrerForApplication($this->referralCode, $data['email'] ?? null);
+
+        $application = TeacherApplication::create($data + [
+            'desired_tariff_id' => $this->desiredTariffId,
+            'referred_by_id' => $referrer?->id,
+        ]);
 
         // Telegram-уведомление в чат техслужбы
         \App\Jobs\SendTeacherApplicationTelegramNotification::dispatch($application);

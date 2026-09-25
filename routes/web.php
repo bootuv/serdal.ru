@@ -44,6 +44,11 @@ Route::get('/login', fn() => redirect('/admin/login'))->name('login');
 Route::get('/welcome', fn() => view('welcome-choice'))->name('teacher.choice');
 Route::get('/application', \App\Livewire\BecomeTutorPage::class)->name('become-tutor');
 
+// Партнёрская программа: ссылка-приглашение коллеги
+Route::get('/r/{code}', [\App\Http\Controllers\ReferralController::class, 'invite'])
+    ->where('code', '[A-Za-z0-9]{4,16}')
+    ->name('referral.invite');
+
 // Invitation Registration
 Route::get('/register/invite', \App\Livewire\RegisterInvitedStudent::class)->name('student.invitation');
 

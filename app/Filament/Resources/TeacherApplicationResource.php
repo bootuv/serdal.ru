@@ -88,6 +88,10 @@ class TeacherApplicationResource extends Resource
                     ->label('Выбранный тариф')
                     ->placeholder('—')
                     ->toggleable(),
+                Tables\Columns\TextColumn::make('referrer.name')
+                    ->label('Пригласил')
+                    ->placeholder('—')
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Дата')
                     ->formatStateUsing(fn($state) => format_datetime($state))
@@ -214,6 +218,7 @@ class TeacherApplicationResource extends Resource
                             'grade' => $record->grade,
                             'is_profile_completed' => false,
                             'desired_tariff_id' => $record->desired_tariff_id,
+                            'referred_by_id' => $record->referred_by_id,
                         ]);
 
                         if (!empty($record->subjects)) {

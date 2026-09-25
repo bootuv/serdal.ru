@@ -33,6 +33,7 @@ class Tariff extends Model
         'max_participants',
         'max_duration_minutes',
         'recording_retention_days',
+        'referral_bonus',
         'short_description',
         'description',
         'features',

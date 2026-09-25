@@ -65,7 +65,7 @@
                     ])>
                         {{ $lessonsUsed }}@if($limit) из {{ $limit }}@endif
                         @if($extraBalance > 0)
-                            <span class="font-normal text-gray-500 dark:text-gray-400">+ {{ $extraBalance }} докупл.</span>
+                            <span class="font-normal text-gray-500 dark:text-gray-400">+ {{ $extraBalance }} доп.</span>
                         @endif
                     </span>
                 </div>

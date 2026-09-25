@@ -23,7 +23,16 @@ class TeacherApplication extends Model
         'grade',
         'status',
         'desired_tariff_id',
+        'referred_by_id',
     ];
+
+    /**
+     * Учитель, пригласивший заявителя по партнёрской программе.
+     */
+    public function referrer()
+    {
+        return $this->belongsTo(User::class, 'referred_by_id');
+    }
 
     /**
      * Тариф, выбранный на публичной странице тарифов перед подачей заявки.

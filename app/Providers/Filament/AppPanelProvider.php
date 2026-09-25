@@ -88,6 +88,11 @@ class AppPanelProvider extends PanelProvider
                     ->icon('heroicon-o-banknotes')
                     ->url(fn() => \App\Filament\App\Pages\PaymentHistory::getUrl()),
                 \Filament\Navigation\MenuItem::make()
+                    ->label('Пригласить коллегу')
+                    ->icon('heroicon-o-gift')
+                    ->url(fn() => \App\Filament\App\Pages\Referrals::getUrl())
+                    ->visible(fn() => \App\Services\ReferralService::enabled()),
+                \Filament\Navigation\MenuItem::make()
                     ->label('Техподдержка')
                     ->icon('heroicon-o-chat-bubble-left-right')
                     ->url(fn() => route('filament.app.pages.messenger', ['support' => 1])),

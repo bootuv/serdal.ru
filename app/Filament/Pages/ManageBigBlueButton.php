@@ -89,6 +89,11 @@ class ManageBigBlueButton extends Page implements HasForms
             'yookassa_recurring_enabled' => Setting::where('key', 'yookassa_recurring_enabled')->value('value') === '1',
             'extra_lesson_price' => \App\Services\SubscriptionService::extraLessonPrice(),
             'extra_lessons_max' => \App\Services\SubscriptionService::extraLessonsMax(),
+            'referral_enabled' => \App\Services\ReferralService::enabled(),
+            'referral_bonus_referrer' => \App\Services\ReferralService::referrerBonus(),
+            'referral_bonus_referred' => \App\Services\ReferralService::referredBonus(),
+            'referral_monthly_limit' => \App\Services\ReferralService::monthlyLimit(),
+            'referral_cookie_days' => \App\Services\ReferralService::cookieDays(),
         ] + $this->seoState();
     }
 
@@ -428,6 +433,43 @@ class ManageBigBlueButton extends Page implements HasForms
                                             ->required(),
                                     ])->columns(2),
                             ]),
+                        Tabs\Tab::make('Партнёрская программа')
+                            ->schema([
+                                Section::make('Приглашение коллег')
+                                    ->description('Учитель делится ссылкой-приглашением из кабинета (меню профиля → «Пригласить коллегу»). Когда приглашённый учитель впервые оплачивает платный тариф, оба получают бонусные занятия на баланс дополнительных занятий: они не сгорают и расходуются после лимита тарифа. Продления и докупка занятий бонусов не дают. При возврате платежа бонусы списываются. Для отдельного тарифа бонус пригласившему можно переопределить в карточке тарифа.')
+                                    ->schema([
+                                        Toggle::make('referral_enabled')
+                                            ->label('Программа включена')
+                                            ->helperText('Выключение скрывает страницу приглашений у учителей и останавливает новые начисления. Уже начисленные бонусы остаются.')
+                                            ->columnSpanFull(),
+                                        TextInput::make('referral_bonus_referrer')
+                                            ->label('Бонус пригласившему, занятий')
+                                            ->numeric()
+                                            ->minValue(0)
+                                            ->maxValue(1000)
+                                            ->required(),
+                                        TextInput::make('referral_bonus_referred')
+                                            ->label('Бонус приглашённому, занятий')
+                                            ->helperText('Начисляется после первой оплаты тарифа. 0 — без подарка.')
+                                            ->numeric()
+                                            ->minValue(0)
+                                            ->maxValue(1000)
+                                            ->required(),
+                                        TextInput::make('referral_monthly_limit')
+                                            ->label('Лимит начислений пригласившему в месяц')
+                                            ->helperText('0 — без ограничения. Сверх лимита бонус получает только приглашённый.')
+                                            ->numeric()
+                                            ->minValue(0)
+                                            ->required(),
+                                        TextInput::make('referral_cookie_days')
+                                            ->label('Срок действия ссылки, дней')
+                                            ->helperText('Сколько дней браузер помнит приглашение, если коллега подаст заявку не сразу.')
+                                            ->numeric()
+                                            ->minValue(1)
+                                            ->maxValue(365)
+                                            ->required(),
+                                    ])->columns(2),
+                            ]),
                     ])
                     ->persistTabInQueryString()
             ])
@@ -529,6 +571,13 @@ class ManageBigBlueButton extends Page implements HasForms
         // Extra lessons
         Setting::updateOrCreate(['key' => 'extra_lesson_price'], ['value' => (string) max(1, (int) ($data['extra_lesson_price'] ?? 0))]);
         Setting::updateOrCreate(['key' => 'extra_lessons_max'], ['value' => (string) max(1, (int) ($data['extra_lessons_max'] ?? 0))]);
+
+        // Referral program
+        Setting::updateOrCreate(['key' => 'referral_enabled'], ['value' => !empty($data['referral_enabled']) ? '1' : '0']);
+        Setting::updateOrCreate(['key' => 'referral_bonus_referrer'], ['value' => (string) max(0, (int) ($data['referral_bonus_referrer'] ?? 0))]);
+        Setting::updateOrCreate(['key' => 'referral_bonus_referred'], ['value' => (string) max(0, (int) ($data['referral_bonus_referred'] ?? 0))]);
+        Setting::updateOrCreate(['key' => 'referral_monthly_limit'], ['value' => (string) max(0, (int) ($data['referral_monthly_limit'] ?? 0))]);
+        Setting::updateOrCreate(['key' => 'referral_cookie_days'], ['value' => (string) max(1, (int) ($data['referral_cookie_days'] ?? 0))]);
 
         // SEO
         foreach (array_keys(SeoSettings::DEFAULTS) as $key) {

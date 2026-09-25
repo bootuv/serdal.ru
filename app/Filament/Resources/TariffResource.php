@@ -180,6 +180,17 @@ class TariffResource extends Resource
                             ->minValue(1)
                             ->helperText('Пусто = записи недоступны на тарифе'),
                     ])->columns(2),
+                Forms\Components\Section::make('Партнёрская программа')
+                    ->schema([
+                        Forms\Components\TextInput::make('referral_bonus')
+                            ->label('Бонус пригласившему за оплату тарифа (занятий)')
+                            ->numeric()
+                            ->minValue(0)
+                            ->maxValue(1000)
+                            ->placeholder(fn() => (string) \App\Services\ReferralService::referrerBonus())
+                            ->helperText('Пусто = общее значение из Настройки → Партнёрская программа. 0 = за этот тариф бонус не начисляется.'),
+                    ])
+                    ->collapsible(),
                 Forms\Components\Section::make('Описание для сайта')
                     ->schema([
                         Forms\Components\TextInput::make('short_description')

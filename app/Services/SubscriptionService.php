@@ -157,6 +157,9 @@ class SubscriptionService
             $subscription->ends_at,
         ));
 
+        // Партнёрская программа: бонусы за первую оплату приглашённого учителя
+        ReferralService::rewardForPayment($payment);
+
         return $subscription;
     }
 
@@ -167,6 +170,9 @@ class SubscriptionService
      */
     public static function applyRefund(SubscriptionPayment $payment): ?Subscription
     {
+        // Бонусы партнёрской программы за этот платёж списываются
+        ReferralService::revokeForPayment($payment);
+
         // Возврат за докупленные занятия: списываем их с баланса (не ниже нуля)
         if ($payment->isExtraLessons()) {
             $user = $payment->user;

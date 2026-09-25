@@ -66,6 +66,8 @@ class User extends Authenticatable implements FilamentUser
         'auto_renew',
         'desired_tariff_id',
         'extra_lessons_balance',
+        'referral_code',
+        'referred_by_id',
     ];
 
     /**
@@ -462,6 +464,38 @@ class User extends Authenticatable implements FilamentUser
     public function subscriptions()
     {
         return $this->hasMany(Subscription::class);
+    }
+
+    /**
+     * Учитель, пригласивший этого пользователя по партнёрской программе.
+     */
+    public function referrer()
+    {
+        return $this->belongsTo(User::class, 'referred_by_id');
+    }
+
+    /**
+     * Учителя, приглашённые этим пользователем.
+     */
+    public function referrals()
+    {
+        return $this->hasMany(User::class, 'referred_by_id');
+    }
+
+    /**
+     * Реферальный код для ссылки-приглашения; создаётся при первом обращении.
+     */
+    public function referralCode(): string
+    {
+        if (!$this->referral_code) {
+            do {
+                $code = strtolower(\Illuminate\Support\Str::random(8));
+            } while (self::where('referral_code', $code)->exists());
+
+            $this->forceFill(['referral_code' => $code])->saveQuietly();
+        }
+
+        return $this->referral_code;
     }
 
     /**
