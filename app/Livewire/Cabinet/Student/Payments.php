@@ -193,7 +193,7 @@ class Payments extends Component
         ]);
     }
 
-    /** Долг перед одним учителем: строки с суммами, итог, заявка на проверке или причина отказа. */
+    /** Долг перед одним учителем: строки с суммами, итог, отправленные заявки с чеками или причина отказа. */
     private function debtView(Collection $group, int $teacherId, ?array $status, array $pending): array
     {
         $claimable = $group->reject(fn (PaymentRecord $r) => in_array($r->id, $pending, true));
@@ -209,7 +209,19 @@ class Payments extends Component
             'count' => app(TeacherStudentsService::class)->countLabel($group),
             'due' => $first->due_date && ! $first->isOverdue() ? HumanDate::day($first->due_date) : null,
             'canReport' => $claimable->isNotEmpty(),
-            'waiting' => $claimable->count() < $group->count(),
+            // Отправленные учителю и ещё не проверенные: когда, комментарий и чеки
+            'sent' => PaymentClaim::pending()
+                ->where('student_id', auth()->id())
+                ->where('teacher_id', $teacherId)
+                ->oldest('id')
+                ->get()
+                ->map(fn (PaymentClaim $c) => [
+                    'id' => $c->id,
+                    'when' => HumanDate::at($c->created_at),
+                    'comment' => trim((string) $c->comment),
+                    'files' => $this->claims()->files($c, auth()->user()),
+                ])
+                ->values(),
             // Отказ показываем, пока по этим занятиям не сообщили снова
             'rejected' => $latest?->status === PaymentClaim::STATUS_REJECTED && $claimable->isNotEmpty()
                 ? ['reason' => $latest->reject_reason]

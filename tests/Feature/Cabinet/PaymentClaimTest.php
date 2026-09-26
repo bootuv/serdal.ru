@@ -109,7 +109,7 @@ class PaymentClaimTest extends TestCase
             ->assertSee("6 000 ₽")
             ->assertSee("1 500 ₽");
 
-        Livewire::actingAs($student)
+        $page = Livewire::actingAs($student)
             ->withQueryParams(['report' => $teacher->id])
             ->test(StudentPayments::class)
             ->assertSet('reportTeacherId', $teacher->id)
@@ -123,7 +123,12 @@ class PaymentClaimTest extends TestCase
             ->assertHasNoErrors()
             ->assertSet('reportTeacherId', null)
             ->assertDispatched('toast')
-            ->assertSee('ждёт подтверждения');
+            // Ученик видит, что и когда отправил: комментарий и чек
+            ->assertSee('Отправлено учителю сегодня в')
+            ->assertSee('Перевела по номеру телефона')
+            ->assertSee('check.jpg');
+        // Все занятия на проверке — статус одной строкой, без повтора в каждой строке
+        $this->assertSame(1, substr_count($page->html(), 'ждёт подтверждения'));
 
         $claim = PaymentClaim::sole();
         $this->assertSame(PaymentClaim::STATUS_PENDING, $claim->status);

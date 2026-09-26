@@ -44,7 +44,8 @@
                                                 <div class="flex min-w-0 flex-1 flex-col gap-1">
                                                     <span class="text-t1 font-medium">{{ $row['title'] }}</span>
                                                     @if ($row['claimed'])
-                                                        <span class="text-t2 text-muted">Отправлено учителю · ждёт подтверждения</span>
+                                                        {{-- Отмечаем строку, только если отправлена часть занятий; иначе хватает блока ниже --}}
+                                                        @if ($debt['canReport'])<span class="text-t2 text-muted">Отправлено учителю · ждёт подтверждения</span>@endif
                                                     @elseif ($row['due'])
                                                         <span class="text-t2 text-muted">@if ($row['urgent'])<x-ui.em>{{ $row['due'] }}</x-ui.em>@else{{ $row['due'] }}@endif</span>
                                                     @endif
@@ -55,15 +56,32 @@
                                         @endforeach
                                     </x-ui.list>
 
-                                    @if ($debt['canReport'] || $debt['waiting'])
-                                        <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
-                                            @if ($debt['canReport'])
-                                                <x-ui.btn :variant="$debt['teacherId'] === $primaryKey ? 'primary' : 'outline'" wire:click="openReport({{ $debt['teacherId'] }})">Сообщить об оплате</x-ui.btn>
+                                    {{-- Отправлено учителю: когда, комментарий и чеки (открываются в новой вкладке) --}}
+                                    @foreach ($debt['sent'] as $claim)
+                                        <div class="flex flex-col gap-3" wire:key="sent-{{ $claim['id'] }}">
+                                            <p class="text-t2 text-muted">Отправлено учителю {{ $claim['when'] }} · ждёт подтверждения</p>
+                                            @if ($claim['comment'] !== '')
+                                                <p class="whitespace-pre-line text-t2">{{ $claim['comment'] }}</p>
                                             @endif
-                                            @if ($debt['waiting'])
-                                                <span class="text-t2 text-muted">Отправлено учителю · ждёт подтверждения</span>
+                                            @if ($claim['files'])
+                                                <div class="flex flex-col gap-2">
+                                                    @foreach ($claim['files'] as $file)
+                                                        <div class="flex min-w-0 items-center gap-3" wire:key="sent-{{ $claim['id'] }}-file-{{ $loop->index }}">
+                                                            <x-ui.file-tile :name="$file['name']" :thumb="$file['image'] ? $file['url'] : null" on-mint />
+                                                            @if ($file['url'])
+                                                                <a href="{{ $file['url'] }}" target="_blank" rel="noopener" class="link min-w-0 truncate text-t2">{{ $file['name'] }}</a>
+                                                            @else
+                                                                <span class="min-w-0 truncate text-t2 font-medium">{{ $file['name'] }}</span>
+                                                            @endif
+                                                        </div>
+                                                    @endforeach
+                                                </div>
                                             @endif
                                         </div>
+                                    @endforeach
+
+                                    @if ($debt['canReport'])
+                                        <x-ui.btn :variant="$debt['teacherId'] === $primaryKey ? 'primary' : 'outline'" wire:click="openReport({{ $debt['teacherId'] }})" class="self-start">Сообщить об оплате</x-ui.btn>
                                     @endif
                                 </div>
                             @endforeach
