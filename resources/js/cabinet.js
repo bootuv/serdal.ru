@@ -33,6 +33,7 @@ window.serdalShareReviewCard = async function (url) {
     return 'download';
 };
 import './rich-editor';
+import './lightbox';
 
 /**
  * Сбои запросов Livewire: вместо стандартного окна Livewire (английский confirm для 419, HTML ошибки для 500)

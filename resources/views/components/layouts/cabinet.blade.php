@@ -202,6 +202,7 @@
     </div>
 </div>
 <livewire:cabinet.notifications />
+<x-ui.lightbox />
 <livewire:cabinet.push-prompt />
 <x-ui.toast />
 {{-- Звук важных уведомлений (флаг sound у broadcast-уведомления) — тот же скрипт, что в старом кабинете --}}

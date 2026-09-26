@@ -69,7 +69,7 @@
 
                                     @foreach ($m['files'] as $f)
                                         @if ($f['image'])
-                                            <a href="{{ $f['url'] }}" target="_blank" rel="noopener" class="block">
+                                            <a href="{{ $f['url'] }}" target="_blank" rel="noopener" class="block" data-lightbox data-name="{{ $f['name'] }}">
                                                 <img src="{{ $f['url'] }}" alt="{{ $f['name'] }}" class="max-h-44 max-w-full rounded" loading="lazy">
                                             </a>
                                         @else

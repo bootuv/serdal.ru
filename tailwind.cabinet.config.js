@@ -126,6 +126,7 @@ export default {
         size: sizes,
         minWidth: sizes,
         minHeight: sizes,
+        maxHeight: { ...sizes, none: 'none' }, // иначе max-h-* берёт урезанную шкалу отступов (не было max-h-44 у картинок в чате)
         maxWidth: { ...sizes, none: 'none', text: '640px' },
         extend: {},
     },

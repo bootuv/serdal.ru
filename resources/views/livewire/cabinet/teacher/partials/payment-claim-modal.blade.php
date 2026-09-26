@@ -48,7 +48,7 @@
                     <div class="flex flex-col gap-3">
                         @foreach ($claimView['files'] as $file)
                             @if ($file['image'] && $file['url'])
-                                <a href="{{ $file['url'] }}" target="_blank" rel="noopener" class="block" wire:key="claim-file-{{ $loop->index }}">
+                                <a href="{{ $file['url'] }}" target="_blank" rel="noopener" class="block" wire:key="claim-file-{{ $loop->index }}" data-lightbox data-name="{{ $file['name'] }}">
                                     <img src="{{ $file['url'] }}" alt="Чек: {{ $file['name'] }}" class="w-full rounded-lg shadow-line">
                                 </a>
                             @else
