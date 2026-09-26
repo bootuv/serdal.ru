@@ -42,7 +42,7 @@
                 <x-ui.field label="Отчество" name="data.middle_name" size="l" autocomplete="additional-name" wire:model="data.middle_name" />
                 <x-ui.field label="Телефон" name="data.phone" type="tel" size="l" autocomplete="tel" inputmode="tel" placeholder="+7 900 000-00-00" wire:model="data.phone" />
                 <div class="flex flex-col gap-2 sm:col-span-2">
-                    <x-ui.field label="Почта" name="data.email" type="email" size="l" autocomplete="email" inputmode="email" placeholder="you@mail.ru" wire:model="data.email" />
+                    <x-ui.field label="Почта" name="data.email" type="email" size="l" autocomplete="email" inputmode="email" placeholder="Ваша почта" wire:model="data.email" />
                     @if ($emailTaken)<a href="{{ route('login') }}" class="link self-start text-t2">Войти в кабинет</a>@endif
                 </div>
             </div>

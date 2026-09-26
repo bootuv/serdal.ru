@@ -165,4 +165,24 @@ class CrossCuttingTest extends TestCase
         $this->assertSame(route('cabinet.teacher.profile'), CabinetUrl::fromLegacy(url('/tutor/edit-profile'), $teacher));
         $this->assertSame(route('cabinet.student.profile'), CabinetUrl::fromLegacy(url('/student/profile'), $student));
     }
+
+    public function test_old_cabinets_redirect_to_new_screens(): void
+    {
+        $teacher = $this->user(User::ROLE_TUTOR);
+        $student = $this->user(User::ROLE_STUDENT);
+        $room = $this->room($teacher, [$student]);
+
+        $this->actingAs($teacher);
+        $this->get('/tutor')->assertRedirect(route('cabinet.teacher.today'));
+        $this->get('/tutor/students')->assertRedirect(route('cabinet.teacher.students'));
+        $this->get('/tutor/rooms/' . $room->id)->assertRedirect(route('cabinet.teacher.lesson', ['room' => $room->id]));
+        $this->get('/tutor/homework/create')->assertRedirect(route('cabinet.teacher.task-new'));
+        $this->get('/tutor/prices')->assertRedirect(route('cabinet.teacher.profile', ['tab' => 'prices']));
+        $this->get('/tutor/integrations')->assertRedirect(route('cabinet.teacher.profile'));
+
+        $this->actingAs($student);
+        $this->get('/student/dashboard')->assertRedirect(route('cabinet.student.home'));
+        $this->get('/student/payment-debts')->assertRedirect(route('cabinet.student.payments'));
+        $this->get('/student/rooms/' . $room->id)->assertRedirect(route('cabinet.student.lesson', ['room' => $room->id]));
+    }
 }

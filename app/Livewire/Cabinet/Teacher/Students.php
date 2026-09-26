@@ -141,7 +141,7 @@ class Students extends Component
     {
         $this->validate(
             ['inviteEmail' => 'required|email'],
-            ['inviteEmail.required' => 'Укажите email ученика', 'inviteEmail.email' => 'Проверьте email: похоже, в нём опечатка']
+            ['inviteEmail.required' => 'Укажите почту ученика', 'inviteEmail.email' => 'Проверьте почту: похоже, в ней опечатка']
         );
 
         $this->service()->sendInvitation($this->teacher(), $this->inviteEmail);

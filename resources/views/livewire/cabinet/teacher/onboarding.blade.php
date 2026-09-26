@@ -87,7 +87,7 @@
 
                     <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
                         <x-ui.field label="WhatsApp" name="whatsup" type="tel" wire:model="whatsup" placeholder="+7 900 000-00-00" />
-                        <x-ui.field label="Telegram" name="telegram" wire:model="telegram" placeholder="@username" />
+                        <x-ui.field label="Telegram" name="telegram" wire:model="telegram" placeholder="@ник" />
                     </div>
                 </div>
             @elseif ($step === 2)

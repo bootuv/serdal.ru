@@ -16,7 +16,7 @@
 
         <form wire:submit="login" class="flex flex-col gap-6">
             <div class="flex flex-col gap-4">
-                <x-ui.field label="Email" name="email" type="email" size="l" autocomplete="email" inputmode="email" placeholder="you@mail.ru" wire:model="email" autofocus />
+                <x-ui.field label="Почта" name="email" type="email" size="l" autocomplete="email" inputmode="email" placeholder="Ваша почта" wire:model="email" autofocus />
                 <x-ui.password label="Пароль" name="password" size="l" autocomplete="current-password" wire:model="password">
                     <x-slot:aside><a href="{{ route('password.request') }}" class="link text-t2">Забыли пароль?</a></x-slot:aside>
                 </x-ui.password>

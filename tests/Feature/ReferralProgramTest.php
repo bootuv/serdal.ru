@@ -23,6 +23,7 @@ class ReferralProgramTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->withoutVite();
         $this->seed(TariffSeeder::class);
         SubscriptionService::flushCanStartCache();
         Notification::fake();
@@ -193,8 +194,13 @@ class ReferralProgramTest extends TestCase
         SubscriptionService::activate($referrer, Tariff::where('slug', 'start')->first());
         $this->makeTutor(['referred_by_id' => $referrer->id, 'name' => 'Коллега Первый']);
 
+        // Старый адрес ведёт в новый кабинет
         $this->actingAs($referrer)
-            ->get(\App\Filament\App\Pages\Referrals::getUrl(panel: 'app'))
+            ->get('/tutor/referrals')
+            ->assertRedirect(route('cabinet.teacher.referrals'));
+
+        $this->actingAs($referrer)
+            ->get(route('cabinet.teacher.referrals'))
             ->assertOk()
             ->assertSee('Пригласите коллегу')
             ->assertSee('/r/' . $referrer->fresh()->referral_code)
@@ -256,9 +262,26 @@ class ReferralProgramTest extends TestCase
 
         $this->actingAs($tutor)
             ->get('/tutor')
+            ->assertRedirect(route('cabinet.teacher.today'));
+
+        // Плашка в сайдбаре ведёт на партнёрку; пока она видна, отдельной ссылки нет
+        $this->actingAs($tutor)
+            ->get(route('cabinet.teacher.today'))
             ->assertOk()
-            ->assertSeeLivewire(\App\Filament\App\Widgets\ReferralBannerWidget::class)
-            ->assertSee('Пригласить коллегу');
+            ->assertSeeLivewire(\App\Livewire\Cabinet\ReferralPromo::class)
+            ->assertSee('Приглашайте коллег')
+            ->assertSee('Пригласить коллегу')
+            ->assertSee(route('cabinet.teacher.referrals'))
+            ->assertDontSee('Пригласить коллег</a>', false);
+
+        // Плашку скрыли — остаётся пункт «Пригласить коллег» в сайдбаре
+        ReferralService::hideBanner($tutor);
+        $this->actingAs($tutor->fresh())
+            ->get(route('cabinet.teacher.today'))
+            ->assertOk()
+            ->assertDontSee('Приглашайте коллег')
+            ->assertSee('Пригласить коллег</a>', false)
+            ->assertSee(route('cabinet.teacher.referrals'));
     }
 
     public function test_limit_hint_shown_when_lessons_run_out(): void

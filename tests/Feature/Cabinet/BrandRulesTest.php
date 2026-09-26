@@ -94,4 +94,35 @@ class BrandRulesTest extends TestCase
         }
         $this->assertSame([], $violations, "Слова вне словаря (BRAND.md §7):\n" . implode("\n", $violations));
     }
+
+    /** Названия, которые пишутся латиницей и переводу не подлежат. */
+    private const LATIN_ALLOWED = ['Serdal', 'Telegram', 'WhatsApp', 'Google', 'ЮKassa', 'Kinescope', 'YouTube', 'Rutube',
+        'PDF', 'JPG', 'JPEG', 'PNG', 'HEIC', 'GIF', 'Word', 'Excel', 'PowerPoint', 'MP3', 'MP4', 'DOC', 'XLS', 'PPT', 'IMG'];
+
+    public function test_no_english_text(): void
+    {
+        $violations = [];
+        foreach ($this->templates() as $path => $content) {
+            $text = preg_replace(['/\{\{--.*?--\}\}/s', '/@php.*?@endphp/s', '/<script.*?<\/script>/s'], ' ', $content);
+            $candidates = [];
+            // Статичные подписи и подсказки
+            preg_match_all('/\s(?:placeholder|label|hint|title|aria-label|sub|text|button|message)="([^"{}$]*)"/u', $text, $m);
+            $candidates = array_merge($candidates, $m[1]);
+            // Видимый текст: фрагменты между тегами, где есть кириллица (фраза на русском с вкраплением латиницы)
+            preg_match_all('/>([^<>{}@$]*\p{Cyrillic}[^<>{}@$]*)</u', $text, $m);
+            $candidates = array_merge($candidates, $m[1]);
+
+            foreach ($candidates as $value) {
+                if (! preg_match_all('/(?<![@\w.])[A-Za-z]{3,}(?![\w.@])/u', $value, $words)) {
+                    continue;
+                }
+                foreach ($words[0] as $word) {
+                    if (! in_array($word, self::LATIN_ALLOWED, true) && ! str_contains($value, $word . '.ru')) {
+                        $violations[] = basename($path) . ': «' . trim(mb_substr($value, 0, 80)) . '» (' . $word . ')';
+                    }
+                }
+            }
+        }
+        $this->assertSame([], array_values(array_unique($violations)), "Английский текст в интерфейсе запрещён — только русский (названия сервисов — исключение):\n" . implode("\n", array_unique($violations)));
+    }
 }

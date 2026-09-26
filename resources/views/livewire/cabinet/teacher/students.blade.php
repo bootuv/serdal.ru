@@ -27,7 +27,7 @@
         <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:gap-6">
             <x-ui.tabs class="flex-1" :items="['students' => 'Ученики', 'groups' => 'Группы']" model="tab" :active="$tab" aria-label="Ученики и группы" />
             <div class="lg:border-b lg:border-line lg:pb-2">
-                <x-ui.search placeholder="Имя, email или телефон" wire:model.live.debounce.300ms="search" />
+                <x-ui.search placeholder="Имя, почта или телефон" wire:model.live.debounce.300ms="search" />
             </div>
         </div>
 
@@ -196,13 +196,13 @@
             @if ($inviteTab === 'link')
                 <div class="flex flex-col gap-6">
                     <x-ui.copy-field label="Ссылка-приглашение" id="invite-link" :value="$invite['link']" hint="Одна для всех учеников и не устаревает" />
-                    <x-ui.field label="Или отправим на почту" name="inviteEmail" type="email" placeholder="Email ученика" wire:model="inviteEmail" wire:keydown.enter="sendInvite" />
+                    <x-ui.field label="Или отправим на почту" name="inviteEmail" type="email" placeholder="Почта ученика" wire:model="inviteEmail" wire:keydown.enter="sendInvite" />
                 </div>
             @else
                 <div class="flex flex-col gap-4">
-                    <x-ui.field label="Имя или email ученика" name="findQuery" type="search" placeholder="Например, Ольга Белова" wire:model.live.debounce.300ms="findQuery" autofocus />
+                    <x-ui.field label="Имя или почта ученика" name="findQuery" type="search" placeholder="Например, Ольга Белова" wire:model.live.debounce.300ms="findQuery" autofocus />
                     @if ($invite['query'] === '')
-                        <p class="text-t2 text-muted">Начните вводить имя или email</p>
+                        <p class="text-t2 text-muted">Начните вводить имя или почту</p>
                     @elseif ($invite['results']->isEmpty())
                         <p class="text-t2 text-muted">Никого не нашли. <button type="button" class="link" wire:click="$set('inviteTab', 'link')">Пригласить по ссылке</button></p>
                     @else

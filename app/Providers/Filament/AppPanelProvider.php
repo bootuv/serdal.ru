@@ -115,6 +115,7 @@ class AppPanelProvider extends PanelProvider
                 AddQueuedCookiesToResponse::class,
                 StartSession::class,
                 \App\Http\Middleware\RedirectToCabinetLogin::class,
+                \App\Http\Middleware\RedirectOldCabinet::class,
                 AuthenticateSession::class,
                 ShareErrorsFromSession::class,
                 VerifyCsrfToken::class,

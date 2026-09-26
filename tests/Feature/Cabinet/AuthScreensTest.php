@@ -111,8 +111,8 @@ class AuthScreensTest extends TestCase
         $this->get('/student/login')->assertRedirect(route('login'));
         $this->get('/tutor/password-reset/request')->assertRedirect(route('password.request'));
 
-        // Гость в старом кабинете → общий вход, после входа — обратно
-        $this->get('/tutor/students')->assertRedirect(url('/tutor/login'));
+        // Гость в закрытом старом кабинете → сразу на общий вход
+        $this->get('/tutor/students')->assertRedirect(route('login'));
     }
 
     public function test_forgot_password_sends_link_and_hides_unknown_emails(): void

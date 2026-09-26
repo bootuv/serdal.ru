@@ -15,8 +15,8 @@
                     <x-ui.field label="Телефон" name="phone" type="tel" size="l" optional autocomplete="tel" inputmode="tel" placeholder="+7 900 000-00-00" wire:model="phone" />
                 </div>
                 <div class="flex flex-col gap-2">
-                    <x-ui.field label="Email" name="email" type="email" size="l" autocomplete="email" inputmode="email" placeholder="you@mail.ru" wire:model="email" />
-                    @if ($emailTaken)<a href="{{ route('login') }}" class="link self-start text-t2">Войти с этим email</a>@endif
+                    <x-ui.field label="Почта" name="email" type="email" size="l" autocomplete="email" inputmode="email" placeholder="Ваша почта" wire:model="email" />
+                    @if ($emailTaken)<a href="{{ route('login') }}" class="link self-start text-t2">Войти с этой почтой</a>@endif
                 </div>
                 <div class="flex flex-col gap-2">
                     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">

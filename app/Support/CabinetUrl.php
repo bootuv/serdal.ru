@@ -37,6 +37,13 @@ class CabinetUrl
                 ? (self::route('cabinet.teacher.task', ['homework' => (int) $m[1]]) ?? self::route('cabinet.teacher.tasks'))
                 : self::route('cabinet.teacher.tasks'),
             $path === 'tutor/homework' => self::route('cabinet.teacher.tasks'),
+            $path === 'tutor/homework/create' => self::route('cabinet.teacher.task-new'),
+            (bool) preg_match('#^tutor/homework/(\d+)/edit$#', $path, $m) => self::route('cabinet.teacher.task-new', ['edit' => (int) $m[1]]),
+            (bool) preg_match('#^tutor/materials(/\d+/edit)?$#', $path) => self::route('cabinet.teacher.materials'),
+            (bool) preg_match('#^tutor/prices(/create|/\d+/edit)?$#', $path) => self::route('cabinet.teacher.profile', ['tab' => 'prices']),
+            in_array($path, ['tutor/rooms/create', 'tutor/meeting-sessions'], true) => self::route('cabinet.teacher.schedule'),
+            $path === 'tutor/integrations' => self::route('cabinet.teacher.profile'),
+            (bool) preg_match('#^tutor/recordings/\d+$#', $path) => self::route('cabinet.teacher.recordings'),
             (bool) preg_match('#^tutor/homework-submissions/(\d+)(/edit)?$#', $path, $m) => self::route('cabinet.teacher.review', ['submission' => (int) $m[1]]),
             $path === 'tutor/homework-submissions' => self::route('cabinet.teacher.tasks'),
             (bool) preg_match('#^tutor/meeting-sessions/(\d+)$#', $path, $m) => ($roomId = MeetingSession::whereKey((int) $m[1])->value('room_id'))

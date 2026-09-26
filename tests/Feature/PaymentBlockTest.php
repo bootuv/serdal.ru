@@ -321,20 +321,45 @@ class PaymentBlockTest extends TestCase
         $this->makeRecord($teacher, $student, 10);
         $this->attendLesson($teacher, $student, 3);
 
+        $lessonsLeft = PaymentRecordService::debtStatus($student->id, $teacher->id)['lessons_left'];
+        $this->assertSame(PaymentRecordService::BLOCK_AFTER_LESSONS - 1, $lessonsLeft);
+        $left = plural_ru($lessonsLeft, 'занятие', 'занятия', 'занятий');
+
         $this->withoutVite();
 
+        // Старые адреса ведут в новый кабинет
         $this->actingAs($student)
             ->get(route('filament.student.pages.dashboard'))
-            ->assertOk()
-            ->assertSee('Предупреждение: занятия не оплачены в срок')
-            ->assertSee($teacher->name)
-            ->assertDontSee('Доступ к занятиям ограничен');
-
+            ->assertRedirect(route('cabinet.student.home'));
         $this->actingAs($student)
             ->get(route('filament.student.resources.rooms.index'))
+            ->assertRedirect(route('cabinet.student.schedule'));
+
+        // Главная: предупреждение о просрочке — у кого и сколько занятий осталось до закрытия входа
+        $this->actingAs($student)
+            ->get(route('cabinet.student.home'))
+            ->assertOk()
+            ->assertSee('Оплатите занятия')
+            ->assertSee('Просрочено')
+            ->assertSee($teacher->name)
+            ->assertSee('Ещё ' . $left . ' — и вход на занятия закроется до оплаты.')
+            ->assertSee(route('rooms.connect', $room))
+            ->assertDontSee('Вход на занятия закрыт');
+
+        // Расписание: вход в класс открыт
+        $this->actingAs($student)
+            ->get(route('cabinet.student.schedule'))
             ->assertOk()
             ->assertSee(route('rooms.connect', $room))
-            ->assertDontSee('Доступ ограничен');
+            ->assertDontSee('Вход закрыт до оплаты');
+
+        // Оплата: через сколько занятий закроется вход
+        $this->actingAs($student)
+            ->get(route('cabinet.student.payments'))
+            ->assertOk()
+            ->assertSee('вход на занятия закроется через')
+            ->assertSee($left)
+            ->assertDontSee('Вход на занятия закрыт');
     }
 
     public function test_blocked_student_keeps_access_to_cabinet(): void
@@ -347,14 +372,23 @@ class PaymentBlockTest extends TestCase
 
         $this->actingAs($student)
             ->get(route('filament.student.pages.dashboard'))
-            ->assertOk()
-            ->assertSee('Доступ к занятиям ограничен')
-            ->assertSee($teacher->name);
-
+            ->assertRedirect(route('cabinet.student.home'));
         $this->actingAs($student)
             ->get(route('filament.student.pages.payment-debts'))
+            ->assertRedirect(route('cabinet.student.payments'));
+
+        $this->actingAs($student)
+            ->get(route('cabinet.student.home'))
             ->assertOk()
-            ->assertSee('Доступ к занятиям ограничен');
+            ->assertSee('Вход на занятия закрыт')
+            ->assertSee($teacher->name)
+            ->assertSee('Вход откроется, когда учитель подтвердит оплату.');
+
+        $this->actingAs($student)
+            ->get(route('cabinet.student.payments'))
+            ->assertOk()
+            ->assertSee('Вход на занятия закрыт')
+            ->assertSee($teacher->name);
     }
 
     public function test_blocked_student_sees_lock_instead_of_join_button(): void
@@ -366,21 +400,37 @@ class PaymentBlockTest extends TestCase
 
         $this->withoutVite();
 
+        // Старые адреса ведут в новый кабинет
         $this->actingAs($student)
             ->get(route('filament.student.resources.rooms.index'))
-            ->assertOk()
-            ->assertSee('Доступ ограничен')
-            ->assertDontSee(route('rooms.connect', $room));
-
+            ->assertRedirect(route('cabinet.student.schedule'));
         $this->actingAs($student)
             ->get(route('filament.student.resources.rooms.view', $room))
-            ->assertOk()
-            ->assertSee('Доступ ограничен')
-            ->assertDontSee(route('rooms.connect', $room));
-
+            ->assertRedirect(route('cabinet.student.lesson', $room));
         $this->actingAs($student)
             ->get(route('filament.student.pages.schedule-calendar'))
-            ->assertOk();
+            ->assertRedirect(route('cabinet.student.schedule'));
+
+        // Главная: «Войти в класс» заблокирована, ссылки на вход нет
+        $this->actingAs($student)
+            ->get(route('cabinet.student.home'))
+            ->assertOk()
+            ->assertSee('Откроется после оплаты')
+            ->assertDontSee(route('rooms.connect', $room));
+
+        // Расписание
+        $this->actingAs($student)
+            ->get(route('cabinet.student.schedule'))
+            ->assertOk()
+            ->assertSee('Вход закрыт до оплаты')
+            ->assertDontSee(route('rooms.connect', $room));
+
+        // Экран занятия
+        $this->actingAs($student)
+            ->get(route('cabinet.student.lesson', $room))
+            ->assertOk()
+            ->assertSee('Вход закрыт до оплаты')
+            ->assertDontSee(route('rooms.connect', $room));
     }
 
     public function test_admin_sees_who_is_blocked_and_why(): void

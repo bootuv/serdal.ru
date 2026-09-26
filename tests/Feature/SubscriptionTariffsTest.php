@@ -19,6 +19,7 @@ class SubscriptionTariffsTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->withoutVite();
         $this->seed(TariffSeeder::class);
         SubscriptionService::flushCanStartCache();
     }
@@ -131,9 +132,16 @@ class SubscriptionTariffsTest extends TestCase
     {
         $tutor = $this->makeTutor();
 
+        // Старый адрес ведёт в новый кабинет
         $this->actingAs($tutor)->get('/tutor/subscription')
+            ->assertRedirect(route('cabinet.teacher.subscription'));
+
+        $this->actingAs($tutor)->get(route('cabinet.teacher.subscription'))
             ->assertOk()
-            ->assertSee('Тарифы');
+            ->assertSee('Тариф и платежи')
+            ->assertSee('Выбрать тариф')
+            ->assertSee('Старт')
+            ->assertSee('Базовый');
     }
 
     public function test_tutor_can_activate_free_tariff(): void
@@ -162,6 +170,9 @@ class SubscriptionTariffsTest extends TestCase
         $this->assertTrue($subscription->isComplimentary());
 
         $this->actingAs($tutor)->get('/tutor/subscription')
+            ->assertRedirect(route('cabinet.teacher.subscription'));
+
+        $this->actingAs($tutor)->get(route('cabinet.teacher.subscription'))
             ->assertOk()
             ->assertSee('Предоставлен бесплатно')
             ->assertSee('Оплата не требуется')
@@ -198,14 +209,17 @@ class SubscriptionTariffsTest extends TestCase
         $tutor = $this->makeTutor();
         SubscriptionService::activate($tutor, Tariff::where('slug', 'basic')->first());
 
-        // Сразу после оплаты (30 дней до конца) кнопки «Продлить» нет
         $this->actingAs($tutor)->get('/tutor/subscription')
+            ->assertRedirect(route('cabinet.teacher.subscription'));
+
+        // Сразу после оплаты (30 дней до конца) кнопки «Продлить» нет
+        $this->actingAs($tutor)->get(route('cabinet.teacher.subscription'))
             ->assertOk()
             ->assertDontSee('Продлить');
 
         // За 10 дней до окончания — появляется
         $tutor->activeSubscription()->update(['ends_at' => now()->addDays(10)]);
-        $this->actingAs($tutor)->get('/tutor/subscription')
+        $this->actingAs($tutor)->get(route('cabinet.teacher.subscription'))
             ->assertOk()
             ->assertSee('Продлить');
     }
@@ -453,15 +467,16 @@ class SubscriptionTariffsTest extends TestCase
         $tutor = $this->makeTutor();
         $basic = Tariff::where('slug', 'basic')->first();
 
+        // Неудавшийся — с узнаваемой суммой, чтобы проверить, что строки нет
         \App\Models\SubscriptionPayment::create([
             'user_id' => $tutor->id,
             'tariff_id' => $basic->id,
-            'amount' => $basic->price,
+            'amount' => 777,
             'status' => \App\Models\SubscriptionPayment::STATUS_FAILED,
             'gateway' => 'yookassa',
         ]);
         // Свежий незавершённый — виден и предлагает вернуться к оплате
-        \App\Models\SubscriptionPayment::create([
+        $pending = \App\Models\SubscriptionPayment::create([
             'user_id' => $tutor->id,
             'tariff_id' => $basic->id,
             'amount' => $basic->price,
@@ -469,11 +484,25 @@ class SubscriptionTariffsTest extends TestCase
             'gateway' => 'yookassa',
             'payment_url' => 'https://yoomoney.ru/checkout/payments/v2/contract?orderId=test',
         ]);
+        $until = 'ссылка до ' . $pending->created_at->copy()->addHour()->format('H:i');
 
         $this->actingAs($tutor)->get('/tutor/subscription')
+            ->assertRedirect(route('cabinet.teacher.subscription'));
+
+        // История на экране тарифа
+        $this->actingAs($tutor)->get(route('cabinet.teacher.subscription'))
             ->assertOk()
-            ->assertDontSee('Не прошёл')
-            ->assertSee('ссылка действует ещё')
+            ->assertSee('История платежей')
+            ->assertDontSee('777 ₽')
+            ->assertSee('1 490 ₽')
+            ->assertSee($until)
+            ->assertSee('https://yoomoney.ru/checkout/payments/v2/contract?orderId=test');
+
+        // «Все платежи» — то же правило
+        $this->actingAs($tutor)->get(route('cabinet.teacher.payments'))
+            ->assertOk()
+            ->assertDontSee('777 ₽')
+            ->assertSee($until)
             ->assertSee('https://yoomoney.ru/checkout/payments/v2/contract?orderId=test');
     }
 
@@ -510,6 +539,15 @@ class SubscriptionTariffsTest extends TestCase
 
         // Учитель видит информацию о возврате в истории платежей
         $this->actingAs($tutor)->get('/tutor/subscription')
+            ->assertRedirect(route('cabinet.teacher.subscription'));
+
+        $this->actingAs($tutor)->get(route('cabinet.teacher.subscription'))
+            ->assertOk()
+            ->assertSee('Вернули')
+            ->assertSee('Возврат оформлен')
+            ->assertSee('рабочих дней');
+
+        $this->actingAs($tutor)->get(route('cabinet.teacher.payments'))
             ->assertOk()
             ->assertSee('Возврат оформлен')
             ->assertSee('рабочих дней');
@@ -725,6 +763,9 @@ class SubscriptionTariffsTest extends TestCase
         $this->assertNull($tutor->fresh()->activeSubscription());
 
         $this->actingAs($tutor)->get('/tutor/subscription')
+            ->assertRedirect(route('cabinet.teacher.subscription'));
+
+        $this->actingAs($tutor)->get(route('cabinet.teacher.subscription'))
             ->assertOk()
             ->assertSee('Срок истёк')
             ->assertSee('Продлить');
@@ -753,8 +794,18 @@ class SubscriptionTariffsTest extends TestCase
             'gateway' => 'yookassa',
         ]);
 
-        // Страница истории платежей
-        $this->actingAs($tutor)->get('/tutor/payments')->assertOk();
+        // Страница истории платежей: старый адрес ведёт в «Все платежи» нового кабинета
+        $this->actingAs($tutor)->get('/tutor/payments')
+            ->assertRedirect(route('cabinet.teacher.payments'));
+
+        $this->actingAs($tutor)->get(route('cabinet.teacher.payments'))
+            ->assertOk()
+            ->assertSee('Все платежи')
+            ->assertSee('1 490 ₽')
+            ->assertSee('Ожидает оплаты')
+            // Чек — только у оплаченного
+            ->assertSee(route('subscription.payment.receipt', $payment))
+            ->assertDontSee(route('subscription.payment.receipt', $pending));
 
         // Квитанция по оплаченному платежу — доступна владельцу
         $this->actingAs($tutor)->get(route('subscription.payment.receipt', $payment))
@@ -866,14 +917,33 @@ class SubscriptionTariffsTest extends TestCase
         $this->assertEquals(1, SubscriptionService::lessonsUsedThisPeriod($tutor->fresh()));
     }
 
+    /** Строка под именем учителя в сайдбаре нового кабинета (вместо бейджа тарифа в шапке Filament). */
+    protected function assertSidebarProfileSub(\Illuminate\Testing\TestResponse $response, User $tutor, string $sub): void
+    {
+        $this->assertMatchesRegularExpression(
+            '#<span class="truncate text-t2 font-medium">' . preg_quote(e($tutor->name), '#') . '</span>\s*'
+            . '<span class="truncate text-t3 text-muted">' . preg_quote(e($sub), '#') . '</span>#u',
+            $response->getContent()
+        );
+    }
+
     public function test_header_badge_shows_current_tariff(): void
     {
         $tutor = $this->makeTutor();
         SubscriptionService::activate($tutor, Tariff::where('slug', 'basic')->first());
+        $endsAt = $tutor->activeSubscription()->ends_at;
 
         $this->actingAs($tutor)->get('/tutor/students')
-            ->assertOk()
-            ->assertSee('Базовый');
+            ->assertRedirect(route('cabinet.teacher.students'));
+
+        // Тариф и срок — под именем учителя в сайдбаре на любом экране
+        $response = $this->actingAs($tutor)->get(route('cabinet.teacher.students'))->assertOk();
+        $this->assertSidebarProfileSub($response, $tutor, 'Базовый · до ' . \App\Support\HumanDate::date($endsAt));
+
+        // Бесплатный тариф — без срока
+        SubscriptionService::activate($tutor, Tariff::where('slug', 'start')->first());
+        $response = $this->actingAs($tutor)->get(route('cabinet.teacher.students'))->assertOk();
+        $this->assertSidebarProfileSub($response, $tutor, 'Старт · бесплатный');
     }
 
     public function test_header_badge_prompts_to_choose_tariff_when_none(): void
@@ -881,8 +951,19 @@ class SubscriptionTariffsTest extends TestCase
         $tutor = $this->makeTutor();
 
         $this->actingAs($tutor)->get('/tutor/students')
+            ->assertRedirect(route('cabinet.teacher.students'));
+
+        // Без тарифа под именем — ссылка «Профиль и тариф»
+        $response = $this->actingAs($tutor)->get(route('cabinet.teacher.students'))->assertOk();
+        $this->assertSidebarProfileSub($response, $tutor, 'Профиль и тариф');
+
+        // На «Сегодня» — карточка с предложением выбрать тариф и ссылкой на тарифы
+        $this->actingAs($tutor)->get(route('cabinet.teacher.today'))
             ->assertOk()
-            ->assertSee('Выбрать тариф');
+            ->assertSee('Тариф не выбран')
+            ->assertSee('Выберите тариф, чтобы проводить занятия.')
+            ->assertSee('Подключите тариф')
+            ->assertSee(route('cabinet.teacher.subscription'));
     }
 
     public function test_completing_onboarding_activates_free_tariff(): void
@@ -1263,7 +1344,15 @@ class SubscriptionTariffsTest extends TestCase
         $room = $this->makeRoom($tutor);
         $this->exhaustLessonLimit($tutor, $room, $start);
 
-        // Без докупленных — блокировка с предложением докупить
+        // Без докупленных и без подключённых платежей — только «перейдите на тариф выше»
+        $error = SubscriptionService::canStartLesson($tutor->fresh());
+        $this->assertStringContainsString('Перейдите на тариф выше', $error);
+        $this->assertStringNotContainsString('Докупите', $error);
+
+        // Платежи подключены — предлагаем и докупить
+        \App\Models\Setting::updateOrCreate(['key' => 'yookassa_shop_id'], ['value' => '123']);
+        \App\Models\Setting::updateOrCreate(['key' => 'yookassa_secret_key'], ['value' => 'test_key']);
+        SubscriptionService::flushCanStartCache();
         $error = SubscriptionService::canStartLesson($tutor->fresh());
         $this->assertStringContainsString('Докупите занятия', $error);
         $this->assertTrue(SubscriptionService::lessonLimitReached($tutor->fresh()));
@@ -1346,9 +1435,17 @@ class SubscriptionTariffsTest extends TestCase
         SubscriptionService::activate($tutor, $basic);
         $subscriptionId = $tutor->activeSubscription()->id;
 
+        // Окно «Дополнительные занятия» в новом кабинете: списание с сохранённой карты
         Livewire::actingAs($tutor)
-            ->test(ManageSubscription::class)
-            ->call('buyExtraLessons', 4);
+            ->test(\App\Livewire\Cabinet\Teacher\Subscription::class)
+            ->call('openBuy')
+            ->assertSee('Спишем с Bank card *4477')
+            ->set('quantity', 4)
+            ->assertSee('600 ₽')
+            ->call('confirmBuy')
+            ->assertHasNoErrors()
+            ->assertSet('buyOpen', false)
+            ->assertDispatched('toast', message: 'Оплачено — зачислено 4 занятия');
 
         $payment = \App\Models\SubscriptionPayment::where('user_id', $tutor->id)->latest()->first();
         $this->assertTrue($payment->isExtraLessons());
@@ -1368,8 +1465,11 @@ class SubscriptionTariffsTest extends TestCase
             ->assertOk()
             ->assertSee('Дополнительные занятия');
         $this->actingAs($tutor)->get('/tutor/subscription')
+            ->assertRedirect(route('cabinet.teacher.subscription'));
+        $this->actingAs($tutor->fresh())->get(route('cabinet.teacher.subscription'))
             ->assertOk()
-            ->assertSee('Дополнительные занятия (4 занятия)');
+            ->assertSee('Дополнительные занятия (4 занятия)')
+            ->assertSee('+ 4 доп.');
     }
 
     public function test_buy_extra_lessons_rejects_quantity_over_max(): void
@@ -1416,6 +1516,9 @@ class SubscriptionTariffsTest extends TestCase
         $this->exhaustLessonLimit($tutor, $room, $start);
 
         $this->actingAs($tutor)->get('/tutor/subscription')
+            ->assertRedirect(route('cabinet.teacher.subscription'));
+
+        $this->actingAs($tutor)->get(route('cabinet.teacher.subscription'))
             ->assertOk()
             ->assertSee('Докупить занятия')
             ->assertSee('Лимит тарифа исчерпан')
@@ -1424,7 +1527,7 @@ class SubscriptionTariffsTest extends TestCase
 
         // Нулевой баланс докупленных не показываем — лишний шум
         $tutor->update(['extra_lessons_balance' => 0]);
-        $this->actingAs($tutor)->get('/tutor/subscription')
+        $this->actingAs($tutor)->get(route('cabinet.teacher.subscription'))
             ->assertOk()
             ->assertDontSee('+ 0 доп.')
             ->assertSee('докупите их или перейдите на тариф выше');
@@ -1449,34 +1552,60 @@ class SubscriptionTariffsTest extends TestCase
         $room = $this->makeRoom($tutor);
         $this->exhaustLessonLimit($tutor, $room, $start);
 
-        // Страницы с кнопкой «Начать» рендерятся при заблокированном запуске
-        $this->actingAs($tutor)->get('/tutor/rooms')->assertOk();
-        $this->actingAs($tutor)->get('/tutor/rooms/' . $room->id)->assertOk();
+        $buyUrl = route('cabinet.teacher.subscription') . '?buy=1';
 
-        // Модалка на странице комнаты: докупить (основная) + тариф выше
+        // Без онлайн-оплаты докупить нельзя — окно ведёт к выбору тарифа
         Livewire::actingAs($tutor)
-            ->test(\App\Filament\App\Resources\RoomResource\Pages\ViewRoom::class, ['record' => $room->id])
-            ->mountAction('start')
-            ->assertSee('Занятие недоступно')
+            ->test(\App\Livewire\Cabinet\Teacher\Lesson::class, ['room' => $room->id])
+            ->set('startBlockedOpen', true)
+            ->assertSee('Занятия по тарифу закончились')
+            ->assertSee('Выбрать тариф')
+            ->assertDontSee($buyUrl);
+
+        \App\Models\Setting::updateOrCreate(['key' => 'yookassa_shop_id'], ['value' => '123']);
+        \App\Models\Setting::updateOrCreate(['key' => 'yookassa_secret_key'], ['value' => 'test_key']);
+        SubscriptionService::flushCanStartCache();
+
+        // Старые адреса занятий ведут в расписание и на экран занятия нового кабинета
+        $this->actingAs($tutor)->get('/tutor/rooms')
+            ->assertRedirect(route('cabinet.teacher.schedule'));
+        $this->actingAs($tutor)->get('/tutor/rooms/' . $room->id)
+            ->assertRedirect(route('cabinet.teacher.lesson', $room));
+
+        // Экраны с кнопкой «Начать занятие» рендерятся при заблокированном запуске, кнопка не ведёт на запуск
+        $this->actingAs($tutor)->get(route('cabinet.teacher.schedule'))->assertOk();
+        $this->actingAs($tutor)->get(route('cabinet.teacher.lesson', $room))
+            ->assertOk()
+            ->assertSee('Начать занятие')
+            ->assertDontSee(route('rooms.start', $room));
+
+        // Окно на экране занятия: докупить (главная кнопка) + сравнить тарифы
+        Livewire::actingAs($tutor)
+            ->test(\App\Livewire\Cabinet\Teacher\Lesson::class, ['room' => $room->id])
+            ->set('startBlockedOpen', true)
+            ->assertSee('Занятия по тарифу закончились')
             ->assertSee('Докупите занятия')
             ->assertSee('Докупить занятия')
-            ->assertSee('Тариф выше');
+            ->assertSee($buyUrl)
+            ->assertSee('Сравнить тарифы');
 
-        // Модалка в таблице комнат
+        // То же окно в расписании
         Livewire::actingAs($tutor)
-            ->test(\App\Filament\App\Resources\RoomResource\Pages\ListRooms::class)
-            ->mountTableAction('start', $room)
+            ->test(\App\Livewire\Cabinet\Teacher\Schedule::class)
+            ->set('startBlockedOpen', true)
             ->assertSee('Докупить занятия')
-            ->assertSee('Тариф выше');
+            ->assertSee('Сравнить тарифы');
 
         // Истёкшая подписка — предложение докупить неуместно, ведём к тарифам
         $tutor->activeSubscription()->update(['ends_at' => now()->subDay()]);
         SubscriptionService::flushCanStartCache();
         Livewire::actingAs($tutor)
-            ->test(\App\Filament\App\Resources\RoomResource\Pages\ViewRoom::class, ['record' => $room->id])
-            ->mountAction('start')
-            ->assertSee('Перейти к подписке')
-            ->assertDontSee('Тариф выше');
+            ->test(\App\Livewire\Cabinet\Teacher\Lesson::class, ['room' => $room->id])
+            ->set('startBlockedOpen', true)
+            ->assertSee('Подписка закончилась')
+            ->assertSee('Выбрать тариф')
+            ->assertDontSee('Докупить занятия')
+            ->assertDontSee($buyUrl);
     }
 
     public function test_admin_settings_page_shows_extra_lessons_settings(): void

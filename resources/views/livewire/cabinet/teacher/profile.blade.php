@@ -80,7 +80,7 @@
                         <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
                             <x-ui.field label="Телефон" name="phone" type="tel" wire:model="phone" autocomplete="tel" />
                             <x-ui.field label="WhatsApp" name="whatsup" type="tel" wire:model="whatsup" />
-                            <x-ui.field label="Telegram" name="telegram" wire:model="telegram" placeholder="@username" />
+                            <x-ui.field label="Telegram" name="telegram" wire:model="telegram" placeholder="@ник" />
                         </div>
                         <span class="text-t3 text-muted">Контакты видны на вашей странице. Любое поле можно оставить пустым</span>
                     </x-ui.card>

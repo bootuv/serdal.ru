@@ -366,8 +366,13 @@ class SubscriptionService
                 $resetsAt = self::periodResetsAt($user);
                 $resetText = $resetsAt ? ' Лимит обновится ' . $resetsAt->format('d.m.Y') . '.' : '';
 
+                // Докупить можно, только если платежи подключены — иначе не предлагаем
+                $action = \App\Services\YooKassaService::isConfigured()
+                    ? 'Докупите занятия или перейдите на тариф выше'
+                    : 'Перейдите на тариф выше';
+
                 return "Лимит занятий по тарифу «{$tariff->name}» исчерпан ({$used} из {$tariff->lessons_per_month}).{$resetText} "
-                    . 'Докупите занятия или перейдите на тариф выше, чтобы продолжить занятия в этом периоде.';
+                    . $action . ', чтобы продолжить занятия в этом периоде.';
             }
         }
 

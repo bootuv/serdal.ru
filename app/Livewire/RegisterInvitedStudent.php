@@ -95,7 +95,7 @@ class RegisterInvitedStudent extends Component
 
         if ($this->email && User::where('email', $this->email)->exists()) {
             $this->emailTaken = true;
-            $this->addError('email', 'Этот email уже зарегистрирован.');
+            $this->addError('email', 'Эта почта уже зарегистрирована.');
 
             return;
         }
@@ -112,7 +112,7 @@ class RegisterInvitedStudent extends Component
             'last_name.required' => 'Укажите фамилию',
             'first_name.required' => 'Укажите имя',
             'middle_name.required' => 'Укажите отчество',
-            'email.required' => 'Укажите email',
+            'email.required' => 'Укажите почту',
             'email.email' => 'Проверьте адрес — в нём ошибка',
             'phone.max' => 'Слишком длинный номер',
             'password.required' => 'Придумайте пароль',

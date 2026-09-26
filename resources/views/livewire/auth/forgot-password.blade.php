@@ -13,7 +13,7 @@
                 <button type="button" x-show="left === 0" x-cloak wire:click="send" class="link">Отправить ещё раз</button>
             </p>
             @error('email')<p class="text-t2 font-medium text-danger-fg">{{ $message }}</p>@enderror
-            <x-ui.btn size="l" wire:click="back" class="w-full">Указать другой email</x-ui.btn>
+            <x-ui.btn size="l" wire:click="back" class="w-full">Указать другую почту</x-ui.btn>
         </div>
     @else
         <div class="flex flex-col gap-2">
@@ -21,7 +21,7 @@
             <p class="text-t1 text-muted">Пришлём ссылку, чтобы задать новый пароль.</p>
         </div>
         <form wire:submit="send" class="flex flex-col gap-6">
-            <x-ui.field label="Email" name="email" type="email" size="l" autocomplete="email" inputmode="email" placeholder="you@mail.ru" wire:model="email" autofocus />
+            <x-ui.field label="Почта" name="email" type="email" size="l" autocomplete="email" inputmode="email" placeholder="Ваша почта" wire:model="email" autofocus />
             <x-ui.btn type="submit" variant="primary" size="l" class="w-full" wire:loading.attr="disabled" wire:target="send">Прислать ссылку</x-ui.btn>
         </form>
     @endif

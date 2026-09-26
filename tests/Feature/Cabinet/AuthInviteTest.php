@@ -164,8 +164,8 @@ class AuthInviteTest extends TestCase
             ->call('register')
             ->assertHasErrors('email')
             ->assertSet('emailTaken', true)
-            ->assertSee('Этот email уже зарегистрирован.')
-            ->assertSee('Войти с этим email')
+            ->assertSee('Эта почта уже зарегистрирована.')
+            ->assertSee('Войти с этой почтой')
             ->assertSet('step', 1);
     }
 
