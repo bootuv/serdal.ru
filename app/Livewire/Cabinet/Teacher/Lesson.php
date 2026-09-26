@@ -1039,6 +1039,7 @@ class Lesson extends Component
                 'key' => 'm-' . $m->id,
                 'name' => $m->title ?: $m->original_name,
                 'file' => $m->original_name ?: $m->file_path,
+                'thumb' => $m->preview_url,
                 'sub' => 'Видно ученикам занятия',
                 'url' => $m->file_url,
                 'presentation' => null,

@@ -200,8 +200,8 @@ class Materials extends Component
             'folder' => false,
             'title' => $m->title,
             'file' => $m->original_name ?: $m->file_path,
-            // Миниатюра изображения (GenerateMaterialThumbnail) вместо плитки с типом файла
-            'thumb' => $m->thumbnail_url,
+            // Превью картинки (GenerateMaterialThumbnail) вместо плитки с типом файла
+            'thumb' => $m->preview_url,
             'meta' => implode(' · ', array_filter([...$prefix, $this->dateLabel($m->created_at), $this->size($m)])),
             'href' => $m->file_url,
         ];

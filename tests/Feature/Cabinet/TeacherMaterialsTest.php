@@ -133,6 +133,21 @@ class TeacherMaterialsTest extends TestCase
             ->assertSee('Ничего не нашлось');
     }
 
+    /** Картинки показываются превью: миниатюра, а у старых картинок без миниатюры — сам файл. */
+    public function test_images_show_previews(): void
+    {
+        $teacher = $this->user(User::ROLE_TUTOR);
+        $this->material($teacher, 'Схема', ['file_path' => 'materials/scheme.png', 'original_name' => 'Схема.png', 'mime_type' => 'image/png', 'thumbnail_path' => 'materials/thumbs/scheme.jpg']);
+        $this->material($teacher, 'Старый скриншот', ['file_path' => 'materials/old.png', 'original_name' => 'old.png', 'mime_type' => 'image/png']);
+        $this->material($teacher, 'Конспект');
+
+        $this->actingAs($teacher)->get(route('cabinet.teacher.materials'))
+            ->assertOk()
+            ->assertSee(Storage::disk('s3')->url('materials/thumbs/scheme.jpg'), false)
+            ->assertSee(Storage::disk('s3')->url('materials/old.png'), false)
+            ->assertSee('PDF');
+    }
+
     public function test_folders_create_rename_move_and_delete(): void
     {
         $teacher = $this->user(User::ROLE_TUTOR);

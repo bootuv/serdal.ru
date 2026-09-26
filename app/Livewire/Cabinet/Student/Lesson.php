@@ -167,7 +167,7 @@ class Lesson extends Component
                 'folder' => false,
                 'title' => $m->title ?: $m->original_name,
                 'file' => $m->original_name ?: $m->file_path,
-                'thumb' => $m->thumbnail_url,
+                'thumb' => $m->preview_url,
                 'meta' => implode(' · ', array_filter([$m->created_at ? 'Добавлено ' . HumanDate::date($m->created_at) : null, $m->file_size ? $m->formatted_size : null])),
                 'href' => $m->file_url,
             ]);

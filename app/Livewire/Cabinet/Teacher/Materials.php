@@ -583,6 +583,7 @@ class Materials extends Component
             'id' => $m->id,
             'title' => $m->title,
             'file' => $m->original_name ?: $m->file_path,
+            'thumb' => $m->preview_url,
             'access' => implode(' · ', array_filter([$path, $this->service()->accessLabel($m)])),
             'lock' => $m->visibility === TeacherMaterial::VISIBILITY_PRIVATE || ($m->visibility === TeacherMaterial::VISIBILITY_ROOMS && $m->rooms->isEmpty()),
             'size' => $m->file_size > 0 ? str_replace('.', ',', $m->formatted_size) : null,

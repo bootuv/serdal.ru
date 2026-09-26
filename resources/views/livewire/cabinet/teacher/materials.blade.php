@@ -143,7 +143,7 @@
                                                   'bg-white shadow-outline-ink' => ! $on])>@if ($on)<x-ui.icon name="check" size="s" />@endif</span>
                                 </span>
                             @else
-                                <x-ui.file-tile :name="$f['file']" onMint />
+                                <x-ui.file-tile :name="$f['file']" :thumb="$f['thumb']" onMint />
                             @endif
                             <span class="flex min-w-0 flex-1 flex-col gap-1">
                                 <span class="truncate text-t1 font-medium">{{ $f['title'] }}</span>
@@ -218,7 +218,7 @@
                      x-on:livewire-upload-error.stop="$wire.replacementFailed()">
                     <div class="flex items-center gap-3">
                         @php $shownName = $replacement ? ($replacementName ?: $replacement->getClientOriginalName()) : ($file->original_name ?: basename($file->file_path)); @endphp
-                        <x-ui.file-tile :name="$shownName" />
+                        <x-ui.file-tile :name="$shownName" :thumb="$replacement ? null : $file->preview_url" />
                         <x-ui.text :title="$shownName"
                                    :sub="$replacement ? 'Заменит текущий файл после сохранения' : ($file->file_size > 0 ? str_replace('.', ',', $file->formatted_size) : null)" />
                         @if ($replacement)

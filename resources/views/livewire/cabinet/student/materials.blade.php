@@ -60,11 +60,7 @@
                         <x-ui.list>
                             @foreach ($fresh as $item)
                                 <x-ui.row :href="$item['href']" target="_blank" rel="noopener">
-                                    @if ($item['thumb'])
-                                        <img src="{{ $item['thumb'] }}" alt="" loading="lazy" class="size-10 shrink-0 rounded bg-white object-cover">
-                                    @else
-                                        <x-ui.file-tile :name="$item['file']" onMint />
-                                    @endif
+                                    <x-ui.file-tile :name="$item['file']" :thumb="$item['thumb']" onMint />
                                     <div class="flex min-w-0 flex-1 flex-col gap-1">
                                         <span class="truncate text-t1 font-medium">{{ $item['title'] }}</span>
                                         <span class="text-t2 text-muted">{{ $item['lead'] }}@if ($item['lead'] && $item['em']) · @endif @if ($item['em'])<x-ui.em>{{ $item['em'] }}</x-ui.em>@endif</span>

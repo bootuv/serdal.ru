@@ -92,6 +92,12 @@ class TeacherMaterial extends Model
         return $this->thumbnail_path ? Storage::disk('s3')->url($this->thumbnail_path) : null;
     }
 
+    /** Превью для списков: миниатюра, а у картинок без миниатюры (загружены до её появления) — сам файл. */
+    public function getPreviewUrlAttribute(): ?string
+    {
+        return $this->thumbnail_url ?? ($this->file_kind === 'image' ? $this->file_url : null);
+    }
+
     /**
      * Тип файла для отображения (иконка/цвет карточки)
      */

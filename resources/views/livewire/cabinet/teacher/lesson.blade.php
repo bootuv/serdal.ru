@@ -250,7 +250,7 @@
                                 <x-ui.list>
                                     @foreach ($files as $f)
                                         <x-ui.row wire:key="file-{{ $f['key'] }}">
-                                            <x-ui.file-tile :name="$f['file'] ?? $f['name']" onMint />
+                                            <x-ui.file-tile :name="$f['file'] ?? $f['name']" :thumb="$f['thumb'] ?? null" onMint />
                                             <x-ui.text :title="$f['name']" :sub="$f['sub']" />
                                             <a href="{{ $f['url'] }}" target="_blank" rel="noopener" class="link shrink-0 text-t2">Открыть</a>
                                             @if ($f['presentation'] && ! $archived)
