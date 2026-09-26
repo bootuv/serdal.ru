@@ -15,7 +15,8 @@ class SessionDeletionRejected extends Notification implements ShouldBroadcast
     use Queueable, BroadcastsNotification;
 
     public function __construct(
-        public MeetingSession $session
+        public MeetingSession $session,
+        public ?string $reply = null
     ) {
     }
 
@@ -32,11 +33,12 @@ class SessionDeletionRejected extends Notification implements ShouldBroadcast
 
     public function toDatabase(object $notifiable): array
     {
-        $roomName = $this->session->room?->name ?? 'Урок';
+        $roomName = $this->session->room?->name ?? 'Занятие';
+        $reply = trim((string) $this->reply);
 
         return FilamentNotification::make()
             ->title('Запрос отклонён')
-            ->body("Ваш запрос на удаление занятия \"{$roomName}\" был отклонён")
+            ->body("Ваш запрос на удаление занятия \"{$roomName}\" был отклонён" . ($reply !== '' ? ". Ответ администратора: {$reply}" : ''))
             ->danger()
             ->actions([
                 Action::make('view')

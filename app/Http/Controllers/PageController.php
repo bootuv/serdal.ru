@@ -68,6 +68,7 @@ class PageController extends Controller
     {
         $user = User::whereUsername($username)
             ->where('is_active', true)
+            ->where('is_blocked', false)
             ->with(['directs', 'subjects', 'lessonTypes'])
             ->firstOrFail();
 

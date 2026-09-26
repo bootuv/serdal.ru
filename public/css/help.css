@@ -583,3 +583,21 @@
     padding-right: 8px;
   }
 }
+
+/* Линейная иконка категории (ключ из App\Support\HelpIcons, разметка x-ui.icon) */
+.help-cat-ic {
+  display: inline-flex;
+  vertical-align: -0.125em;
+  margin-right: 0.35em;
+}
+
+.help-cat-ic .ic {
+  width: 1em;
+  height: 1em;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex-shrink: 0;
+}

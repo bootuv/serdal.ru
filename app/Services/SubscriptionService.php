@@ -66,6 +66,29 @@ class SubscriptionService
     }
 
     /**
+     * Ручное назначение тарифа администратором (Filament UserResource «Назначить подписку» и карточка учителя
+     * в новой админке): заменяет текущую подписку и сообщает учителю о новом тарифе.
+     * $days = null — срок тарифа по умолчанию; $unlimited — без даты окончания; $free — без оплаты (цена-снимок 0).
+     * Бесплатный тариф всегда бессрочный. Комментарий виден только администраторам.
+     */
+    public static function assignByAdmin(User $user, Tariff $tariff, User $admin, ?int $days = null, bool $unlimited = false, bool $free = false, ?string $note = null): Subscription
+    {
+        $note = trim((string) $note);
+        $subscription = self::activate(
+            $user,
+            $tariff,
+            days: $unlimited || $tariff->isFree() ? null : ($days ?: $tariff->period_days),
+            unlimited: $unlimited && ! $tariff->isFree(),
+            comment: 'Назначена администратором: ' . $admin->name . ($note !== '' ? ' · ' . $note : ''),
+            price: $free && ! $tariff->isFree() ? 0 : null,
+        );
+
+        $user->notify(new \App\Notifications\SubscriptionAssigned($tariff->name, $subscription->ends_at, $subscription->isComplimentary()));
+
+        return $subscription;
+    }
+
+    /**
      * Планирует переключение на тариф после окончания текущего оплаченного
      * периода. До даты $startsAt действуют условия текущей подписки —
      * оплаченные лимиты не сгорают при даунгрейде.

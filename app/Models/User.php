@@ -97,6 +97,7 @@ class User extends Authenticatable implements FilamentUser
             'auto_renew' => 'boolean',
             'extra_lessons_balance' => 'integer',
             'referral_banner_hidden_until' => 'datetime',
+            'last_login_at' => 'datetime',
         ];
     }
 

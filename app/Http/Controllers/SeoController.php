@@ -201,6 +201,7 @@ class SeoController extends Controller
     {
         return User::isSpecialist()
             ->where('is_active', true)
+            ->where('is_blocked', false)
             ->whereNotNull('username')
             ->with(['subjects', 'directs'])
             ->orderBy('id')

@@ -31,8 +31,8 @@ class SessionLogoutController extends Controller
         }
 
         if ($user->isAdmin()) {
-            // Admins go to admin panel session view
-            return redirect()->route('filament.admin.resources.meeting-sessions.view', $session);
+            // Админ — на отчёт о занятии в новой админке
+            return redirect()->route('cabinet.admin.session', ['session' => $session->id]);
         }
 
         // Учитель — на страницу занятия нового кабинета: там итоги прошедшего занятия

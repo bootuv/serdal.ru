@@ -43,7 +43,7 @@ class StudentLeftReviewAdmin extends Notification implements ShouldBroadcast
                 \Filament\Notifications\Actions\Action::make('view')
                     ->label('Открыть')
                     ->button()
-                    ->url(route('filament.admin.resources.reviews.index'))
+                    ->url(route('cabinet.admin.reviews', ['tab' => 'all']))
             ])
             ->getDatabaseMessage();
     }

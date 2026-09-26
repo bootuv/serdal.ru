@@ -34,17 +34,17 @@ class SessionDeletionRequested extends Notification implements ShouldBroadcast
 
     public function toDatabase(object $notifiable): array
     {
-        $roomName = $this->session->room?->name ?? 'Урок';
+        $roomName = $this->session->room?->name ?? 'Занятие';
         $teacherName = $this->teacher->name ?? 'Учитель';
 
         return FilamentNotification::make()
-            ->title('Запрос на удаление сессии')
-            ->body("Учитель {$teacherName} запросил удаление сессии \"{$roomName}\"")
+            ->title('Запрос на удаление занятия')
+            ->body("Учитель {$teacherName} просит удалить проведённое занятие «{$roomName}»")
             ->warning()
             ->actions([
                 Action::make('view')
                     ->label('Просмотреть')
-                    ->url("/admin/meeting-sessions/{$this->session->id}")
+                    ->url(route('cabinet.admin.session', ['session' => $this->session->id]))
                     ->button()
                     ->color('warning')
                     ->markAsRead(),

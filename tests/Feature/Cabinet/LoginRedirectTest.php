@@ -7,7 +7,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
-/** После входа ученик и учитель попадают в новые кабинеты, админ — в /admin. */
+/** После входа ученик и учитель попадают в новые кабинеты, админ — в новую админку /cabinet/admin. */
 class LoginRedirectTest extends TestCase
 {
     use RefreshDatabase;
@@ -24,7 +24,7 @@ class LoginRedirectTest extends TestCase
     {
         $this->assertSame(route('cabinet.student.home'), $this->landing(User::ROLE_STUDENT));
         $this->assertSame(route('cabinet.teacher.today'), $this->landing(User::ROLE_TUTOR));
-        $this->assertSame(url('/admin'), $this->landing(User::ROLE_ADMIN));
+        $this->assertSame(route('cabinet.admin.today'), $this->landing(User::ROLE_ADMIN));
     }
 
     public function test_intended_url_is_kept(): void

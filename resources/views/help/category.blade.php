@@ -39,7 +39,7 @@
 
             <main class="help-main">
                 <button type="button" class="help-nav-toggle" @click="navOpen = true">☰&nbsp; Содержание</button>
-                <h1 class="help-main-title">{{ $category->icon ? $category->icon . ' ' : '' }}{{ $category->name }}</h1>
+                <h1 class="help-main-title">@include('help.partials.category-icon', ['icon' => $category->icon]){{ $category->name }}</h1>
                 @if($category->description)
                     <p class="p18 help-main-description">{{ $category->description }}</p>
                 @endif

@@ -343,13 +343,15 @@ class UserResource extends Resource
     {
         $tariff = \App\Models\Tariff::findOrFail($data['tariff_id']);
 
-        \App\Services\SubscriptionService::activate(
+        // Общая логика с новой админкой (карточка учителя): замена подписки и уведомление учителю
+        \App\Services\SubscriptionService::assignByAdmin(
             $record,
             $tariff,
+            auth()->user(),
             days: !empty($data['unlimited']) || $tariff->isFree() ? null : (int) ($data['days'] ?? $tariff->period_days),
             unlimited: !empty($data['unlimited']),
-            comment: ($data['comment'] ?? null) ?: 'Назначена администратором: ' . auth()->user()->name,
-            price: !empty($data['free']) ? 0 : null,
+            free: !empty($data['free']),
+            note: $data['comment'] ?? null,
         );
 
         \Filament\Notifications\Notification::make()

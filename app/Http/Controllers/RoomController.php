@@ -360,139 +360,14 @@ class RoomController extends Controller
 
     public function stop(Room $room)
     {
-        // Check Authorization (Room Owner or Admin)
-        if ($room->user_id !== auth()->id() && !auth()->user()->hasRole('admin')) {
+        // Владелец занятия или администратор (раньше — hasRole(), которого у User нет: у администратора падало с 500)
+        if ($room->user_id !== auth()->id() && ! auth()->user()->isAdmin()) {
             abort(403);
         }
 
-        // Apply Custom BBB Settings if available
-        $owner = $room->user;
-        if ($owner && $owner->bbb_url && $owner->bbb_secret) {
-            config([
-                'bigbluebutton.BBB_SERVER_BASE_URL' => $owner->bbb_url,
-                'bigbluebutton.BBB_SECURITY_SALT' => $owner->bbb_secret,
-            ]);
-        } else {
-            // Check Global Admin Settings
-            $globalUrl = \App\Models\Setting::where('key', 'bbb_url')->value('value');
-            $globalSecret = \App\Models\Setting::where('key', 'bbb_secret')->value('value');
-
-            if ($globalUrl && $globalSecret) {
-                config([
-                    'bigbluebutton.BBB_SERVER_BASE_URL' => $globalUrl,
-                    'bigbluebutton.BBB_SECURITY_SALT' => $globalSecret,
-                ]);
-            }
-        }
-
-        // Capture participant count and analytics before closing (includes moderator)
-        $participantCount = 0;
-        $analyticsData = null;
-
-        \Illuminate\Support\Facades\Log::info('Attempting to capture analytics for meeting: ' . $room->meeting_id);
-
-        try {
-            $info = Bigbluebutton::getMeetingInfo(['meetingID' => $room->meeting_id]);
-
-            \Illuminate\Support\Facades\Log::info('BBB getMeetingInfo response', [
-                'meeting_id' => $room->meeting_id,
-                'info_type' => gettype($info),
-                'info_data' => $info,
-            ]);
-
-            if ($info && isset($info['participantCount'])) {
-                // BBB's participantCount already includes all users (moderators + attendees)
-                $participantCount = (int) $info['participantCount'];
-
-                \Illuminate\Support\Facades\Log::info('Analytics captured successfully', [
-                    'participant_count' => $participantCount,
-                    'has_attendees' => isset($info['attendees']),
-                ]);
-
-                // Store detailed analytics
-                $analyticsData = [
-                    'meeting_name' => $info['meetingName'] ?? $room->name,
-                    'create_time' => isset($info['createTime']) ? (int) $info['createTime'] : null,
-                    'voice_participant_count' => $info['voiceParticipantCount'] ?? 0,
-                    'video_count' => $info['videoCount'] ?? 0,
-                    'moderator_count' => $info['moderatorCount'] ?? 0,
-                    'attendee_count' => $info['attendeeCount'] ?? 0,
-                    'listener_count' => $info['listenerCount'] ?? 0,
-                    'participant_count' => $participantCount,
-                    'metadata' => $info['metadata'] ?? [],
-                    'participants' => [],
-                ];
-
-                // Extract participant details if available
-                // BBB returns attendees.attendee, which can be an array (multiple) or object (single)
-                $attendeesRaw = $info['attendees']['attendee'] ?? $info['attendees'] ?? null;
-
-                if ($attendeesRaw) {
-                    // Normalize: if single attendee (associative array), wrap in array
-                    if (isset($attendeesRaw['userID'])) {
-                        $attendeesRaw = [$attendeesRaw];
-                    }
-
-                    // Get session for timestamps
-                    $currentSession = \App\Models\MeetingSession::where('room_id', $room->id)
-                        ->where('meeting_id', $room->meeting_id)
-                        ->where('status', 'running')
-                        ->orderByDesc('started_at')
-                        ->first();
-                    $sessionStart = $currentSession?->started_at ?? now();
-
-                    foreach ($attendeesRaw as $attendee) {
-                        $analyticsData['participants'][] = [
-                            'user_id' => $attendee['userID'] ?? null,
-                            'full_name' => $attendee['fullName'] ?? 'Unknown',
-                            'role' => $attendee['role'] ?? 'VIEWER',
-                            'is_presenter' => filter_var($attendee['isPresenter'] ?? false, FILTER_VALIDATE_BOOLEAN),
-                            'is_listening_only' => filter_var($attendee['isListeningOnly'] ?? false, FILTER_VALIDATE_BOOLEAN),
-                            'has_joined_voice' => filter_var($attendee['hasJoinedVoice'] ?? false, FILTER_VALIDATE_BOOLEAN),
-                            'has_video' => filter_var($attendee['hasVideo'] ?? false, FILTER_VALIDATE_BOOLEAN),
-                            // Add time tracking - use session timestamps as fallback
-                            'joined_at' => $sessionStart->toIso8601String(),
-                            'left_at' => now()->toIso8601String(),
-                        ];
-                    }
-                }
-            } else {
-                \Illuminate\Support\Facades\Log::warning('No participant data in BBB response', [
-                    'meeting_id' => $room->meeting_id,
-                    'info' => $info,
-                ]);
-            }
-        } catch (\Exception $e) {
-            // Ignore error if meeting already closed or unreachable
-            \Illuminate\Support\Facades\Log::warning('Failed to capture analytics: ' . $e->getMessage(), [
-                'meeting_id' => $room->meeting_id,
-                'exception' => get_class($e),
-            ]);
-        }
-
-        Bigbluebutton::close([
-            'meetingID' => $room->meeting_id,
-            'moderatorPW' => $room->moderator_pw,
-        ]);
-
-        $room->update(['is_running' => false]);
-        \App\Events\RoomStatusUpdated::dispatch();
-
-        $session = \App\Models\MeetingSession::where('room_id', $room->id)
-            ->where('meeting_id', $room->meeting_id)
-            ->where('status', 'running')
-            ->orderByDesc('started_at')
-            ->first();
-
-        if ($session) {
-            $session->update([
-                'ended_at' => now(),
-                'status' => 'completed',
-                'participant_count' => max($participantCount, 1), // At least the creator
-                'analytics_data' => $analyticsData,
-                'pricing_snapshot' => $session->capturePricingSnapshot(),
-            ]);
-        }
+        $room->user_id !== auth()->id()
+            ? app(\App\Services\LessonStopService::class)->stopByAdmin($room, auth()->user())
+            : app(\App\Services\LessonStopService::class)->stop($room);
 
         return back()->with('success', 'Meeting stopped successfully.');
     }

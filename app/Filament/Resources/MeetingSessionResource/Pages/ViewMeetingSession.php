@@ -34,16 +34,7 @@ class ViewMeetingSession extends ViewRecord
                 ->modalHeading('Подтверждение удаления')
                 ->modalDescription('Вы действительно хотите удалить эту сессию? Это действие необратимо.')
                 ->action(function () {
-                    $teacher = $this->record->user;
-                    $roomName = $this->record->room->name ?? 'Урок';
-                    $startedAt = $this->record->started_at?->format('d.m.Y H:i') ?? '';
-
-                    $this->record->delete();
-
-                    // Notify teacher that deletion was approved
-                    if ($teacher) {
-                        $teacher->notify(new \App\Notifications\SessionDeletionApproved($roomName, $startedAt));
-                    }
+                    app(\App\Services\SessionDeletionService::class)->approve($this->record, auth()->user());
 
                     \Filament\Notifications\Notification::make()
                         ->title('Сессия удалена')
@@ -61,17 +52,7 @@ class ViewMeetingSession extends ViewRecord
                 ->outlined()
                 ->requiresConfirmation()
                 ->action(function () {
-                    $teacher = $this->record->user;
-
-                    $this->record->update([
-                        'deletion_requested_at' => null,
-                        'deletion_reason' => null,
-                    ]);
-
-                    // Notify teacher that deletion was rejected
-                    if ($teacher) {
-                        $teacher->notify(new \App\Notifications\SessionDeletionRejected($this->record));
-                    }
+                    app(\App\Services\SessionDeletionService::class)->reject($this->record, auth()->user());
 
                     \Filament\Notifications\Notification::make()
                         ->title('Запрос отклонен')

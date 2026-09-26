@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Events\MessageSent;
 use App\Events\MessagesRead;
 use App\Events\SupportMessageSent;
+use App\Events\SupportMessagesRead;
 use App\Jobs\SendSupportMessageTelegramNotification;
 use App\Jobs\SendUnreadMessageNotification;
 use App\Jobs\SendUnreadSupportMessageNotification;
@@ -205,6 +206,7 @@ class MessengerService
         $rows = $rows->take($limit)->reverse()->values();
 
         $group = $chat instanceof Room && $this->describe($user, $chat)['type'] === 'group';
+        $supportSide = self::isSupportSide($user, $chat);
         $items = [];
         $day = null;
         foreach ($rows as $m) {
@@ -213,16 +215,22 @@ class MessengerService
                 $day = $d;
                 $items[] = ['day' => mb_strtoupper(mb_substr($label = HumanDate::day($m->created_at), 0, 1)) . mb_substr($label, 1)];
             }
-            $own = $m->user_id === $user->id;
+            // Администратор в чате поддержки: «свои» — все ответы поддержки, чужие — сообщения владельца чата
+            $own = $supportSide ? $m->user_id !== $chat->user_id : $m->user_id === $user->id;
+            $mine = $m->user_id === $user->id;
             $items[] = [
                 'id' => $m->id,
                 'own' => $own,
-                'who' => ! $own && ($group || $chat instanceof SupportChat) ? ($chat instanceof SupportChat ? 'Поддержка Serdal' : $m->user?->name) : null,
+                'who' => match (true) {
+                    $supportSide => $own && ! $mine ? $m->user?->name : null,
+                    ! $own && ($group || $chat instanceof SupportChat) => $chat instanceof SupportChat ? 'Поддержка Serdal' : $m->user?->name,
+                    default => null,
+                },
                 'text' => (string) $m->content,
                 'files' => $this->files($m->attachments ?? []),
                 'time' => $m->created_at->format('H:i'),
                 'read' => $own && $m->read_at !== null,
-                'canEdit' => $own && trim((string) $m->content) !== '',
+                'canEdit' => $mine && trim((string) $m->content) !== '',
                 'canDelete' => $this->canDelete($user, $m),
             ];
         }
@@ -250,7 +258,10 @@ class MessengerService
     /** Помечает прочитанными чужие сообщения и сообщает собеседникам (галочки). */
     public function markRead(User $user, Room|SupportChat $chat): void
     {
-        $unread = $chat->messages()->where('user_id', '!=', $user->id)->whereNull('read_at');
+        // Администратор читает сообщения владельца чата поддержки (ответы других администраторов — не его входящие)
+        $unread = self::isSupportSide($user, $chat)
+            ? $chat->messages()->where('user_id', $chat->user_id)->whereNull('read_at')
+            : $chat->messages()->where('user_id', '!=', $user->id)->whereNull('read_at');
         $ids = (clone $unread)->pluck('id')->all();
         if ($ids === []) {
             return;
@@ -259,9 +270,79 @@ class MessengerService
         $readAt = now();
         $chat->messages()->whereKey($ids)->update(['read_at' => $readAt]);
 
-        if ($chat instanceof Room) {
-            broadcast(new MessagesRead($chat->id, $ids, $readAt->toISOString()))->toOthers();
-        }
+        broadcast($chat instanceof Room
+            ? new MessagesRead($chat->id, $ids, $readAt->toISOString())
+            : new SupportMessagesRead($chat->id, $ids, $readAt->toISOString()))->toOthers();
+    }
+
+    /** Администратор в чужом чате поддержки — отвечает от имени поддержки. */
+    public static function isSupportSide(User $user, Room|SupportChat $chat): bool
+    {
+        return $chat instanceof SupportChat && $user->role === User::ROLE_ADMIN && $chat->user_id !== $user->id;
+    }
+
+    /**
+     * Обращения в поддержку для администратора: чаты с сообщениями, новые сверху.
+     * Непрочитанное — сообщения владельца чата без read_at. Поиск — по имени и почте.
+     *
+     * @return Collection<int, array>
+     */
+    public function supportDialogs(string $search = ''): Collection
+    {
+        $term = trim($search);
+        $chats = SupportChat::query()
+            ->whereHas('messages')
+            ->whereHas('user', fn (Builder $q) => $q->where('role', '!=', User::ROLE_ADMIN))
+            ->when($term !== '', function (Builder $q) use ($term) {
+                $like = '%' . addcslashes($term, '%_\\') . '%';
+                $q->whereHas('user', fn (Builder $u) => $u->where(fn (Builder $w) => $w->where('name', 'like', $like)->orWhere('email', 'like', $like)));
+            })
+            ->with('user')
+            ->withCount(['messages as unread_count' => fn ($q) => $q->whereNull('read_at')->whereColumn('support_messages.user_id', 'support_chats.user_id')])
+            ->get();
+
+        $last = SupportMessage::whereIn('id', SupportMessage::selectRaw('max(id)')->whereIn('support_chat_id', $chats->pluck('id'))->groupBy('support_chat_id'))
+            ->get()
+            ->keyBy('support_chat_id');
+
+        return $chats->map(function (SupportChat $chat) use ($last) {
+            $message = $last->get($chat->id);
+            $body = $message ? trim((string) $message->content) : '';
+            if ($message && $body === '' && ! empty($message->attachments)) {
+                $body = $message->attachments[0]['name'] ?? 'Файл';
+            }
+            $body = str_replace(["\r", "\n"], ' ', $body);
+
+            return [
+                'id' => $chat->id,
+                'user' => $chat->user,
+                'name' => $chat->user?->name ?? 'Пользователь',
+                'role' => self::roleLabel($chat->user),
+                'unread' => (int) $chat->unread_count,
+                'preview' => $message ? ($message->user_id !== $chat->user_id ? 'Вы: ' . $body : $body) : '',
+                'time' => $message ? $this->shortTime($message->created_at) : '',
+                'sort' => $message?->id ?? 0,
+            ];
+        })->sortByDesc('sort')->values();
+    }
+
+    /** Непрочитанные обращения в поддержку (диалоги) — для «Непрочитанные · N». */
+    public function supportUnreadDialogs(): int
+    {
+        return SupportChat::whereHas('user', fn (Builder $q) => $q->where('role', '!=', User::ROLE_ADMIN))
+            ->whereHas('messages', fn ($q) => $q->whereNull('read_at')->whereColumn('support_messages.user_id', 'support_chats.user_id'))
+            ->count();
+    }
+
+    /** «Учитель», «Ученик». */
+    public static function roleLabel(?User $user): string
+    {
+        return match ($user?->role) {
+            User::ROLE_TUTOR => 'Учитель',
+            User::ROLE_STUDENT => 'Ученик',
+            User::ROLE_ADMIN => 'Администратор',
+            default => '',
+        };
     }
 
     /**

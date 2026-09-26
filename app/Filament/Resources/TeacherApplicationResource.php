@@ -10,11 +10,7 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use App\Mail\TeacherApplicationApproved;
-use App\Mail\TeacherApplicationRejected;
-use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
+use App\Services\TeacherApplicationService;
 use Filament\Notifications\Notification;
 
 class TeacherApplicationResource extends Resource
@@ -194,7 +190,8 @@ class TeacherApplicationResource extends Resource
                     ->requiresConfirmation()
                     ->visible(fn(TeacherApplication $record) => $record->status === 'pending')
                     ->action(function (TeacherApplication $record) {
-                        if (User::where('email', $record->email)->exists()) {
+                        // Логика одобрения — TeacherApplicationService (общая с новой админкой)
+                        if (! app(TeacherApplicationService::class)->approve($record)) {
                             Notification::make()
                                 ->title('Ошибка')
                                 ->body('Пользователь с таким Email уже существует')
@@ -202,35 +199,6 @@ class TeacherApplicationResource extends Resource
                                 ->send();
                             return;
                         }
-
-                        $password = Str::password(10);
-
-                        $user = User::create([
-                            'first_name' => $record->first_name,
-                            'last_name' => $record->last_name,
-                            'middle_name' => $record->middle_name,
-                            'email' => $record->email,
-                            'password' => Hash::make($password),
-                            'phone' => $record->phone,
-                            'about' => $record->about,
-                            'role' => User::ROLE_TUTOR,
-                            'is_active' => true,
-                            'grade' => $record->grade,
-                            'is_profile_completed' => false,
-                            'desired_tariff_id' => $record->desired_tariff_id,
-                            'referred_by_id' => $record->referred_by_id,
-                        ]);
-
-                        if (!empty($record->subjects)) {
-                            $user->subjects()->sync($record->subjects);
-                        }
-                        if (!empty($record->directs)) {
-                            $user->directs()->sync($record->directs);
-                        }
-
-                        Mail::to($user)->send(new TeacherApplicationApproved($user, $password));
-
-                        $record->update(['status' => 'approved']);
 
                         Notification::make()
                             ->title('Заявка одобрена')
@@ -245,9 +213,11 @@ class TeacherApplicationResource extends Resource
                     ->color('danger')
                     ->requiresConfirmation()
                     ->visible(fn(TeacherApplication $record) => $record->status === 'pending')
-                    ->action(function (TeacherApplication $record) {
-                        Mail::to($record->email)->send(new TeacherApplicationRejected());
-                        $record->update(['status' => 'rejected']);
+                    ->form([
+                        Forms\Components\Textarea::make('reason')->label('Причина (уйдёт в письме, необязательно)'),
+                    ])
+                    ->action(function (TeacherApplication $record, array $data) {
+                        app(TeacherApplicationService::class)->reject($record, $data['reason'] ?? null);
 
                         Notification::make()
                             ->title('Заявка отклонена')

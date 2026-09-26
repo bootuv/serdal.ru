@@ -62,13 +62,14 @@ class TariffResource extends Resource
     {
         $text = 'Тариф будет скрыт с сайта и недоступен для покупки. История подписок и платежей по нему сохранится.';
 
-        $active = $record->subscriptions()->active()->count();
-        if ($active > 0) {
-            $text .= ' Внимание: у тарифа ' . $active . ' активных подписок — они продолжат действовать до конца оплаченного периода.';
+        // Последствия считает общий сервис (им пользуется и новая админка /cabinet/admin/tariffs)
+        $c = app(\App\Services\TariffService::class)->consequences($record);
+        if ($c['active'] > 0) {
+            $text .= ' Внимание: у тарифа ' . $c['active'] . ' активных подписок — они продолжат действовать до конца оплаченного периода.';
         }
 
-        if ($record->isFree() && $record->is_active) {
-            $text .= ' Это бесплатный тариф: без него новым пользователям после онбординга тариф назначаться не будет.';
+        if ($c['freeWarning']) {
+            $text .= ' ' . \App\Services\TariffService::FREE_WARNING;
         }
 
         return $text;

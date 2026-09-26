@@ -89,15 +89,7 @@ class ManageBigBlueButton extends Page implements HasForms
             'yookassa_recurring_enabled' => Setting::where('key', 'yookassa_recurring_enabled')->value('value') === '1',
             'extra_lesson_price' => \App\Services\SubscriptionService::extraLessonPrice(),
             'extra_lessons_max' => \App\Services\SubscriptionService::extraLessonsMax(),
-            'referral_enabled' => \App\Services\ReferralService::enabled(),
-            'referral_bonus_referrer' => \App\Services\ReferralService::referrerBonus(),
-            'referral_bonus_referred' => \App\Services\ReferralService::referredBonus(),
-            'referral_monthly_limit' => \App\Services\ReferralService::monthlyLimit(),
-            'referral_cookie_days' => \App\Services\ReferralService::cookieDays(),
-            'referral_banner_enabled' => \App\Models\Setting::where('key', 'referral_banner_enabled')->value('value') !== '0',
-            'referral_banner_delay_days' => \App\Services\ReferralService::bannerDelayDays(),
-            'referral_banner_snooze_days' => \App\Services\ReferralService::bannerSnoozeDays(),
-        ] + $this->seoState();
+        ] + \App\Services\ReferralService::settings() + $this->seoState();
     }
 
     /** Значения SEO-настроек для формы: тексты с дефолтами, файлы — только загруженные. */
@@ -519,9 +511,8 @@ class ManageBigBlueButton extends Page implements HasForms
                 ->modalSubmitActionLabel('Переключить')
                 ->modalCancelActionLabel('Отмена')
                 ->action(function () {
-                    $enable = !\App\Services\YooKassaService::isTestMode();
-
-                    Setting::updateOrCreate(['key' => 'yookassa_test_mode'], ['value' => $enable ? '1' : '0']);
+                    // Та же логика, что в новой админке («Настройки» → «Оплата»)
+                    $enable = app(\App\Services\SiteSettingsService::class)->toggleYooKassaTestMode();
                     $this->form->fill($this->settingsState());
 
                     Notification::make()
@@ -595,15 +586,8 @@ class ManageBigBlueButton extends Page implements HasForms
         Setting::updateOrCreate(['key' => 'extra_lesson_price'], ['value' => (string) max(1, (int) ($data['extra_lesson_price'] ?? 0))]);
         Setting::updateOrCreate(['key' => 'extra_lessons_max'], ['value' => (string) max(1, (int) ($data['extra_lessons_max'] ?? 0))]);
 
-        // Referral program
-        Setting::updateOrCreate(['key' => 'referral_enabled'], ['value' => !empty($data['referral_enabled']) ? '1' : '0']);
-        Setting::updateOrCreate(['key' => 'referral_bonus_referrer'], ['value' => (string) max(0, (int) ($data['referral_bonus_referrer'] ?? 0))]);
-        Setting::updateOrCreate(['key' => 'referral_bonus_referred'], ['value' => (string) max(0, (int) ($data['referral_bonus_referred'] ?? 0))]);
-        Setting::updateOrCreate(['key' => 'referral_monthly_limit'], ['value' => (string) max(0, (int) ($data['referral_monthly_limit'] ?? 0))]);
-        Setting::updateOrCreate(['key' => 'referral_cookie_days'], ['value' => (string) max(1, (int) ($data['referral_cookie_days'] ?? 0))]);
-        Setting::updateOrCreate(['key' => 'referral_banner_enabled'], ['value' => !empty($data['referral_banner_enabled']) ? '1' : '0']);
-        Setting::updateOrCreate(['key' => 'referral_banner_delay_days'], ['value' => (string) max(0, (int) ($data['referral_banner_delay_days'] ?? 0))]);
-        Setting::updateOrCreate(['key' => 'referral_banner_snooze_days'], ['value' => (string) max(1, (int) ($data['referral_banner_snooze_days'] ?? 0))]);
+        // Партнёрская программа — те же ключи сохраняет новая админка (окно «Настройки программы»)
+        \App\Services\ReferralService::saveSettings($data);
 
         // SEO
         foreach (array_keys(SeoSettings::DEFAULTS) as $key) {

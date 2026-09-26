@@ -1,5 +1,5 @@
 <x-mail::message>
-    # Новая заявка на преподавателя
+    # Новая заявка от учителя
 
     **Имя:** {{ $application->full_name }}
 
@@ -7,7 +7,7 @@
 
     **Телефон:** {{ $application->phone }}
 
-    <x-mail::button :url="url('/admin/teacher-applications')">
+    <x-mail::button :url="route('cabinet.admin.applications')">
         Посмотреть заявки
     </x-mail::button>
 

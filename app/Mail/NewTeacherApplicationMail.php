@@ -29,7 +29,7 @@ class NewTeacherApplicationMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Новая заявка на преподавателя: ' . $this->application->full_name,
+            subject: 'Новая заявка от учителя: ' . $this->application->full_name,
         );
     }
 

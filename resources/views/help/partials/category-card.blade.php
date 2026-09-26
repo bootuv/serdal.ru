@@ -1,6 +1,6 @@
 <div class="content-card help-category-card">
     <a href="{{ $category->url }}" class="p24-medium help-category-title">
-        {{ $category->icon ? $category->icon . ' ' : '' }}{{ $category->name }}
+        @include('help.partials.category-icon', ['icon' => $category->icon]){{ $category->name }}
     </a>
     @if($category->publishedArticles->isNotEmpty())
         <div class="help-category-articles">

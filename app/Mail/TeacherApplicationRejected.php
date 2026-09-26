@@ -16,9 +16,9 @@ class TeacherApplicationRejected extends Mailable
     /**
      * Create a new message instance.
      */
-    public function __construct()
+    /** @param  string|null  $reason  причина отказа от администратора (если указана) */
+    public function __construct(public ?string $reason = null)
     {
-        //
     }
 
     /**

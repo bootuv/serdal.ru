@@ -23,12 +23,13 @@ class Review extends Model
 
     protected $fillable = [
         'text', 'user_id', 'teacher_id', 'rating', 'is_reported', 'is_rejected', 'teacher_read_at',
-        'report_reason', 'report_note', 'reported_at',
+        'report_reason', 'report_note', 'reported_at', 'hidden_at',
     ];
 
     protected $casts = [
         'teacher_read_at' => 'datetime',
         'reported_at' => 'datetime',
+        'hidden_at' => 'datetime',
     ];
 
     public function user(): BelongsTo

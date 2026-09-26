@@ -39,7 +39,7 @@ class SendSupportMessageTelegramNotification implements ShouldQueue
         }
 
         try {
-            $url = route('filament.admin.pages.admin-messenger', ['chat' => $this->message->support_chat_id]);
+            $url = route('cabinet.admin.support', ['chat' => $this->message->support_chat_id]);
         } catch (\Exception) {
             $url = null;
         }

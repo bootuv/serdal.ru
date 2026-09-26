@@ -1141,6 +1141,7 @@ class SubscriptionTariffsTest extends TestCase
 
     public function test_admin_can_assign_unlimited_max_tariff(): void
     {
+        \Illuminate\Support\Facades\Notification::fake();
         $tutor = $this->makeTutor();
         $admin = $this->makeAdmin();
         $master = Tariff::where('slug', 'master')->first();
@@ -1157,6 +1158,8 @@ class SubscriptionTariffsTest extends TestCase
         $this->assertEquals($master->id, $subscription->tariff_id);
         $this->assertNull($subscription->ends_at);
         $this->assertStringContainsString('администратором', $subscription->comment);
+        // Учитель узнаёт о новом тарифе
+        \Illuminate\Support\Facades\Notification::assertSentTo($tutor, \App\Notifications\SubscriptionAssigned::class);
     }
 
     public function test_check_command_notifies_about_expiring_subscription_once(): void

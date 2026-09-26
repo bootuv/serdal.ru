@@ -347,6 +347,96 @@ class ReferralService
         return null;
     }
 
+    /**
+     * Текущие настройки программы для форм (админка: окно «Настройки программы», Filament «Партнёрская программа»).
+     */
+    public static function settings(): array
+    {
+        return [
+            'referral_enabled' => self::enabled(),
+            'referral_bonus_referrer' => self::referrerBonus(),
+            'referral_bonus_referred' => self::referredBonus(),
+            'referral_monthly_limit' => self::monthlyLimit(),
+            'referral_cookie_days' => self::cookieDays(),
+            'referral_banner_enabled' => self::setting('referral_banner_enabled') === '1',
+            'referral_banner_delay_days' => self::bannerDelayDays(),
+            'referral_banner_snooze_days' => self::bannerSnoozeDays(),
+        ];
+    }
+
+    /**
+     * Сохраняет настройки программы (ключи — как в settings()). Уже начисленные бонусы не меняются.
+     */
+    public static function saveSettings(array $data): void
+    {
+        $values = [
+            'referral_enabled' => ! empty($data['referral_enabled']) ? '1' : '0',
+            'referral_bonus_referrer' => (string) max(0, (int) ($data['referral_bonus_referrer'] ?? 0)),
+            'referral_bonus_referred' => (string) max(0, (int) ($data['referral_bonus_referred'] ?? 0)),
+            'referral_monthly_limit' => (string) max(0, (int) ($data['referral_monthly_limit'] ?? 0)),
+            'referral_cookie_days' => (string) max(1, (int) ($data['referral_cookie_days'] ?? 0)),
+            'referral_banner_enabled' => ! empty($data['referral_banner_enabled']) ? '1' : '0',
+            'referral_banner_delay_days' => (string) max(0, (int) ($data['referral_banner_delay_days'] ?? 0)),
+            'referral_banner_snooze_days' => (string) max(1, (int) ($data['referral_banner_snooze_days'] ?? 0)),
+        ];
+
+        foreach ($values as $key => $value) {
+            Setting::updateOrCreate(['key' => $key], ['value' => $value]);
+        }
+    }
+
+    /**
+     * Сводка программы за месяц (админка): пришли по приглашению, оплатили тариф, начислено занятий.
+     */
+    public static function monthSummary(\Illuminate\Support\Carbon $month): array
+    {
+        $from = $month->copy()->startOfMonth();
+        $to = $from->copy()->endOfMonth();
+
+        $rewards = ReferralReward::whereBetween('created_at', [$from, $to])->get();
+        $credited = $rewards->whereIn('status', [ReferralReward::STATUS_CREDITED, ReferralReward::STATUS_LIMIT]);
+
+        return [
+            'joined' => User::whereNotNull('referred_by_id')->whereBetween('created_at', [$from, $to])->count(),
+            'paid' => $rewards->count(),
+            'toReferrers' => (int) $credited->sum('referrer_lessons'),
+            'toReferred' => (int) $credited->sum('referred_lessons'),
+        ];
+    }
+
+    /**
+     * Учителя, которые чаще всех приглашают коллег: сколько пришло по их ссылке и сколько занятий им начислено.
+     */
+    public static function topReferrers(int $limit = 3): \Illuminate\Support\Collection
+    {
+        $lessons = ReferralReward::where('status', ReferralReward::STATUS_CREDITED)
+            ->selectRaw('referrer_id, SUM(referrer_lessons) as lessons')
+            ->groupBy('referrer_id')
+            ->pluck('lessons', 'referrer_id');
+
+        return User::whereIn('id', User::whereNotNull('referred_by_id')->select('referred_by_id'))
+            ->withCount('referrals')
+            ->orderByDesc('referrals_count')
+            ->orderBy('name')
+            ->limit($limit)
+            ->get()
+            ->map(fn (User $user) => [
+                'user' => $user,
+                'invited' => (int) $user->referrals_count,
+                'lessons' => (int) ($lessons[$user->id] ?? 0),
+            ]);
+    }
+
+    /** Сколько начислений пригласивший получил в месяце начисления до него (для пометки «Лимит в месяц»). */
+    public static function creditedInMonthBefore(ReferralReward $reward): int
+    {
+        return ReferralReward::where('referrer_id', $reward->referrer_id)
+            ->where('status', ReferralReward::STATUS_CREDITED)
+            ->whereBetween('created_at', [$reward->created_at->copy()->startOfMonth(), $reward->created_at])
+            ->where('id', '<', $reward->id)
+            ->count();
+    }
+
     protected static function creditedThisMonth(User $referrer): int
     {
         return ReferralReward::where('referrer_id', $referrer->id)

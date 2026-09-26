@@ -69,7 +69,7 @@ class AuthScreensTest extends TestCase
             ->set('email', 'admin@mail.ru')
             ->set('password', 'sunnyday2026')
             ->call('login')
-            ->assertRedirect(url('/admin'));
+            ->assertRedirect(route('cabinet.admin.today'));
     }
 
     public function test_wrong_password_and_throttle(): void

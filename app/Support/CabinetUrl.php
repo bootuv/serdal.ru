@@ -10,7 +10,7 @@ use App\Services\MessengerService;
 use Illuminate\Support\Facades\Route;
 
 /**
- * Ссылки старого кабинета (Filament: /tutor/…, /student/…) → экраны нового кабинета.
+ * Ссылки старого кабинета (Filament: /tutor/…, /student/…, /admin/…) → экраны нового кабинета.
  * Уведомления хранят ссылку в базе на момент отправки, поэтому переводим их при показе.
  * Если нового экрана нет — возвращаем ссылку как есть.
  */
@@ -24,6 +24,10 @@ class CabinetUrl
 
         $path = trim((string) parse_url($url, PHP_URL_PATH), '/');
         parse_str((string) parse_url($url, PHP_URL_QUERY), $query);
+
+        if ($path === 'admin' || str_starts_with($path, 'admin/')) {
+            return $user->isAdmin() ? (self::fromAdmin($path, $query) ?? $url) : $url;
+        }
 
         $target = match (true) {
             in_array($path, ['tutor/messenger', 'student/messenger'], true) => MessengerService::url(
@@ -79,6 +83,48 @@ class CabinetUrl
         };
 
         return $target ?? $url;
+    }
+
+    /**
+     * Адреса старой Filament-админки (/admin/…) → экраны новой админки (/cabinet/admin/…).
+     * Нужен для ссылок в сохранённых уведомлениях и для закладок (RedirectOldAdmin).
+     */
+    public static function fromAdmin(string $path, array $query = []): ?string
+    {
+        $path = trim($path, '/');
+
+        return match (true) {
+            $path === 'admin' => self::route('cabinet.admin.today'),
+            $path === 'admin/admin-messenger' => self::route('cabinet.admin.support', isset($query['chat']) ? ['chat' => (int) $query['chat']] : []),
+            str_starts_with($path, 'admin/teacher-applications') => self::route('cabinet.admin.applications'),
+            str_starts_with($path, 'admin/reviews') => self::route('cabinet.admin.reviews'),
+            (bool) preg_match('#^admin/meeting-sessions/(\d+)$#', $path, $m) => MeetingSession::whereKey((int) $m[1])->exists()
+                ? self::route('cabinet.admin.session', ['session' => (int) $m[1]])
+                : self::route('cabinet.admin.lessons', ['tab' => 'deletions']),
+            $path === 'admin/meeting-sessions' => self::route('cabinet.admin.lessons', ['tab' => 'sessions']),
+            (bool) preg_match('#^admin/rooms/(\d+)(/edit)?$#', $path, $m) => Room::withTrashed()->whereKey((int) $m[1])->exists()
+                ? self::route('cabinet.admin.lesson', ['room' => (int) $m[1]])
+                : self::route('cabinet.admin.lessons'),
+            in_array($path, ['admin/rooms', 'admin/rooms/create', 'admin/schedule-calendar'], true) => self::route('cabinet.admin.lessons'),
+            str_starts_with($path, 'admin/recordings') => self::route('cabinet.admin.lessons', ['tab' => 'recordings']),
+            (bool) preg_match('#^admin/users/(\d+)/edit$#', $path, $m) => User::whereKey((int) $m[1])->exists()
+                ? self::route('cabinet.admin.user', ['user' => (int) $m[1]])
+                : self::route('cabinet.admin.users'),
+            str_starts_with($path, 'admin/users') => self::route('cabinet.admin.users'),
+            $path === 'admin/subscription-payments' => self::route('cabinet.admin.payments'),
+            str_starts_with($path, 'admin/subscriptions') => self::route('cabinet.admin.payments', ['tab' => 'subscriptions']),
+            (bool) preg_match('#^admin/tariffs/(\d+)/edit$#', $path, $m) => self::route('cabinet.admin.tariff', ['tariff' => (int) $m[1]]),
+            $path === 'admin/tariffs/create' => self::route('cabinet.admin.tariff', ['tariff' => 'new']),
+            $path === 'admin/tariffs' => self::route('cabinet.admin.tariffs'),
+            $path === 'admin/referral-rewards' => self::route('cabinet.admin.referrals'),
+            (bool) preg_match('#^admin/help-articles/(\d+)/edit$#', $path, $m) => self::route('cabinet.admin.help-article', ['article' => (int) $m[1]]),
+            $path === 'admin/help-articles/create' => self::route('cabinet.admin.help-article', ['article' => 'new']),
+            str_starts_with($path, 'admin/help-') => self::route('cabinet.admin.help'),
+            str_starts_with($path, 'admin/subjects') => self::route('cabinet.admin.settings', ['tab' => 'dictionaries']),
+            str_starts_with($path, 'admin/directs') => self::route('cabinet.admin.settings', ['tab' => 'dictionaries', 'dict' => 'directs']),
+            $path === 'admin/settings' => self::route('cabinet.admin.settings'),
+            default => self::route('cabinet.admin.today'),
+        };
     }
 
     private static function route(string $name, array $params = []): ?string

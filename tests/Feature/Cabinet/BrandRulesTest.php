@@ -97,7 +97,7 @@ class BrandRulesTest extends TestCase
 
     /** Названия, которые пишутся латиницей и переводу не подлежат. */
     private const LATIN_ALLOWED = ['Serdal', 'Telegram', 'WhatsApp', 'Google', 'ЮKassa', 'Kinescope', 'YouTube', 'Rutube',
-        'PDF', 'JPG', 'JPEG', 'PNG', 'HEIC', 'GIF', 'Word', 'Excel', 'PowerPoint', 'MP3', 'MP4', 'DOC', 'XLS', 'PPT', 'IMG'];
+        'PDF', 'JPG', 'JPEG', 'PNG', 'HEIC', 'GIF', 'Word', 'Excel', 'PowerPoint', 'MP3', 'MP4', 'WebM', 'DOC', 'XLS', 'PPT', 'IMG'];
 
     public function test_no_english_text(): void
     {

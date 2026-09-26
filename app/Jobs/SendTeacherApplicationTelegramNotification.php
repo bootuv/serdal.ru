@@ -60,7 +60,7 @@ class SendTeacherApplicationTelegramNotification implements ShouldQueue
         }
 
         try {
-            $url = route('filament.admin.resources.teacher-applications.index');
+            $url = route('cabinet.admin.applications');
         } catch (\Exception) {
             $url = null;
         }

@@ -91,76 +91,7 @@ class RecordingResource extends Resource
                     ->icon('heroicon-o-arrow-path')
                     ->action(function () {
                         try {
-                            // Admin Sync uses GLOBAL settings
-                            $globalUrl = \App\Models\Setting::where('key', 'bbb_url')->value('value');
-                            $globalSecret = \App\Models\Setting::where('key', 'bbb_secret')->value('value');
-                            if ($globalUrl && $globalSecret) {
-                                config([
-                                    'bigbluebutton.BBB_SERVER_BASE_URL' => $globalUrl,
-                                    'bigbluebutton.BBB_SECURITY_SALT' => $globalSecret,
-                                ]);
-                            }
-
-                            // Fetch ALL - skip deleted & unpublished
-                            $response = Bigbluebutton::getRecordings(['state' => 'published,processing']);
-                            $recs = collect($response);
-
-                            $count = 0;
-                            foreach ($recs as $rec) {
-                                $r = (array) $rec;
-
-                                $meetingID = trim((string) $r['meetingID']);
-                                $recordID = trim((string) $r['recordID']);
-                                $name = trim((string) $r['name']);
-                                $publishedStr = trim((string) ($r['published'] ?? 'false'));
-                                $state = trim((string) ($r['state'] ?? 'unknown'));
-                                $startTimeRaw = trim((string) ($r['startTime'] ?? ''));
-                                $endTimeRaw = trim((string) ($r['endTime'] ?? ''));
-
-                                $isPublished = ($publishedStr === 'true' || $publishedStr === '1');
-                                $startTime = $startTimeRaw ? \Carbon\Carbon::createFromTimestamp($startTimeRaw / 1000) : null;
-
-                                // Filter out "zombie" recordings
-                                if (in_array($state, ['deleted', 'unpublished']) || (!$isPublished && (!$startTime || $startTime->lt(now()->subHours(24))))) {
-                                    continue;
-                                }
-
-                                $recording = Recording::withTrashed()->where('record_id', $recordID)->first();
-
-                                if ($recording) {
-                                    if ($recording->trashed()) {
-                                        continue;
-                                    }
-                                } else {
-                                    $recording = new Recording(['record_id' => $recordID]);
-                                }
-
-                                $urlFormat = $r['playback']['format'] ?? [];
-                                $url = null;
-                                if (isset($urlFormat['url'])) {
-                                    $url = $urlFormat['url'];
-                                } elseif (isset($urlFormat[0]['url'])) {
-                                    $url = $urlFormat[0]['url'];
-                                }
-
-                                $recording->fill([
-                                    'meeting_id' => $meetingID,
-                                    'name' => $name,
-                                    'published' => $isPublished,
-                                    'start_time' => $startTime,
-                                    'end_time' => $endTimeRaw ? \Carbon\Carbon::createFromTimestamp($endTimeRaw / 1000) : null,
-                                    'participants' => (int) trim((string) ($r['participants'] ?? '0')),
-                                    'url' => $url ? trim((string) $url) : null,
-                                    'raw_data' => json_decode(json_encode($r), true),
-                                ]);
-                                $recording->save();
-
-                                // Cleanup placeholder if exists for this meeting
-                                Recording::where('meeting_id', $meetingID)
-                                    ->where('record_id', 'like', '%-placeholder-%')
-                                    ->delete();
-                                $count++;
-                            }
+                            $count = app(\App\Services\RecordingSyncService::class)->syncAll();
 
                             Notification::make()
                                 ->title("Синхронизировано {$count} записей")
@@ -202,18 +133,8 @@ class RecordingResource extends Resource
 
                 Tables\Actions\DeleteAction::make()
                     ->before(function (Recording $record) {
-                        try {
-                            // Admin Delete using Global
-                            $globalUrl = \App\Models\Setting::where('key', 'bbb_url')->value('value');
-                            $globalSecret = \App\Models\Setting::where('key', 'bbb_secret')->value('value');
-                            if ($globalUrl && $globalSecret) {
-                                config(['bigbluebutton.BBB_SERVER_BASE_URL' => $globalUrl, 'bigbluebutton.BBB_SECURITY_SALT' => $globalSecret]);
-                            }
-
-                            Bigbluebutton::deleteRecordings(['recordID' => $record->record_id]);
-                        } catch (\Exception $e) {
-                            Notification::make()->title('Ошибка удаления с сервера BBB')->body($e->getMessage())->danger()->send();
-                        }
+                        // Удаление с сервера видеосвязи (ошибки пишутся в журнал и не мешают удалению у нас)
+                        app(\App\Services\TeacherRecordingsService::class)->deleteFromServer($record);
                     }),
             ])
             ->bulkActions([

@@ -53,7 +53,7 @@ class TeacherReportedReview extends Notification implements ShouldBroadcast
                 \Filament\Notifications\Actions\Action::make('view')
                     ->label('Открыть')
                     ->button()
-                    ->url(route('filament.admin.resources.reviews.edit', $this->review))
+                    ->url(route('cabinet.admin.reviews'))
             ])
             ->getDatabaseMessage();
     }

@@ -22,7 +22,7 @@ class EditReview extends EditRecord
                 ->modalDescription('Вы уверены, что хотите снять жалобу с этого отзыва?')
                 ->visible(fn() => $this->record->is_reported && !$this->record->is_rejected)
                 ->action(function () {
-                    $this->record->update(['is_reported' => false, 'report_reason' => null, 'report_note' => null, 'reported_at' => null]);
+                    app(\App\Services\AdminReviewsService::class)->keep($this->record);
                     \Filament\Notifications\Notification::make()
                         ->title('Жалоба снята')
                         ->success()
@@ -37,7 +37,7 @@ class EditReview extends EditRecord
                 ->modalDescription('Вы уверены, что хотите отклонить этот отзыв? Студент не сможет оставить новый отзыв этому учителю.')
                 ->visible(fn() => !$this->record->is_rejected)
                 ->action(function () {
-                    $this->record->update(['is_rejected' => true, 'is_reported' => false]);
+                    app(\App\Services\AdminReviewsService::class)->hide($this->record);
                     \Filament\Notifications\Notification::make()
                         ->title('Отзыв отклонен')
                         ->success()
@@ -53,7 +53,7 @@ class EditReview extends EditRecord
                 ->modalDescription('Вы уверены, что хотите вернуть этот отзыв? Он снова станет видимым для учителя.')
                 ->visible(fn() => $this->record->is_rejected)
                 ->action(function () {
-                    $this->record->update(['is_rejected' => false]);
+                    app(\App\Services\AdminReviewsService::class)->restore($this->record);
                     \Filament\Notifications\Notification::make()
                         ->title('Отзыв восстановлен')
                         ->success()

@@ -5,7 +5,6 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\SubscriptionPaymentResource\Pages;
 use App\Models\SubscriptionPayment;
 use App\Models\Tariff;
-use App\Services\SubscriptionService;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
@@ -90,9 +89,9 @@ class SubscriptionPaymentResource extends Resource
                         ? 'Дополнительные занятия будут зачислены на баланс учителя, как при успешной оплате.'
                         : 'Подписка будет активирована/продлена, как при успешной оплате.')
                         . ' Используйте, только если оплата подтверждена в личном кабинете ЮKassa.')
-                    ->visible(fn(SubscriptionPayment $record) => $record->status === SubscriptionPayment::STATUS_PENDING)
+                    ->visible(fn(SubscriptionPayment $record) => app(\App\Services\AdminPaymentsService::class)->canConfirm($record))
                     ->action(function (SubscriptionPayment $record) {
-                        SubscriptionService::applyPaidPayment($record);
+                        app(\App\Services\AdminPaymentsService::class)->confirm($record, auth()->user());
                         Notification::make()->title($record->isExtraLessons() ? 'Платёж подтверждён, занятия зачислены' : 'Платёж подтверждён, подписка активирована')->success()->send();
                     }),
                 Tables\Actions\Action::make('refund')
@@ -112,59 +111,38 @@ class SubscriptionPaymentResource extends Resource
                     })
                     ->visible(fn(SubscriptionPayment $record) => $record->status === SubscriptionPayment::STATUS_PAID)
                     ->action(function (SubscriptionPayment $record) {
-                        // Платёж без id шлюза — только отметка в учёте
-                        if (!$record->gateway_order_id) {
-                            $record->update([
-                                'status' => SubscriptionPayment::STATUS_REFUNDED,
-                                'meta' => array_merge($record->meta ?? [], ['refunded_at' => now()->toIso8601String()]),
-                            ]);
-                            $adjusted = \App\Services\SubscriptionService::applyRefund($record);
-                            $record->user?->notify(new \App\Notifications\SubscriptionRefunded(
-                                $record->title,
-                                $record->amount,
-                                \App\Support\OfferSettings::offer()['refund_processing_days'],
-                                newEndsAt: $adjusted?->isActive() ? $adjusted->ends_at : null,
-                                subscriptionEnded: $adjusted !== null && !$adjusted->isActive(),
-                            ));
-                            Notification::make()->title('Платёж отмечен как возвращённый')->success()->send();
+                        // Логика возврата общая с новой админкой (/cabinet/admin/payments)
+                        $noGateway = !$record->gateway_order_id;
+                        $result = app(\App\Services\AdminPaymentsService::class)->refund($record, auth()->user());
+
+                        if (!$result['ok']) {
+                            Notification::make()
+                                ->title('Не удалось оформить возврат')
+                                ->body($result['error'])
+                                ->danger()
+                                ->send();
+
                             return;
                         }
 
-                        if (\App\Services\YooKassaService::refundPayment($record)) {
-                            $record->update(['status' => SubscriptionPayment::STATUS_REFUNDED]);
+                        if ($noGateway) {
+                            Notification::make()->title('Платёж отмечен как возвращённый')->success()->send();
 
-                            // Привязочные платежи — служебные: подписку не трогаем, учителя не уведомляем
-                            $adjusted = null;
-                            if (empty($record->meta['card_binding'])) {
-                                $adjusted = \App\Services\SubscriptionService::applyRefund($record);
-                                $record->user?->notify(new \App\Notifications\SubscriptionRefunded(
-                                    $record->title,
-                                    $record->amount,
-                                    \App\Support\OfferSettings::offer()['refund_processing_days'],
-                                    newEndsAt: $adjusted?->isActive() ? $adjusted->ends_at : null,
-                                    subscriptionEnded: $adjusted !== null && !$adjusted->isActive(),
-                                ));
-                            }
-
-                            $subscriptionNote = match (true) {
-                                $adjusted === null => '',
-                                !$adjusted->isActive() => ' Подписка завершена.',
-                                default => ' Подписка сокращена до ' . $adjusted->ends_at->format('d.m.Y') . '.',
-                            };
-
-                            Notification::make()
-                                ->title('Возврат оформлен')
-                                ->body('Деньги вернутся на карту плательщика в течение нескольких дней. Учителю отправлено уведомление.' . $subscriptionNote)
-                                ->success()
-                                ->send();
-                        } else {
-                            $error = $record->fresh()->meta['refund_response']['description'] ?? 'Проверьте баланс магазина и статус платежа в личном кабинете ЮKassa.';
-                            Notification::make()
-                                ->title('Не удалось оформить возврат')
-                                ->body($error)
-                                ->danger()
-                                ->send();
+                            return;
                         }
+
+                        $adjusted = $result['subscription'];
+                        $subscriptionNote = match (true) {
+                            $adjusted === null => '',
+                            !$adjusted->isActive() => ' Подписка завершена.',
+                            default => ' Подписка сокращена до ' . $adjusted->ends_at->format('d.m.Y') . '.',
+                        };
+
+                        Notification::make()
+                            ->title('Возврат оформлен')
+                            ->body('Деньги вернутся на карту плательщика в течение нескольких дней. Учителю отправлено уведомление.' . $subscriptionNote)
+                            ->success()
+                            ->send();
                     }),
             ])
             ->bulkActions([]);

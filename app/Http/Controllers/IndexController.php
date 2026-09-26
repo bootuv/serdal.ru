@@ -64,7 +64,7 @@ class IndexController extends Controller
 
         // Границы ползунка цены — по реальным ценам активных специалистов, округлённые до шага
         $priceBounds = LessonType::query()
-            ->whereIn('user_id', User::isSpecialist()->where('is_active', true)->select('id'))
+            ->whereIn('user_id', User::isSpecialist()->where('is_active', true)->where('is_blocked', false)->select('id'))
             ->priced()
             ->selectRaw("min({$pricePerLesson}) as min_price, max({$pricePerLesson}) as max_price")
             ->first();
@@ -82,6 +82,7 @@ class IndexController extends Controller
 
         $queryBuilder = User::isSpecialist()
             ->where('is_active', true)
+            ->where('is_blocked', false)
             ->select('users.*')
             ->addSelect(['min_price' => $minPriceSub()])
             ->with(['directs', 'subjects', 'lessonTypes'])

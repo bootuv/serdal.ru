@@ -89,14 +89,15 @@ class HelpController extends Controller
     {
         [$category, $sidebarCategories] = $this->resolveCategory($audienceSlug, $categorySlug);
 
-        $article = $category->publishedArticles()
+        // Администратор может открыть черновик («Как на сайте» в админке)
+        $article = ($this->isAdmin() ? $category->articles() : $category->publishedArticles())
             ->where('slug', $articleSlug)
             ->firstOrFail();
 
-        // Уникальные просмотры: считаем один раз за сессию посетителя
+        // Уникальные просмотры: считаем один раз за сессию посетителя (просмотры администратора не считаем)
         $viewedKey = 'help_viewed_articles';
         $viewed = session($viewedKey, []);
-        if (!in_array($article->id, $viewed, true)) {
+        if (!$this->isAdmin() && !in_array($article->id, $viewed, true)) {
             $article->increment('views_count');
             $viewed[] = $article->id;
             session([$viewedKey => $viewed]);
@@ -118,7 +119,9 @@ class HelpController extends Controller
     {
         $audience = HelpCategory::audienceFromSlug($audienceSlug) ?? abort(404);
 
-        $sidebarCategories = HelpCategory::published()
+        $sidebarCategories = HelpCategory::query()
+            // Администратор видит и скрытые категории (предпросмотр из админки)
+            ->when(!$this->isAdmin(), fn($q) => $q->published())
             ->where('audience', $audience)
             ->with('publishedArticles')
             ->orderBy('sort_order')
@@ -127,5 +130,10 @@ class HelpController extends Controller
         $category = $sidebarCategories->firstWhere('slug', $categorySlug) ?? abort(404);
 
         return [$category, $sidebarCategories];
+    }
+
+    private function isAdmin(): bool
+    {
+        return auth()->user()?->role === \App\Models\User::ROLE_ADMIN;
     }
 }

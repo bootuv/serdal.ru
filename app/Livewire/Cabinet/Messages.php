@@ -151,6 +151,8 @@ class Messages extends Component
         }
         if ($chat = SupportChat::where('user_id', $user->id)->first()) {
             $listeners["echo-private:support-chat.{$chat->id},.support.message.sent"] = 'incoming';
+            // Поддержка прочитала — галочки ✓✓
+            $listeners["echo-private:support-chat.{$chat->id},.support.messages.read"] = '$refresh';
         }
 
         return $listeners;

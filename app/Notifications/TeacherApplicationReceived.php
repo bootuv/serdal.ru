@@ -42,7 +42,7 @@ class TeacherApplicationReceived extends Notification implements ShouldBroadcast
                 \Filament\Notifications\Actions\Action::make('view')
                     ->label('Открыть')
                     ->button()
-                    ->url(route('filament.admin.resources.teacher-applications.index'))
+                    ->url(route('cabinet.admin.applications'))
             ])
             ->getDatabaseMessage();
     }

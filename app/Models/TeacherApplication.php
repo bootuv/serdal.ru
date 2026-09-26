@@ -26,6 +26,8 @@ class TeacherApplication extends Model
         'directs',
         'grade',
         'status',
+        'reject_reason',
+        'decided_at',
         'desired_tariff_id',
         'referred_by_id',
     ];
@@ -50,6 +52,7 @@ class TeacherApplication extends Model
         'subjects' => 'array',
         'directs' => 'array',
         'grade' => 'array',
+        'decided_at' => 'datetime',
     ];
 
     /**
