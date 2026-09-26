@@ -6,6 +6,7 @@ use App\Livewire\Cabinet\Teacher\Concerns\TeacherScreen;
 use App\Models\Homework;
 use App\Models\HomeworkActivity;
 use App\Models\HomeworkSubmission;
+use App\Models\User;
 use App\Services\HomeworkSubmissionService as Hw;
 use App\Support\HumanDate;
 use Illuminate\Support\Collection;
@@ -21,13 +22,22 @@ class Tasks extends Component
 
     private const PAGE = 30;
 
+    /** Колонки заданий для строк списка (без описания и файлов). */
+    private const COLUMNS = ['homeworks.id', 'homeworks.title', 'homeworks.deadline', 'homeworks.is_visible', 'homeworks.room_id', 'homeworks.max_score', 'homeworks.created_at'];
+
     /** Вкладка: review — нужно проверить, issued — выданные, all — все. */
     #[Url(except: 'review')]
     public string $tab = 'review';
 
-    /** Фильтр «Все» по ученику. */
+    /** Фильтры вкладки «Все»: ученик, занятие, поиск по названию. */
     #[Url(as: 'student', except: '')]
     public string $studentId = '';
+
+    #[Url(as: 'lesson', except: '')]
+    public string $roomId = '';
+
+    #[Url(as: 'q', except: '')]
+    public string $search = '';
 
     /** Сколько строк показано в длинных списках. */
     public int $shown = self::PAGE;
@@ -56,51 +66,122 @@ class Tasks extends Component
         $this->shown = self::PAGE;
     }
 
+    public function updatedRoomId(): void
+    {
+        $this->shown = self::PAGE;
+    }
+
+    public function updatedSearch(): void
+    {
+        $this->shown = self::PAGE;
+    }
+
     public function showMore(): void
     {
         $this->shown += self::PAGE;
     }
 
+    /**
+     * Списки грузим по частям: очередь проверки — первые $shown работ, «Выданные» — только незакрытые задания
+     * (порядок считаем по числам из withProgress, без загрузки работ), «Все» — постранично в базе.
+     * Учеников и работы подгружаем только для показанных строк.
+     */
     public function render()
     {
         $teacherId = auth()->id();
+        $mine = fn () => Homework::query()->where('teacher_id', $teacherId);
 
-        $queue = Hw::toReview($teacherId)
-            ->with(['student:id,name', 'homework:id,title,deadline,room_id', 'homework.room:id,name,type'])
-            ->withExists(['activities as resubmitted' => fn ($q) => $q->where('type', HomeworkActivity::TYPE_RESUBMITTED)])
-            ->get();
+        $reviewCount = Hw::toReview($teacherId)->count();
 
-        $homeworks = Homework::query()
-            ->where('teacher_id', $teacherId)
-            ->with([
-                'students:id,name',
-                'submissions:id,homework_id,student_id,status,grade,submitted_at,updated_at',
-                'room:id,name,type',
-            ])
-            ->latest()
-            ->get();
+        $review = collect();
+        $waiting = collect();
+        $list = collect();
+        $listMore = 0;
 
-        $rows = $homeworks->map(fn (Homework $h) => $this->taskRow($h));
-
-        $list = match ($this->tab) {
-            'issued' => $rows->where('done', false)->sortBy('sort')->values(),
-            'all' => $rows->when($this->studentId !== '', fn ($c) => $c->filter(fn ($r) => in_array((int) $this->studentId, $r['studentIds'], true)))->values(),
-            default => collect(),
-        };
+        if ($this->tab === 'review') {
+            $review = Hw::toReview($teacherId)
+                ->with(['student:id,name', 'homework:id,title,deadline,room_id', 'homework.room:id,name,type'])
+                ->withExists(['activities as resubmitted' => fn ($q) => $q->where('type', HomeworkActivity::TYPE_RESUBMITTED)])
+                ->limit($this->shown)
+                ->get()
+                ->values()
+                ->map(fn (HomeworkSubmission $s, int $i) => $this->reviewRow($s, $i === 0));
+            $waiting = $this->waiting($teacherId);
+        } elseif ($this->tab === 'issued') {
+            $issued = Hw::notDone(Hw::withProgress($mine()->select(self::COLUMNS)))
+                ->get()
+                ->sortBy(fn (Homework $h) => $this->sortKey($h))
+                ->values();
+            $listMore = max(0, $issued->count() - $this->shown);
+            $list = $this->rows($issued->take($this->shown));
+        } else {
+            $query = $this->filtered($mine());
+            $listMore = max(0, (clone $query)->count() - $this->shown);
+            $list = $this->rows($query->latest()->latest('id')->limit($this->shown)->get(self::COLUMNS));
+        }
 
         return view('livewire.cabinet.teacher.tasks', [
-            'reviewCount' => $queue->count(),
-            'review' => $this->tab === 'review'
-                ? $queue->take($this->shown)->values()->map(fn (HomeworkSubmission $s, int $i) => $this->reviewRow($s, $i === 0))
-                : collect(),
-            'reviewMore' => max(0, $queue->count() - $this->shown),
-            'waiting' => $this->tab === 'review' ? $this->waiting($homeworks) : collect(),
-            'list' => $list->take($this->shown),
-            'listMore' => max(0, $list->count() - $this->shown),
-            'students' => $this->tab === 'all' ? $this->studentOptions($homeworks) : [],
-            'hasAny' => $homeworks->isNotEmpty(),
+            'reviewCount' => $reviewCount,
+            'review' => $review,
+            'reviewMore' => max(0, $reviewCount - $this->shown),
+            'waiting' => $waiting,
+            'list' => $list,
+            'listMore' => $listMore,
+            'students' => $this->tab === 'all' ? $this->studentOptions($teacherId) : [],
+            'rooms' => $this->tab === 'all' ? $this->roomOptions($teacherId) : [],
+            'filtered' => $this->studentId !== '' || $this->roomId !== '' || trim($this->search) !== '',
+            'hasAny' => $mine()->exists(),
             'newUrl' => route('cabinet.teacher.task-new'),
         ]);
+    }
+
+    /** «Все» с фильтрами: ученик, занятие, название. */
+    private function filtered($query)
+    {
+        $needle = trim($this->search);
+
+        return $query
+            ->when($this->studentId !== '', fn ($q) => $q->whereHas('students', fn ($s) => $s->where('users.id', (int) $this->studentId)))
+            ->when($this->roomId !== '', fn ($q) => $q->where('room_id', (int) $this->roomId))
+            ->when($needle !== '', fn ($q) => $q->where(function ($w) use ($needle) {
+                // SQLite сравнивает без учёта регистра только латиницу — ищем и «как ввели», и строчными, и с заглавной
+                $lower = mb_strtolower($needle);
+                $variants = array_unique([$needle, $lower, mb_strtoupper(mb_substr($lower, 0, 1)) . mb_substr($lower, 1)]);
+                foreach ($variants as $v) {
+                    $w->orWhere('title', 'like', '%' . addcslashes($v, '%_\\') . '%');
+                }
+            }));
+    }
+
+    /** Строки для показанных заданий: подгружаем учеников, занятие и работы только для них. */
+    private function rows(Collection $homeworks): Collection
+    {
+        $homeworks = new \Illuminate\Database\Eloquent\Collection($homeworks->all());
+        $homeworks->load([
+            'students:id,name',
+            'submissions:id,homework_id,student_id,status,grade,submitted_at,updated_at',
+            'room:id,name,type',
+        ]);
+
+        return $homeworks->map(fn (Homework $h) => $this->taskRow($h))->values();
+    }
+
+    /**
+     * Порядок во «Выданных» по числам withProgress: ждём сдачи (по сроку), на проверке, на доработке, просрочено, черновики.
+     */
+    private function sortKey(Homework $h): array
+    {
+        $total = (int) $h->students_count;
+        $deadline = $h->deadline?->timestamp ?? PHP_INT_MAX;
+
+        return match (true) {
+            ! $h->is_visible => [4, 0, -$h->id],
+            $total !== 1 => [$h->is_overdue ? 3 : 0, $deadline, -$h->id],
+            $h->submitted_count === 0 => $h->is_overdue ? [3, 0, -$h->id] : [0, $deadline, -$h->id],
+            $h->revision_count > 0 => [2, 0, -$h->id],
+            $h->graded_count > 0 => [5, 0, -$h->id],
+            default => [1, 0, -$h->id],
+        };
     }
 
     /** Строка работы на проверку. first — самая давняя, с кнопкой «Проверить». */
@@ -138,7 +219,7 @@ class Tasks extends Component
 
     /**
      * Строка задания: кому, срок, прогресс или состояние работы.
-     * sort — порядок во «Выданных»: ждём сдачи (по сроку), на проверке, на доработке, просрочено, черновики.
+     * Ведёт на экран задания; работа одного ученика, которую уже сдали, — сразу на проверку; черновик — в редактор.
      */
     private function taskRow(Homework $h): array
     {
@@ -164,22 +245,18 @@ class Tasks extends Component
             'who' => $who,
             'group' => $group,
             'avatarId' => $group ? 0 : (int) $students->first()?->id,
-            'studentIds' => $students->pluck('id')->map(fn ($id) => (int) $id)->all(),
             'due' => $h->deadline ? 'до ' . HumanDate::date($h->deadline) : null,
             'dueEm' => null,
             'prog' => null,
             'badge' => null,
             'done' => $done,
-            'sort' => [9, 0],
-            // Экрана задания в новом кабинете нет — кто сдал, видно в старом
-            'url' => route('filament.app.resources.homework.view', $h),
+            'url' => route('cabinet.teacher.task', $h),
         ];
 
         if (! $h->is_visible) {
             return array_merge($row, [
                 'due' => $group ? 'ученики пока не видят' : 'пока не видно ученику',
                 'badge' => ['neutral', 'Черновик'],
-                'sort' => [4, 0],
                 'url' => route('cabinet.teacher.task-new', ['edit' => $h->id]),
             ]);
         }
@@ -189,7 +266,6 @@ class Tasks extends Component
             if (! $done && $h->deadline) {
                 $row = array_merge($row, $this->deadline($h, $submitted < $total));
             }
-            $row['sort'] = $done ? [5, 0] : [$h->is_overdue ? 3 : 0, $h->deadline?->timestamp ?? PHP_INT_MAX];
 
             return $row;
         }
@@ -201,14 +277,12 @@ class Tasks extends Component
             Hw::STATE_GRADED => array_merge($row, [
                 'due' => 'сдано ' . HumanDate::date($single->submitted_at),
                 'badge' => ['ok', 'Оценка ' . $h->formatGrade($single->grade)],
-                'sort' => [5, 0],
             ]),
-            Hw::STATE_REVIEW => array_merge($row, ['badge' => ['neutral', 'На проверке'], 'sort' => [1, 0]]),
-            Hw::STATE_REVISION => array_merge($row, ['badge' => ['danger', 'На доработке'], 'sort' => [2, 0]]),
-            Hw::STATE_OVERDUE => array_merge($row, $this->deadline($h, true), ['badge' => ['danger', 'Просрочено'], 'sort' => [3, 0]]),
+            Hw::STATE_REVIEW => array_merge($row, ['badge' => ['neutral', 'На проверке']]),
+            Hw::STATE_REVISION => array_merge($row, ['badge' => ['danger', 'На доработке']]),
+            Hw::STATE_OVERDUE => array_merge($row, $this->deadline($h, true), ['badge' => ['danger', 'Просрочено']]),
             default => array_merge($row, $h->deadline ? $this->deadline($h, true) : [], [
                 'badge' => ['neutral', 'Ещё не сдано'],
-                'sort' => [0, $h->deadline?->timestamp ?? PHP_INT_MAX],
             ]),
         };
     }
@@ -231,46 +305,63 @@ class Tasks extends Component
             : ['due' => $text, 'dueEm' => null];
     }
 
-    /** «Ждём от учеников»: работы на доработке, затем опубликованные задания, которые ещё не сдали (по сроку). */
-    private function waiting(Collection $homeworks): Collection
+    /** «Ждём от учеников»: работы на доработке, затем опубликованные задания, которые ещё не сдали (по сроку). Пять строк. */
+    private function waiting(int $teacherId): Collection
     {
-        $revisions = $homeworks->where('is_visible', true)
-            ->flatMap(fn (Homework $h) => $h->submissions
-                ->where('status', HomeworkSubmission::STATUS_REVISION_REQUESTED)
-                ->map(fn (HomeworkSubmission $s) => [
-                    'title' => $h->title,
-                    'sub' => trim(($h->students->firstWhere('id', $s->student_id)?->name ?? 'Ученик') . ' · вернули ' . HumanDate::date($s->updated_at)),
-                    'em' => null,
-                    'badge' => ['danger', 'На доработке'],
-                    'url' => route('cabinet.teacher.review', $s),
-                    'at' => $s->updated_at->timestamp,
-                ]))
-            ->sortBy('at');
+        $revisions = HomeworkSubmission::query()
+            ->where('status', HomeworkSubmission::STATUS_REVISION_REQUESTED)
+            ->whereHas('homework', fn ($q) => $q->where('teacher_id', $teacherId)->where('is_visible', true))
+            ->with(['homework:id,title', 'student:id,name'])
+            ->orderBy('updated_at')
+            ->limit(5)
+            ->get()
+            ->map(fn (HomeworkSubmission $s) => [
+                'title' => $s->homework->title,
+                'sub' => trim(($s->student?->name ?? 'Ученик') . ' · вернули ' . HumanDate::date($s->updated_at)),
+                'em' => null,
+                'badge' => ['danger', 'На доработке'],
+                'url' => route('cabinet.teacher.review', $s),
+            ]);
 
-        $pending = $homeworks
-            ->filter(fn (Homework $h) => $h->is_visible && ! $h->is_overdue && $h->students->isNotEmpty()
-                && $h->submissions->whereIn('student_id', $h->students->pluck('id'))->whereNotNull('submitted_at')->count() < $h->students->count())
-            ->sortBy(fn (Homework $h) => $h->deadline?->timestamp ?? PHP_INT_MAX)
-            ->map(function (Homework $h) {
-                $row = $this->taskRow($h);
+        $left = 5 - $revisions->count();
+        $pending = $left <= 0 ? collect() : Hw::awaitingSubmissions(Homework::query()->where('teacher_id', $teacherId))
+            ->where(fn ($q) => $q->whereNull('deadline')->orWhere('deadline', '>', now()))
+            ->orderByRaw('deadline is null, deadline asc')
+            ->latest('id')
+            ->limit($left)
+            ->get(self::COLUMNS);
 
-                return [
-                    'title' => $h->title,
-                    'sub' => $row['who'] . ($row['due'] ? ' · ' . $row['due'] : ''),
-                    'em' => $row['dueEm'],
-                    'progress' => $row['group'] ? 'сдали ' . $row['prog'][1] : null,
-                    'badge' => null,
-                    'url' => $row['url'],
-                ];
-            });
+        $pending = $this->rows($pending)->map(fn (array $row) => [
+            'title' => $row['title'],
+            'sub' => $row['who'] . ($row['due'] ? ' · ' . $row['due'] : ''),
+            'em' => $row['dueEm'],
+            'progress' => $row['group'] ? 'сдали ' . $row['prog'][1] : null,
+            'badge' => null,
+            'url' => $row['url'],
+        ]);
 
-        return $revisions->concat($pending)->take(5)->values();
+        return $revisions->concat($pending)->values();
     }
 
-    /** Ученики для фильтра вкладки «Все». */
-    private function studentOptions(Collection $homeworks): array
+    /** Ученики для фильтра вкладки «Все»: кому учитель выдавал задания. */
+    private function studentOptions(int $teacherId): array
     {
-        return $homeworks->flatMap->students->unique('id')->sortBy('name')
-            ->mapWithKeys(fn ($s) => [(string) $s->id => $s->name])->all();
+        return User::query()
+            ->whereHas('assignedHomeworks', fn ($q) => $q->where('teacher_id', $teacherId))
+            ->orderBy('name')
+            ->pluck('name', 'id')
+            ->mapWithKeys(fn ($name, $id) => [(string) $id => $name])
+            ->all();
+    }
+
+    /** Занятия для фильтра вкладки «Все»: те, к которым привязаны задания. */
+    private function roomOptions(int $teacherId): array
+    {
+        return \App\Models\Room::withTrashed()
+            ->whereIn('id', Homework::query()->where('teacher_id', $teacherId)->whereNotNull('room_id')->select('room_id'))
+            ->orderBy('name')
+            ->pluck('name', 'id')
+            ->mapWithKeys(fn ($name, $id) => [(string) $id => $name])
+            ->all();
     }
 }

@@ -140,4 +140,18 @@ class StudentMaterialsTest extends TestCase
             ->set('search', 'нет такого')
             ->assertSee('Ничего не нашлось');
     }
+
+    public function test_image_thumbnail_is_shown(): void
+    {
+        $teacher = $this->user(User::ROLE_TUTOR, 'Мария Соколова');
+        $student = $this->user(User::ROLE_STUDENT);
+        $teacher->students()->attach($student->id);
+        Storage::disk('s3')->put('materials/photo_thumb.jpg', 'jpg');
+        $this->material($teacher, 'Фото доски', ['thumbnail_path' => 'materials/photo_thumb.jpg']);
+
+        $this->actingAs($student)
+            ->get(route('cabinet.student.materials'))
+            ->assertOk()
+            ->assertSee(Storage::disk('s3')->url('materials/photo_thumb.jpg'), false);
+    }
 }

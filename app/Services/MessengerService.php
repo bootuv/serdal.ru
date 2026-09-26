@@ -138,7 +138,7 @@ class MessengerService
                 : $room->name . $this->nextLesson($room);
             $link = match (true) {
                 $archived => null,
-                $student?->username && Route::has('cabinet.teacher.student') => ['label' => 'Карточка ученика', 'url' => route('cabinet.teacher.student', $student)],
+                $student !== null && Route::has('cabinet.teacher.student') => ['label' => 'Карточка ученика', 'url' => TeacherStudentsService::studentUrl($student)],
                 Route::has('cabinet.teacher.lesson') => ['label' => 'Занятие', 'url' => route('cabinet.teacher.lesson', $room->id)],
                 default => null,
             };

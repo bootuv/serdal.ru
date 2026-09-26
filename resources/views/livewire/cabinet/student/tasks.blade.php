@@ -2,8 +2,19 @@
     <x-ui.page-head title="Задания" :sub="$subtitle" />
 
     <div class="flex flex-col gap-6">
-        <x-ui.tabs model="tab" :active="$tab" :items="['actual' => 'Актуальные', 'done' => 'Сданные', 'all' => 'Все']"
-                   :counts="['actual' => $actualCount]" aria-label="Какие задания показать" />
+        @if ($teacherOptions)
+            {{-- Вкладки и фильтр по учителю в одной полосе --}}
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:gap-6 sm:border-b sm:border-line">
+                <x-ui.tabs model="tab" :active="$tab" :items="['actual' => 'Актуальные', 'done' => 'Сданные', 'all' => 'Все']"
+                           :counts="['actual' => $actualCount]" aria-label="Какие задания показать" class="flex-1 sm:border-b-0" />
+                <div class="w-full sm:w-sidebar sm:pb-2">
+                    <x-ui.select name="teacherId" wire:model.live="teacherId" :options="$teacherOptions" placeholder="Все учителя" aria-label="Учитель" />
+                </div>
+            </div>
+        @else
+            <x-ui.tabs model="tab" :active="$tab" :items="['actual' => 'Актуальные', 'done' => 'Сданные', 'all' => 'Все']"
+                       :counts="['actual' => $actualCount]" aria-label="Какие задания показать" />
+        @endif
 
         <div class="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
             <div class="flex min-w-0 flex-col gap-6 lg:col-span-2">

@@ -31,7 +31,7 @@ class SubscriptionPaymentController extends Controller
                 'title' => 'Платёж обрабатывается. Статус обновится автоматически в течение нескольких минут.',
             ]);
 
-            return redirect()->route('filament.app.pages.subscription');
+            return redirect()->route('cabinet.teacher.subscription');
         }
 
         if (!empty($payment->meta['card_binding'])) {
@@ -52,7 +52,7 @@ class SubscriptionPaymentController extends Controller
             });
         }
 
-        return redirect()->route('filament.app.pages.subscription');
+        return redirect()->route('cabinet.teacher.subscription');
     }
 
     /**

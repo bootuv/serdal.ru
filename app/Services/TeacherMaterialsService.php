@@ -157,6 +157,75 @@ class TeacherMaterialsService
         $this->syncRooms($teacher, $material, $visibility === TeacherMaterial::VISIBILITY_ROOMS ? $roomIds : []);
     }
 
+    /**
+     * Заменить файл материала (название, доступ и папка остаются). Старый файл и миниатюру
+     * убирает observer; миниатюра нового изображения создаётся сразу, как при загрузке.
+     */
+    public function replaceFile(TeacherMaterial $material, TemporaryUploadedFile $file, ?string $clientName = null): bool
+    {
+        $originalName = $file->getClientOriginalName();
+
+        if ($clientName && str_starts_with($clientName, pathinfo($originalName, PATHINFO_FILENAME))) {
+            $originalName = $clientName;
+        }
+
+        $path = FileUploadHelper::processAndStoreFile($file, 'teacher-materials');
+
+        if (! $path) {
+            return false;
+        }
+
+        $material->update(['file_path' => $path, 'original_name' => $originalName]);
+
+        if ($thumb = GenerateMaterialThumbnail::generateFromPath($path)) {
+            $material->updateQuietly(['thumbnail_path' => $thumb]);
+        }
+
+        return true;
+    }
+
+    /**
+     * Ручной порядок перетаскиванием (поле sort_order, новые файлы с 0 — первыми):
+     * вставить $draggedId до или после $targetId в списке $ids (порядок, как его видит учитель).
+     * Общий для файлов и папок, старого (Filament, ListMaterials) и нового кабинета.
+     */
+    public function reorder(Builder $query, iterable $ids, int $draggedId, int $targetId, bool $before): bool
+    {
+        $ids = collect($ids)->map(fn ($id) => (int) $id)->values();
+
+        if ($draggedId === $targetId || ! $ids->contains($draggedId) || ! $ids->contains($targetId)) {
+            return false;
+        }
+
+        $ordered = $ids->reject(fn ($id) => $id === $draggedId)->values();
+        $targetPosition = $ordered->search($targetId);
+        $ordered->splice($before ? $targetPosition : $targetPosition + 1, 0, [$draggedId]);
+
+        foreach ($ordered->values() as $position => $id) {
+            (clone $query)->whereKey($id)->update(['sort_order' => $position + 1]);
+        }
+
+        return true;
+    }
+
+    /** Переставить файл внутри папки учителя (null — корень). */
+    public function reorderMaterials(User $teacher, ?int $folderId, int $draggedId, int $targetId, bool $before): bool
+    {
+        $level = TeacherMaterial::query()->where('teacher_id', $teacher->id)->where('folder_id', $folderId);
+        $ids = (clone $level)->orderBy('sort_order')->orderByDesc('created_at')->pluck('id');
+
+        return $this->reorder($level, $ids, $draggedId, $targetId, $before);
+    }
+
+    /** Переставить папку среди соседних (null — корень). */
+    public function reorderFolders(User $teacher, ?int $parentId, int $draggedId, int $targetId, bool $before): bool
+    {
+        $level = $this->folders($teacher)->where('parent_id', $parentId);
+        $ids = (clone $level)->orderBy('sort_order')->orderBy('name')->pluck('id');
+
+        return $this->reorder($level, $ids, $draggedId, $targetId, $before);
+    }
+
     /** Удалить файлы (по одному, чтобы observer убрал файл и миниатюру с S3). */
     public function deleteMaterials(User $teacher, array $ids): int
     {

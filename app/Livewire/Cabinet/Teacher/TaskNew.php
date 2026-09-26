@@ -2,7 +2,6 @@
 
 namespace App\Livewire\Cabinet\Teacher;
 
-use App\Helpers\FileUploadHelper;
 use App\Livewire\Cabinet\Teacher\Concerns\TeacherScreen;
 use App\Models\Homework;
 use App\Models\Room;
@@ -63,6 +62,10 @@ class TaskNew extends Component
     #[Locked]
     public array $kept = [];
 
+    /** Исходные имена уже загруженных файлов: путь → имя. */
+    #[Locked]
+    public array $keptNames = [];
+
     public bool $confirmDelete = false;
 
     public function mount(): void
@@ -79,6 +82,7 @@ class TaskNew extends Component
             $this->studentIds = $homework->students()->pluck('users.id')->map(fn ($v) => (int) $v)->all();
             $this->maxScore = $homework->max_score;
             $this->kept = array_values(array_filter($homework->attachments ?? [], 'is_string'));
+            $this->keptNames = $homework->file_names ?? [];
             if ($homework->deadline) {
                 $this->date = $homework->deadline->format('Y-m-d');
                 $this->time = $homework->deadline->format('H:i');
@@ -212,6 +216,8 @@ class TaskNew extends Component
         $homework = $this->editId ? $this->homework() : null;
 
         $description = RichText::clean($this->description);
+        $names = Hw::storeUploads($this->files, Hw::TASK_DIRECTORY);
+        $attachments = array_merge($this->kept, array_keys($names));
 
         $data = [
             'title' => trim($this->title),
@@ -220,7 +226,8 @@ class TaskNew extends Component
             'deadline' => $deadline,
             'max_score' => $this->maxScore === '' || $this->maxScore === null ? null : (int) $this->maxScore,
             'is_visible' => $visible,
-            'attachments' => array_merge($this->kept, FileUploadHelper::processFiles($this->files, Hw::TASK_DIRECTORY)),
+            'attachments' => $attachments,
+            'file_names' => Hw::namesFor($attachments, array_merge($this->keptNames, $names)),
         ];
 
         if ($homework) {
@@ -232,7 +239,10 @@ class TaskNew extends Component
         }
 
         session()->flash('toast', $message);
-        $this->redirect(route('cabinet.teacher.tasks'));
+        // Изменённое задание — обратно на его экран
+        $this->redirect($homework && \Illuminate\Support\Facades\Route::has('cabinet.teacher.task')
+            ? route('cabinet.teacher.task', $homework)
+            : route('cabinet.teacher.tasks'));
     }
 
     /** Срок из даты и времени. Нет даты — без срока; прошедшее время нельзя (как в старом кабинете), если срок меняли. */
@@ -282,12 +292,14 @@ class TaskNew extends Component
             'whoLabel' => $count === 0
                 ? ($allowed->isEmpty() ? 'Пока нет учеников — пригласите их в разделе «Ученики».' : 'Выберите хотя бы одного ученика')
                 : 'Получат: ' . $selected->pluck('name')->implode(', ') . ($count > 1 ? ' · всего ' . plural_ru($count, 'ученик', 'ученика', 'учеников') : ''),
-            'keptFiles' => Hw::fileViews($this->kept),
+            'keptFiles' => Hw::fileViews($this->kept, $this->keptNames),
             'newFiles' => collect($this->files)->map(fn (TemporaryUploadedFile $f) => [
                 'name' => $f->getClientOriginalName(),
                 'meta' => Hw::kind($f->getClientOriginalName()) . ' · ' . Hw::size($f->getSize()),
             ])->all(),
-            'backUrl' => route('cabinet.teacher.tasks'),
+            'backUrl' => $homework && \Illuminate\Support\Facades\Route::has('cabinet.teacher.task')
+                ? route('cabinet.teacher.task', $homework)
+                : route('cabinet.teacher.tasks'),
         ])->title($homework ? 'Изменить задание' : 'Новое задание');
     }
 

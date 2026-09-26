@@ -255,7 +255,7 @@ class Onboarding extends Component
                 'directs.*' => ['integer', Rule::exists('directs', 'id')],
                 'grades' => ['array'],
                 'grades.*' => [Rule::in(array_map('strval', array_keys(TeacherProfileService::GRADES)))],
-                'whatsup' => ['nullable', 'string', 'max:255'],
+                'whatsup' => ['nullable', 'string', 'max:255', TeacherOnboardingService::PHONE_RULE],
                 'telegram' => ['nullable', 'string', 'max:255'],
             ],
             2 => [

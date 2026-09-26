@@ -353,4 +353,6 @@
             </x-slot:footer>
         </x-ui.modal>
     @endif
+
+    @include('livewire.cabinet.teacher.partials.payment-claim-modal')
 </div>

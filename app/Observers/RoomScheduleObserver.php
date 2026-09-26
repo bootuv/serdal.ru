@@ -37,6 +37,9 @@ class RoomScheduleObserver
      */
     public function deleting(RoomSchedule $roomSchedule): void
     {
+        // События перенесённых занятий серии (исключения удалятся каскадом вместе с правилом)
+        $this->deleteMovedFromGoogleCalendar($roomSchedule);
+
         // Only proceed if there's a Google event to delete
         if (!$roomSchedule->google_event_id) {
             return;
@@ -54,6 +57,25 @@ class RoomScheduleObserver
     public function deleted(RoomSchedule $roomSchedule): void
     {
         $roomSchedule->room->updateNextStart();
+    }
+
+    /** Удалить из Google Календаря отдельные события перенесённых занятий правила. */
+    private function deleteMovedFromGoogleCalendar(RoomSchedule $roomSchedule): void
+    {
+        $eventIds = $roomSchedule->exceptions()->whereNotNull('google_event_id')->pluck('google_event_id');
+        $room = $roomSchedule->room;
+
+        if ($eventIds->isEmpty() || !$room) {
+            return;
+        }
+
+        $users = collect([$room->user])->merge($room->participants)->filter(fn ($u) => $u && $u->google_access_token);
+
+        foreach ($eventIds as $eventId) {
+            foreach ($users as $user) {
+                DeleteScheduleFromGoogleCalendar::dispatch($eventId, $user->id, $roomSchedule->id);
+            }
+        }
     }
 
     /**

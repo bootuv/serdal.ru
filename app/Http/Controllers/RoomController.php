@@ -27,14 +27,16 @@ class RoomController extends Controller
         // Лимиты подписки: блокируем создание нового занятия (повторный вход
         // в уже запущенную комнату не ограничиваем)
         if (!$room->is_running && ($limitError = \App\Services\SubscriptionService::canStartLesson(auth()->user()))) {
-            \Filament\Notifications\Notification::make()
-                ->title('Занятие не запущено')
-                ->body($limitError)
-                ->danger()
-                ->persistent()
-                ->send();
+            if ($this->fromOldCabinet()) {
+                \Filament\Notifications\Notification::make()
+                    ->title('Занятие не запущено')
+                    ->body($limitError)
+                    ->danger()
+                    ->persistent()
+                    ->send();
+            }
 
-            return back(fallback: route('filament.app.pages.subscription'))->with('error', $limitError);
+            return back(fallback: route('cabinet.teacher.subscription'))->with('error', $limitError);
         }
 
         // Apply Custom BBB Settings if available
@@ -287,14 +289,8 @@ class RoomController extends Controller
         // кнопки в интерфейсе лишь дублируют её.
         if (auth()->check() && $room->user_id !== auth()->id()
             && \App\Services\PaymentRecordService::isBlockedForTeacher(auth()->id(), $room->user_id)) {
-            \Filament\Notifications\Notification::make()
-                ->title('Занятие недоступно')
-                ->body("У вас есть занятия у преподавателя {$room->user?->name}, не оплаченные в срок. Доступ откроется, как только преподаватель отметит оплату.")
-                ->danger()
-                ->persistent()
-                ->send();
-
-            return redirect()->route('filament.student.pages.payment-debts');
+            return redirect()->route('cabinet.student.payments')
+                ->with('error', "Вход закрыт: есть занятия у учителя {$room->user?->name}, не оплаченные в срок. Доступ откроется, когда учитель отметит оплату.");
         }
 
         // Apply Custom BBB Settings if available (from Room owner)
@@ -357,7 +353,8 @@ class RoomController extends Controller
                 'error' => $e->getMessage(),
             ]);
 
-            return redirect('/')->with('error', 'Не удалось подключиться к занятию. Пожалуйста, попробуйте позже.');
+            return redirect(auth()->check() ? \App\Http\Middleware\EnsureCabinetRole::homeFor(auth()->user()) : route('rooms.join', $room))
+                ->with('error', 'Не удалось подключиться к занятию. Попробуйте через минуту.');
         }
     }
 
@@ -498,5 +495,13 @@ class RoomController extends Controller
         }
 
         return back()->with('success', 'Meeting stopped successfully.');
+    }
+
+    /** Запрос пришёл из старого кабинета Filament — там ошибки показывают его уведомления. */
+    private function fromOldCabinet(): bool
+    {
+        $path = (string) parse_url((string) url()->previous(), PHP_URL_PATH);
+
+        return str_starts_with($path, '/tutor') || str_starts_with($path, '/student');
     }
 }

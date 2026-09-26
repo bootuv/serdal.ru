@@ -4,6 +4,8 @@ namespace App\Livewire\Cabinet\Teacher\Concerns;
 
 use App\Models\MeetingSession;
 use App\Models\Recording;
+use App\Services\TeacherScheduleService;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Route;
 
@@ -13,12 +15,41 @@ use Illuminate\Support\Facades\Route;
  */
 trait LessonRows
 {
-    /** Экран занятия: новый, если готов, иначе — страница занятия в старом кабинете. */
-    protected function lessonUrl(int $roomId, ?int $sessionId = null): string
+    /**
+     * Экран занятия: новый, если готов, иначе — страница занятия в старом кабинете.
+     * $at — исходное время конкретного занятия серии (для отменённых и перенесённых).
+     */
+    protected function lessonUrl(int $roomId, ?int $sessionId = null, ?CarbonInterface $at = null): string
     {
         return Route::has('cabinet.teacher.lesson')
-            ? route('cabinet.teacher.lesson', ['room' => $roomId] + ($sessionId ? ['session' => $sessionId] : []))
+            ? route('cabinet.teacher.lesson', ['room' => $roomId]
+                + ($sessionId ? ['session' => $sessionId] : [])
+                + ($at ? ['at' => $at->format('Y-m-d\TH:i')] : []))
             : url('/tutor/rooms/' . $roomId);
+    }
+
+    /** Ссылка на занятие из строки расписания: у отменённого и перенесённого — на это занятие серии. */
+    protected function occurrenceUrl(array $lesson, ?int $sessionId = null): string
+    {
+        return $this->lessonUrl($lesson['roomId'], $sessionId,
+            ! $sessionId && ($lesson['cancelled'] || $lesson['movedFrom']) ? $lesson['originalStart'] : null);
+    }
+
+    /**
+     * Пометки занятия в подписи строки: [срочное жирным, остальное].
+     * «отменено · причина», «Перенесено с пятницы, 15:00», «Первое занятие · пробное», «Дополнительное занятие».
+     *
+     * @return array{0:?string, 1:?string}|null
+     */
+    protected function occurrenceMarks(array $lesson): ?array
+    {
+        return match (true) {
+            $lesson['cancelled'] => [null, 'Отменено' . ($lesson['reason'] ? ': ' . $lesson['reason'] : '')],
+            (bool) $lesson['movedFrom'] => ['Перенесено', TeacherScheduleService::movedFromLabel($lesson['movedFrom'])],
+            $lesson['trial'] => ['Первое занятие', 'пробное'],
+            $lesson['extra'] => [null, 'Дополнительное занятие'],
+            default => null,
+        };
     }
 
     /** Ссылка на запись занятия: экран «Записи», иначе — запись в старом кабинете. */
@@ -66,8 +97,10 @@ trait LessonRows
             'heading' => $lesson['heading'],
             'status' => $o['status'] ?? null,
             'facts' => $o['facts'] ?? null,
+            // «Перенесено с пятницы, 15:00» — без точки между жирным и остальным
+            'glue' => ($o['status'] ?? null) === 'Перенесено' ? ' ' : ' · ',
             'badge' => $o['badge'] ?? null,
-            'url' => $this->lessonUrl($lesson['roomId'], $o['sessionId'] ?? null),
+            'url' => $this->occurrenceUrl($lesson, $o['sessionId'] ?? null),
             'avatar' => $avatar,
             'focus' => $o['focus'] ?? false,
             'action' => $o['action'] ?? null,

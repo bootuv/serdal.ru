@@ -35,6 +35,7 @@ class ProcessHomeworkAttachments implements ShouldQueue
 
         $processedAttachments = [];
         $hasChanges = false;
+        $renamed = [];
 
         foreach ($attachments as $path) {
             if (!is_string($path)) {
@@ -67,6 +68,7 @@ class ProcessHomeworkAttachments implements ShouldQueue
                         Storage::disk('s3')->delete($path);
 
                         $processedAttachments[] = $newPath;
+                        $renamed[$path] = $newPath;
                         $hasChanges = true;
 
                         \Log::info("Processed image: {$path} -> {$newPath}");
@@ -84,9 +86,38 @@ class ProcessHomeworkAttachments implements ShouldQueue
 
         // Update submission if any changes were made
         if ($hasChanges) {
-            $this->submission->update([
-                $this->attachmentField => $processedAttachments,
-            ]);
+            $this->submission->update(array_merge(
+                [$this->attachmentField => $processedAttachments],
+                $this->renamedKeys($renamed),
+            ));
         }
+    }
+
+    /**
+     * Исходные имена файлов и пометки учителя привязаны к пути фото — переносим их на новый путь.
+     * В старых записях пометки нарисованы поверх оригинала (annotated_files, путь есть и в файлах комментария).
+     */
+    private function renamedKeys(array $renamed): array
+    {
+        $s = $this->submission;
+        $rekey = function (?array $map) use ($renamed): ?array {
+            if (! $map) {
+                return $map;
+            }
+            $out = [];
+            foreach ($map as $key => $value) {
+                $out[$renamed[$key] ?? $key] = $value;
+            }
+
+            return $out;
+        };
+        $swap = fn (?array $list) => $list ? array_map(fn ($p) => is_string($p) ? ($renamed[$p] ?? $p) : $p, $list) : $list;
+
+        return [
+            'file_names' => $rekey($s->file_names),
+            'annotations' => $rekey($s->annotations),
+            'annotated_files' => $swap($s->annotated_files),
+            'feedback_attachments' => $swap($s->feedback_attachments),
+        ];
     }
 }

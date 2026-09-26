@@ -166,4 +166,33 @@ class StudentTasksTest extends TestCase
             ->assertSee('Мария Соколова · за всё время')
             ->assertSee('оценок пока нет');
     }
+
+    public function test_filter_by_teacher(): void
+    {
+        $student = $this->user(User::ROLE_STUDENT);
+        $maria = $this->user(User::ROLE_TUTOR, 'Мария Соколова');
+        $ivan = $this->user(User::ROLE_TUTOR, 'Иван Орлов');
+        $this->homework($maria, $student, ['title' => 'Эссе «My last holiday»']);
+        $this->homework($ivan, $student, ['title' => 'Задачи 14–20 из сборника']);
+        $done = $this->homework($ivan, $student, ['title' => 'Задачи на дроби']);
+        $this->submission($done, $student);
+
+        Livewire::actingAs($student)
+            ->test(Tasks::class)
+            ->assertSee('Все учителя')
+            ->assertSee('Эссе «My last holiday»')
+            ->assertSee('Задачи 14–20 из сборника')
+            ->set('teacherId', (string) $ivan->id)
+            ->assertDontSee('Эссе «My last holiday»')
+            ->assertSee('Задачи 14–20 из сборника')
+            ->set('tab', 'done')
+            ->assertSee('Задачи на дроби')
+            ->set('teacherId', (string) $maria->id)
+            ->assertDontSee('Задачи на дроби');
+
+        // Один учитель — фильтр не нужен
+        $single = $this->user(User::ROLE_STUDENT);
+        $this->homework($maria, $single);
+        Livewire::actingAs($single)->test(Tasks::class)->assertDontSee('Все учителя');
+    }
 }

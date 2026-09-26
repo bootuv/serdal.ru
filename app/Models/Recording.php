@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -68,6 +69,52 @@ class Recording extends Model
         return $query->where(fn (Builder $q) => $q->whereNotNull('s3_url')
             ->orWhereNotNull('url')
             ->orWhere('start_time', '>', now()->subHours(2)));
+    }
+
+    /**
+     * Записи, которые удалит recordings:cleanup до $until при сроке хранения $retentionDays
+     * (окончание занятия или создание записи + срок — как RecordingStorageService::expiresAt).
+     */
+    public function scopeExpiringBy(Builder $query, int $retentionDays, CarbonInterface $until): Builder
+    {
+        return $query->whereRaw(
+            'COALESCE(recordings.end_time, recordings.created_at) <= ?',
+            [$until->copy()->subDays($retentionDays)->format('Y-m-d H:i:s')]
+        );
+    }
+
+    /** Порядок «кто раньше удалится» (при одном сроке хранения). */
+    public function scopeOrderByExpiry(Builder $query): Builder
+    {
+        return $query->orderByRaw('COALESCE(recordings.end_time, recordings.created_at) asc')->orderBy('recordings.id');
+    }
+
+    /** Поиск по названию записи и занятия, имени ученика или учителя. */
+    public function scopeSearch(Builder $query, string $search): Builder
+    {
+        $term = '%' . addcslashes(trim($search), '%_\\') . '%';
+
+        return $query->where(fn (Builder $q) => $q
+            ->where('recordings.name', 'like', $term)
+            ->orWhereHas('room', fn (Builder $room) => $room
+                ->where('name', 'like', $term)
+                ->orWhereHas('user', fn (Builder $u) => $u->where('name', 'like', $term))
+                ->orWhereHas('participants', fn (Builder $p) => $p->where('users.name', 'like', $term))));
+    }
+
+    /**
+     * Состояние записи (как колонка «Статус» в RecordingResource): processing — сервер занятий ещё готовит видео;
+     * uploading — видео уже смотрится на сервере занятий и переносится в хранилище (скачать пока нельзя);
+     * ready — готово. Перенос повторяет recordings:retry-uploads 30 дней — старше запись просто смотрится по ссылке.
+     */
+    public function status(): string
+    {
+        return match (true) {
+            (bool) $this->s3_url => 'ready',
+            (bool) $this->url => str_contains((string) $this->url, '/playback/video/')
+                && ($this->created_at === null || $this->created_at->gt(now()->subDays(30))) ? 'uploading' : 'ready',
+            default => 'processing',
+        };
     }
 
     /** Относится ли запись к занятию: по внутреннему id встречи или по времени. */

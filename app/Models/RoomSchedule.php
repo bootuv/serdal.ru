@@ -3,12 +3,17 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Model;
-use Carbon\Carbon;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 
 class RoomSchedule extends Model
 {
     use HasFactory;
+
+    /** Длительность занятия по умолчанию, минут: окно «Запланировать занятие», расчёт next_start, сервисы расписания. */
+    public const DEFAULT_DURATION = 60;
 
     protected $fillable = [
         'room_id',
@@ -56,6 +61,12 @@ class RoomSchedule extends Model
     public function room()
     {
         return $this->belongsTo(Room::class);
+    }
+
+    /** Отменённые и перенесённые занятия этого правила. */
+    public function exceptions()
+    {
+        return $this->hasMany(RoomScheduleException::class);
     }
 
     /**
@@ -112,80 +123,128 @@ class RoomSchedule extends Model
     }
 
     /**
-     * Get next scheduled occurrence
+     * Вхождения правила в интервале [from, to] без учёта исключений: разовое — по дате, повторяющееся — по дням (isActiveAt).
+     * Как и раньше в сервисах расписания, дни берутся целиком: от начала дня from до to.
+     *
+     * @return array<int, Carbon>
      */
-    public function getNextOccurrence(): ?Carbon
+    public function rawOccurrences(CarbonInterface $from, CarbonInterface $to): array
     {
-        if (!$this->is_active) {
+        if ($this->type === 'once') {
+            return $this->scheduled_at && $this->scheduled_at->between($from, $to) ? [$this->scheduled_at->copy()] : [];
+        }
+
+        $result = [];
+        $current = Carbon::instance($from)->startOfDay();
+
+        while ($current->lte($to)) {
+            $candidate = $current->copy()->setTimeFromTimeString($this->recurrence_time ?? '00:00');
+            if ($this->isActiveAt($candidate)) {
+                $result[] = $candidate;
+            }
+            $current->addDay();
+        }
+
+        return $result;
+    }
+
+    /** Исходное время вхождения этого правила в указанную дату (без учёта исключений) или null, если в этот день занятия нет. */
+    public function occurrenceOn(CarbonInterface $date): ?Carbon
+    {
+        return $this->rawOccurrences(Carbon::instance($date)->startOfDay(), Carbon::instance($date)->endOfDay())[0] ?? null;
+    }
+
+    /** Длительность занятия по правилу, минут. */
+    public function minutes(): int
+    {
+        return (int) ($this->duration_minutes ?: self::DEFAULT_DURATION);
+    }
+
+    /**
+     * Ближайшее вхождение с учётом исключений: идущее сейчас (ещё не закончилось по расписанию) или следующее.
+     * Отменённые вхождения пропускаются, перенесённые — стоят в новое время со своей длительностью.
+     *
+     * @param  Collection<int, RoomScheduleException>|null  $exceptions  исключения этого правила, если уже загружены
+     * @return array{start: Carbon, duration: int, original: Carbon, exception: ?RoomScheduleException}|null
+     */
+    public function nextOccurrenceDetails(?Collection $exceptions = null): ?array
+    {
+        if (! $this->is_active) {
             return null;
         }
 
+        $exceptions ??= $this->relationLoaded('exceptions') ? $this->exceptions : $this->exceptions()->get();
+        $skip = $exceptions->mapWithKeys(fn (RoomScheduleException $e) => [$e->original_date->format('Y-m-d') => true])->all();
         $now = now();
+        $best = null;
+
+        foreach ($exceptions as $exception) {
+            if (! $exception->isMoved()) {
+                continue;
+            }
+            $duration = (int) ($exception->duration_minutes ?: $this->minutes());
+            if ($exception->starts_at->copy()->addMinutes($duration)->gt($now) && (! $best || $exception->starts_at->lt($best['start']))) {
+                $best = [
+                    'start' => $exception->starts_at->copy(),
+                    'duration' => $duration,
+                    'original' => $exception->original_starts_at->copy(),
+                    'exception' => $exception,
+                ];
+            }
+        }
+
+        $raw = $this->nextRawOccurrence($skip);
+        if ($raw && (! $best || $raw->lt($best['start']))) {
+            $best = ['start' => $raw, 'duration' => $this->minutes(), 'original' => $raw->copy(), 'exception' => null];
+        }
+
+        return $best;
+    }
+
+    /** Ближайшее вхождение с учётом исключений (время начала). */
+    public function getNextOccurrence(): ?Carbon
+    {
+        return $this->nextOccurrenceDetails()['start'] ?? null;
+    }
+
+    /**
+     * Ближайшее вхождение по правилу (в пределах года), которое ещё не закончилось; даты из $skip пропускаются.
+     *
+     * @param  array<string, bool>  $skip  Y-m-d => true
+     */
+    private function nextRawOccurrence(array $skip = []): ?Carbon
+    {
+        $now = now();
+        $duration = $this->minutes();
 
         if ($this->type === 'once') {
-            return $this->scheduled_at && $this->scheduled_at->gt($now)
-                ? $this->scheduled_at
+            return $this->scheduled_at
+                && ! isset($skip[$this->scheduled_at->format('Y-m-d')])
+                && $this->scheduled_at->copy()->addMinutes($duration)->gt($now)
+                ? $this->scheduled_at->copy()
                 : null;
         }
 
-        // For recurring, calculate next occurrence
-        $startDate = $this->start_date ? Carbon::parse($this->start_date) : now()->startOfDay();
-        $startTime = Carbon::parse($this->recurrence_time ?? '00:00');
-
-        $searchStart = now();
-        // If the start date is in the future, start searching from there
-        if ($startDate->gt($searchStart)) {
-            $searchStart = $startDate->copy()->setTimeFrom($startTime);
-        }
-
-        // Limit search to 1 year to avoid infinite loops
-        $limit = $searchStart->copy()->addYear();
-
-        $current = $searchStart->copy();
-
-        // If we are starting today, check if the time has already passed
-        // If strict comparison is needed, we might need to increment day immediately if time passed
-        // checking the very first candidate
-        $candidateTime = $current->copy()->setTimeFrom($startTime);
-
-        $duration = $this->duration_minutes ?? 90;
-
-        // If the calculated time for today is in the past (plus duration), move to tomorrow as a base
-        if ($candidateTime->copy()->addMinutes($duration)->lt(now())) {
-            $current->addDay();
-        }
+        $startDate = $this->start_date ? Carbon::parse($this->start_date) : $now->copy()->startOfDay();
+        $current = $startDate->gt($now) ? $startDate->copy()->startOfDay() : $now->copy()->startOfDay();
+        $limit = $current->copy()->addYear();
+        $endDate = $this->end_date ? Carbon::parse($this->end_date)->endOfDay() : null;
 
         while ($current->lt($limit)) {
-            // Check end date
-            if ($this->end_date && $current->gt(Carbon::parse($this->end_date)->endOfDay())) {
+            if ($endDate && $current->gt($endDate)) {
                 return null;
             }
 
-            $currentWithTime = $current->copy()->setTimeFrom($startTime);
-            $isValidDay = false;
-
-            if ($this->recurrence_type === 'daily') {
-                $isValidDay = true;
-            } elseif ($this->recurrence_type === 'weekly' && !empty($this->recurrence_days)) {
-                if (in_array($current->dayOfWeek, $this->recurrence_days)) {
-                    $isValidDay = true;
-                }
-            } elseif ($this->recurrence_type === 'monthly' && $this->recurrence_day_of_month) {
-                if ($current->day === $this->recurrence_day_of_month) {
-                    $isValidDay = true;
-                }
-            }
-
-            if ($isValidDay) {
-                // Check strict future OR within current duration window
-                if ($currentWithTime->copy()->addMinutes($duration)->gt(now())) {
-                    return $currentWithTime;
+            if (! isset($skip[$current->format('Y-m-d')])) {
+                $candidate = $current->copy()->setTimeFromTimeString($this->recurrence_time ?? '00:00');
+                if ($this->isActiveAt($candidate) && $candidate->copy()->addMinutes($duration)->gt($now)) {
+                    return $candidate;
                 }
             }
 
             $current->addDay();
         }
 
-        return null; // No next occurrence found
+        return null;
     }
 }

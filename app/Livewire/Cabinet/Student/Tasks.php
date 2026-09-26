@@ -23,6 +23,10 @@ class Tasks extends Component
     #[Url(except: 'actual')]
     public string $tab = 'actual';
 
+    /** Фильтр по учителю (у заданий нет предмета — предмет у ученика задаёт учитель). */
+    #[Url(as: 'teacher', except: '')]
+    public string $teacherId = '';
+
     /** Сколько сданных работ показано. */
     public int $shown = self::PAGE;
 
@@ -43,6 +47,16 @@ class Tasks extends Component
         $this->shown = self::PAGE;
     }
 
+    public function updatedTeacherId(): void
+    {
+        $this->shown = self::PAGE;
+
+        // Успеваемость — по тому же учителю
+        if ($this->teacherId !== '') {
+            $this->perfTeacherId = (int) $this->teacherId;
+        }
+    }
+
     public function showMore(): void
     {
         $this->shown += self::PAGE;
@@ -53,9 +67,14 @@ class Tasks extends Component
         $student = auth()->user();
         $id = $student->id;
 
-        $actualCount = Hw::filterByStatus(Hw::visibleTo($id), $id, 'actual')->count();
-        $doneCount = Hw::filterByStatus(Hw::visibleTo($id), $id, 'done')->count();
-        $gradedCount = Hw::filterByStatus(Hw::visibleTo($id), $id, 'graded')->count();
+        $teacherOptions = $this->teacherOptions($id);
+        if ($this->teacherId !== '' && ! isset($teacherOptions[$this->teacherId])) {
+            $this->teacherId = '';
+        }
+
+        $actualCount = Hw::filterByStatus($this->visible($id), $id, 'actual')->count();
+        $doneCount = Hw::filterByStatus($this->visible($id), $id, 'done')->count();
+        $gradedCount = Hw::filterByStatus($this->visible($id), $id, 'graded')->count();
 
         $actual = $this->tab === 'done' ? collect() : $this->actual($id);
         $done = $this->tab === 'actual' ? collect() : $this->done($id);
@@ -74,6 +93,7 @@ class Tasks extends Component
             'done' => $done,
             'hasMore' => $doneCount > $done->count(),
             'teachers' => $teachers,
+            'teacherOptions' => count($teacherOptions) > 1 ? $teacherOptions : [],
             'perfTeacher' => $teachers->firstWhere('id', $this->perfTeacherId)?->name,
             'metrics' => $this->perfTeacherId
                 ? app(StudentPerformanceService::class)->metrics($student, $this->perfTeacherId)
@@ -84,22 +104,40 @@ class Tasks extends Component
     /** Нужно сдать: сначала ближайший срок, без срока — в конце. */
     private function actual(int $studentId): Collection
     {
-        return $this->withRelations(Hw::filterByStatus(Hw::visibleTo($studentId), $studentId, 'actual'), $studentId)
+        return $this->withRelations(Hw::filterByStatus($this->visible($studentId), $studentId, 'actual'), $studentId)
             ->orderByRaw('deadline is null, deadline asc')
             ->orderByDesc('created_at')
             ->get()
-            ->map(fn (Homework $h) => $this->item($h));
+            ->map(fn (Homework $h) => self::item($h));
     }
 
     /** Сданные: как в старом кабинете — сначала ждущие проверки, затем новые. */
     private function done(int $studentId): Collection
     {
-        $query = Hw::orderForStudent(Hw::filterByStatus(Hw::visibleTo($studentId), $studentId, 'done'), $studentId);
+        $query = Hw::orderForStudent(Hw::filterByStatus($this->visible($studentId), $studentId, 'done'), $studentId);
 
         return $this->withRelations($query, $studentId)
             ->limit($this->shown)
             ->get()
-            ->map(fn (Homework $h) => $this->item($h));
+            ->map(fn (Homework $h) => self::item($h));
+    }
+
+    /** Задания ученика с учётом фильтра по учителю. */
+    private function visible(int $studentId): Builder
+    {
+        return Hw::visibleTo($studentId)
+            ->when($this->teacherId !== '', fn ($q) => $q->where('homeworks.teacher_id', (int) $this->teacherId));
+    }
+
+    /** Учителя, от которых есть задания: id → имя. */
+    private function teacherOptions(int $studentId): array
+    {
+        return User::query()
+            ->whereIn('id', Hw::visibleTo($studentId)->select('teacher_id'))
+            ->orderBy('name')
+            ->pluck('name', 'id')
+            ->mapWithKeys(fn ($name, $id) => [(string) $id => $name])
+            ->all();
     }
 
     private function withRelations(Builder $query, int $studentId): Builder
@@ -111,14 +149,18 @@ class Tasks extends Component
         ]);
     }
 
-    /** Строка списка: название, подпись (занятие · учитель · срок), бейдж только для исключений. */
-    private function item(Homework $h): array
+    /**
+     * Строка списка: название, подпись (занятие · учитель · срок), бейдж только для исключений.
+     * Нужны отношения submissions (только этого ученика), teacher и room. $withRoom = false — на странице самого занятия.
+     */
+    public static function item(Homework $h, bool $withRoom = true): array
     {
         $sub = $h->submissions->first();
         $state = Hw::state($h, $sub);
         $deadline = $h->deadline ? HumanDate::at($h->deadline) : null;
+        $room = $withRoom ? $h->room?->name : null;
 
-        $meta = array_filter([$h->room?->name, $h->teacher?->name]);
+        $meta = array_filter([$room, $h->teacher?->name]);
         $em = null;
         $badge = null;
 
@@ -135,11 +177,11 @@ class Tasks extends Component
                 $badge = ['danger', 'На доработке'];
                 break;
             case Hw::STATE_REVIEW:
-                $meta = array_filter([$h->room?->name, 'отправлено ' . HumanDate::date($sub->submitted_at)]);
+                $meta = array_filter([$room, 'отправлено ' . HumanDate::date($sub->submitted_at)]);
                 $badge = ['neutral', 'На проверке'];
                 break;
             case Hw::STATE_GRADED:
-                $meta = array_filter([$h->room?->name, 'проверено ' . HumanDate::date($sub->updated_at)]);
+                $meta = array_filter([$room, 'проверено ' . HumanDate::date($sub->updated_at)]);
                 $badge = ['ok', 'Оценка ' . $h->formatGrade($sub->grade)];
                 break;
         }

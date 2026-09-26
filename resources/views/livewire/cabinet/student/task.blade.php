@@ -52,12 +52,7 @@
                         </div>
                     @endif
 
-                    <div class="flex flex-col gap-2">
-                        <label for="task-text" class="sr-only">Текст ответа</label>
-                        <textarea id="task-text" name="answer" rows="8" wire:model="answer" placeholder="Начните писать здесь"
-                                  @class(['field h-auto min-h-12 py-3', 'shadow-outline-ink' => $errors->has('answer')])></textarea>
-                        @error('answer')<span class="text-t2 font-medium text-danger-fg">{{ $message }}</span>@enderror
-                    </div>
+                    <x-ui.editor label="Текст ответа" hide-label name="answer" wire:model="answer" placeholder="Начните писать здесь" />
 
                     <x-ui.dropzone onMint title="Прикрепите файлы или фото тетради" hint="PDF, Word, JPG или PNG до 50 МБ" :accept="implode(',', \App\Services\HomeworkSubmissionService::ACCEPTED_MIMES)"
                                    wire:model="picked" aria-label="Прикрепите файлы или фото тетради" />

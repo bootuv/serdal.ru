@@ -43,7 +43,9 @@ class NewHomework extends Notification implements ShouldBroadcast
                 \Filament\Notifications\Actions\Action::make('view')
                     ->label('Открыть')
                     ->button()
-                    ->url(route('filament.student.resources.homework.view', $this->homework))
+                    ->url(\Illuminate\Support\Facades\Route::has('cabinet.student.task')
+                        ? route('cabinet.student.task', $this->homework)
+                        : route('filament.student.resources.homework.view', $this->homework))
             ])
             ->getDatabaseMessage();
     }

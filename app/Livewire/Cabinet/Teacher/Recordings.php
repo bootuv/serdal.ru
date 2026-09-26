@@ -35,6 +35,10 @@ class Recordings extends Component
     #[Url(except: '')]
     public string $student = '';
 
+    /** Поиск по названию занятия и имени ученика. */
+    #[Url(except: '')]
+    public string $search = '';
+
     public int $limit = self::PAGE;
 
     /** Режим «Выбрать» и выбранные записи. */
@@ -71,6 +75,11 @@ class Recordings extends Component
     }
 
     public function updatedStudent(): void
+    {
+        $this->limit = self::PAGE;
+    }
+
+    public function updatedSearch(): void
     {
         $this->limit = self::PAGE;
     }
@@ -136,18 +145,30 @@ class Recordings extends Component
         $students = $teacher->students()->orderBy('name')->get(['users.id', 'users.name']);
         $studentId = $students->contains('id', (int) $this->student) ? (int) $this->student : null;
 
+        $searching = filled(trim($this->search));
         $query = Recording::forTeacher($teacher)
             ->listed()
-            ->when($studentId, fn ($q) => $q->whereHas('room.participants', fn ($p) => $p->where('users.id', $studentId)));
+            ->when($studentId, fn ($q) => $q->whereHas('room.participants', fn ($p) => $p->where('users.id', $studentId)))
+            ->when($searching, fn ($q) => $q->search($this->search));
+
+        // «Скоро удалятся» — отдельным запросом по сроку: удаляются самые старые, а список ниже — последние записи
+        $soonRecords = $retention === null ? collect() : (clone $query)
+            ->expiringBy($retention, now()->addDays(self::SOON_DAYS))
+            ->with('room.participants:id,name')
+            ->orderByExpiry()
+            ->limit(self::PAGE)
+            ->get();
 
         $recordings = (clone $query)
+            ->whereKeyNot($soonRecords->pluck('id')->all())
             ->with('room.participants:id,name')
             ->orderByDesc('start_time')
             ->limit($this->limit)
             ->get();
 
-        $items = $recordings->map(fn (Recording $r) => $this->view($r, $storage->expiresAt($r, $retention)));
-        [$soon, $rest] = $items->partition(fn (array $r) => $r['soon']);
+        $soon = $soonRecords->map(fn (Recording $r) => $this->view($r, $storage->expiresAt($r, $retention)));
+        $rest = $recordings->map(fn (Recording $r) => $this->view($r, $storage->expiresAt($r, $retention)));
+        $items = $soon->concat($rest);
 
         $current = $this->open && ! $this->selecting ? $items->firstWhere('id', $this->open) : null;
         if ($this->open && ! $this->selecting && ! $current) {
@@ -163,10 +184,12 @@ class Recordings extends Component
                 ? 'Хранятся ' . plural_ru($retention, 'день', 'дня', 'дней') . ($tariff ? ' по тарифу «' . $tariff . '»' : '')
                 : ($items->isNotEmpty() ? plural_ru((clone $query)->count(), 'запись', 'записи', 'записей') : null),
             'current' => $current,
-            'soon' => $soon->sortBy('start')->values(), // первыми — те, что удалятся раньше
+            'soon' => $soon, // первыми — те, что удалятся раньше
             'weeks' => $this->byWeek($rest),
             'isEmpty' => $items->isEmpty(),
-            'hasMore' => $recordings->count() >= $this->limit && (clone $query)->count() > $this->limit,
+            'hasAny' => $items->isNotEmpty() || Recording::forTeacher($teacher)->listed()->exists(),
+            'searching' => $searching,
+            'hasMore' => $recordings->count() >= $this->limit && (clone $query)->count() > $this->limit + $soon->count(),
             'studentOptions' => $students->count() > 1 ? ['' => 'Все ученики'] + $students->pluck('name', 'id')->all() : [],
         ]);
     }
@@ -193,6 +216,7 @@ class Recordings extends Component
             'group' => $isGroup,
             'start' => $start ?? $r->created_at,
             'soon' => $soon,
+            'status' => $r->status(),
             'expires' => $expiresAt ? ($soon ? 'через ' . $this->left($expiresAt) : 'до ' . HumanDate::date($expiresAt)) : null,
             // Видео в хранилище — смотрим здесь; пока не перенесено — открываем проигрыватель сервера занятий
             'video' => $r->s3_url,

@@ -1,12 +1,20 @@
 {{-- Холст пометок нового кабинета (App\Livewire\ImageAnnotator, embedded). Стоит внутри x-ui.modal родителя;
      кнопка «Сохранить пометки» в подвале окна шлёт событие annotator-save. Сохранение — saveAnnotatedImage (как в старом кабинете).
+     Закрыть окно или открыть другое фото родитель просит событием annotator-leave ({ photo: номер } или без него):
+     если есть несохранённые пометки — сначала спрашиваем здесь же. Закрытие вкладки — предупреждение браузера.
      Цвета пера — токены pen-* (в скрипте те же значения: canvas не читает классы). --}}
 @php
     $tool = 'flex size-9 items-center justify-center rounded-sm text-muted hover:text-ink';
 @endphp
-<div class="flex min-w-0 flex-1 flex-col gap-4">
+<div class="flex min-w-0 flex-1 flex-col gap-4" x-data="cabinetAnnotator(@js($imageUrl))" x-on:annotator-save.window="save()"
+     x-on:annotator-leave.window="leave($event.detail)" x-on:beforeunload.window="if (dirty()) { $event.preventDefault(); $event.returnValue = ''; }">
+    <div x-show="pending" x-cloak class="flex flex-wrap items-center gap-3 rounded-lg bg-soft px-4 py-3" role="alert">
+        <span class="min-w-0 flex-1 text-t2 font-medium">Пометки на этом фото не сохранены</span>
+        <x-ui.btn size="s" x-on:click="discard()">Не сохранять</x-ui.btn>
+        <button type="button" class="link text-t2" x-on:click="pending = null">Вернуться к пометкам</button>
+    </div>
     @if ($imageUrl)
-        <div class="flex min-w-0 flex-col gap-4" x-data="cabinetAnnotator(@js($imageUrl))" x-on:annotator-save.window="save()">
+        <div class="flex min-w-0 flex-col gap-4">
             <div class="flex flex-wrap items-center gap-2" role="toolbar" aria-label="Инструменты">
                 <div class="flex gap-1 rounded bg-soft p-1" role="group" aria-label="Инструмент">
                     <button type="button" class="{{ $tool }}" x-bind:class="pan ? '' : 'bg-white text-ink shadow-seg'" x-bind:aria-pressed="pan ? 'false' : 'true'" x-on:click="pan = false" aria-label="Карандаш"><x-ui.icon name="pencil" /></button>
@@ -53,8 +61,11 @@
         last: null,
         drag: null,
         failed: false,
+        rotated: false,
+        pending: null,
 
         init() {
+            if (!url) return;
             const img = new Image();
             img.crossOrigin = 'anonymous';
             img.onload = () => {
@@ -180,11 +191,40 @@
             this.ctx.drawImage(tmp, -w / 2, -h / 2);
             this.ctx.restore();
             this.history = [this.snapshot()];
+            this.rotated = true;
             this.fitToStage();
+        },
+
+        // Есть штрихи (или поворот), которые ещё не сохранены
+        dirty() {
+            return !!this.canvas && (this.history.length > 1 || this.rotated);
+        },
+
+        // Родитель просит закрыть окно или открыть другое фото
+        leave(detail) {
+            const target = { photo: detail && detail.photo !== undefined ? detail.photo : null };
+            if (this.dirty()) {
+                this.pending = target;
+                return;
+            }
+            this.go(target);
+        },
+
+        discard() {
+            const target = this.pending || { photo: null };
+            this.pending = null;
+            this.history = this.history.slice(0, 1);
+            this.rotated = false;
+            this.go(target);
+        },
+
+        go(target) {
+            target.photo === null ? this.$wire.$parent.closeAnnotator() : this.$wire.$parent.annotate(target.photo);
         },
 
         save() {
             if (!this.canvas) return;
+            this.pending = null;
             this.$wire.saveAnnotatedImage(this.canvas.toDataURL('image/png'));
         },
     }));

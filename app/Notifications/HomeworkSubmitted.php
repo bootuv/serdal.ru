@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\Homework;
+use App\Models\HomeworkSubmission;
 use App\Models\User;
 use App\Notifications\Traits\BroadcastsNotification;
 use Filament\Notifications\Notification as FilamentNotification;
@@ -19,7 +20,8 @@ class HomeworkSubmitted extends Notification implements ShouldBroadcast
 
     public function __construct(
         public Homework $homework,
-        public User $student
+        public User $student,
+        public ?HomeworkSubmission $submission = null
     ) {
     }
 
@@ -45,8 +47,21 @@ class HomeworkSubmitted extends Notification implements ShouldBroadcast
                 \Filament\Notifications\Actions\Action::make('view')
                     ->label('Проверить')
                     ->button()
-                    ->url(route('filament.app.resources.homework.view', $this->homework))
+                    ->url($this->url())
             ])
             ->getDatabaseMessage();
+    }
+
+    /** Сразу на проверку работы в новом кабинете; без работы — экран задания. */
+    private function url(): string
+    {
+        $submission = $this->submission
+            ?? $this->homework->submissions()->where('student_id', $this->student->id)->first();
+
+        return match (true) {
+            $submission !== null && \Illuminate\Support\Facades\Route::has('cabinet.teacher.review') => route('cabinet.teacher.review', $submission),
+            \Illuminate\Support\Facades\Route::has('cabinet.teacher.task') => route('cabinet.teacher.task', $this->homework),
+            default => route('filament.app.resources.homework.view', $this->homework),
+        };
     }
 }

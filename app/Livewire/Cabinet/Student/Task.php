@@ -2,13 +2,12 @@
 
 namespace App\Livewire\Cabinet\Student;
 
-use App\Helpers\FileUploadHelper;
 use App\Models\Homework;
 use App\Models\HomeworkSubmission;
 use App\Models\User;
 use App\Services\HomeworkSubmissionService as Hw;
 use App\Support\HumanDate;
-use Illuminate\Support\Facades\Cache;
+use App\Support\RichText;
 use Illuminate\Support\HtmlString;
 use Illuminate\Support\Str;
 use Livewire\Attributes\Layout;
@@ -23,11 +22,9 @@ class Task extends Component
 {
     use WithFileUploads;
 
-    private const IMAGE_EXT = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic'];
-
     public Homework $homework;
 
-    /** Текст ответа (в работе хранится HTML — как у редактора в старом кабинете). */
+    /** Ответ — HTML из редактора (x-ui.editor), при сохранении чистится RichText::clean(). */
     public string $answer = '';
 
     /** Только что выбранные файлы (wire:model), после проверки переносятся в $files. */
@@ -52,7 +49,8 @@ class Task extends Component
 
         $submission = $this->submission();
         if ($submission && Hw::canSubmit($submission)) {
-            $this->answer = $this->toText($submission->content);
+            // При пересдаче — прежний ответ с оформлением
+            $this->answer = (string) RichText::clean($submission->content);
             $this->kept = array_values(array_filter($submission->attachments ?? [], 'is_string'));
         }
     }
@@ -60,7 +58,7 @@ class Task extends Component
     protected function rules(): array
     {
         return [
-            'answer' => ['nullable', 'string', 'max:20000'],
+            'answer' => ['nullable', 'string', 'max:60000'],
             'files.*' => $this->fileRules(),
         ];
     }
@@ -120,15 +118,17 @@ class Task extends Component
 
         $this->validate();
 
-        if (trim($this->answer) === '' && empty($this->files) && empty($this->kept)) {
+        $content = RichText::clean($this->answer);
+
+        if ($content === null && empty($this->files) && empty($this->kept)) {
             $this->addError('answer', 'Напишите ответ или прикрепите файл.');
 
             return;
         }
 
-        $paths = FileUploadHelper::processFiles($this->files, Hw::DIRECTORY);
+        $names = Hw::storeUploads($this->files, Hw::DIRECTORY);
 
-        $service->submit($this->homework, auth()->user(), $this->toHtml($this->answer), array_merge($this->kept, $paths));
+        $service->submit($this->homework, auth()->user(), $content, array_merge($this->kept, array_keys($names)), $names);
 
         $this->reset('files', 'picked', 'kept', 'answer');
         $this->justSent = true;
@@ -141,24 +141,26 @@ class Task extends Component
         $submission = $this->submission();
         $state = Hw::state($homework, $submission);
         $canSubmit = Hw::canSubmit($submission);
-        $annotated = $submission?->annotated_files ?? [];
+        // Пометки учителя на фото — только после проверки (оценка или «на доработку»)
+        $marks = (bool) $submission?->marksVisibleToStudent();
+        $answerPaths = $canSubmit ? $this->kept : ($submission?->attachments ?? []);
 
         return view('livewire.cabinet.student.task', [
             'state' => $state,
             'canSubmit' => $canSubmit,
             'facts' => $this->facts($homework, $state),
-            'description' => $this->rich($homework->description),
-            'teacherFiles' => $this->storedFiles($homework->attachments ?? [], [], 'Файл'),
+            'description' => RichText::html($homework->description),
+            'teacherFiles' => Hw::fileViews($homework->attachments ?? [], $homework->file_names ?? []),
             'submission' => $submission,
             'grade' => $submission?->grade !== null ? $homework->formatGrade($submission->grade) : null,
-            'content' => $this->rich($submission?->content),
-            'feedback' => $this->rich($submission?->feedback),
-            'feedbackFiles' => $this->storedFiles($submission?->feedback_attachments ?? [], [], 'Файл'),
-            'myFiles' => $this->storedFiles($submission?->attachments ?? [], $annotated),
-            'keptFiles' => $this->storedFiles($this->kept, $annotated),
+            'content' => RichText::html($submission?->content),
+            'feedback' => RichText::html($submission?->feedback),
+            'feedbackFiles' => $submission ? Hw::feedbackFiles($submission, $marks ? $answerPaths : []) : [],
+            'myFiles' => $submission && ! $canSubmit ? Hw::answerFiles($submission, $marks) : [],
+            'keptFiles' => $submission ? Hw::answerFiles($submission, $marks, $this->kept) : [],
             'newFiles' => collect($this->files)->map(fn (TemporaryUploadedFile $f) => [
                 'name' => $f->getClientOriginalName(),
-                'meta' => $this->kind($f->getClientOriginalName()) . ' · ' . $this->size($f->getSize()),
+                'meta' => Hw::kind($f->getClientOriginalName()) . ' · ' . Hw::size($f->getSize()),
             ])->all(),
             'sentAt' => $submission?->submitted_at ? HumanDate::at($submission->submitted_at) : null,
             'checkedAt' => $submission ? HumanDate::date($submission->updated_at) : null,
@@ -212,87 +214,5 @@ class Task extends Component
             'text' => Str::limit($text, 240),
             'url' => route('cabinet.student.task', $prev->homework),
         ];
-    }
-
-    /**
-     * Файлы на s3 для плиток: имя по типу («Фото 1», «Файл 2»), тип и размер, ссылка на скачивание.
-     * Исходных имён в заданиях нет — храним только пути.
-     */
-    private function storedFiles(array $paths, array $annotated, ?string $noun = null): array
-    {
-        return collect($paths)->filter(fn ($p) => is_string($p) && $p !== '')->values()
-            ->map(function (string $path, int $i) use ($annotated, $noun) {
-                $size = Cache::get("file_size_{$path}");
-                $kind = $this->kind($path);
-                $isImage = in_array(mb_strtolower(pathinfo($path, PATHINFO_EXTENSION)), self::IMAGE_EXT, true);
-
-                return [
-                    'path' => $path,
-                    'name' => ($noun ?? ($isImage ? 'Фото' : 'Файл')) . ' ' . ($i + 1),
-                    'meta' => $kind . ($size ? ' · ' . $this->size((int) $size) : ''),
-                    'annotated' => in_array($path, $annotated, true),
-                    'url' => Hw::fileUrl($path),
-                ];
-            })->all();
-    }
-
-    private function kind(string $name): string
-    {
-        $ext = mb_strtolower(pathinfo($name, PATHINFO_EXTENSION));
-
-        return match (true) {
-            in_array($ext, ['doc', 'docx'], true) => 'Word',
-            $ext === 'jpeg' => 'JPG',
-            $ext === 'pdf' => 'PDF',
-            $ext !== '' => mb_strtoupper($ext),
-            default => 'Файл',
-        };
-    }
-
-    private function size(int $bytes): string
-    {
-        return $bytes >= 1048576
-            ? str_replace('.', ',', (string) round($bytes / 1048576, 1)) . ' МБ'
-            : max(1, (int) round($bytes / 1024)) . ' КБ';
-    }
-
-    /**
-     * Текст из редактора учителя — очищаем так же, как старый кабинет (Filament sanitizeHtml).
-     * Оформление — класс `.rich` во вьюхе; ссылки открываются в новой вкладке.
-     */
-    private function rich(?string $html): ?HtmlString
-    {
-        if ($html === null || trim(strip_tags($html)) === '') {
-            return null;
-        }
-
-        return new HtmlString(preg_replace('/<a(?=\s)/i', '<a target="_blank" rel="noopener"', Str::sanitizeHtml($html)));
-    }
-
-    /** Простой текст ответа → HTML для хранения (абзацы и переносы строк). */
-    private function toHtml(string $text): ?string
-    {
-        $text = trim(str_replace("\r\n", "\n", $text));
-
-        if ($text === '') {
-            return null;
-        }
-
-        return collect(preg_split("/\n{2,}/", $text))
-            ->map(fn (string $p) => '<p>' . nl2br(e(trim($p)), false) . '</p>')
-            ->implode('');
-    }
-
-    /** HTML ответа → простой текст для поля при пересдаче. */
-    private function toText(?string $html): string
-    {
-        if (! $html) {
-            return '';
-        }
-
-        $text = preg_replace(['/<br\s*\/?>/i', '/<\/(p|div|li|h[1-6])>/i'], ["\n", "\n\n"], $html);
-        $text = html_entity_decode(strip_tags($text), ENT_QUOTES | ENT_HTML5, 'UTF-8');
-
-        return trim(preg_replace("/\n{3,}/", "\n\n", $text));
     }
 }

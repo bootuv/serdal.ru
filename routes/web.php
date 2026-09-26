@@ -88,10 +88,13 @@ Route::middleware(['auth'])->group(function () {
     Route::delete('/push-subscription/cleanup', [\App\Http\Controllers\PushSubscriptionController::class, 'cleanup'])->name('push.cleanup');
 });
 
+// Кабинеты подключаем раньше /{username}, иначе /cabinet откроется как страница учителя
+require __DIR__ . '/cabinet.php';
+
 Route::get('/{username}', [PageController::class, 'tutorPage'])->name('tutors.show');
 
 // Public Room Access
 Route::get('/rooms/{room}/join', \App\Livewire\GuestJoinRoom::class)->name('rooms.join');
 Route::get('/rooms/{room}/connect', [RoomController::class, 'connect'])->name('rooms.connect');
 Route::post('/rooms/{room}/join/guest', [RoomController::class, 'joinAsGuest'])->name('rooms.join.guest');
-require __DIR__ . '/cabinet.php';
+

@@ -3,6 +3,7 @@
 namespace App\Livewire\Cabinet\Student;
 
 use App\Models\Recording;
+use App\Models\Room;
 use App\Models\User;
 use App\Services\RecordingStorageService;
 use App\Support\HumanDate;
@@ -31,6 +32,10 @@ class Recordings extends Component
     #[Url(as: 'teacher', except: 'all')]
     public string $teacher = 'all';
 
+    /** Поиск по названию занятия и имени учителя. */
+    #[Url(except: '')]
+    public string $search = '';
+
     public int $limit = self::PAGE;
 
     /** Запись загрузилась в хранилище или появилась новая. */
@@ -57,6 +62,16 @@ class Recordings extends Component
         $this->open = null;
     }
 
+    public function updatedTeacher(): void
+    {
+        $this->limit = self::PAGE;
+    }
+
+    public function updatedSearch(): void
+    {
+        $this->limit = self::PAGE;
+    }
+
     public function showMore(): void
     {
         $this->limit += self::PAGE;
@@ -80,23 +95,45 @@ class Recordings extends Component
         $teachers = $student->teachers()->orderBy('name')->get(['users.id', 'users.name']);
         $teacherId = $teachers->count() > 1 && $teachers->contains('id', (int) $this->teacher) ? (int) $this->teacher : null;
 
+        $searching = filled(trim($this->search));
         $query = Recording::forStudent($student)
             ->listed()
-            ->when($teacherId, fn ($q) => $q->whereHas('room', fn ($r) => $r->where('user_id', $teacherId)));
+            ->when($teacherId, fn ($q) => $q->whereHas('room', fn ($r) => $r->where('user_id', $teacherId)))
+            ->when($searching, fn ($q) => $q->search($this->search));
+
+        // Срок хранения — по тарифу учителя (как в recordings:cleanup)
+        $teacherIds = Room::whereHas('participants', fn ($q) => $q->where('users.id', $student->id))->distinct()->pluck('user_id');
+        $retention = User::whereKey($teacherIds)->get()
+            ->mapWithKeys(fn (User $t) => [$t->id => $storage->retentionDays($t)]);
+
+        // «Скоро удалятся» — отдельным запросом по сроку у каждого учителя: удаляются самые старые,
+        // а список ниже — последние записи
+        $until = now()->addDays(self::SOON_DAYS);
+        $expiring = $retention->filter();
+        $soonRecords = $expiring->isEmpty() ? collect() : (clone $query)
+            ->where(function ($q) use ($expiring, $until) {
+                foreach ($expiring as $tid => $days) {
+                    $q->orWhere(fn ($w) => $w->whereHas('room', fn ($r) => $r->where('user_id', $tid))->expiringBy($days, $until));
+                }
+            })
+            ->with('room.user')
+            ->orderByExpiry()
+            ->limit(self::PAGE)
+            ->get();
 
         $recordings = (clone $query)
+            ->whereKeyNot($soonRecords->pluck('id')->all())
             ->with('room.user')
             ->orderByDesc('start_time')
             ->limit($this->limit)
             ->get();
 
-        // Срок хранения — по тарифу учителя (как в recordings:cleanup)
-        $retention = $recordings->pluck('room.user')->filter()->unique('id')
-            ->mapWithKeys(fn (User $t) => [$t->id => $storage->retentionDays($t)]);
-
-        $items = $recordings->map(fn (Recording $r) => $this->view($r, $storage->expiresAt($r, $retention[$r->room?->user_id] ?? null)));
-
-        [$soon, $rest] = $items->partition(fn (array $r) => $r['soon']);
+        $expiresAt = fn (Recording $r) => $storage->expiresAt($r, $retention[$r->room?->user_id] ?? null);
+        // У учителей разные сроки хранения — первыми те, что удалятся раньше
+        $soon = $soonRecords->sortBy(fn (Recording $r) => $expiresAt($r)?->getTimestamp())
+            ->map(fn (Recording $r) => $this->view($r, $expiresAt($r)))->values();
+        $rest = $recordings->map(fn (Recording $r) => $this->view($r, $expiresAt($r)));
+        $items = $soon->concat($rest);
 
         $current = $this->open ? $items->firstWhere('id', $this->open) : null;
         if ($this->open && ! $current) {
@@ -106,11 +143,13 @@ class Recordings extends Component
         }
 
         return view('livewire.cabinet.student.recordings', [
-            'sub' => $this->subtitle($retention, $items->count()),
+            'sub' => $this->subtitle($retention->only($soonRecords->concat($recordings)->pluck('room.user_id')->filter()->unique()->all()), $items->count()),
             'current' => $current,
-            'soon' => $soon->values(),
+            'soon' => $soon,
             'weeks' => $this->byWeek($rest),
-            'hasMore' => $recordings->count() >= $this->limit && (clone $query)->count() > $this->limit,
+            'searching' => $searching,
+            'hasAny' => $items->isNotEmpty() || Recording::forStudent($student)->listed()->exists(),
+            'hasMore' => $recordings->count() >= $this->limit && (clone $query)->count() > $this->limit + $soon->count(),
             'teacherFilter' => $teachers->count() > 1
                 ? ['all' => 'Все учителя'] + $teachers->pluck('name', 'id')->all()
                 : [],
@@ -133,6 +172,7 @@ class Recordings extends Component
             'when' => Str::ucfirst(implode(' · ', array_filter([$start ? $day . ', ' . $start->format('H:i') : null, $length]))),
             'start' => $start ?? $r->created_at,
             'soon' => $soon,
+            'status' => $r->status(),
             'expires' => $expiresAt ? ($soon ? 'через ' . $this->left($expiresAt) : 'до ' . HumanDate::date($expiresAt)) : null,
             // Видео в хранилище — смотрим здесь; пока не перенесено — открываем проигрыватель сервера занятий
             'video' => $r->s3_url,

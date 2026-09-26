@@ -171,7 +171,8 @@ class ViewHomework extends ViewRecord
                             ->view('filament.infolists.entries.file-cards')
                             ->state($submission?->attachments)
                             ->viewData([
-                                'annotatedFiles' => $submission?->annotated_files ?? [],
+                                // Пометки учителя ученик видит только после проверки (как в новом кабинете)
+                                'annotatedFiles' => $submission?->marksVisibleToStudent() ? ($submission->annotated_files ?? []) : [],
                                 'showAnnotateButton' => false,
                                 'submissionId' => $submission?->id,
                             ])

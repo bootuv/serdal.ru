@@ -3,6 +3,7 @@
 namespace App\Livewire\Cabinet\Teacher;
 
 use App\Livewire\Cabinet\Teacher\Concerns\MarksPayments;
+use App\Livewire\Cabinet\Teacher\Concerns\ReviewsPaymentClaims;
 use App\Livewire\Cabinet\Teacher\Concerns\TeacherScreen;
 use App\Models\PaymentRecord;
 use App\Models\Room;
@@ -27,7 +28,7 @@ use Livewire\Component;
 #[Layout('components.layouts.cabinet', ['title' => 'Ученики', 'active' => 'students'])]
 class Students extends Component
 {
-    use MarksPayments, TeacherScreen;
+    use MarksPayments, ReviewsPaymentClaims, TeacherScreen;
 
     #[Url(except: 'students')]
     public string $tab = 'students';
@@ -57,6 +58,11 @@ class Students extends Component
     public function mount(): void
     {
         $this->authorizeTeacher();
+
+        // ?invite=1 — сразу открываем «Пригласить ученика» (ссылки с «Сегодня» и из первых шагов)
+        if (request()->boolean('invite')) {
+            $this->openInvite();
+        }
     }
 
     private function service(): TeacherStudentsService
@@ -198,12 +204,12 @@ class Students extends Component
                 'debt' => 'Ждут оплаты · ' . $debtCount,
                 'none' => 'Без занятий · ' . $noneCount,
             ],
-            'debts' => $this->debts($teacher, $all),
+            'debts' => $this->debts($teacher, $all, $this->pendingClaims($teacher)),
             'debtTotalLabel' => $this->totalLabel($all->flatMap(fn ($r) => $r['owes'] ? $r['unpaid'] : [])),
             'invite' => $this->inviteOpen ? $this->inviteData($teacher) : null,
             'extend' => $this->extendStudentId ? $this->extendData($teacher, $all) : null,
             'flash' => session('cabinet_toast'),
-        ] + $this->markPaidView($teacher));
+        ] + $this->markPaidView($teacher) + $this->claimView($teacher));
     }
 
     /** Ученики учителя с занятиями, ближайшим занятием и состоянием оплаты. */
@@ -233,7 +239,7 @@ class Students extends Component
                 'user' => $s,
                 'name' => $s->name,
                 'firstName' => $this->firstName($s),
-                'href' => $s->username ? route('cabinet.teacher.student', $s) : null,
+                'href' => TeacherStudentsService::studentUrl($s),
                 'sub' => $rooms->isNotEmpty()
                     ? $labels->take(2)->implode(' · ') . ($labels->count() > 2 ? ' и ещё ' . ($labels->count() - 2) : '')
                     : ($since ? 'В списке с ' . $since : 'Занятий пока нет'),
@@ -285,7 +291,7 @@ class Students extends Component
     }
 
     /** Фокус «Ждут оплаты»: сначала закрытый вход и просрочка, затем по сроку. Только что оплаченные остаются до ухода со страницы. */
-    private function debts(User $teacher, Collection $all): Collection
+    private function debts(User $teacher, Collection $all, Collection $claims): Collection
     {
         return $all
             ->filter(fn ($r) => $r['owes'] || isset($this->justPaid[$r['id']]))
@@ -294,9 +300,9 @@ class Students extends Component
                 match ($r['state']) { 'blocked' => 0, 'overdue' => 1, default => 2 },
                 $r['unpaid']->first()?->due_date?->timestamp ?? PHP_INT_MAX,
             ])
-            ->map(function ($r) use ($teacher) {
+            ->map(function ($r) use ($teacher, $claims) {
                 if (! $r['owes']) {
-                    return ['row' => $r, 'paid' => true, 'undo' => true, 'meta' => 'Оплата отмечена сейчас', 'note' => null, 'overdue' => false];
+                    return ['row' => $r, 'paid' => true, 'undo' => true, 'meta' => 'Оплата отмечена сейчас', 'note' => null, 'overdue' => false, 'claim' => null];
                 }
 
                 $first = $r['unpaid']->first();
@@ -319,6 +325,7 @@ class Students extends Component
                         ? ($overdue ? ' · срок был ' . HumanDate::date($first->due_date) : ' · до ' . HumanDate::date($first->due_date))
                         : ''),
                     'note' => $note,
+                    'claim' => $claims[$r['id']] ?? null,
                 ];
             })
             ->values();
@@ -376,7 +383,7 @@ class Students extends Component
     {
         return $rooms
             ->filter(fn (Room $r) => $r->is_running
-                || ($r->next_start && $r->next_start->copy()->addMinutes($r->duration ?: 45)->isFuture()))
+                || ($r->next_start && $r->next_start->copy()->addMinutes($r->duration ?: \App\Models\RoomSchedule::DEFAULT_DURATION)->isFuture()))
             ->sortBy(fn (Room $r) => [$r->is_running ? 0 : 1, $r->next_start?->timestamp ?? PHP_INT_MAX])
             ->first();
     }
@@ -389,7 +396,7 @@ class Students extends Component
         }
 
         $start = $room->next_start;
-        if (! $start || $start->copy()->addMinutes($room->duration ?: 45)->isPast()) {
+        if (! $start || $start->copy()->addMinutes($room->duration ?: \App\Models\RoomSchedule::DEFAULT_DURATION)->isPast()) {
             return null;
         }
 

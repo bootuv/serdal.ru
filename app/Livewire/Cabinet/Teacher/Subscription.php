@@ -328,7 +328,7 @@ class Subscription extends Component
             'referralBonus' => ReferralService::enabled() ? ReferralService::referrerBonus() : 0,
             'referralsUrl' => Route::has('cabinet.teacher.referrals') ? route('cabinet.teacher.referrals') : url('/tutor/referrals'),
             'profileUrl' => Route::has('cabinet.teacher.profile') ? route('cabinet.teacher.profile') : url('/tutor/edit-profile'),
-            'historyUrl' => url('/tutor/payments'),
+            'historyUrl' => Route::has('cabinet.teacher.payments') ? route('cabinet.teacher.payments') : url('/tutor/subscription'),
         ]);
     }
 }

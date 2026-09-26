@@ -29,6 +29,7 @@ class Homework extends Model
         'title',
         'description',
         'attachments',
+        'file_names',
         'deadline',
         'max_score',
         'is_visible',
@@ -36,6 +37,7 @@ class Homework extends Model
 
     protected $casts = [
         'attachments' => 'array',
+        'file_names' => 'array',
         'deadline' => 'datetime',
         'is_visible' => 'boolean',
         'max_score' => 'integer',

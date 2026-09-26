@@ -3,7 +3,9 @@
 namespace App\Livewire\Cabinet\Student;
 
 use App\Models\MeetingSession;
+use App\Models\Review;
 use App\Models\User;
+use App\Rules\NoContacts;
 use App\Services\StudentProfileService;
 use App\Services\StudentTeachersService;
 use App\Support\HumanDate;
@@ -19,8 +21,10 @@ class Profile extends Component
 {
     use WithFileUploads;
 
-    // Личные данные — поля и правила как в старом кабинете (Filament Student\Pages\Profile)
-    public string $name = '';
+    // Личные данные. Имя — тремя полями, как при регистрации: полное имя хранится как «Фамилия Имя Отчество»
+    public string $last_name = '';
+    public string $first_name = '';
+    public string $middle_name = '';
     public string $email = '';
     public string $phone = '';
     public string $grade = '';
@@ -40,7 +44,13 @@ class Profile extends Component
         $user = auth()->user();
         abort_unless($user?->role === User::ROLE_STUDENT, 403);
 
-        $this->name = (string) $user->name;
+        $this->last_name = (string) $user->last_name;
+        $this->first_name = (string) $user->first_name;
+        $this->middle_name = (string) $user->middle_name;
+        // Старые аккаунты без частей имени — берём полное имя как есть («Фамилия Имя»)
+        if ($this->last_name === '' && $this->first_name === '' && $user->name) {
+            [$this->last_name, $this->first_name] = array_pad(preg_split('/\s+/u', trim($user->name), 2), 2, '');
+        }
         $this->email = (string) $user->email;
         $this->phone = (string) $user->phone;
         $this->grade = (string) StudentProfileService::gradeForForm($user->grade);
@@ -48,7 +58,7 @@ class Profile extends Component
 
     public function updated(string $property): void
     {
-        if (in_array($property, ['name', 'email', 'phone', 'grade', 'password', 'photo'], true)) {
+        if (in_array($property, ['last_name', 'first_name', 'middle_name', 'email', 'phone', 'grade', 'password', 'photo'], true)) {
             $this->saved = false;
         }
 
@@ -60,7 +70,9 @@ class Profile extends Component
     protected function rules(): array
     {
         return [
-            'name' => ['required', 'string', 'max:255'],
+            'last_name' => ['required', 'string', 'max:255'],
+            'first_name' => ['required', 'string', 'max:255'],
+            'middle_name' => ['nullable', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore(auth()->id())],
             'phone' => ['nullable', 'string', 'max:255', 'regex:/^[+]*[(]{0,1}[0-9]{1,4}[)]{0,1}[-\s\.\/0-9]*$/'],
             'grade' => ['nullable', Rule::in(array_keys(StudentProfileService::GRADES))],
@@ -72,7 +84,9 @@ class Profile extends Component
     protected function validationAttributes(): array
     {
         return [
-            'name' => 'имя',
+            'last_name' => 'фамилия',
+            'first_name' => 'имя',
+            'middle_name' => 'отчество',
             'email' => 'почта',
             'phone' => 'телефон',
             'grade' => 'класс',
@@ -86,7 +100,9 @@ class Profile extends Component
         $this->validate();
 
         $data = [
-            'name' => $this->name,
+            'last_name' => trim($this->last_name),
+            'first_name' => trim($this->first_name),
+            'middle_name' => trim($this->middle_name) !== '' ? trim($this->middle_name) : null,
             'email' => $this->email,
             'phone' => $this->phone !== '' ? $this->phone : null,
             'grade' => StudentProfileService::gradeForStorage($this->grade),
@@ -126,9 +142,10 @@ class Profile extends Component
 
         $this->validate([
             'rating' => ['required', 'integer', 'between:1,5'],
-            'reviewText' => ['required', 'string'],
+            'reviewText' => ['required', 'string', 'max:' . Review::MAX_TEXT, new NoContacts],
         ], [
             'reviewText.required' => 'Напишите хотя бы пару предложений',
+            'reviewText.max' => 'Отзыв длиннее ' . Review::MAX_TEXT . ' символов — сократите его.',
         ]);
 
         $isNew = ! $this->teachersService()->review(auth()->id(), $teacher->id);

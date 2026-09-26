@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\RoomSchedule;
+use App\Models\RoomScheduleException;
 use App\Models\User;
 use Google\Client;
 use Google\Service\Calendar;
@@ -167,10 +168,23 @@ class SyncScheduleToGoogleCalendar implements ShouldQueue
             'location' => 'Online (BigBlueButton)',
         ];
 
+        $exceptions = $schedule->exceptions()->get();
+
         if ($schedule->type === 'once') {
-            // One-time event
-            $start = $schedule->scheduled_at;
-            $end = $schedule->scheduled_at->copy()->addMinutes($schedule->duration_minutes);
+            // One-time event; отменённое занятие убираем из календаря, перенесённое ставим в новое время
+            $exception = $exceptions->first();
+
+            if ($exception?->isCancelled()) {
+                if ($schedule->google_event_id) {
+                    $this->deleteEvent($service, $calendarId, $schedule->google_event_id);
+                    $schedule->updateQuietly(['google_event_id' => null]);
+                }
+
+                return;
+            }
+
+            $start = $exception?->isMoved() ? $exception->starts_at->copy() : $schedule->scheduled_at;
+            $end = $start->copy()->addMinutes($exception?->isMoved() && $exception->duration_minutes ? $exception->duration_minutes : $schedule->duration_minutes);
 
             $eventData['start'] = ['dateTime' => $start->toRfc3339String()];
             $eventData['end'] = ['dateTime' => $end->toRfc3339String()];
@@ -187,7 +201,10 @@ class SyncScheduleToGoogleCalendar implements ShouldQueue
             // Add recurrence rule
             $rrule = $this->buildRecurrenceRule($schedule);
             if ($rrule) {
-                $eventData['recurrence'] = [$rrule];
+                // Отменённые и перенесённые занятия серии — исключения из повтора
+                $exdates = $exceptions->map(fn (RoomScheduleException $e) => 'EXDATE;TZID=' . config('app.timezone') . ':'
+                    . $e->original_starts_at->copy()->setTimezone(config('app.timezone'))->format('Ymd\THis'))->all();
+                $eventData['recurrence'] = [$rrule, ...$exdates];
             }
         }
 
@@ -221,6 +238,56 @@ class SyncScheduleToGoogleCalendar implements ShouldQueue
                 'schedule_id' => $schedule->id,
                 'event_id' => $createdEvent->getId(),
             ]);
+        }
+
+        if ($schedule->type !== 'once') {
+            $this->syncMovedOccurrences($service, $schedule, $exceptions, $calendarId);
+        }
+    }
+
+    /** Перенесённые занятия серии — отдельные события; у отменённых после переноса событие удаляется. */
+    private function syncMovedOccurrences(Calendar $service, RoomSchedule $schedule, $exceptions, $calendarId): void
+    {
+        foreach ($exceptions as $exception) {
+            if (! $exception->isMoved()) {
+                if ($exception->google_event_id) {
+                    $this->deleteEvent($service, $calendarId, $exception->google_event_id);
+                    $exception->updateQuietly(['google_event_id' => null]);
+                }
+
+                continue;
+            }
+
+            $end = $exception->starts_at->copy()->addMinutes($exception->duration_minutes ?: $schedule->duration_minutes);
+            $event = new \Google\Service\Calendar\Event([
+                'summary' => $schedule->room->name,
+                'description' => $schedule->room->welcome ?? '',
+                'location' => 'Online (BigBlueButton)',
+                'start' => ['dateTime' => $exception->starts_at->toRfc3339String()],
+                'end' => ['dateTime' => $end->toRfc3339String()],
+            ]);
+
+            try {
+                if ($exception->google_event_id) {
+                    $service->events->update($calendarId, $exception->google_event_id, $event);
+
+                    continue;
+                }
+            } catch (\Exception $e) {
+                Log::warning('Moved lesson event not found, creating new one', ['exception_id' => $exception->id, 'error' => $e->getMessage()]);
+            }
+
+            $created = $service->events->insert($calendarId, $event);
+            $exception->updateQuietly(['google_event_id' => $created->getId()]);
+        }
+    }
+
+    private function deleteEvent(Calendar $service, $calendarId, string $eventId): void
+    {
+        try {
+            $service->events->delete($calendarId, $eventId);
+        } catch (\Exception $e) {
+            Log::info('Google Calendar event already deleted', ['event_id' => $eventId, 'error' => $e->getMessage()]);
         }
     }
 

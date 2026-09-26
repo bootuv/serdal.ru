@@ -61,6 +61,7 @@ class Room extends Model
         'welcome_msg',
         'is_running',
         'presentations',
+        'presentation_names',
         'record',
         'auto_start_recording',
         'allow_start_stop_recording',
@@ -81,6 +82,7 @@ class Room extends Model
     protected $casts = [
         'is_running' => 'boolean',
         'presentations' => 'array',
+        'presentation_names' => 'array',
         'record' => 'boolean',
         'auto_start_recording' => 'boolean',
         'allow_start_stop_recording' => 'boolean',
@@ -98,6 +100,18 @@ class Room extends Model
     {
         return $this->hasMany(RoomSchedule::class);
     }
+    /** Отменённые и перенесённые занятия (исключения из правил расписания). */
+    public function scheduleExceptions()
+    {
+        return $this->hasMany(RoomScheduleException::class);
+    }
+
+    /** Планы занятий (по исходному времени вхождения). */
+    public function lessonPlans()
+    {
+        return $this->hasMany(LessonPlan::class);
+    }
+
     public function participants()
     {
         return $this->belongsToMany(User::class)->withPivot(['custom_price', 'price_note'])->withTimestamps();
@@ -212,38 +226,40 @@ class Room extends Model
     }
 
     /**
+     * Ближайшее занятие по всем правилам расписания с учётом исключений (отменённые пропускаются, перенесённые — в новое время).
+     *
+     * @return array{start: \Illuminate\Support\Carbon, duration: int, original: \Illuminate\Support\Carbon, exception: ?RoomScheduleException, schedule: RoomSchedule}|null
+     */
+    public function nextOccurrenceDetails(): ?array
+    {
+        $best = null;
+
+        foreach ($this->schedules()->where('is_active', true)->with('exceptions')->get() as $schedule) {
+            $next = $schedule->nextOccurrenceDetails();
+
+            if ($next && (! $best || $next['start']->lt($best['start']))) {
+                $best = $next + ['schedule' => $schedule];
+            }
+        }
+
+        return $best;
+    }
+
+    /**
      * Calculate the next start date from all schedules
      */
     public function calculateNextStart(): ?\Carbon\Carbon
     {
-        $nextDates = $this->schedules->map(fn($schedule) => $schedule->getNextOccurrence())->filter();
-
-        if ($nextDates->isEmpty()) {
-            return null;
-        }
-
-        return $nextDates->min();
+        return $this->nextOccurrenceDetails()['start'] ?? null;
     }
 
     public function updateNextStart(): void
     {
-        $earliestDate = null;
-        $duration = 0;
-
-        foreach ($this->schedules as $schedule) {
-            $nextDate = $schedule->getNextOccurrence();
-
-            if ($nextDate) {
-                if ($earliestDate === null || $nextDate->lt($earliestDate)) {
-                    $earliestDate = $nextDate;
-                    $duration = $schedule->duration_minutes;
-                }
-            }
-        }
+        $next = $this->nextOccurrenceDetails();
 
         $this->updateQuietly([
-            'next_start' => $earliestDate,
-            'duration' => $duration ?: 45, // Fallback to 45 if 0 or null
+            'next_start' => $next['start'] ?? null,
+            'duration' => $next['duration'] ?? RoomSchedule::DEFAULT_DURATION,
         ]);
     }
 

@@ -92,10 +92,11 @@ class HomeworkSubmissionObserver
             $submission->attachments ?? [],
             $submission->annotated_files ?? [],
             $submission->annotated_images ?? [],
+            array_values($submission->annotations ?? []), // фото с пометками учителя
             $submission->feedback_attachments ?? [],
         );
 
-        foreach ($files as $path) {
+        foreach (array_unique(array_filter($files, 'is_string')) as $path) {
             if (is_string($path) && Storage::disk('s3')->exists($path)) {
                 Storage::disk('s3')->delete($path);
             }

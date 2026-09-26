@@ -5,6 +5,7 @@ namespace App\Filament\App\Resources\RoomResource\Pages;
 use App\Filament\App\Resources\RoomResource;
 use App\Models\RoomSchedule;
 use App\Models\User;
+use App\Services\TeacherLessonService;
 use Filament\Actions;
 use Filament\Resources\Pages\EditRecord;
 
@@ -137,15 +138,7 @@ class EditRoom extends EditRecord
 
     protected function afterSave(): void
     {
-        // Determine type based on actual participant count after relationship is synced
         $this->record->refresh();
-        $participantCount = $this->record->participants()->count();
-        $type = match (true) {
-            $participantCount === 0 => 'pending',
-            $participantCount === 1 => 'individual',
-            default => 'group',
-        };
-        $this->record->updateQuietly(['type' => $type]);
 
         // Get the new participant IDs from form data
         $newParticipantIds = array_unique($this->data['participants'] ?? []);
@@ -153,18 +146,10 @@ class EditRoom extends EditRecord
         // Find newly added participants
         $addedParticipantIds = array_diff($newParticipantIds, $this->previousParticipantIds);
 
-        // Новым участникам назначаем все задания, привязанные к этому занятию
-        $this->record->attachParticipantsToHomeworks($addedParticipantIds);
-
         $teacher = auth()->user();
 
-        // Notify new participants about lesson assignment
-        foreach ($addedParticipantIds as $participantId) {
-            $student = User::find($participantId);
-            if ($student) {
-                $student->notify(new \App\Notifications\TeacherAssignedLesson($this->record, $teacher));
-            }
-        }
+        // Тип по числу учеников, новым ученикам — задания занятия и уведомление (общее с новым кабинетом)
+        app(TeacherLessonService::class)->participantsChanged($this->record, $addedParticipantIds, $teacher);
 
         // Check for schedule changes using FORM DATA (most current)
         // We use $this->data['schedules'] because DB might not be updated yet or refresh() might return stale relations

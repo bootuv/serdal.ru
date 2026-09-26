@@ -199,4 +199,49 @@ class StudentRecordingsTest extends TestCase
         $this->assertSame([$own->id], Recording::forStudent($student)->listed()->pluck('id')->all());
         $this->assertNotContains($foreign->id, Recording::forStudent($student)->pluck('id')->all());
     }
+
+    public function test_soon_block_contains_oldest_recordings_sorted_by_expiry_for_different_teachers(): void
+    {
+        $student = $this->user(User::ROLE_STUDENT);
+        $maria = $this->user(User::ROLE_TUTOR, 'Мария Соколова');
+        $ivan = $this->user(User::ROLE_TUTOR, 'Иван Орлов');
+        $this->retention($maria, 90);
+        $this->retention($ivan, 30);
+        $english = $this->room($maria, $student, 'Английский язык');
+        $math = $this->room($ivan, $student, 'Математика');
+
+        // 70 свежих записей — больше, чем помещается в список (60)
+        foreach (range(1, 70) as $i) {
+            $this->recording($english, now()->subHours($i * 3), ['name' => 'Свежая ' . $i]);
+        }
+        $english5 = $this->recording($english, now()->subDays(85), ['name' => 'Английский, удалится через 5 дней']);
+        $math2 = $this->recording($math, now()->subDays(28), ['name' => 'Математика, удалится через 2 дня']);
+        $this->recording($math, now()->subDays(10), ['name' => 'Математика, ещё 20 дней']);
+
+        $html = Livewire::actingAs($student)->test(Recordings::class)->html();
+
+        $soonBlock = substr($html, strpos($html, 'Скоро удалятся'), strpos($html, 'Эта неделя') - strpos($html, 'Скоро удалятся'));
+        $this->assertSame(2, substr_count($soonBlock, 'wire:key="rec-'));
+        // Первой — та, что удалится раньше, хотя она новее
+        $this->assertLessThan(strpos($soonBlock, 'rec-' . $english5->id), strpos($soonBlock, 'rec-' . $math2->id));
+    }
+
+    public function test_search_by_title_and_teacher(): void
+    {
+        $student = $this->user(User::ROLE_STUDENT);
+        $maria = $this->user(User::ROLE_TUTOR, 'Мария Соколова');
+        $ivan = $this->user(User::ROLE_TUTOR, 'Иван Орлов');
+        $this->recording($this->room($maria, $student, 'Английский язык'), now()->subDay());
+        $this->recording($this->room($ivan, $student, 'Математика'), now()->subDays(2));
+
+        Livewire::actingAs($student)->test(Recordings::class)
+            ->set('search', 'Орлов')
+            ->assertSee('Математика · Иван Орлов')
+            ->assertDontSee('Английский язык · Мария Соколова')
+            ->set('search', 'Английский')
+            ->assertSee('Английский язык · Мария Соколова')
+            ->assertDontSee('Математика · Иван Орлов')
+            ->set('search', 'Химия')
+            ->assertSee('Ничего не нашлось');
+    }
 }

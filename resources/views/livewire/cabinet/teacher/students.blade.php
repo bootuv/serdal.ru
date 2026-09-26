@@ -156,12 +156,21 @@
                                             <x-ui.badge tone="danger">Просрочено</x-ui.badge>
                                         @endif
                                     </div>
-                                    @if ($d['note'])<p class="text-t2 text-muted">{{ $d['note'] }}</p>@endif
+                                    @if ($d['claim'])
+                                        <p class="text-t2 text-muted"><x-ui.em>Ученик сообщил об оплате</x-ui.em> {{ $d['claim']['when'] }}@if ($d['claim']['facts']) · {{ $d['claim']['facts'] }}@endif</p>
+                                    @elseif ($d['note'])
+                                        <p class="text-t2 text-muted">{{ $d['note'] }}</p>
+                                    @endif
                                     <div class="flex flex-wrap gap-2">
                                         @unless ($d['paid'])
-                                            <x-ui.btn size="s" wire:click="markPaid({{ $d['row']['id'] }})" wire:loading.attr="disabled" wire:target="markPaid">Отметить оплату</x-ui.btn>
+                                            @if ($d['claim'])
+                                                <x-ui.btn size="s" wire:click="openClaim({{ $d['claim']['id'] }})">Проверить оплату</x-ui.btn>
+                                            @else
+                                                <x-ui.btn size="s" wire:click="markPaid({{ $d['row']['id'] }})" wire:loading.attr="disabled" wire:target="markPaid">Отметить оплату</x-ui.btn>
+                                            @endif
                                             @if ($d['overdue'])
                                                 <x-ui.btn size="s" wire:click="openExtend({{ $d['row']['id'] }})">Продлить срок</x-ui.btn>
+                                                @unless ($d['claim'])<x-ui.btn size="s" wire:click="remind({{ $d['row']['id'] }})" wire:loading.attr="disabled" wire:target="remind">Напомнить</x-ui.btn>@endunless
                                             @endif
                                         @endunless
                                         @if ($d['undo'])
@@ -176,6 +185,8 @@
             </x-ui.card>
         </div>
     @endif
+
+    @include('livewire.cabinet.teacher.partials.payment-claim-modal')
 
     {{-- Окно «Пригласить ученика» (макет PmInvite) --}}
     @if ($invite)

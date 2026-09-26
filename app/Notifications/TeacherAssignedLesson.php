@@ -45,7 +45,9 @@ class TeacherAssignedLesson extends Notification implements ShouldBroadcast
                 \Filament\Notifications\Actions\Action::make('view')
                     ->label('Открыть')
                     ->button()
-                    ->url(route('filament.student.resources.rooms.index'))
+                    ->url(\Illuminate\Support\Facades\Route::has('cabinet.student.schedule')
+                        ? route('cabinet.student.schedule')
+                        : route('filament.student.resources.rooms.index'))
             ])
             ->getDatabaseMessage();
     }

@@ -8,6 +8,7 @@ use App\Models\Room;
 use App\Models\User;
 use App\Notifications\StudentLeftReview;
 use App\Notifications\StudentLeftReviewAdmin;
+use App\Notifications\StudentUpdatedReview;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Collection;
@@ -138,23 +139,41 @@ class StudentTeachersService
 
     /**
      * Сохранить отзыв (создать или обновить). О новом отзыве узнают учитель и админы.
+     * Изменённый отзыв снова становится новым для учителя (он получает уведомление), а жалоба
+     * на прежний текст снимается — модератор проверяет уже другой текст.
      */
     public function saveReview(User $student, User $teacher, int $rating, string $text): Review
     {
-        $isNew = ! Review::where('user_id', $student->id)->where('teacher_id', $teacher->id)->exists();
+        $review = Review::firstOrNew(['user_id' => $student->id, 'teacher_id' => $teacher->id]);
+        $isNew = ! $review->exists;
+        $textChanged = $isNew || trim((string) $review->text) !== trim($text);
 
-        $review = Review::updateOrCreate(
-            ['user_id' => $student->id, 'teacher_id' => $teacher->id],
-            ['rating' => $rating, 'text' => $text]
-        );
+        $review->fill(['rating' => $rating, 'text' => $text]);
 
         if ($isNew) {
+            $review->save();
+
             $teacher->notify(new StudentLeftReview($review, $student));
 
             foreach (User::where('role', User::ROLE_ADMIN)->get() as $admin) {
                 $admin->notify(new StudentLeftReviewAdmin($review, $student, $teacher));
             }
+
+            return $review;
         }
+
+        if (! $review->isDirty(['rating', 'text'])) {
+            return $review;
+        }
+
+        $review->teacher_read_at = null;
+
+        if ($textChanged && $review->is_reported) {
+            $review->fill(['is_reported' => false, 'report_reason' => null, 'report_note' => null, 'reported_at' => null]);
+        }
+
+        $review->save();
+        $teacher->notify(new StudentUpdatedReview($review, $student));
 
         return $review;
     }

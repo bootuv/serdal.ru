@@ -5,6 +5,7 @@ namespace App\Livewire\Cabinet\Teacher\Concerns;
 use App\Models\PaymentRecord;
 use App\Models\User;
 use App\Services\TeacherStudentsService;
+use Livewire\Attributes\Locked;
 
 /**
  * «Отметить оплату» в кабинете учителя (как PendingPaymentsWidget: PaymentRecord::markAs(paid)) с отменой в течение экрана.
@@ -15,6 +16,8 @@ trait MarksPayments
     /** @var array<int, array<int>> только что отмеченные начисления: ученик → id начислений (для «Отменить») */
     public array $justPaid = [];
 
+    /** Ученик в окне выбора начислений: меняется только сервером (markPaid проверяет, что это ученик учителя). */
+    #[Locked]
     public ?int $markStudentId = null;
 
     /** @var array<int> выбранные в окне начисления */
@@ -24,6 +27,7 @@ trait MarksPayments
     public function markPaid(int $studentId, ?array $recordIds = null): void
     {
         $teacher = auth()->user();
+        abort_unless(app(TeacherStudentsService::class)->owns($teacher, $studentId), 404);
         $unpaid = app(TeacherStudentsService::class)->unpaidRecords($teacher, $studentId);
 
         if ($recordIds === null && $unpaid->count() > 1) {
@@ -72,9 +76,15 @@ trait MarksPayments
             return;
         }
 
-        $this->justPaid[$studentId] = $marked->pluck('id')->all();
+        $this->rememberPaid($studentId, $marked->pluck('id')->all());
         $sum = $marked->sum(fn (PaymentRecord $r) => (int) $r->amount());
         $this->dispatch('toast', message: 'Оплата отмечена' . ($sum ? ': ' . \App\Support\Money::format($sum) : ''));
+    }
+
+    /** Только что отмеченные начисления ученика — строка остаётся с «Отменить». */
+    protected function rememberPaid(int $studentId, array $ids): void
+    {
+        $this->justPaid[$studentId] = $ids;
     }
 
     /** Данные окна выбора начислений. */

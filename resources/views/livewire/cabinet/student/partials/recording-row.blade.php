@@ -36,9 +36,12 @@
         @endif
     @elseif ($playing)
         <span class="text-t2"><x-ui.em>Открыта</x-ui.em></span>
-    @elseif ($r['video'] || $r['externalUrl'])
-        <x-ui.icon name="chevron-right" class="text-faint" />
+    @elseif ($r['status'] === 'processing')
+        <x-ui.badge>Обрабатывается</x-ui.badge>
+    @elseif ($r['status'] === 'uploading')
+        {{-- Смотреть уже можно на сервере занятий, скачать — когда перенесётся в хранилище --}}
+        <x-ui.badge>Загружается</x-ui.badge>
     @else
-        <x-ui.badge>Готовится</x-ui.badge>
+        <x-ui.icon name="chevron-right" class="text-faint" />
     @endif
 </x-ui.row>

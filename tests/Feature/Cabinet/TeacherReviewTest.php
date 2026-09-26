@@ -199,40 +199,115 @@ class TeacherReviewTest extends TestCase
         $this->assertNull($s->fresh()->grade);
     }
 
-    public function test_annotating_photo(): void
+    public function test_annotating_photo_keeps_original_and_saves_marks_separately(): void
     {
-        $s = $this->submission();
+        $s = $this->submission(['file_names' => ['homework-submissions/1/page1.jpg' => 'Тетрадь, стр. 1.jpg']]);
         Storage::disk('s3')->put('homework-submissions/1/page1.jpg', 'original');
 
         Livewire::actingAs($this->teacher)
             ->test(Review::class, ['submission' => $s])
             ->call('annotate', 0)
             ->assertSet('annotating', 'homework-submissions/1/page1.jpg')
-            ->assertSee('Пометки · фото 1')
+            ->assertSee('Пометки · Тетрадь, стр. 1.jpg')
+            ->assertSee('увидит пометки, когда вы проверите работу')
             ->assertSee('Сохранить пометки')
             ->call('annotate', 5) // не фото этой работы
             ->assertSet('annotating', null);
 
-        // Холст ImageAnnotator (встроенный) сохраняет фото на место оригинала
+        // Холст ImageAnnotator (встроенный) сохраняет пометки отдельным файлом, оригинал цел
         Livewire::actingAs($this->teacher)
             ->test(ImageAnnotator::class, ['embedded' => true, 'imagePath' => 'homework-submissions/1/page1.jpg', 'submissionId' => $s->id])
             ->assertSee('Карандаш')
             ->call('saveAnnotatedImage', 'data:image/png;base64,' . base64_encode('annotated'))
             ->assertDispatched('imageAnnotated', path: 'homework-submissions/1/page1.jpg');
 
-        $this->assertSame('annotated', Storage::disk('s3')->get('homework-submissions/1/page1.jpg'));
-        $this->assertSame(['homework-submissions/1/page1.jpg'], $s->fresh()->annotated_files);
+        $s->refresh();
+        $marked = $s->annotations['homework-submissions/1/page1.jpg'];
+        $this->assertStringStartsWith('feedback-attachments/' . $this->teacher->id . '/', $marked);
+        $this->assertStringEndsWith('_marks.png', $marked);
+        $this->assertSame('original', Storage::disk('s3')->get('homework-submissions/1/page1.jpg'));
+        $this->assertSame('annotated', Storage::disk('s3')->get($marked));
+        $this->assertSame(['homework-submissions/1/page1.jpg'], $s->annotated_files);
+        $this->assertSame([$marked], $s->feedback_attachments);
+        $this->assertSame('Тетрадь, стр. 1 с пометками.png', $s->file_names[$marked]);
         $this->assertTrue(HomeworkActivity::where('submission_id', $s->id)->where('type', HomeworkActivity::TYPE_ANNOTATED)->exists());
 
+        // Учитель сразу видит фото с пометками; повторно открытое фото — с прежними пометками
         Livewire::actingAs($this->teacher)
             ->test(Review::class, ['submission' => $s])
             ->call('annotate', 0)
             ->dispatch('imageAnnotated', path: 'homework-submissions/1/page1.jpg')
             ->assertSet('annotating', null)
             ->assertDispatched('toast', message: 'Пометки сохранены')
-            ->assertSee('Есть пометки');
+            ->assertSee('Есть пометки')
+            ->assertSee(basename($marked));
 
-        $this->assertSame(['homework-submissions/1/page1.jpg'], $s->fresh()->feedback_attachments);
+        Livewire::actingAs($this->teacher)
+            ->test(ImageAnnotator::class, ['embedded' => true, 'imagePath' => 'homework-submissions/1/page1.jpg', 'submissionId' => $s->id])
+            ->assertSee(basename($marked))
+            ->call('saveAnnotatedImage', 'data:image/png;base64,' . base64_encode('annotated twice'));
+
+        // Повторные пометки — в тот же файл
+        $s->refresh();
+        $this->assertSame([$marked], $s->feedback_attachments);
+        $this->assertSame('annotated twice', Storage::disk('s3')->get($marked));
+        $this->assertSame('original', Storage::disk('s3')->get('homework-submissions/1/page1.jpg'));
+    }
+
+    public function test_marks_note_after_check(): void
+    {
+        $s = $this->submission(['grade' => 8, 'status' => HomeworkSubmission::STATUS_GRADED]);
+
+        Livewire::actingAs($this->teacher)
+            ->test(Review::class, ['submission' => $s])
+            ->call('annotate', 0)
+            ->assertSee('увидит пометки сразу после сохранения')
+            ->assertDontSee('когда вы проверите работу');
+    }
+
+    public function test_old_cabinet_annotation_event_does_not_break_marks(): void
+    {
+        \Filament\Facades\Filament::setCurrentPanel(\Filament\Facades\Filament::getPanel('app'));
+        $s = $this->submission();
+        Storage::disk('s3')->put('homework-submissions/1/page1.jpg', 'original');
+        $page = \App\Filament\App\Resources\HomeworkSubmissionResource\Pages\ViewHomeworkSubmission::class;
+
+        // Страница старого кабинета открыта до сохранения пометок (устаревшая копия работы)
+        $filament = Livewire::actingAs($this->teacher)->test($page, ['record' => $s->getRouteKey()]);
+
+        Livewire::actingAs($this->teacher)
+            ->test(ImageAnnotator::class)
+            ->call('openAnnotator', 'homework-submissions/1/page1.jpg', $s->id)
+            ->assertSet('showModal', true)
+            ->call('saveAnnotatedImage', 'data:image/png;base64,' . base64_encode('annotated'));
+
+        $filament->call('handleImageAnnotated', 'homework-submissions/1/page1.jpg');
+
+        $s->refresh();
+        $marked = $s->annotations['homework-submissions/1/page1.jpg'];
+        $this->assertSame([$marked], $s->feedback_attachments); // оригинал не попал в файлы комментария
+        $this->assertSame('original', Storage::disk('s3')->get('homework-submissions/1/page1.jpg'));
+    }
+
+    public function test_feedback_files_keep_original_names(): void
+    {
+        $s = $this->submission();
+
+        Livewire::actingAs($this->teacher)
+            ->test(Review::class, ['submission' => $s])
+            ->set('comment', 'Посмотрите разбор')
+            ->set('picked', [UploadedFile::fake()->create('Разбор ошибок.pdf', 50, 'application/pdf')])
+            ->call('giveBack')
+            ->assertHasNoErrors();
+
+        $s->refresh();
+        $this->assertCount(1, $s->feedback_attachments);
+        $this->assertSame('Разбор ошибок.pdf', $s->file_names[$s->feedback_attachments[0]]);
+
+        // Ученик видит исходное имя
+        $this->actingAs($this->student)
+            ->get(route('cabinet.student.task', $this->homework))
+            ->assertSee('Разбор ошибок.pdf');
     }
 
     public function test_foreign_teacher_cannot_annotate(): void

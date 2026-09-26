@@ -253,4 +253,85 @@ class TeacherStudentsTest extends TestCase
         $this->assertTrue($teacher->students()->whereKey($olga->id)->exists());
         Notification::assertSentTo($olga, NewTeacher::class);
     }
+
+    public function test_invite_query_opens_invite_window(): void
+    {
+        $teacher = $this->user(User::ROLE_TUTOR);
+
+        Livewire::actingAs($teacher)->withQueryParams(['invite' => 1])->test(Students::class)
+            ->assertSet('inviteOpen', true)
+            ->assertSee('Ссылка-приглашение');
+
+        // Без параметра окно закрыто
+        $this->actingAs($teacher)->get(route('cabinet.teacher.students'))->assertOk()->assertDontSee('Ссылка-приглашение');
+    }
+
+    public function test_mark_student_is_locked_and_must_be_own(): void
+    {
+        $teacher = $this->user(User::ROLE_TUTOR);
+        $student = $this->studentOf($teacher);
+        $this->record($teacher, $student);
+        $this->record($teacher, $student, ['due_date' => now()->addDays(5)]);
+
+        $stranger = $this->user(User::ROLE_STUDENT);
+
+        $c = Livewire::actingAs($teacher)->test(Students::class)
+            ->call('markPaid', $student->id)
+            ->assertSet('markStudentId', $student->id);
+
+        // Подменить ученика в окне с клиента нельзя
+        $this->expectException(\Livewire\Features\SupportLockedProperties\CannotUpdateLockedPropertyException::class);
+        $c->set('markStudentId', $stranger->id);
+    }
+
+    public function test_mark_paid_for_foreign_student_is_404(): void
+    {
+        $teacher = $this->user(User::ROLE_TUTOR);
+        $stranger = $this->user(User::ROLE_STUDENT);
+
+        Livewire::actingAs($teacher)->test(Students::class)
+            ->call('markPaid', $stranger->id)
+            ->assertStatus(404);
+    }
+
+    public function test_student_without_username_opens_by_id(): void
+    {
+        $teacher = $this->user(User::ROLE_TUTOR);
+        $student = $this->studentOf($teacher, ['name' => 'Ученик Без Логина', 'username' => '']);
+
+        $url = \App\Services\TeacherStudentsService::studentUrl($student);
+        $this->assertStringEndsWith('/cabinet/teacher/students/' . $student->id, $url);
+
+        Livewire::actingAs($teacher)->test(Students::class)->assertSee($url, false);
+
+        $this->actingAs($teacher)->get($url)->assertOk()->assertSee('Ученик Без Логина');
+
+        // Чужой ученик по id не открывается
+        $stranger = $this->user(User::ROLE_STUDENT);
+        $this->actingAs($teacher)->get(route('cabinet.teacher.student', ['student' => $stranger->id]))->assertNotFound();
+    }
+
+    public function test_remind_is_limited_to_once_a_day(): void
+    {
+        Notification::fake();
+        $teacher = $this->user(User::ROLE_TUTOR);
+        $student = $this->studentOf($teacher);
+        $record = $this->record($teacher, $student, ['due_date' => now()->subDays(2)]);
+
+        $c = Livewire::actingAs($teacher)->test(Students::class)
+            ->assertSee('Напомнить')
+            ->call('remind', $student->id)
+            ->assertDispatched('toast', message: 'Напомнили');
+
+        Notification::assertSentToTimes($student, \App\Notifications\PaymentReminder::class, 1);
+        $this->assertNotNull($record->fresh()->reminded_at);
+
+        $c->call('remind', $student->id)
+            ->assertDispatched('toast', message: 'Уже напоминали за последние сутки — можно будет завтра');
+        Notification::assertSentToTimes($student, \App\Notifications\PaymentReminder::class, 1);
+
+        $this->travel(25)->hours();
+        $c->call('remind', $student->id)->assertDispatched('toast', message: 'Напомнили');
+        Notification::assertSentToTimes($student, \App\Notifications\PaymentReminder::class, 2);
+    }
 }

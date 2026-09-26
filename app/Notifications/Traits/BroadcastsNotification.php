@@ -39,6 +39,8 @@ trait BroadcastsNotification
         } elseif (method_exists($this, 'getWebPushUrl')) {
             $url = $this->getWebPushUrl($notifiable);
         }
+        // Ссылки старого кабинета (Filament) ведут в новый
+        $url = \App\Support\CabinetUrl::fromLegacy($url, $notifiable);
 
         $message = (new WebPushMessage)
             ->title($title)

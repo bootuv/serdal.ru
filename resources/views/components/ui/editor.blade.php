@@ -1,9 +1,9 @@
 {{-- Редактор форматированного текста: жирный, курсив, списки, ссылка. Привязка — wire:model (HTML).
-     На сервере значение чистится App\Support\RichText::clean(). Показ — в блоке с классом .rich. --}}
-@props(['label', 'name', 'placeholder' => '', 'hint' => null])
+     На сервере значение чистится App\Support\RichText::clean(). Показ — в блоке с классом .rich. hide-label — подпись только для экранного диктора. --}}
+@props(['label', 'name', 'placeholder' => '', 'hint' => null, 'hideLabel' => false])
 @php $model = $attributes->wire('model')->value(); @endphp
 <div class="flex flex-col gap-2">
-    <span id="{{ $name }}-label" class="text-t2 font-medium">{{ $label }}</span>
+    <span id="{{ $name }}-label" @class(['text-t2 font-medium', 'sr-only' => $hideLabel])>{{ $label }}</span>
     <div wire:ignore x-data="richEditor($wire.entangle('{{ $model }}'), @js($placeholder))" x-on:livewire:navigating.window="destroy()"
          @class(['overflow-hidden rounded bg-white focus-within:shadow-outline-ink', 'shadow-outline-ink' => $errors->has($name), 'shadow-outline' => ! $errors->has($name)])>
         <div class="flex gap-1 border-b border-line p-1" role="toolbar" aria-label="Оформление текста">

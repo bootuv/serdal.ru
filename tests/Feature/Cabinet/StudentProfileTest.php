@@ -8,6 +8,7 @@ use App\Models\Review;
 use App\Models\Room;
 use App\Models\User;
 use App\Notifications\StudentLeftReview;
+use App\Notifications\StudentUpdatedReview;
 use App\Services\StudentTeachersService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -112,7 +113,8 @@ class StudentProfileTest extends TestCase
 
         Livewire::actingAs($student)
             ->test(Profile::class)
-            ->set('name', 'Алина Смирнова')
+            ->set('last_name', 'Смирнова')
+            ->set('first_name', 'Алина')
             ->set('email', 'alina@example.com')
             ->set('phone', '+7 916 555-12-34')
             ->set('grade', '9')
@@ -125,7 +127,8 @@ class StudentProfileTest extends TestCase
             ->assertSee('Изменения сохранены');
 
         $student->refresh();
-        $this->assertSame('Алина Смирнова', $student->name);
+        $this->assertSame('Смирнова Алина', $student->name);
+        $this->assertSame('Алина', $student->first_name);
         $this->assertSame('alina@example.com', $student->email);
         $this->assertSame([9], $student->grade);
         $this->assertTrue(Hash::check('new-secret', $student->password));
@@ -140,12 +143,12 @@ class StudentProfileTest extends TestCase
 
         Livewire::actingAs($student)
             ->test(Profile::class)
-            ->set('name', '')
+            ->set('first_name', '')
             ->set('email', 'taken@example.com')
             ->set('phone', 'позвоните мне')
             ->set('grade', '42')
             ->call('save')
-            ->assertHasErrors(['name', 'email', 'phone', 'grade'])
+            ->assertHasErrors(['first_name', 'email', 'phone', 'grade'])
             ->assertSet('saved', false);
 
         Livewire::actingAs($student)
@@ -196,6 +199,71 @@ class StudentProfileTest extends TestCase
         $this->assertSame(1, Review::where('user_id', $student->id)->count());
         $this->assertSame(5, (int) $review->fresh()->rating);
         Notification::assertSentToTimes($teacher, StudentLeftReview::class, 1);
+    }
+
+    public function test_edited_review_is_new_again_and_teacher_is_notified(): void
+    {
+        Notification::fake();
+        $teacher = $this->user(User::ROLE_TUTOR, ['name' => 'Иван Орлов']);
+        $student = $this->user(User::ROLE_STUDENT);
+        $teacher->students()->attach($student->id);
+        $this->lessonWith($teacher, $student);
+        $this->fakeJsonLessonQueries();
+
+        // Учитель прочитал отзыв и пожаловался на него
+        $review = Review::create([
+            'user_id' => $student->id, 'teacher_id' => $teacher->id, 'rating' => 2, 'text' => 'Переносили три раза',
+            'teacher_read_at' => now()->subDay(), 'is_reported' => true, 'report_reason' => 'rude', 'reported_at' => now()->subDay(),
+        ]);
+
+        $component = Livewire::actingAs($student)->test(Profile::class)
+            ->call('openReview', $teacher->id)
+            ->call('saveReview') // ничего не изменилось — учителя не тревожим
+            ->assertHasNoErrors();
+        $this->assertNotNull($review->fresh()->teacher_read_at);
+        Notification::assertNotSentTo($teacher, StudentUpdatedReview::class);
+
+        $component->call('openReview', $teacher->id)
+            ->set('rating', 4)
+            ->set('reviewText', 'Переносили, но потом наладилось')
+            ->call('saveReview')
+            ->assertHasNoErrors()
+            ->assertDispatched('toast', message: 'Отзыв обновлён');
+
+        $review->refresh();
+        $this->assertNull($review->teacher_read_at, 'Изменённый отзыв снова в «Новых»');
+        $this->assertFalse((bool) $review->is_reported, 'Жалоба была на прежний текст');
+        $this->assertNull($review->report_reason);
+        Notification::assertSentTo($teacher, StudentUpdatedReview::class);
+        Notification::assertNotSentTo($teacher, StudentLeftReview::class);
+    }
+
+    public function test_review_rejects_contacts_and_long_text(): void
+    {
+        Notification::fake();
+        $teacher = $this->user(User::ROLE_TUTOR);
+        $student = $this->user(User::ROLE_STUDENT);
+        $teacher->students()->attach($student->id);
+        $this->lessonWith($teacher, $student);
+        $this->fakeJsonLessonQueries();
+
+        $component = Livewire::actingAs($student)->test(Profile::class)->call('openReview', $teacher->id);
+
+        foreach ([
+            'Пишите мне: +7 (900) 123-45-67' => 'Уберите номер телефона',
+            'Все материалы на https://example.com' => 'Уберите ссылку',
+            'Мой канал t.me/english_club' => 'Уберите ссылку',
+            'Пишите в телеграм @english_club' => 'Уберите почту или @имя',
+        ] as $text => $error) {
+            $component->set('reviewText', $text)->call('saveReview')->assertHasErrors(['reviewText'])->assertSee($error);
+        }
+
+        $component->set('reviewText', str_repeat('а', Review::MAX_TEXT + 1))->call('saveReview')->assertHasErrors(['reviewText' => 'max']);
+        $this->assertSame(0, Review::count());
+
+        // Цифры в тексте — не телефон
+        $component->set('reviewText', 'За 2 месяца пробник с 54 на 82 балла, занимались с 10:00 до 12:00')->call('saveReview')->assertHasNoErrors();
+        $this->assertSame(1, Review::count());
     }
 
     public function test_review_rules_no_lessons_rejected_and_foreign_teacher(): void

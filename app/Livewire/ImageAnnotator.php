@@ -2,7 +2,6 @@
 
 namespace App\Livewire;
 
-use App\Models\HomeworkActivity;
 use App\Models\HomeworkSubmission;
 use App\Services\HomeworkSubmissionService;
 use Illuminate\Support\Facades\Storage;
@@ -10,7 +9,8 @@ use Livewire\Attributes\Locked;
 use Livewire\Component;
 
 /**
- * Пометки учителя на фото из работы ученика: рисует поверх фото и сохраняет его на место оригинала.
+ * Пометки учителя на фото из работы ученика. Оригинал фото не трогаем: пометки сохраняются отдельным файлом
+ * (HomeworkSubmissionService::saveAnnotation), повторно открытое фото показывается уже с пометками.
  * Старый кабинет (Filament): полноэкранное окно, открывается событием openAnnotator.
  * Новый кабинет: embedded — только холст и инструменты внутри окна родителя (x-ui.modal),
  * сохранение — браузерным событием annotator-save; после сохранения — событие imageAnnotated.
@@ -56,11 +56,13 @@ class ImageAnnotator extends Component
         $this->imagePath = $imagePath;
         $this->submissionId = $submissionId;
 
-        // Generate temporary URL for S3 image
+        // Уже есть пометки — продолжаем рисовать поверх них
+        $shown = HomeworkSubmission::find($submissionId)?->markedFiles()[$imagePath] ?? $imagePath;
+
         try {
-            $this->imageUrl = Storage::disk('s3')->temporaryUrl($imagePath, now()->addMinutes(30));
+            $this->imageUrl = Storage::disk('s3')->temporaryUrl($shown, now()->addMinutes(30));
         } catch (\Exception $e) {
-            $this->imageUrl = Storage::url($imagePath);
+            $this->imageUrl = Storage::url($shown);
         }
 
         $this->showModal = true;
@@ -68,7 +70,6 @@ class ImageAnnotator extends Component
 
     public function saveAnnotatedImage(string $dataUrl): void
     {
-        // Extract base64 data from data URL
         $data = explode(',', $dataUrl);
         $imageData = base64_decode($data[1] ?? '');
 
@@ -76,32 +77,15 @@ class ImageAnnotator extends Component
             return;
         }
 
-        // Replace original file in S3 (same path)
-        Storage::disk('s3')->put($this->imagePath, $imageData, 'public');
-
-        // Track annotation in submission and log activity
-        if ($this->submissionId) {
-            $submission = HomeworkSubmission::find($this->submissionId);
-            if ($submission) {
-                $annotatedFiles = $submission->annotated_files ?? [];
-                if (!in_array($this->imagePath, $annotatedFiles)) {
-                    $annotatedFiles[] = $this->imagePath;
-                    $submission->update(['annotated_files' => $annotatedFiles]);
-                }
-
-                // Log annotation activity
-                HomeworkActivity::log(
-                    $submission->id,
-                    HomeworkActivity::TYPE_ANNOTATED,
-                    auth()->id(),
-                    ['filename' => basename($this->imagePath)]
-                );
-            }
-        }
+        app(HomeworkSubmissionService::class)->saveAnnotation(
+            HomeworkSubmission::with('homework:id,teacher_id')->findOrFail($this->submissionId),
+            $this->imagePath,
+            $imageData,
+        );
 
         $this->showModal = false;
 
-        // Dispatch event with same path (file replaced in-place)
+        // path — фото ученика (как раньше), родитель обновляет список
         $this->dispatch('imageAnnotated', path: $this->imagePath);
     }
 

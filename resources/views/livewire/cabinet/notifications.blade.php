@@ -1,5 +1,5 @@
-{{-- Панель уведомлений: справа на компьютере, на весь экран на телефоне. --}}
-<div>
+{{-- Панель уведомлений: справа на компьютере, на весь экран на телефоне. Опрос раз в минуту — запасной путь, если Reverb недоступен. --}}
+<div wire:poll.60s.visible>
     @if ($open)
         <div class="fixed inset-0 z-30 flex justify-end bg-scrim" x-data x-on:keydown.escape.window="$wire.close()" wire:click.self="close">
             <aside role="dialog" aria-modal="true" aria-labelledby="notifications-title" class="flex h-full w-full flex-col bg-white shadow-modal lg:w-drawer lg:rounded-l-xl">

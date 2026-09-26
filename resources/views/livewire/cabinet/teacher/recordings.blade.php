@@ -1,7 +1,7 @@
 {{-- Записи занятий учителя. Макет: TeacherRecordings. --}}
 <div class="flex flex-col gap-6 lg:gap-8">
     <x-ui.page-head title="Записи" :sub="$sub">
-        @unless ($isEmpty)
+        @if ($hasAny)
             <x-slot:actions>
                 @if ($selecting)
                     <span class="hidden text-t2 lg:inline"><x-ui.em>{{ $picked ? 'Выбрано: ' . count($picked) : 'Выберите записи' }}</x-ui.em></span>
@@ -11,13 +11,20 @@
                     <x-ui.btn wire:click="startSelect">Выбрать</x-ui.btn>
                 @endif
             </x-slot:actions>
-        @endunless
+        @endif
     </x-ui.page-head>
 
     <div class="flex flex-col gap-6">
-        @if ($studentOptions)
-            <div class="w-full lg:w-sidebar">
-                <x-ui.select name="student" :options="$studentOptions" wire:model.live="student" aria-label="Ученик" />
+        @if ($studentOptions || $hasAny)
+            <div class="flex flex-col gap-4 lg:flex-row lg:items-center">
+                @if ($studentOptions)
+                    <div class="w-full lg:w-sidebar">
+                        <x-ui.select name="student" :options="$studentOptions" wire:model.live="student" aria-label="Ученик" />
+                    </div>
+                @endif
+                @if ($hasAny)
+                    <x-ui.search wire:model.live.debounce.400ms="search" placeholder="Поиск по занятию или ученику" />
+                @endif
             </div>
         @endif
 
@@ -47,7 +54,11 @@
             </section>
         @endif
 
-        @if ($isEmpty)
+        @if ($isEmpty && $searching)
+            <x-ui.empty icon="search" title="Ничего не нашлось" text="Проверьте написание или поищите по имени ученика.">
+                <x-slot:action><x-ui.btn wire:click="$set('search', '')">Сбросить поиск</x-ui.btn></x-slot:action>
+            </x-ui.empty>
+        @elseif ($isEmpty)
             <x-ui.empty icon="video" title="Записей пока нет"
                         :text="$student !== '' ? 'У этого ученика пока нет записанных занятий.' : 'Включите запись на занятии — после его окончания запись появится здесь.'" />
         @endif

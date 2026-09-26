@@ -11,7 +11,7 @@
         </x-slot:action>
     </x-ui.card-head>
     @if ($people->isEmpty())
-        <p class="text-t2 text-muted">Пока пусто — добавьте учеников в <a href="{{ $editUrl }}" class="link">настройках занятия</a>.</p>
+        <p class="text-t2 text-muted">Пока пусто — @if ($archived)занятие в архиве.@else<button type="button" wire:click="openEdit" class="link">добавьте учеников</button> в занятие.@endif</p>
     @elseif ($person)
         <x-ui.list>
             <x-ui.row>
@@ -19,6 +19,12 @@
                 <x-ui.text :title="$person['name']" :sub="$person['since']" />
                 <x-ui.btn size="s" :href="$chatUrl">Написать</x-ui.btn>
             </x-ui.row>
+            @if ($cancelled ?? false)
+                <div class="flex items-start gap-4 border-t border-line py-4 last:pb-0">
+                    <x-ui.text :title="\App\Support\Money::format(0)" sub="Занятие отменено — платить не нужно" />
+                    <x-ui.badge>Не начисляется</x-ui.badge>
+                </div>
+            @else
             <div class="flex flex-col gap-3 border-t border-line py-4 last:pb-0">
                 <div class="flex items-start gap-4">
                     <div class="flex min-w-0 flex-1 flex-col gap-1">
@@ -34,6 +40,7 @@
                     <x-ui.btn size="s" class="self-start" wire:click="undoPaid({{ $person['id'] }})">Отменить</x-ui.btn>
                 @endif
             </div>
+            @endif
         </x-ui.list>
     @else
         <x-ui.list>

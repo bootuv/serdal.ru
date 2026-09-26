@@ -3,42 +3,41 @@
 namespace App\Livewire;
 
 use App\Models\Room;
-use Filament\Forms;
-use Filament\Forms\Form;
-use Filament\Forms\Concerns\InteractsWithForms;
-use Filament\Forms\Contracts\HasForms;
-use Filament\Notifications\Notification;
+use App\Models\User;
+use App\Services\MessengerService;
+use App\Support\HumanDate;
+use Illuminate\Support\Facades\Route;
 use JoisarJignesh\Bigbluebutton\Facades\Bigbluebutton;
 use Livewire\Attributes\Layout;
-use Livewire\Attributes\On;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 
-#[Layout('components.layouts.app')]
-class GuestJoinRoom extends Component implements HasForms
+/**
+ * Вход в класс до начала занятия. Макеты: LsStudentWait (ученик ждёт учителя), LsGuestJoin (гость по ссылке).
+ * Страница проверяет статус каждые 30 секунд; когда занятие началось — кнопка «Войти в класс» (→ rooms.connect).
+ */
+#[Layout('components.layouts.auth', ['title' => 'Вход в класс'])]
+class GuestJoinRoom extends Component
 {
-    use InteractsWithForms;
-
+    #[Locked]
     public Room $room;
-    public ?array $data = [];
 
-    // States: 'waiting', 'name_input'
-    public string $state = 'waiting';
+    #[Locked]
     public bool $isRoomRunning = false;
 
-    public function mount(Room $room): void
+    /** Имя гостя (для вошедших не нужно). */
+    public string $name = '';
+
+    public function mount(Room $room)
     {
         $this->room = $room;
-        $this->configureBbb();
 
-        // Check if room is already running
-        $this->checkRoomStatus();
-
-        // If room is running, show name input form
-        if ($this->isRoomRunning) {
-            $this->state = 'name_input';
+        // Учитель своего занятия сюда не ходит — занятие он начинает из кабинета
+        if (auth()->id() === $room->user_id) {
+            return redirect(Route::has('cabinet.teacher.lesson') ? route('cabinet.teacher.lesson', $room) : url('/'));
         }
 
-        $this->form->fill();
+        $this->checkRoomStatus();
     }
 
     private function configureBbb(): void
@@ -49,37 +48,18 @@ class GuestJoinRoom extends Component implements HasForms
                 'bigbluebutton.BBB_SERVER_BASE_URL' => $owner->bbb_url,
                 'bigbluebutton.BBB_SECURITY_SALT' => $owner->bbb_secret,
             ]);
-        } else {
-            $globalUrl = \App\Models\Setting::where('key', 'bbb_url')->value('value');
-            $globalSecret = \App\Models\Setting::where('key', 'bbb_secret')->value('value');
 
-            if ($globalUrl && $globalSecret) {
-                config([
-                    'bigbluebutton.BBB_SERVER_BASE_URL' => $globalUrl,
-                    'bigbluebutton.BBB_SECURITY_SALT' => $globalSecret,
-                ]);
-            }
+            return;
         }
-    }
 
-    public function form(Form $form): Form
-    {
-        return $form
-            ->schema([
-                Forms\Components\TextInput::make('name')
-                    ->label('Ваше имя')
-                    ->placeholder('Введите ваше имя')
-                    ->required()
-                    ->maxLength(255)
-                    ->autofocus(),
-            ])
-            ->statePath('data');
-    }
-
-    #[On('echo:rooms,.room.status.updated')]
-    public function onRoomStatusUpdated(): void
-    {
-        $this->checkRoomStatus();
+        $globalUrl = \App\Models\Setting::where('key', 'bbb_url')->value('value');
+        $globalSecret = \App\Models\Setting::where('key', 'bbb_secret')->value('value');
+        if ($globalUrl && $globalSecret) {
+            config([
+                'bigbluebutton.BBB_SERVER_BASE_URL' => $globalUrl,
+                'bigbluebutton.BBB_SECURITY_SALT' => $globalSecret,
+            ]);
+        }
     }
 
     public function checkRoomStatus(): void
@@ -87,31 +67,44 @@ class GuestJoinRoom extends Component implements HasForms
         $this->configureBbb();
 
         try {
-            $this->isRoomRunning = Bigbluebutton::isMeetingRunning(['meetingID' => $this->room->meeting_id]);
-        } catch (\Exception $e) {
-            $this->isRoomRunning = false;
+            $this->isRoomRunning = (bool) Bigbluebutton::isMeetingRunning(['meetingID' => $this->room->meeting_id]);
+        } catch (\Throwable $e) {
+            // Нет связи с сервером видеосвязи — считаем по нашей отметке
+            $this->isRoomRunning = (bool) $this->room->fresh()?->is_running;
         }
     }
 
-    public function joinSession(): void
+    public function submitName()
     {
-        // Transition to name input form when clicking "Join"
-        $this->state = 'name_input';
-    }
+        $this->validate(['name' => ['required', 'string', 'max:255']], [
+            'name.required' => 'Напишите, как вас зовут — это имя увидят участники.',
+        ]);
 
-    public function submitName(): void
-    {
-        $data = $this->form->getState();
+        session(['guest_name' => trim($this->name)]);
 
-        // Save guest name to session
-        session(['guest_name' => $data['name']]);
-
-        // Redirect to connect (RoomController will handle the actual BBB join)
-        $this->redirect(route('rooms.connect', $this->room));
+        return redirect()->route('rooms.connect', $this->room);
     }
 
     public function render()
     {
-        return view('livewire.guest-join-room');
+        $user = auth()->user();
+        $teacher = $this->room->user;
+        $start = $this->room->next_start;
+
+        $when = collect([
+            $start ? mb_strtoupper(mb_substr($d = HumanDate::at($start), 0, 1)) . mb_substr($d, 1) : null,
+            $this->room->duration ? plural_ru((int) $this->room->duration, 'минута', 'минуты', 'минут') : null,
+        ])->filter()->join(' · ');
+
+        $isStudent = $user?->role === User::ROLE_STUDENT;
+
+        return view('livewire.auth.room-join', [
+            'user' => $user,
+            'teacher' => $teacher,
+            'when' => $when,
+            'chatUrl' => $user ? MessengerService::url($user, $this->room->id) : null,
+            'materialsUrl' => $isStudent && Route::has('cabinet.student.materials') ? route('cabinet.student.materials') : null,
+            'cabinetUrl' => $user ? \App\Http\Middleware\EnsureCabinetRole::homeFor($user) : null,
+        ]);
     }
 }

@@ -51,6 +51,12 @@ class PaymentRecord extends Model
         return $this->belongsTo(MeetingSession::class);
     }
 
+    /** Заявки «Ученик сообщил об оплате», в которые входит начисление. */
+    public function claims()
+    {
+        return $this->belongsToMany(PaymentClaim::class, 'payment_claim_record');
+    }
+
     public function scopeUnpaid(Builder $query): Builder
     {
         return $query->where('status', self::STATUS_UNPAID);

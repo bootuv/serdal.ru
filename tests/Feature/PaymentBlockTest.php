@@ -264,7 +264,7 @@ class PaymentBlockTest extends TestCase
 
         $this->actingAs($student)
             ->get(route('rooms.connect', $room))
-            ->assertRedirect(route('filament.student.pages.payment-debts'));
+            ->assertRedirect(route('cabinet.student.payments'));
     }
 
     public function test_blocked_student_can_still_join_other_teachers_lesson(): void

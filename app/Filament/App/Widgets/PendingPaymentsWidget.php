@@ -31,6 +31,15 @@ class PendingPaymentsWidget extends BaseWidget
         // Ученики, которым сейчас закрыт доступ к занятиям этого учителя (лимит занятий с долгом исчерпан)
         $blockedStudentIds = \App\Services\PaymentRecordService::blockedStudentIds(auth()->id());
 
+        // Начисления, о которых ученик сообщил «оплатил» (заявка ждёт проверки в новом кабинете)
+        $claimedIds = \Illuminate\Support\Facades\DB::table('payment_claim_record')
+            ->join('payment_claims', 'payment_claims.id', '=', 'payment_claim_record.payment_claim_id')
+            ->where('payment_claims.teacher_id', auth()->id())
+            ->where('payment_claims.status', \App\Models\PaymentClaim::STATUS_PENDING)
+            ->pluck('payment_claim_record.payment_record_id')
+            ->map(fn($id) => (int) $id)
+            ->all();
+
         return $table
             ->query(
                 PaymentRecord::query()
@@ -58,7 +67,11 @@ class PendingPaymentsWidget extends BaseWidget
                 Tables\Columns\TextColumn::make('due_date')
                     ->label('Оплата')
                     // Статусы и цвета — как в колонке «Оплата» на странице «Ученики»
-                    ->state(function (PaymentRecord $record) use ($blockedStudentIds): string {
+                    ->state(function (PaymentRecord $record) use ($blockedStudentIds, $claimedIds): string {
+                        if (in_array((int) $record->id, $claimedIds, true)) {
+                            return 'Ученик сообщил об оплате';
+                        }
+
                         if (in_array((int) $record->student_id, $blockedStudentIds)) {
                             return 'Заблокирован';
                         }
@@ -67,8 +80,16 @@ class PendingPaymentsWidget extends BaseWidget
                     })
                     ->badge()
                     ->icon(fn(string $state): ?string => $state === 'Заблокирован' ? 'heroicon-m-lock-closed' : null)
-                    ->color(fn(string $state): string => $state === 'Ожидает оплаты' ? 'warning' : 'danger')
+                    ->color(fn(string $state): string => match ($state) {
+                        'Ожидает оплаты' => 'warning',
+                        'Ученик сообщил об оплате' => 'info',
+                        default => 'danger',
+                    })
                     ->tooltip(function (PaymentRecord $record, string $state): string {
+                        if ($state === 'Ученик сообщил об оплате') {
+                            return 'Ученик сообщил, что оплатил, и приложил чек. Проверить и подтвердить можно в новом кабинете, в карточке ученика.';
+                        }
+
                         if ($state === 'Заблокирован') {
                             return \App\Filament\App\Resources\StudentResource::blockedPaymentTooltip($record->student);
                         }

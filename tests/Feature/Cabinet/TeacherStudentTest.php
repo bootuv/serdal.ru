@@ -267,4 +267,37 @@ class TeacherStudentTest extends TestCase
             ->get(route('cabinet.teacher.students'))
             ->assertSee("\$dispatch('toast'", false);
     }
+
+    public function test_remind_from_card_and_open_by_id(): void
+    {
+        Notification::fake();
+        [$teacher, $student] = $this->pair();
+        $this->record($teacher, $student, ['due_date' => now()->subDays(2)]);
+
+        Livewire::actingAs($teacher)->test(Student::class, ['student' => (string) $student->id])
+            ->assertSee('Напомнить')
+            ->call('remind', $student->id)
+            ->assertDispatched('toast', message: 'Напомнили')
+            ->call('remind', $student->id)
+            ->assertDispatched('toast', message: 'Уже напоминали за последние сутки — можно будет завтра');
+
+        Notification::assertSentToTimes($student, \App\Notifications\PaymentReminder::class, 1);
+    }
+
+    public function test_remove_from_list_recalculates_lesson_type(): void
+    {
+        Notification::fake();
+        [$teacher, $student] = $this->pair();
+        $other = $this->user(User::ROLE_STUDENT);
+        $teacher->students()->attach($other->id);
+        $group = $this->room($teacher, 'Группа', [$student, $other]);
+        $group->updateQuietly(['type' => 'group']);
+        $single = $this->room($teacher, 'Индивидуально', [$student]);
+        $single->updateQuietly(['type' => 'individual']);
+
+        Livewire::actingAs($teacher)->test(Student::class, ['student' => $student])->call('remove');
+
+        $this->assertSame('individual', $group->fresh()->type);
+        $this->assertSame('pending', $single->fresh()->type);
+    }
 }

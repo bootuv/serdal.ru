@@ -33,3 +33,18 @@ window.serdalShareReviewCard = async function (url) {
     return 'download';
 };
 import './rich-editor';
+
+/**
+ * Сбои запросов Livewire: вместо стандартного окна Livewire (английский confirm для 419, HTML ошибки для 500)
+ * показываем своё окно из раскладки кабинета (событие cabinet-request-failed).
+ */
+document.addEventListener('livewire:init', () => {
+    window.Livewire.hook('request', ({ fail }) => {
+        fail(({ status, preventDefault }) => {
+            if (status === 419 || status >= 500) {
+                preventDefault();
+                window.dispatchEvent(new CustomEvent('cabinet-request-failed', { detail: { kind: status === 419 ? 'expired' : 'error' } }));
+            }
+        });
+    });
+});

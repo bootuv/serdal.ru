@@ -18,6 +18,7 @@ class BrandRulesTest extends TestCase
             resource_path('views/components/ui'),
             resource_path('views/livewire/cabinet'),
             resource_path('views/livewire/auth'),
+            resource_path('views/errors'),
         ];
         $files = [resource_path('views/components/layouts/cabinet.blade.php') => null, resource_path('views/components/layouts/auth.blade.php') => null];
         foreach ($dirs as $dir) {

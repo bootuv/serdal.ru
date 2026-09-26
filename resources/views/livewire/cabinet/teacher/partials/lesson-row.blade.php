@@ -12,7 +12,7 @@
             @endif
             <div class="flex min-w-0 flex-1 flex-col gap-1">
                 <a href="{{ $row['url'] }}" class="truncate text-t1 font-medium hover:underline">{{ $row['heading'] }}</a>
-                <span class="text-t2 text-muted">@if ($row['status'])<x-ui.em>{{ $row['status'] }}</x-ui.em>@if ($row['facts']) · @endif @endif{{ $row['facts'] }}</span>
+                <span class="text-t2 text-muted">@if ($row['status'])<x-ui.em>{{ $row['status'] }}</x-ui.em>@if ($row['facts']){{ $row['glue'] ?? ' · ' }}@endif @endif{{ $row['facts'] }}</span>
             </div>
         </div>
         @if ($row['action'])
@@ -39,7 +39,7 @@
         <div class="flex min-w-0 flex-1 flex-col gap-1">
             <span @class(['truncate text-t1 font-medium', 'text-muted' => $row['dim']])>{{ $row['heading'] }}</span>
             @if ($row['status'] || $row['facts'])
-                <span class="text-t2 text-muted">@if ($row['status'])<x-ui.em>{{ $row['status'] }}</x-ui.em>@if ($row['facts']) · @endif @endif{{ $row['facts'] }}</span>
+                <span class="text-t2 text-muted">@if ($row['status'])<x-ui.em>{{ $row['status'] }}</x-ui.em>@if ($row['facts']){{ $row['glue'] ?? ' · ' }}@endif @endif{{ $row['facts'] }}</span>
             @endif
         </div>
         @if ($row['badge'])<x-ui.badge :tone="$row['badge']['tone']">{{ $row['badge']['text'] }}</x-ui.badge>@endif

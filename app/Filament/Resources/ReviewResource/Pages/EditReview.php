@@ -22,7 +22,7 @@ class EditReview extends EditRecord
                 ->modalDescription('Вы уверены, что хотите снять жалобу с этого отзыва?')
                 ->visible(fn() => $this->record->is_reported && !$this->record->is_rejected)
                 ->action(function () {
-                    $this->record->update(['is_reported' => false]);
+                    $this->record->update(['is_reported' => false, 'report_reason' => null, 'report_note' => null, 'reported_at' => null]);
                     \Filament\Notifications\Notification::make()
                         ->title('Жалоба снята')
                         ->success()

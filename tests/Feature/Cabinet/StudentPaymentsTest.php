@@ -102,7 +102,8 @@ class StudentPaymentsTest extends TestCase
             ->assertSee('https://t.me/sokolova', false)
             ->assertSee('tel:+79161234567', false)
             ->assertSee('Написать учителю')
-            ->assertSee('Перевели учителю напрямую? Он сам отметит оплату.')
+            // Онлайн-оплаты нет: ученик платит напрямую и сообщает об оплате (решение владельца)
+            ->assertSee('Сообщить об оплате')
             ->assertDontSee('Оплатить онлайн');
     }
 

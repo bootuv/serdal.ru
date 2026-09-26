@@ -165,4 +165,59 @@ class TeacherOnboardingTest extends TestCase
 
         $this->assertSame(0, (int) $tutor->fresh()->activeSubscription()->tariff->price);
     }
+
+    public function test_repeated_completion_does_not_notify_admins_again(): void
+    {
+        $admin = User::factory()->create(['role' => User::ROLE_ADMIN, 'username' => 'a' . uniqid(), 'is_active' => true]);
+        $tutor = $this->tutor();
+
+        Livewire::actingAs($tutor)->test(Onboarding::class)
+            ->set('lessonTypes.0.price', '1500')
+            ->call('finish')
+            ->assertSet('done', true)
+            ->call('restart')
+            ->set('lessonTypes.0.price', '1700')
+            ->call('finish')
+            ->assertSet('done', true);
+
+        Notification::assertSentToTimes($admin, TeacherCompletedOnboarding::class, 1);
+        $this->assertSame(1700, (int) $tutor->lessonTypes()->value('price'));
+    }
+
+    public function test_repeated_completion_with_paid_tariff_reuses_open_payment(): void
+    {
+        Setting::updateOrCreate(['key' => 'yookassa_shop_id'], ['value' => '123']);
+        Setting::updateOrCreate(['key' => 'yookassa_secret_key'], ['value' => 'test_key']);
+        Http::fake(['api.yookassa.ru/*' => Http::response([
+            'id' => 'yk-onb', 'status' => 'pending', 'confirmation' => ['confirmation_url' => 'https://pay.test/onb'],
+        ])]);
+
+        $basic = Tariff::where('slug', 'basic')->first();
+        $tutor = $this->tutor(['desired_tariff_id' => $basic->id]);
+
+        $c = Livewire::actingAs($tutor)->test(Onboarding::class)
+            ->set('lessonTypes.0.price', '1000')
+            ->call('finish')
+            ->assertRedirect('https://pay.test/onb');
+
+        // Вернулся со страницы оплаты, не заплатив, и прошёл настройку ещё раз — новый платёж не создаётся
+        $c->call('finish')->assertRedirect('https://pay.test/onb');
+
+        $this->assertSame(1, SubscriptionPayment::where('user_id', $tutor->id)->count());
+    }
+
+    public function test_whatsapp_is_checked_like_in_profile(): void
+    {
+        $tutor = $this->tutor();
+
+        Livewire::actingAs($tutor)->test(Onboarding::class)
+            ->set('whatsup', 'позвоните мне')
+            ->call('next')
+            ->assertHasErrors(['whatsup'])
+            ->assertSet('step', 1)
+            ->set('whatsup', '+7 916 123-45-67')
+            ->call('next')
+            ->assertHasNoErrors()
+            ->assertSet('step', 2);
+    }
 }

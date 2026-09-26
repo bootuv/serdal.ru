@@ -13,8 +13,14 @@ class TeacherUpdatedSchedule extends Notification implements ShouldBroadcast
 {
     use Queueable, BroadcastsNotification;
 
+    /**
+     * @param  string|null  $title  заголовок («Занятие отменено», «Занятие перенесено»); по умолчанию — «Расписание обновлено»
+     * @param  string|null  $body  текст: что и когда изменилось, причина
+     */
     public function __construct(
-        public User $teacher
+        public User $teacher,
+        public ?string $title = null,
+        public ?string $body = null,
     ) {
     }
 
@@ -32,15 +38,17 @@ class TeacherUpdatedSchedule extends Notification implements ShouldBroadcast
     public function toDatabase(object $notifiable): array
     {
         return FilamentNotification::make()
-            ->title('Расписание обновлено')
-            ->body("Учитель {$this->teacher->name} обновил ваше расписание занятий")
+            ->title($this->title ?? 'Расписание обновлено')
+            ->body($this->body ?? "Учитель {$this->teacher->name} обновил ваше расписание занятий")
             ->icon('heroicon-o-calendar-days')
             ->iconColor('info')
             ->actions([
                 \Filament\Notifications\Actions\Action::make('view')
-                    ->label('Календарь')
+                    ->label('Расписание')
                     ->button()
-                    ->url(route('filament.student.pages.schedule-calendar'))
+                    ->url(\Illuminate\Support\Facades\Route::has('cabinet.student.schedule')
+                        ? route('cabinet.student.schedule')
+                        : route('filament.student.pages.schedule-calendar'))
             ])
             ->getDatabaseMessage();
     }

@@ -186,7 +186,9 @@ class AuthInviteTest extends TestCase
             ->assertHasErrors('verification_code')
             ->assertSee('Введите все 6 цифр');
 
-        // Повторная отправка — бейдж и новый код
+        // Сразу повторно — нельзя, через минуту — можно: бейдж и новый код
+        $c->call('resendCode')->assertHasErrors('verification_code');
+        $this->travel(61)->seconds();
         $c->call('resendCode')
             ->assertSet('codeResent', true)
             ->assertSee('Новый код отправлен')
@@ -239,5 +241,33 @@ class AuthInviteTest extends TestCase
 
         $this->assertTrue($teacher->students()->whereKey($student->id)->exists());
         Notification::assertSentTo($teacher, StudentAcceptedInvite::class);
+    }
+
+    public function test_code_burns_after_five_wrong_attempts_and_password_is_not_kept_in_session(): void
+    {
+        $c = $this->fill($this->invitePage($this->tutor()))->call('register');
+        $code = $this->sentCode();
+        $this->assertArrayNotHasKey('password', session('registration_data'));
+
+        $wrong = $code === '000000' ? '111111' : '000000';
+        foreach (range(1, 5) as $i) {
+            $c->set('verification_code', $wrong)->call('verifyAndRegister');
+        }
+        $c->assertSee('Слишком много неверных попыток');
+
+        // Даже верный код больше не подходит
+        $c->set('verification_code', $code)->call('verifyAndRegister')->assertSee('Код устарел');
+        $this->assertFalse(User::where('email', 'alina@mail.ru')->exists());
+    }
+
+    public function test_teacher_opening_invite_does_not_become_student(): void
+    {
+        $teacher = $this->tutor();
+        $other = $this->tutor();
+
+        $this->actingAs($other)->get($this->inviteUrl($teacher))
+            ->assertRedirect(route('cabinet.teacher.today'))
+            ->assertSessionHas('error');
+        $this->assertFalse($teacher->students()->whereKey($other->id)->exists());
     }
 }

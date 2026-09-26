@@ -29,7 +29,7 @@
             @if ($photos)
                 <div class="grid grid-cols-2 gap-4 sm:grid-cols-3">
                     @foreach ($photos as $i => $p)
-                        <button type="button" wire:click="annotate({{ $i }})" wire:key="ph-{{ $p['path'] }}" aria-label="Открыть {{ mb_strtolower($p['name']) }} для пометок"
+                        <button type="button" wire:click="annotate({{ $i }})" wire:key="ph-{{ $p['path'] }}" aria-label="Открыть {{ $p['label'] }} для пометок"
                                 class="flex min-w-0 flex-col gap-3 rounded-lg p-2 pb-3 text-left shadow-outline hover:shadow-outline-ink">
                             <span class="relative block">
                                 <img src="{{ $p['url'] }}" alt="" loading="lazy" class="h-40 w-full rounded-sm bg-soft object-cover">
@@ -184,18 +184,19 @@
 
     {{-- Пометки на фото: холст ImageAnnotator внутри окна --}}
     @if ($current)
-        <x-ui.modal :title="'Пометки · ' . mb_strtolower($current['name'])" :sub="trim(($student?->name ?? '') . ' · ' . $homework->title, ' ·')" close="closeAnnotator" width="l">
+        {{-- Закрыть и переключить фото — через холст: он предупредит о несохранённых пометках --}}
+        <x-ui.modal :title="'Пометки · ' . $current['label']" :sub="trim(($student?->name ?? '') . ' · ' . $homework->title, ' ·')" close="$dispatch('annotator-leave')" width="l">
             <div class="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-start">
                 @if (count($photos) > 1)
                     <div class="flex gap-3 overflow-x-auto lg:w-40 lg:shrink-0 lg:flex-col" role="group" aria-label="Фото">
                         @foreach ($photos as $i => $p)
-                            <button type="button" wire:click="annotate({{ $i }})" aria-pressed="{{ $p['path'] === $current['path'] ? 'true' : 'false' }}" wire:key="rail-{{ $p['path'] }}"
+                            <button type="button" x-on:click="$dispatch('annotator-leave', { photo: {{ $i }} })" aria-pressed="{{ $p['path'] === $current['path'] ? 'true' : 'false' }}" wire:key="rail-{{ $p['path'] }}"
                                     @class(['flex w-40 shrink-0 flex-col gap-2 rounded-lg p-2 text-left lg:w-full',
                                             'shadow-outline-ink' => $p['path'] === $current['path'],
                                             'shadow-outline hover:shadow-outline-ink' => $p['path'] !== $current['path']])>
                                 <img src="{{ $p['url'] }}" alt="" loading="lazy" class="h-16 w-full rounded-sm bg-soft object-cover">
                                 <span class="flex flex-col gap-1 px-1">
-                                    <span class="text-t2 font-medium">{{ $p['name'] }}</span>
+                                    <span class="truncate text-t2 font-medium">{{ $p['name'] }}</span>
                                     <span class="text-t2 text-muted">{{ $p['annotated'] ? 'Есть пометки' : 'Без пометок' }}</span>
                                 </span>
                             </button>
@@ -204,9 +205,9 @@
                 @endif
                 <livewire:image-annotator embedded :image-path="$current['path']" :submission-id="$submission->id" :key="'ann-' . md5($current['path'])" />
             </div>
-            <x-slot:note>{{ $firstName }} увидит фото с пометками в своей работе</x-slot:note>
+            <x-slot:note>{{ $marksNote }}</x-slot:note>
             <x-slot:footer>
-                <x-ui.btn wire:click="closeAnnotator">Отмена</x-ui.btn>
+                <x-ui.btn x-on:click="$dispatch('annotator-leave')">Отмена</x-ui.btn>
                 <x-ui.btn variant="primary" x-on:click="$dispatch('annotator-save')">Сохранить пометки</x-ui.btn>
             </x-slot:footer>
         </x-ui.modal>

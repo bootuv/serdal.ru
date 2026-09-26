@@ -30,3 +30,10 @@ Schedule::command('recordings:retry-uploads')->hourly()->withoutOverlapping();
 // runInBackground: долгие команды не должны задерживать ежеминутные задачи.
 Schedule::command('backup:run')->dailyAt('03:30')->days([1, 2, 3, 4, 5, 6])->runInBackground()->withoutOverlapping(120);
 Schedule::command('backup:run --files')->weeklyOn(0, '03:30')->runInBackground()->withoutOverlapping(240);
+
+// Запасная сверка статуса занятий с сервером видеосвязи: если вебхук о завершении потерялся,
+// занятие не останется навсегда «идущим» и не заблокирует старт других (раньше это делали страницы старого кабинета)
+Schedule::call(function () {
+    \App\Models\Room::where('is_running', true)->distinct()->pluck('user_id')
+        ->each(fn ($userId) => \App\Jobs\SyncUserBbbStatus::dispatch((int) $userId));
+})->everyTwoMinutes()->name('bbb-status-fallback-sync')->withoutOverlapping();

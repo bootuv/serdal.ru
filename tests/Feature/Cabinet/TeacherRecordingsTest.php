@@ -166,4 +166,56 @@ class TeacherRecordingsTest extends TestCase
         $this->assertNotSoftDeleted($keep);
         $this->assertNotSoftDeleted($foreign);
     }
+
+    public function test_soon_block_contains_oldest_recordings_even_beyond_the_list(): void
+    {
+        $teacher = $this->user(User::ROLE_TUTOR);
+        $this->retention($teacher, 90);
+        $room = $this->room($teacher, [$this->user(User::ROLE_STUDENT, 'Иван Петров')], 'Математика');
+
+        // 70 свежих записей — больше, чем помещается в список (60)
+        foreach (range(1, 70) as $i) {
+            $this->recording($room, now()->subHours($i * 3), ['name' => 'Свежая ' . $i]);
+        }
+        // Самые старые: удалятся через ~1 и ~3 дня
+        $oldest = $this->recording($room, now()->subDays(89), ['name' => 'Старейшая']);
+        $older = $this->recording($room, now()->subDays(87), ['name' => 'Старая']);
+        // Удалится через 30 дней — не «скоро»
+        $this->recording($room, now()->subDays(60), ['name' => 'Средняя']);
+
+        $html = Livewire::actingAs($teacher)->test(Recordings::class)
+            ->assertSee('Скоро удалятся')
+            ->assertSeeInOrder(['Скоро удалятся', 'rec-' . $oldest->id, 'rec-' . $older->id, 'Эта неделя'], false)
+            ->html();
+
+        // Первыми — те, что удалятся раньше; в «Скоро удалятся» только они
+        $soonBlock = substr($html, strpos($html, 'Скоро удалятся'), strpos($html, 'Эта неделя') - strpos($html, 'Скоро удалятся'));
+        $this->assertStringContainsString('rec-' . $oldest->id, $soonBlock);
+        $this->assertSame(2, substr_count($soonBlock, 'wire:key="rec-'));
+    }
+
+    public function test_search_and_statuses(): void
+    {
+        $teacher = $this->user(User::ROLE_TUTOR, 'Мария Соколова');
+        $ivan = $this->user(User::ROLE_STUDENT, 'Иван Петров');
+        $math = $this->room($teacher, [$ivan], 'Математика');
+        $english = $this->room($teacher, [$this->user(User::ROLE_STUDENT, 'Алина Смирнова')], 'Английский');
+
+        $this->recording($math, now()->subDay());
+        $this->recording($english, now()->subDays(2), ['s3_url' => null, 'url' => 'https://bbb.example/playback/video/1/']);
+        $this->recording($english, now()->subMinutes(30), ['s3_url' => null, 'url' => null, 'start_time' => now()->subMinutes(80)]);
+
+        Livewire::actingAs($teacher)->test(Recordings::class)
+            ->assertSee('Загружается')
+            ->assertSee('Обрабатывается')
+            ->set('search', 'Иван')
+            ->assertSee('Математика · Иван Петров')
+            ->assertDontSee('Английский · Алина Смирнова')
+            ->set('search', 'Английск')
+            ->assertSee('Английский · Алина Смирнова')
+            ->assertDontSee('Математика · Иван Петров')
+            ->set('search', 'Физика')
+            ->assertSee('Ничего не нашлось')
+            ->assertSee('Сбросить поиск');
+    }
 }

@@ -23,10 +23,11 @@ class SessionLogoutController extends Controller
             return redirect('/');
         }
 
-        // Determine redirect based on user role
+        // Ученик — в новый кабинет: страница занятия (если есть) или расписание
         if ($user->role === User::ROLE_STUDENT) {
-            // Students go back to their room view
-            return redirect()->route('filament.student.resources.rooms.view', $room);
+            return redirect(\Illuminate\Support\Facades\Route::has('cabinet.student.lesson') && $room
+                ? route('cabinet.student.lesson', $room)
+                : route('cabinet.student.schedule'));
         }
 
         if ($user->isAdmin()) {
@@ -34,7 +35,9 @@ class SessionLogoutController extends Controller
             return redirect()->route('filament.admin.resources.meeting-sessions.view', $session);
         }
 
-        // Teachers (tutors/mentors) go to tutor panel session view
-        return redirect()->route('filament.app.resources.meeting-sessions.view', $session);
+        // Учитель — на страницу занятия нового кабинета: там итоги прошедшего занятия
+        return $room
+            ? redirect()->route('cabinet.teacher.lesson', $room)
+            : redirect()->route('cabinet.teacher.schedule');
     }
 }

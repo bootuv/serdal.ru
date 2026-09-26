@@ -144,15 +144,19 @@
                                         <div class="flex min-w-0 flex-1 flex-col gap-1">
                                             <span class="truncate text-t1 font-medium">{{ $p['name'] }}</span>
                                             <span class="text-t2 text-muted">{{ $p['facts'] }}</span>
+                                            @if ($p['claim'])<span class="text-t2"><x-ui.em>Ученик сообщил об оплате</x-ui.em></span>@endif
                                         </div>
                                         @if ($p['paid'])<x-ui.badge tone="ok">Оплачено</x-ui.badge>
                                         @elseif ($p['badge'])<x-ui.badge tone="danger">{{ $p['badge'] }}</x-ui.badge>@endif
                                     </div>
-                                    <div class="flex gap-2">
+                                    <div class="flex flex-wrap gap-2">
                                         @if ($p['paid'])
                                             <x-ui.btn size="s" wire:click="undoPaid({{ $p['id'] }})">Отменить</x-ui.btn>
+                                        @elseif ($p['claim'])
+                                            <x-ui.btn size="s" wire:click="openClaim({{ $p['claim']['id'] }})">Проверить оплату</x-ui.btn>
                                         @else
                                             <x-ui.btn size="s" wire:click="markPaid({{ $p['id'] }})">Отметить оплату</x-ui.btn>
+                                            @if ($p['overdue'])<x-ui.btn size="s" wire:click="remind({{ $p['id'] }})" wire:loading.attr="disabled" wire:target="remind">Напомнить</x-ui.btn>@endif
                                         @endif
                                     </div>
                                 </div>
@@ -190,4 +194,5 @@
     @include('livewire.cabinet.teacher.partials.lesson-plan-modal')
     @include('livewire.cabinet.teacher.partials.lesson-start-blocked')
     @include('livewire.cabinet.teacher.partials.lesson-mark-paid-modal')
+    @include('livewire.cabinet.teacher.partials.payment-claim-modal')
 </div>

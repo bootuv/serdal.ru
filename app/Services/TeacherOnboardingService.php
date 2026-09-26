@@ -12,6 +12,9 @@ use App\Models\User;
  */
 class TeacherOnboardingService
 {
+    /** Телефон (WhatsApp) — та же проверка, что в профиле учителя (Cabinet\Teacher\Profile::TEL). */
+    public const PHONE_RULE = 'regex:/^[+]*[(]{0,1}[0-9]{1,4}[)]{0,1}[-\s\.\/0-9]*$/';
+
     /** Первая цена по умолчанию: шаг «Цены» сразу показывает открытую форму. */
     public const DEFAULT_LESSON_TYPE = [
         'type' => LessonType::TYPE_INDIVIDUAL,
@@ -49,6 +52,9 @@ class TeacherOnboardingService
      */
     public function complete(User $user, array $data): array
     {
+        // Повторное прохождение (учитель вернулся к настройке): админам не пишем ещё раз
+        $firstTime = ! $user->is_profile_completed;
+
         // Пересоздаём базовые цены из шага «Цены для учеников»
         $user->lessonTypes()->delete();
 
@@ -87,13 +93,39 @@ class TeacherOnboardingService
             }
         }
 
-        foreach (User::where('role', User::ROLE_ADMIN)->get() as $admin) {
-            $admin->notify(new \App\Notifications\TeacherCompletedOnboarding($user));
+        if ($firstTime) {
+            foreach (User::where('role', User::ROLE_ADMIN)->get() as $admin) {
+                $admin->notify(new \App\Notifications\TeacherCompletedOnboarding($user));
+            }
         }
 
         // Выбран платный тариф — сразу уводим на платёжную страницу
         $tariff = isset($data['tariff_id']) ? Tariff::active()->find($data['tariff_id']) : null;
         $result = ['tariff' => $tariff, 'payment_url' => null, 'payment_failed' => false];
+
+        // Этот платный тариф уже действует — платить заново не нужно
+        if ($tariff && !$tariff->isFree() && $user->activeSubscription()?->tariff_id === $tariff->id) {
+            return $result;
+        }
+
+        // Платёж за этот тариф уже создан и ссылка на оплату ещё действует — ведём на неё, а не создаём ещё один
+        if ($tariff && !$tariff->isFree()) {
+            $yearly = ($data['billing_period'] ?? 'month') === 'year' && $tariff->hasYearly();
+            $open = \App\Models\SubscriptionPayment::where('user_id', $user->id)
+                ->where('tariff_id', $tariff->id)
+                ->where('status', \App\Models\SubscriptionPayment::STATUS_PENDING)
+                ->where('period_days', $yearly ? 365 : $tariff->period_days)
+                ->whereNull('extra_lessons')
+                ->latest()
+                ->get()
+                ->first(fn (\App\Models\SubscriptionPayment $p) => $p->isResumable() && empty($p->meta['card_binding']));
+
+            if ($open) {
+                $result['payment_url'] = $open->payment_url;
+
+                return $result;
+            }
+        }
 
         if ($tariff && !$tariff->isFree() && YooKassaService::isConfigured()) {
             $payment = SubscriptionCheckoutService::createTariffPayment(

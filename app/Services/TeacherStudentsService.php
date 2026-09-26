@@ -81,6 +81,17 @@ class TeacherStudentsService
         return $at ? Carbon::parse($at) : null;
     }
 
+    /**
+     * Ссылка на карточку ученика в новом кабинете. Карточка открывается по username; если его нет — по id
+     * (Cabinet\Teacher\Student::mount понимает оба). Нового кабинета нет — старая карточка /tutor/students/{id}.
+     */
+    public static function studentUrl(User $student, array $query = []): string
+    {
+        return \Illuminate\Support\Facades\Route::has('cabinet.teacher.student')
+            ? route('cabinet.teacher.student', ['student' => $student->username ?: $student->id] + $query)
+            : url('/tutor/students/' . $student->id);
+    }
+
     /** Ссылка «Написать ученику»: чат последнего общего занятия. */
     public function chatUrl(User $teacher, int $studentId): string
     {
@@ -299,9 +310,12 @@ class TeacherStudentsService
     {
         $teacher->students()->detach($student);
 
-        Room::where('user_id', $teacher->id)->get()->each(function (Room $room) use ($student) {
+        // Как syncRooms: после detach() пересчитываем тип занятия (группа → индивидуальное → без учеников)
+        $student->assignedRooms()->where('rooms.user_id', $teacher->id)->get()->each(function (Room $room) use ($student) {
             $room->participants()->detach($student->id);
+            $this->refreshRoomType($room);
         });
+        $student->unsetRelation('assignedRooms');
 
         $studentId = (string) $student->id;
         $hasCompletedLesson = MeetingSession::whereHas('room', fn ($q) => $q->where('user_id', $teacher->id))
@@ -391,7 +405,41 @@ class TeacherStudentsService
             $record->markAs($status, $teacher->id);
         }
 
+        // Заявки «Ученик сообщил об оплате», где не осталось неоплаченного, закрываются
+        if ($records->isNotEmpty()) {
+            app(PaymentClaimService::class)->settle($teacher->id, $studentId);
+        }
+
         return $records;
+    }
+
+    /** Не чаще раза в сутки: «Напомнить» об оплате. */
+    public const REMIND_EVERY_HOURS = 24;
+
+    /**
+     * «Напомнить» об оплате: уведомление PaymentReminder ученику по его неоплаченным начислениям у учителя.
+     * Не чаще раза в сутки (по reminded_at начислений — его же ставит ежедневная проверка просрочек).
+     *
+     * @return string sent | too_soon | nothing
+     */
+    public function remind(User $teacher, int $studentId): string
+    {
+        $records = $this->isFree($teacher, $studentId) ? collect() : $this->unpaidRecords($teacher, $studentId);
+
+        if ($records->isEmpty()) {
+            return 'nothing';
+        }
+
+        $last = $records->pluck('reminded_at')->filter()->max();
+        if ($last && $last->gt(now()->subHours(self::REMIND_EVERY_HOURS))) {
+            return 'too_soon';
+        }
+
+        $student = User::find($studentId);
+        $student?->notify(new \App\Notifications\PaymentReminder($teacher, $records->count()));
+        PaymentRecord::whereIn('id', $records->pluck('id'))->update(['reminded_at' => now()]);
+
+        return 'sent';
     }
 
     /**
@@ -455,6 +503,7 @@ class TeacherStudentsService
                     ->get();
                 $records->each(fn (PaymentRecord $r) => $r->markAs(PaymentRecord::STATUS_CANCELLED, $teacher->id));
                 $result['cancelled'] = $records->count();
+                app(PaymentClaimService::class)->settle($teacher->id, $student->id);
 
                 return $result;
             }
@@ -525,6 +574,52 @@ class TeacherStudentsService
                 : 'Поурочно' . ($price ? ' · ' . self::rub((int) $price) . ' за занятие' : '') . ' · ' . $perLesson,
             'note' => ($override ? 'Выбрано для этого ученика отдельно от ваших цен. ' : 'Как в ваших базовых ценах. ') . $block,
             'options' => $options,
+        ];
+    }
+
+    /**
+     * Условия оплаты глазами ученика («Как вы платите»): цена и срок у учителя.
+     * price — «1 500 ₽» или null, если цена не указана; free — занимается бесплатно.
+     *
+     * @return array{free:bool, price:?string, unit:string, due:string}
+     */
+    public function studentTerms(User $teacher, User $student): array
+    {
+        $pivot = $this->pivot($teacher, $student->id);
+
+        if ($pivot?->is_free) {
+            return ['free' => true, 'price' => null, 'unit' => '', 'due' => ''];
+        }
+
+        $lessonTypes = $teacher->lessonTypes()->get();
+        $rooms = $this->studentRooms($teacher, $student);
+        $type = $pivot?->payment_type_override
+            ?: ($rooms->map(fn (Room $r) => $lessonTypes->firstWhere('type', $r->type)?->payment_type)->filter()->first()
+                ?? PaymentRecord::TYPE_PER_LESSON);
+
+        if ($type === PaymentRecord::TYPE_MONTHLY) {
+            $monthly = $lessonTypes->firstWhere('payment_type', PaymentRecord::TYPE_MONTHLY);
+            $dueDay = (int) ($monthly?->payment_due_day ?? PaymentRecordService::MONTHLY_DUE_DAY);
+
+            return [
+                'free' => false,
+                'price' => $monthly?->price ? self::rub((int) $monthly->price) : null,
+                'unit' => 'в месяц',
+                'due' => 'до ' . $dueDay . '-го числа',
+            ];
+        }
+
+        $room = $rooms->first();
+        $price = $room?->getEffectivePrice($student->id);
+        $dueDays = (int) ($lessonTypes->firstWhere('type', $room?->type ?? 'individual')?->payment_due_days
+            ?? $lessonTypes->firstWhere('payment_type', PaymentRecord::TYPE_PER_LESSON)?->payment_due_days
+            ?? PaymentRecordService::PER_LESSON_DUE_DAYS);
+
+        return [
+            'free' => false,
+            'price' => $price ? self::rub((int) $price) : null,
+            'unit' => 'за занятие',
+            'due' => 'в течение ' . plural_ru($dueDays, 'дня', 'дней', 'дней'),
         ];
     }
 

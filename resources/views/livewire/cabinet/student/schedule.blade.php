@@ -1,4 +1,5 @@
 <div class="flex flex-col gap-6 lg:gap-8">
+    @if ($poll)<div wire:poll.60s.visible class="hidden"></div>@endif
     <x-ui.page-head title="Расписание" :sub="$sub">
         <x-slot:actions>
             @if ($googleConnected)
@@ -30,6 +31,7 @@
                             <span class="text-t2 text-muted">
                                 @if ($focus['status'])<x-ui.em>{{ $focus['status'] }}</x-ui.em> · @endif
                                 @if ($focus['extra'])<x-ui.em>Дополнительное</x-ui.em> · @endif
+                                @if ($focus['moved'])<x-ui.em>Перенесено</x-ui.em> {{ $focus['moved'] }} · @endif
                                 {{ $focus['facts'] }}
                             </span>
                         </div>
@@ -38,8 +40,11 @@
                         @if ($focus['blocked'])
                             <x-ui.btn variant="outline" size="l" icon="lock" disabled>Войти в класс</x-ui.btn>
                             <p class="text-t2 text-muted">Вход закрыт до оплаты · <a href="{{ $paymentsUrl }}" class="link">оплатить</a></p>
-                        @else
+                        @elseif ($focus['canJoin'])
                             <x-ui.btn variant="primary" size="l" icon="video" :href="$focus['joinUrl']" target="_blank" rel="noopener">Войти в класс</x-ui.btn>
+                        @else
+                            <p class="text-t2 text-muted">{{ $focus['joinHint'] }}</p>
+                            <a href="{{ $focus['url'] }}" class="link text-t2">Подробнее о занятии</a>
                         @endif
                     </div>
                 </x-ui.card>
@@ -51,13 +56,14 @@
                     @else
                         <x-ui.list>
                             @foreach ($next as $lesson)
-                                <x-ui.row :href="$lesson['url']" wire:key="next-{{ $loop->index }}">
-                                    <x-ui.date-tile :date="$lesson['start']" :today="$lesson['isToday']" />
+                                <x-ui.row :href="$lesson['url']" wire:key="next-{{ $lesson['key'] }}">
+                                    <x-ui.date-tile :date="$lesson['start']" :today="$lesson['isToday']" :class="$lesson['cancelled'] ? 'opacity-60' : ''" />
                                     <div class="flex min-w-0 flex-1 flex-col gap-1">
-                                        <span class="truncate text-t1 font-medium">{{ $lesson['title'] }}</span>
+                                        <span @class(['truncate text-t1 font-medium', 'text-muted line-through' => $lesson['cancelled']])>{{ $lesson['title'] }}</span>
                                         <span class="text-t2 text-muted">
                                             @if ($lesson['running'])<x-ui.em>Идёт сейчас</x-ui.em> · @endif
                                             @if ($lesson['extra'])<x-ui.em>Дополнительное</x-ui.em> · @endif
+                                            @if ($lesson['moved'])<x-ui.em>Перенесено</x-ui.em> {{ $lesson['moved'] }} · @endif
                                             {{ $lesson['facts'] }}
                                         </span>
                                     </div>

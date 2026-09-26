@@ -26,7 +26,9 @@ class HomeworkSubmission extends Model
         'status',
         'content',
         'attachments',
+        'file_names',
         'annotated_files',
+        'annotations',
         'annotated_images',
         'feedback',
         'feedback_attachments',
@@ -36,7 +38,9 @@ class HomeworkSubmission extends Model
 
     protected $casts = [
         'attachments' => 'array',
+        'file_names' => 'array',
         'annotated_files' => 'array',
+        'annotations' => 'array',
         'annotated_images' => 'array',
         'feedback_attachments' => 'array',
         'submitted_at' => 'datetime',
@@ -98,6 +102,38 @@ class HomeworkSubmission extends Model
             self::STATUS_SUBMITTED => 'warning',
             default => 'gray',
         };
+    }
+
+    /**
+     * Фото с пометками учителя: путь фото ученика → путь файла, который показываем с пометками.
+     * Новые пометки лежат отдельным файлом (annotations), оригинал цел;
+     * в старых записях пометки нарисованы поверх оригинала (annotated_files) — там путь указывает сам на себя.
+     *
+     * @return array<string, string>
+     */
+    public function markedFiles(): array
+    {
+        $map = [];
+
+        foreach ($this->annotated_files ?? [] as $path) {
+            if (is_string($path) && $path !== '') {
+                $map[$path] = $path;
+            }
+        }
+
+        foreach ($this->annotations ?? [] as $original => $marked) {
+            if (is_string($original) && is_string($marked) && $marked !== '') {
+                $map[$original] = $marked;
+            }
+        }
+
+        return $map;
+    }
+
+    /** Ученик видит пометки только после проверки: работа оценена или возвращена на доработку. */
+    public function marksVisibleToStudent(): bool
+    {
+        return in_array($this->status, [self::STATUS_GRADED, self::STATUS_REVISION_REQUESTED], true);
     }
 
     /**

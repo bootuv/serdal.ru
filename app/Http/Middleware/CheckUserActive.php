@@ -17,13 +17,14 @@ class CheckUserActive
     public function handle(Request $request, Closure $next): Response
     {
         if (Auth::check() && Auth::user()->is_blocked) {
+            $email = Auth::user()->email;
             Auth::logout();
 
             $request->session()->invalidate();
             $request->session()->regenerateToken();
 
-            return redirect()->route('filament.app.auth.login')
-                ->with('error', 'Ваш профиль деактивирован. Обратитесь к администратору.');
+            // Экран «Доступ к кабинету приостановлен» на странице входа
+            return redirect()->route('login')->with('blocked_email', $email);
         }
 
         return $next($request);

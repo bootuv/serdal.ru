@@ -31,6 +31,9 @@ class Login extends Component
         if (Auth::check()) {
             return redirect(EnsureCabinetRole::homeFor(Auth::user()));
         }
+
+        // Заблокировали, пока человек был в кабинете (CheckUserActive)
+        $this->blocked = session('blocked_email');
     }
 
     public function login()

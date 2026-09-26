@@ -17,8 +17,7 @@ class LoginResponse implements LoginResponseContract
         if ($user->is_blocked) {
             auth()->logout();
 
-            return redirect()->route('filament.admin.auth.login')
-                ->with('error', 'Ваш профиль деактивирован. Обратитесь к администратору.');
+            return redirect()->route('login')->with('blocked_email', $user->email);
         }
 
         // Ученик и учитель — в новый кабинет, админ — в /admin

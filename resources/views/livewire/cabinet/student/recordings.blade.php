@@ -2,8 +2,15 @@
     <x-ui.page-head title="Записи" :sub="$sub" />
 
     <div class="flex flex-col gap-6">
-        @if ($teacherFilter)
-            <x-ui.seg :items="$teacherFilter" model="teacher" :active="$teacher" aria-label="Учитель" fit />
+        @if ($teacherFilter || $hasAny)
+            <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                @if ($teacherFilter)
+                    <x-ui.seg :items="$teacherFilter" model="teacher" :active="$teacher" aria-label="Учитель" fit />
+                @endif
+                @if ($hasAny)
+                    <x-ui.search wire:model.live.debounce.400ms="search" placeholder="Поиск по занятию или учителю" />
+                @endif
+            </div>
         @endif
 
         {{-- Плеер открытой записи --}}
@@ -32,7 +39,11 @@
             </section>
         @endif
 
-        @if ($soon->isEmpty() && $weeks->isEmpty())
+        @if ($soon->isEmpty() && $weeks->isEmpty() && $searching)
+            <x-ui.empty icon="search" title="Ничего не нашлось" text="Проверьте написание или поищите по имени учителя.">
+                <x-slot:action><x-ui.btn wire:click="$set('search', '')">Сбросить поиск</x-ui.btn></x-slot:action>
+            </x-ui.empty>
+        @elseif ($soon->isEmpty() && $weeks->isEmpty())
             <x-ui.empty icon="video" title="Записей пока нет" text="Когда учитель запишет занятие, запись появится здесь." />
         @endif
 

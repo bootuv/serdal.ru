@@ -49,6 +49,13 @@ class Materials extends Component
 
     public string $fileTitle = '';
 
+    public string $fileDescription = '';
+
+    /** Новый файл вместо текущего (замена при редактировании) и его полное имя из браузера. */
+    public $replacement = null;
+
+    public ?string $replacementName = null;
+
     public string $fileFolder = '';
 
     public string $fileVisibility = TeacherMaterial::VISIBILITY_ALL;
@@ -72,6 +79,15 @@ class Materials extends Component
     public string $uploadVisibility = TeacherMaterial::VISIBILITY_ALL;
 
     public array $uploadRooms = [];
+
+    /** Режим «Выбрать», выбранные файлы и окно действия над ними: null | move | delete. */
+    public bool $selecting = false;
+
+    public array $picked = [];
+
+    public ?string $bulk = null;
+
+    public string $bulkFolder = '';
 
     public function mount(): void
     {
@@ -211,6 +227,8 @@ class Materials extends Component
         $this->resetErrorBag();
         $this->fileId = $material->id;
         $this->fileTitle = $material->title;
+        $this->fileDescription = (string) $material->description;
+        $this->discardReplacement();
         $this->fileFolder = (string) ($material->folder_id ?? '');
         $this->fileVisibility = $material->visibility;
         $this->fileRooms = $material->rooms()->pluck('rooms.id')->map(fn ($id) => (string) $id)->all();
@@ -218,8 +236,41 @@ class Materials extends Component
 
     public function closeFile(): void
     {
+        $this->discardReplacement();
         $this->fileId = null;
         $this->confirm = null;
+    }
+
+    /** Новый файл для замены доехал до сервера: тот же лимит, что при загрузке. */
+    public function updatedReplacement(): void
+    {
+        if (! $this->fileId) {
+            $this->discardReplacement();
+
+            return;
+        }
+
+        try {
+            $this->validate(
+                ['replacement' => 'file|max:' . TeacherMaterialsService::MAX_FILE_KB],
+                ['replacement.max' => 'Файл больше 200 МБ загрузить нельзя.', 'replacement.file' => 'Не удалось передать файл — попробуйте ещё раз.'],
+            );
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $this->discardReplacement();
+            $this->addError('replacement', collect($e->errors())->flatten()->first());
+        }
+    }
+
+    public function replacementFailed(): void
+    {
+        $this->discardReplacement();
+        $this->addError('replacement', 'Не удалось передать файл. Возможно, он слишком большой или прервалась связь — попробуйте ещё раз.');
+    }
+
+    public function cancelReplacement(): void
+    {
+        $this->discardReplacement();
+        $this->resetErrorBag('replacement');
     }
 
     public function saveFile(): void
@@ -228,16 +279,24 @@ class Materials extends Component
 
         $this->validate([
             'fileTitle' => 'required|string|max:255',
+            'fileDescription' => 'nullable|string|max:1000',
             'fileVisibility' => 'required|in:' . implode(',', array_keys(TeacherMaterial::getVisibilityOptions())),
             'fileRooms' => 'required_if:fileVisibility,' . TeacherMaterial::VISIBILITY_ROOMS . '|array',
         ], [
             'fileTitle.required' => 'Введите название файла.',
+            'fileDescription.max' => 'Сократите описание до 1000 символов.',
             'fileRooms.required_if' => 'Выберите, кому открыть файл.',
         ]);
 
         $teacher = auth()->user();
-        $material->update(['title' => trim($this->fileTitle)]);
+        $material->update(['title' => trim($this->fileTitle), 'description' => filled(trim($this->fileDescription)) ? trim($this->fileDescription) : null]);
         $this->service()->setAccess($teacher, $material, $this->fileVisibility, $this->fileRooms);
+
+        $replaced = null;
+        if ($this->replacement instanceof TemporaryUploadedFile) {
+            $replaced = $this->service()->replaceFile($material, $this->replacement, $this->replacementName);
+            $this->discardReplacement();
+        }
 
         $target = $this->fileFolder === '' ? null : (int) $this->fileFolder;
         if ($target !== ($material->folder_id === null ? null : (int) $material->folder_id)) {
@@ -245,7 +304,11 @@ class Materials extends Component
         }
 
         $this->fileId = null;
-        $this->dispatch('toast', message: 'Файл сохранён');
+        $this->dispatch('toast', message: match ($replaced) {
+            true => 'Файл заменён',
+            false => 'Сохранено, но новый файл загрузить не удалось — попробуйте ещё раз',
+            default => 'Файл сохранён',
+        });
     }
 
     public function deleteFile(): void
@@ -262,6 +325,73 @@ class Materials extends Component
         if ($this->service()->moveMaterials(auth()->user(), [$id], $target) > 0) {
             $this->dispatch('toast', message: 'Файл перемещён в «' . $this->folderTitle($target) . '»');
         }
+    }
+
+    /** Перетаскивание файла на соседний файл — ручной порядок (при поиске порядок не меняем). */
+    public function reorderMaterial(int $id, int $target, bool $before): void
+    {
+        if (! filled(trim($this->search))) {
+            $this->service()->reorderMaterials(auth()->user(), $this->folder, $id, $target, $before);
+        }
+    }
+
+    /** Перетаскивание папки к краю соседней папки — ручной порядок. */
+    public function reorderFolder(int $id, int $target, bool $before): void
+    {
+        if (! filled(trim($this->search))) {
+            $this->service()->reorderFolders(auth()->user(), $this->folder, $id, $target, $before);
+        }
+    }
+
+    /* ---------- Несколько файлов ---------- */
+
+    public function startSelect(): void
+    {
+        $this->selecting = true;
+        $this->picked = [];
+        $this->bulk = null;
+    }
+
+    public function cancelSelect(): void
+    {
+        $this->selecting = false;
+        $this->picked = [];
+        $this->bulk = null;
+    }
+
+    public function toggle(int $id): void
+    {
+        if (in_array($id, $this->picked, true)) {
+            $this->picked = array_values(array_diff($this->picked, [$id]));
+        } elseif ($this->service()->materials(auth()->user())->whereKey($id)->exists()) {
+            $this->picked[] = $id;
+        }
+    }
+
+    public function askBulk(string $action): void
+    {
+        $this->bulk = $this->picked !== [] && in_array($action, ['move', 'delete'], true) ? $action : null;
+        $this->bulkFolder = (string) ($this->folder ?? '');
+        $this->resetErrorBag('bulkFolder');
+    }
+
+    public function moveSelected(): void
+    {
+        $target = $this->bulkFolder === '' ? null : (int) $this->bulkFolder;
+        $moved = $this->service()->moveMaterials(auth()->user(), $this->picked, $target);
+
+        $this->cancelSelect();
+        $this->dispatch('toast', message: $moved > 0
+            ? 'Перемещено в «' . $this->folderTitle($target) . '»: ' . plural_ru($moved, 'файл', 'файла', 'файлов')
+            : 'Не удалось переместить файлы');
+    }
+
+    public function deleteSelected(): void
+    {
+        $deleted = $this->service()->deleteMaterials(auth()->user(), $this->picked);
+
+        $this->cancelSelect();
+        $this->dispatch('toast', message: 'Удалено: ' . plural_ru($deleted, 'файл', 'файла', 'файлов'));
     }
 
     /* ---------- Загрузка ---------- */
@@ -381,6 +511,8 @@ class Materials extends Component
             'folders' => $searching ? collect() : $this->folderRows($allFolders),
             'files' => $files->take($this->limit)->map(fn (TeacherMaterial $m) => $this->fileRow($m, $searching ? ($paths[$m->folder_id] ?? null) : null)),
             'hasMore' => $files->count() > $this->limit,
+            // Ручной порядок перетаскиванием — внутри папки, не в результатах поиска
+            'sortable' => ! $searching && ! $this->selecting,
             'isEmpty' => $totalFiles === 0 && $allFolders->isEmpty(),
             'access' => $service->accessSummary($teacher),
             'current' => $this->folder ? $allFolders->firstWhere('id', $this->folder) : null,
@@ -519,6 +651,20 @@ class Materials extends Component
         abort_unless($material, 404);
 
         return $material;
+    }
+
+    private function discardReplacement(): void
+    {
+        if ($this->replacement instanceof TemporaryUploadedFile) {
+            try {
+                $this->replacement->delete();
+            } catch (\Throwable) {
+                // Временный файл мог не долететь — не критично
+            }
+        }
+
+        $this->replacement = null;
+        $this->replacementName = null;
     }
 
     private function discardUploads(): void

@@ -32,7 +32,9 @@
                 </div>
 
                 <div class="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-x-6">
-                    <x-ui.field label="Имя и фамилия" name="name" wire:model="name" autocomplete="name" />
+                    <x-ui.field label="Фамилия" name="last_name" wire:model="last_name" autocomplete="family-name" />
+                    <x-ui.field label="Имя" name="first_name" wire:model="first_name" autocomplete="given-name" />
+                    <x-ui.field label="Отчество" name="middle_name" wire:model="middle_name" autocomplete="additional-name" optional />
                     <x-ui.select label="Класс" name="grade" :options="$grades" placeholder="Не указан" wire:model="grade" />
                     <x-ui.field label="Почта" name="email" type="email" wire:model="email" autocomplete="email" />
                     <x-ui.field label="Телефон" name="phone" type="tel" wire:model="phone" autocomplete="tel" />
@@ -109,7 +111,7 @@
                 @error('rating')<span class="text-t2 font-medium text-danger-fg">{{ $message }}</span>@enderror
             </div>
             <x-ui.field label="Расскажите о занятиях" name="reviewText" rows="6" wire:model="reviewText"
-                        placeholder="Например: что получилось благодаря занятиям" hint="Без телефонов и ссылок" />
+                        placeholder="Например: что получилось благодаря занятиям" hint="Без телефонов и ссылок" maxlength="{{ \App\Models\Review::MAX_TEXT }}" />
 
             <x-slot:note>
                 @if ($reviewing['publicUrl'])

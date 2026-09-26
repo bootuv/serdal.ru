@@ -73,6 +73,18 @@ class Notifications extends Component
         auth()->user()->notifications()->delete();
     }
 
+    /** Счётчики пунктов меню: сообщения, работы на проверку, новые отзывы. */
+    public static function navCounts(\App\Models\User $user): array
+    {
+        $counts = ['messages' => app(\App\Services\MessengerService::class)->unreadCount($user)];
+        if ($user->role !== \App\Models\User::ROLE_STUDENT) {
+            $counts['tasks'] = \App\Services\HomeworkSubmissionService::toReview($user->id)->reorder()->count();
+            $counts['reviews'] = app(\App\Services\TeacherReviewsService::class)->unreadCount($user);
+        }
+
+        return $counts;
+    }
+
     private function icon(?string $heroicon): string
     {
         foreach (self::ICONS as $needle => $icon) {
@@ -98,6 +110,8 @@ class Notifications extends Component
         $user = auth()->user();
         $unread = $user->unreadNotifications()->count();
         $this->dispatch('notifications-count', count: $unread);
+        // Счётчики в меню (раскладка слушает cabinet-counts): обновляются с каждым уведомлением и опросом раз в минуту
+        $this->dispatch('cabinet-counts', counts: self::navCounts($user));
 
         $items = $this->open
             ? $user->notifications()->latest()->limit(self::LIMIT)->get()->map(fn (DatabaseNotification $n) => [

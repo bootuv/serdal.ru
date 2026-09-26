@@ -5,6 +5,7 @@ namespace App\Livewire\Cabinet\Teacher;
 use App\Livewire\Cabinet\Teacher\Concerns\LessonRows;
 use App\Livewire\Cabinet\Teacher\Concerns\MarksPayments;
 use App\Livewire\Cabinet\Teacher\Concerns\PlansLessons;
+use App\Livewire\Cabinet\Teacher\Concerns\ReviewsPaymentClaims;
 use App\Livewire\Cabinet\Teacher\Concerns\StartsLessons;
 use App\Livewire\Cabinet\Teacher\Concerns\TeacherScreen;
 use App\Models\HomeworkSubmission;
@@ -29,7 +30,7 @@ use Livewire\Component;
 #[Layout('components.layouts.cabinet', ['title' => 'Сегодня', 'active' => 'today'])]
 class Today extends Component
 {
-    use LessonRows, MarksPayments, PlansLessons, StartsLessons, TeacherScreen;
+    use LessonRows, MarksPayments, PlansLessons, ReviewsPaymentClaims, StartsLessons, TeacherScreen;
 
     /** Обновляем, когда занятие начинается или завершается. */
     #[On('echo:rooms,.room.status.updated')]
@@ -49,7 +50,7 @@ class Today extends Component
             'firstName' => $teacher->first_name ?: $teacher->name,
             'today' => HumanDate::todayLong(),
             'startBlock' => $startBlock,
-        ] + $this->planView($teacher) + $this->markPaidView($teacher);
+        ] + $this->planView($teacher) + $this->markPaidView($teacher) + $this->claimView($teacher);
 
         // Новый учитель без занятий — первые шаги
         if (! Room::where('user_id', $teacher->id)->exists()) {
@@ -162,9 +163,13 @@ class Today extends Component
             ->get();
 
         $blocked = $records->isEmpty() ? [] : PaymentRecordService::blockedStudentIds($teacher->id);
-        $studentIds = $records->pluck('student_id')->unique()->take(4)->values();
+        $claims = $records->isEmpty() ? collect() : $this->pendingClaims($teacher);
+        // Сначала те, кто сообщил об оплате: их нужно только проверить
+        $studentIds = $records->pluck('student_id')->unique()
+            ->sortBy(fn (int $id) => $claims->has($id) ? 0 : 1, SORT_REGULAR)
+            ->take(4)->values();
 
-        $rows = $studentIds->map(function (int $studentId) use ($records, $blocked) {
+        $rows = $studentIds->map(function (int $studentId) use ($records, $blocked, $claims) {
             $own = $records->where('student_id', $studentId);
             $perLesson = $own->where('type', PaymentRecord::TYPE_PER_LESSON)->count();
             $monthly = $own->where('type', PaymentRecord::TYPE_MONTHLY)->map(fn (PaymentRecord $r) => mb_strtolower($r->human_label));
@@ -180,6 +185,8 @@ class Today extends Component
                     default => null,
                 },
                 'paid' => false,
+                'claim' => $claims[$studentId] ?? null,
+                'overdue' => $own->contains(fn (PaymentRecord $r) => $r->isOverdue()),
             ];
         });
 
@@ -195,6 +202,8 @@ class Today extends Component
                         'facts' => plural_ru($paid->count(), 'начисление', 'начисления', 'начислений') . ($sum ? ' · ' . \App\Support\Money::format($sum) : ''),
                         'badge' => null,
                         'paid' => true,
+                        'claim' => null,
+                        'overdue' => false,
                     ]);
                 }
             }

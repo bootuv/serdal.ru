@@ -457,24 +457,12 @@ class ListMaterials extends Page
      */
     public function reorderMaterials(int $draggedId, int $targetId, bool $before): void
     {
-        if ($draggedId === $targetId || filled(trim($this->search))) {
+        if (filled(trim($this->search))) {
             return;
         }
 
-        $ids = $this->materials->take($this->limit)->pluck('id');
-
-        if (! $ids->contains($draggedId) || ! $ids->contains($targetId)) {
-            return;
-        }
-
-        $ordered = $ids->reject(fn ($id) => $id === $draggedId)->values();
-        $targetPosition = $ordered->search($targetId);
-        $insertAt = $before ? $targetPosition : $targetPosition + 1;
-        $ordered->splice($insertAt, 0, [$draggedId]);
-
-        foreach ($ordered->values() as $position => $id) {
-            $this->materialQuery()->whereKey($id)->update(['sort_order' => $position + 1]);
-        }
+        // Общая логика с новым кабинетом
+        app(TeacherMaterialsService::class)->reorder($this->materialQuery(), $this->materials->take($this->limit)->pluck('id'), $draggedId, $targetId, $before);
     }
 
     /**
@@ -482,24 +470,12 @@ class ListMaterials extends Page
      */
     public function reorderFolders(int $draggedId, int $targetId, bool $before): void
     {
-        if ($draggedId === $targetId || filled(trim($this->search))) {
+        if (filled(trim($this->search))) {
             return;
         }
 
-        $ids = $this->folders->pluck('id');
-
-        if (! $ids->contains($draggedId) || ! $ids->contains($targetId)) {
-            return;
-        }
-
-        $ordered = $ids->reject(fn ($id) => $id === $draggedId)->values();
-        $targetPosition = $ordered->search($targetId);
-        $insertAt = $before ? $targetPosition : $targetPosition + 1;
-        $ordered->splice($insertAt, 0, [$draggedId]);
-
-        foreach ($ordered->values() as $position => $id) {
-            $this->folderQuery()->whereKey($id)->update(['sort_order' => $position + 1]);
-        }
+        // Общая логика с новым кабинетом
+        app(TeacherMaterialsService::class)->reorder($this->folderQuery(), $this->folders->pluck('id'), $draggedId, $targetId, $before);
     }
 
     /**

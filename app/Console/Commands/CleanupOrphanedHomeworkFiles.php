@@ -127,7 +127,7 @@ class CleanupOrphanedHomeworkFiles extends Command
         // (например, annotated_images может отсутствовать), поэтому выбираем
         // только реально существующие колонки с файлами.
         $submissionFileColumns = array_values(array_filter(
-            ['attachments', 'annotated_files', 'annotated_images', 'feedback_attachments'],
+            ['attachments', 'annotated_files', 'annotated_images', 'annotations', 'feedback_attachments'],
             fn ($column) => Schema::hasColumn('homework_submissions', $column)
         ));
 

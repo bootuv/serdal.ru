@@ -90,7 +90,10 @@ class StudentFormerTeachersWidget extends BaseWidget
                                 \Filament\Forms\Components\Textarea::make('text')
                                     ->label('Текст отзыва')
                                     ->rows(3)
-                                    ->required(),
+                                    ->required()
+                                    ->maxLength(\App\Models\Review::MAX_TEXT)
+                                    ->helperText('Без телефонов и ссылок')
+                                    ->rules([new \App\Rules\NoContacts]),
                             ])
                             ->columns(1),
                     ])

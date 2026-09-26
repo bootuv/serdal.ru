@@ -43,6 +43,7 @@ export default {
         './resources/views/components/ui/**/*.blade.php',
         './resources/views/components/layouts/cabinet*.blade.php',
         './resources/views/components/layouts/auth.blade.php',
+        './resources/views/errors/**/*.blade.php',
         './resources/views/livewire/cabinet/**/*.blade.php',
         './resources/views/livewire/auth/**/*.blade.php',
         './app/Livewire/Cabinet/**/*.php',

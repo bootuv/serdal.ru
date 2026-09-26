@@ -34,17 +34,26 @@ class TeacherReportedReview extends Notification implements ShouldBroadcast
     public function toDatabase(object $notifiable): array
     {
         $studentName = $this->review->user?->name ?? 'Ученик';
+        $body = "Учитель {$this->teacher->name} пожаловался на отзыв ученика {$studentName}";
+
+        // Причина и пояснение из окна жалобы (старый кабинет жалуется без причины)
+        if ($reason = $this->review->report_reason_label) {
+            $body .= ". Причина: {$reason}";
+        }
+        if (filled($this->review->report_note)) {
+            $body .= ' — «' . \Illuminate\Support\Str::limit((string) $this->review->report_note, 300) . '»';
+        }
 
         return FilamentNotification::make()
             ->title('Жалоба на отзыв')
-            ->body("Учитель {$this->teacher->name} пожаловался на отзыв ученика {$studentName}")
+            ->body($body)
             ->icon('heroicon-o-flag')
             ->iconColor('danger')
             ->actions([
                 \Filament\Notifications\Actions\Action::make('view')
                     ->label('Открыть')
                     ->button()
-                    ->url(route('filament.admin.resources.reviews.index'))
+                    ->url(route('filament.admin.resources.reviews.edit', $this->review))
             ])
             ->getDatabaseMessage();
     }

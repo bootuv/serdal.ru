@@ -2,7 +2,6 @@
 
 namespace App\Livewire\Cabinet\Teacher;
 
-use App\Helpers\FileUploadHelper;
 use App\Livewire\Cabinet\Teacher\Concerns\TeacherScreen;
 use App\Models\HomeworkActivity;
 use App\Models\HomeworkSubmission;
@@ -125,7 +124,8 @@ class Review extends Component
             'files.*' => $this->fileRules(),
         ]);
 
-        $service->grade($s, (int) $this->grade, $this->feedbackHtml($s), null, $this->feedbackFiles($s));
+        [$files, $names] = $this->feedbackFiles($s);
+        $service->grade($s, (int) $this->grade, $this->feedbackHtml($s), null, $files, $names);
 
         $this->submission = $s->fresh();
         $this->reset('editing', 'files', 'picked', 'commentOriginal');
@@ -153,7 +153,8 @@ class Review extends Component
             'files.*' => $this->fileRules(),
         ]);
 
-        $service->requestRevision($s, $this->feedbackHtml($s), $this->feedbackFiles($s) ?? ($s->feedback_attachments ?: null));
+        [$files, $names] = $this->feedbackFiles($s);
+        $service->requestRevision($s, $this->feedbackHtml($s), $files ?? ($s->feedback_attachments ?: null), $names);
 
         $this->submission = $s->fresh();
         $this->reset('files', 'picked', 'grade', 'commentOriginal');
@@ -188,17 +189,11 @@ class Review extends Component
         $this->annotating = null;
     }
 
-    /** ImageAnnotator сохранил фото с пометками. */
+    /** ImageAnnotator сохранил пометки (отдельным файлом, он уже среди файлов комментария — Hw::saveAnnotation). */
     #[On('imageAnnotated')]
     public function annotated(string $path): void
     {
-        $s = $this->submission->fresh();
-
-        if (in_array($path, $s->attachments ?? [], true)) {
-            app(Hw::class)->addAnnotation($s, $path);
-        }
-
-        $this->submission = $s->fresh();
+        $this->submission = $this->submission->fresh();
         $this->annotating = null;
         $this->dispatch('toast', message: 'Пометки сохранены');
     }
@@ -217,8 +212,13 @@ class Review extends Component
             default => 'form',
         };
 
-        $answer = Hw::fileViews($s->attachments ?? [], $s->annotated_files ?? []);
-        $photos = array_values(array_filter($answer, fn ($f) => $f['image']));
+        // Учитель видит пометки сразу, ученик — после проверки
+        $answer = Hw::answerFiles($s, true);
+        // label — имя в тексте: «фото 1» (без исходного имени) или исходное имя файла
+        $photos = array_values(array_map(
+            fn ($f) => $f + ['label' => preg_match('/^Фото \d+$/u', $f['name']) ? mb_strtolower($f['name']) : $f['name']],
+            array_filter($answer, fn ($f) => $f['image']),
+        ));
         $current = $this->annotating ? collect($photos)->firstWhere('path', $this->annotating) : null;
 
         [$position, $total, $nextUrl] = $this->queue($s);
@@ -246,7 +246,10 @@ class Review extends Component
             'total' => $total,
             'nextUrl' => $nextUrl,
             'description' => RichText::html($h->description),
-            'taskFiles' => Hw::fileViews($h->attachments ?? []),
+            'taskFiles' => Hw::fileViews($h->attachments ?? [], $h->file_names ?? []),
+            'marksNote' => $s->marksVisibleToStudent()
+                ? $firstName . ' увидит пометки сразу после сохранения'
+                : $firstName . ' увидит пометки, когда вы проверите работу',
             'issued' => 'Выдано ' . HumanDate::date($h->created_at)
                 . ($h->deadline ? ' · срок до ' . HumanDate::date($h->deadline) . ', ' . $h->deadline->format('H:i') : ''),
             'current' => $current,
@@ -305,13 +308,19 @@ class Review extends Component
         return RichText::fromPlain($this->comment);
     }
 
-    /** Новые файлы к комментарию добавляются к прежним (фото с пометками и т.п.). null — файлов не добавляли. */
-    private function feedbackFiles(HomeworkSubmission $s): ?array
+    /**
+     * Новые файлы к комментарию добавляются к прежним (фото с пометками и т.п.).
+     *
+     * @return array{0: ?array, 1: array<string, string>} [все файлы комментария или null — файлов не добавляли, исходные имена новых]
+     */
+    private function feedbackFiles(HomeworkSubmission $s): array
     {
         if (empty($this->files)) {
-            return null;
+            return [null, []];
         }
 
-        return array_merge($s->feedback_attachments ?? [], FileUploadHelper::processFiles($this->files, Hw::FEEDBACK_DIRECTORY));
+        $names = Hw::storeUploads($this->files, Hw::FEEDBACK_DIRECTORY);
+
+        return [array_merge($s->feedback_attachments ?? [], array_keys($names)), $names];
     }
 }

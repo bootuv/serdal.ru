@@ -34,6 +34,27 @@
     $mobileTabs = array_values(array_filter($nav, fn ($i) => in_array($i['key'], ['home', 'today', 'schedule', 'tasks', 'messages'])));
     $profileHref = $isStudent ? $to('cabinet.student.profile', '/student/profile') : $to('cabinet.teacher.profile', '/tutor/edit-profile');
     $supportHref = $user ? \App\Services\MessengerService::url($user, support: true) : '#';
+
+    // Под именем учителя — тариф и срок («Профи · до 12 октября»), как в макете
+    $profileSub = 'Профиль';
+    if (! $isStudent && $user) {
+        $sub = $user->activeSubscription();
+        $profileSub = match (true) {
+            ! $sub?->tariff => 'Профиль и тариф',
+            $sub->tariff->isFree() => $sub->tariff->name . ' · бесплатный',
+            (bool) $sub->ends_at => $sub->tariff->name . ' · до ' . \App\Support\HumanDate::date($sub->ends_at),
+            default => $sub->tariff->name,
+        };
+    }
+
+    // «Ещё» на телефоне: разделы, которых нет на нижней панели, + поддержка, партнёрка, профиль
+    $moreItems = array_values(array_filter($nav, fn ($i) => ! in_array($i, $mobileTabs, true)));
+    if (! $isStudent && \App\Services\ReferralService::enabled() && \Illuminate\Support\Facades\Route::has('cabinet.teacher.referrals')) {
+        $moreItems[] = ['key' => 'referrals', 'label' => 'Пригласить коллег', 'icon' => 'share', 'href' => route('cabinet.teacher.referrals')];
+    }
+    $moreItems[] = ['key' => 'support', 'label' => 'Поддержка', 'icon' => 'help', 'href' => $supportHref];
+    $moreItems[] = ['key' => 'profile', 'label' => $isStudent ? 'Профиль' : 'Профиль и тариф', 'icon' => 'user', 'href' => $profileHref];
+    $moreActive = $active === null || in_array($active, array_column($moreItems, 'key'), true);
 @endphp
 <!DOCTYPE html>
 <html lang="ru">
@@ -70,19 +91,29 @@
                     'text-muted hover:bg-soft-hover hover:text-ink' => $active !== $item['key'],
                 ]) @if($active === $item['key']) aria-current="page" @endif>
                     <x-ui.icon :name="$item['icon']" />{{ $item['label'] }}
-                    @if (! empty($item['count']))<x-ui.count :value="$item['count']" class="ml-auto" />@endif
+                    @if (array_key_exists('count', $item))
+                        {{-- Живой счётчик: обновляется событием cabinet-counts (панель уведомлений) --}}
+                        <span x-data="{ c: {{ (int) $item['count'] }} }" x-on:cabinet-counts.window="c = $event.detail.counts[@js($item['key'])] ?? c" x-show="c > 0" @if (! $item['count']) x-cloak @endif
+                              class="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-danger px-1 text-count font-semibold text-white" x-text="c > 99 ? '99+' : c">{{ $item['count'] > 99 ? '99+' : $item['count'] }}</span>
+                    @endif
                 </a>
             @endforeach
         </nav>
 
         <div class="mt-auto flex flex-col gap-2">
-            @unless ($isStudent)<livewire:cabinet.referral-promo />@endunless
+            @unless ($isStudent)
+                <livewire:cabinet.referral-promo />
+                {{-- Плашку скрыли — партнёрка остаётся доступной обычной ссылкой --}}
+                @if (\App\Services\ReferralService::enabled() && ! \App\Services\ReferralService::shouldShowBanner($user) && \Illuminate\Support\Facades\Route::has('cabinet.teacher.referrals'))
+                    <a href="{{ route('cabinet.teacher.referrals') }}" class="flex h-11 items-center gap-3 rounded px-3 text-t1-s font-medium text-muted hover:bg-soft-hover hover:text-ink"><x-ui.icon name="share" />Пригласить коллег</a>
+                @endif
+            @endunless
             <a href="{{ $supportHref }}" class="flex h-11 items-center gap-3 rounded px-3 text-t1-s font-medium text-muted hover:bg-soft-hover hover:text-ink"><x-ui.icon name="help" />Поддержка</a>
             <a href="{{ $profileHref }}" class="flex items-center gap-3 border-t border-line px-3 pt-4">
                 <x-ui.avatar :user="$user" />
                 <span class="flex min-w-0 flex-col gap-1">
                     <span class="truncate text-t2 font-medium">{{ $user?->name }}</span>
-                    <span class="truncate text-t3 text-muted">{{ $isStudent ? 'Профиль' : 'Профиль и тариф' }}</span>
+                    <span class="truncate text-t3 text-muted">{{ $profileSub }}</span>
                 </span>
             </a>
         </div>
@@ -111,13 +142,53 @@
                     {{ $item['label'] }}
                 </a>
             @endforeach
-            <a href="{{ $profileHref }}" class="flex flex-1 flex-col items-center gap-1 text-tab font-medium text-muted">
-                <span class="flex h-8 w-12 items-center justify-center rounded-full"><x-ui.icon name="menu" /></span>Ещё
-            </a>
+            <button type="button" x-data x-on:click="$dispatch('more-open')" aria-haspopup="dialog" class="flex flex-1 flex-col items-center gap-1 text-tab font-medium {{ $moreActive ? 'text-ink' : 'text-muted' }}">
+                <span class="relative flex h-8 w-12 items-center justify-center rounded-full {{ $moreActive ? 'bg-mint' : '' }}"><x-ui.icon name="menu" />@if (collect($moreItems)->contains(fn ($i) => ! empty($i['count'])))<span class="absolute right-3 top-1 size-2 rounded-full bg-danger shadow-dot-ring"></span>@endif</span>Ещё
+            </button>
         </nav>
+
+        {{-- «Ещё» (телефон): остальные разделы списком --}}
+        <div x-data="{ open: false }" x-on:more-open.window="open = true" x-on:keydown.escape.window="open = false" x-show="open" x-cloak
+             class="fixed inset-0 z-30 flex items-end bg-scrim lg:hidden" x-on:click.self="open = false">
+            <nav role="dialog" aria-modal="true" aria-label="Все разделы" class="flex w-full flex-col gap-1 rounded-t-xl bg-white px-4 pb-8 pt-4">
+                <div class="flex items-center justify-between pb-2 pl-3">
+                    <span class="text-h2 font-medium">Ещё</span>
+                    <x-ui.btn square icon="x" x-on:click="open = false" aria-label="Закрыть" />
+                </div>
+                @foreach ($moreItems as $item)
+                    <a href="{{ $item['href'] }}" @class([
+                        'flex h-11 items-center gap-3 rounded px-3 text-t1-s font-medium',
+                        'bg-mint font-semibold text-ink' => $active === $item['key'],
+                        'text-muted hover:bg-soft-hover hover:text-ink' => $active !== $item['key'],
+                    ])>
+                        <x-ui.icon :name="$item['icon']" />{{ $item['label'] }}
+                        @if (! empty($item['count']))<x-ui.count :value="$item['count']" class="ml-auto" />@endif
+                    </a>
+                @endforeach
+            </nav>
+        </div>
     </div>
 </div>
 <livewire:cabinet.notifications />
+<livewire:cabinet.push-prompt />
 <x-ui.toast />
+{{-- Звук важных уведомлений (флаг sound у broadcast-уведомления) — тот же скрипт, что в старом кабинете --}}
+@include('filament.notifications.sound')
+
+{{-- Сбой запроса Livewire (resources/js/cabinet.js): 419 — «Страница устарела», 500 — «Что-то пошло не так» (макеты SySession, SyError) --}}
+<div x-data="{ kind: null }" x-on:cabinet-request-failed.window="kind = $event.detail.kind" x-show="kind" x-cloak
+     class="fixed inset-0 z-40 flex items-center justify-center bg-scrim p-4">
+    <div role="alertdialog" aria-modal="true" aria-labelledby="fail-title" class="flex w-full max-w-modal-s flex-col items-center gap-6 rounded-xl bg-white p-8 text-center shadow-modal">
+        <span class="flex size-16 items-center justify-center rounded-lg bg-soft" aria-hidden="true"><x-ui.icon name="clock" x-show="kind === 'expired'" /><x-ui.icon name="help" x-show="kind !== 'expired'" /></span>
+        <div class="flex flex-col gap-2">
+            <h2 id="fail-title" class="text-h2 font-medium" x-text="kind === 'expired' ? 'Страница устарела' : 'Что-то пошло не так'"></h2>
+            <p class="text-t1 text-muted" x-text="kind === 'expired' ? 'Вкладка долго была открыта без действий. Обновите её и повторите последнее действие — введённый текст мог не сохраниться.' : 'Сбой на нашей стороне. Обновите страницу через минуту — обычно этого достаточно.'"></p>
+        </div>
+        <div class="flex items-center gap-2">
+            <x-ui.btn x-on:click="kind = null">Закрыть</x-ui.btn>
+            <x-ui.btn variant="primary" icon="repeat" x-on:click="window.location.reload()">Обновить страницу</x-ui.btn>
+        </div>
+    </div>
+</div>
 </body>
 </html>

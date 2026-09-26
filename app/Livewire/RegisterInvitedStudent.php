@@ -24,6 +24,9 @@ class RegisterInvitedStudent extends Component
     /** Сколько минут действует код из письма. */
     public const CODE_TTL_MINUTES = 30;
 
+    /** Сколько раз можно ошибиться в коде, прежде чем он сгорит. */
+    private const MAX_CODE_ATTEMPTS = 5;
+
     public $first_name;
     public $last_name;
     public $middle_name;
@@ -56,8 +59,15 @@ class RegisterInvitedStudent extends Component
         if (Auth::check()) {
             $user = Auth::user();
 
+            // Приглашение — только для учеников: учитель или админ по ссылке учеником не становится
+            if ($user->role !== User::ROLE_STUDENT) {
+                session()->flash('error', 'Это приглашение для ученика. Откройте ссылку, выйдя из своего аккаунта, или отправьте её ученику.');
+
+                return redirect(\App\Http\Middleware\EnsureCabinetRole::homeFor($user));
+            }
+
             if ($this->teacher_id) {
-                $teacher = User::find($this->teacher_id);
+                $teacher = User::whereKey($this->teacher_id)->whereIn('role', [User::ROLE_TUTOR, User::ROLE_MENTOR])->first();
                 if ($teacher) {
                     // Привязываем ученика к учителю
                     $changes = $teacher->students()->syncWithoutDetaching([$user->id]);
@@ -111,6 +121,15 @@ class RegisterInvitedStudent extends Component
             'agree.accepted' => 'Отметьте согласие, чтобы продолжить',
         ]);
 
+        // Не больше 5 писем с кодом за 10 минут с одного адреса
+        $sendKey = 'invite-code:' . request()->ip();
+        if (\Illuminate\Support\Facades\RateLimiter::tooManyAttempts($sendKey, 5)) {
+            $this->addError('email', 'Слишком много попыток. Попробуйте через ' . plural_ru((int) ceil(\Illuminate\Support\Facades\RateLimiter::availableIn($sendKey) / 60), 'минуту', 'минуты', 'минут') . '.');
+
+            return;
+        }
+        \Illuminate\Support\Facades\RateLimiter::hit($sendKey, 600);
+
         $code = $this->generateCode();
 
         // Данные анкеты ждут подтверждения почты в сессии
@@ -120,10 +139,13 @@ class RegisterInvitedStudent extends Component
             'middle_name' => $this->middle_name,
             'email' => $this->email,
             'phone' => $this->phone,
-            'password' => $this->password,
+            // В сессии — только хеш пароля
+            'password_hash' => Hash::make($this->password),
             'teacher_id' => $this->teacher_id,
             'verification_code' => $code,
             'expires_at' => now()->addMinutes(self::CODE_TTL_MINUTES),
+            'attempts' => 0,
+            'sent_at' => now()->toIso8601String(),
         ]);
 
         Notification::route('mail', $this->email)->notify(new EmailVerificationCode($code));
@@ -154,6 +176,16 @@ class RegisterInvitedStudent extends Component
         }
 
         if ($code !== $data['verification_code']) {
+            // После 5 неверных попыток код сгорает — нужен новый
+            $data['attempts'] = ($data['attempts'] ?? 0) + 1;
+            if ($data['attempts'] >= self::MAX_CODE_ATTEMPTS) {
+                $data['expires_at'] = now()->subSecond();
+                session()->put('registration_data', $data);
+                $this->addError('verification_code', 'Слишком много неверных попыток — запросите новый код.');
+
+                return;
+            }
+            session()->put('registration_data', $data);
             $this->addError('verification_code', 'Код не подходит — проверьте цифры в письме');
 
             return;
@@ -165,7 +197,7 @@ class RegisterInvitedStudent extends Component
             'middle_name' => $data['middle_name'],
             'email' => $data['email'],
             'phone' => $data['phone'],
-            'password' => Hash::make($data['password']),
+            'password' => $data['password_hash'] ?? Hash::make($data['password']),
             'role' => 'student',
         ]);
         // Почта подтверждена кодом (email_verified_at нет в $fillable — ставим напрямую)
@@ -201,9 +233,18 @@ class RegisterInvitedStudent extends Component
             return;
         }
 
+        // Повторно — не чаще раза в минуту
+        if (isset($data['sent_at']) && now()->lt(\Illuminate\Support\Carbon::parse($data['sent_at'])->addMinute())) {
+            $this->addError('verification_code', 'Новый код можно запросить через минуту после предыдущего.');
+
+            return;
+        }
+
         $code = $this->generateCode();
         $data['verification_code'] = $code;
         $data['expires_at'] = now()->addMinutes(self::CODE_TTL_MINUTES);
+        $data['attempts'] = 0;
+        $data['sent_at'] = now()->toIso8601String();
         session()->put('registration_data', $data);
 
         Notification::route('mail', $data['email'])->notify(new EmailVerificationCode($code));

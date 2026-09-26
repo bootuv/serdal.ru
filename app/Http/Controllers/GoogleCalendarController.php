@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use Google\Client;
-use Google\Service\Calendar;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Filament\Notifications\Notification;
@@ -36,6 +35,9 @@ class GoogleCalendarController extends Controller
         $client = $this->getClient();
         $authUrl = $client->createAuthUrl();
 
+        // Куда вернуть после Google: на страницу, с которой подключали (новый или старый кабинет)
+        session(['google_calendar_return' => url()->previous()]);
+
         return redirect($authUrl);
     }
 
@@ -46,13 +48,9 @@ class GoogleCalendarController extends Controller
         if ($request->has('error')) {
             \Log::warning('Google Calendar authorization cancelled', ['error' => $request->error]);
 
-            Notification::make()
-                ->title('Авторизация отменена')
-                ->body('Вы отменили авторизацию Google Calendar.')
-                ->warning()
-                ->send();
+            $this->notify('Авторизация отменена', 'Вы отменили авторизацию Google Calendar.', 'warning');
 
-            return redirect()->route('filament.app.pages.schedule-calendar');
+            return $this->backToCabinet();
         }
 
         $client = $this->getClient();
@@ -83,18 +81,9 @@ class GoogleCalendarController extends Controller
             // Trigger initial sync of all existing schedules
             $this->triggerInitialSync($user);
 
-            Notification::make()
-                ->title('Google Calendar подключен!')
-                ->body('Теперь ваше расписание будет автоматически синхронизироваться с Google Calendar.')
-                ->success()
-                ->send();
+            $this->notify('Google Calendar подключен!', 'Теперь ваше расписание будет автоматически синхронизироваться с Google Calendar.', 'success');
 
-            // Redirect based on user role
-            if ($user->role === 'student') {
-                return redirect()->route('filament.student.pages.schedule-calendar');
-            } else {
-                return redirect()->route('filament.app.pages.schedule-calendar');
-            }
+            return $this->backToCabinet();
 
         } catch (\Exception $e) {
             \Log::error('Google Calendar OAuth Error', [
@@ -102,19 +91,9 @@ class GoogleCalendarController extends Controller
                 'trace' => $e->getTraceAsString()
             ]);
 
-            Notification::make()
-                ->title('Ошибка подключения')
-                ->body('Не удалось подключить Google Calendar: ' . $e->getMessage())
-                ->danger()
-                ->send();
+            $this->notify('Ошибка подключения', 'Не удалось подключить Google Calendar: ' . $e->getMessage(), 'danger');
 
-            // Redirect based on user role
-            $user = Auth::user();
-            if ($user && $user->role === 'student') {
-                return redirect()->route('filament.student.pages.schedule-calendar');
-            } else {
-                return redirect()->route('filament.app.pages.schedule-calendar');
-            }
+            return $this->backToCabinet();
         }
     }
 
@@ -128,65 +107,9 @@ class GoogleCalendarController extends Controller
             'google_calendar_id' => null,
         ]);
 
-        Notification::make()
-            ->title('Google Calendar отключен')
-            ->body('Синхронизация с Google Calendar отключена.')
-            ->warning()
-            ->send();
+        $this->notify('Google Calendar отключен', 'Синхронизация с Google Calendar отключена.', 'warning');
 
         return redirect()->back();
-    }
-
-    private function getOrCreateSerdalCalendar(Calendar $service, $user)
-    {
-        // Check if user already has a Serdal calendar ID
-        if ($user->google_calendar_id) {
-            try {
-                // Verify the calendar still exists
-                $calendar = $service->calendars->get($user->google_calendar_id);
-                \Log::info('Using existing Serdal calendar', ['calendar_id' => $user->google_calendar_id]);
-                return $user->google_calendar_id;
-            } catch (\Exception $e) {
-                \Log::warning('Saved calendar not found, creating new one', ['old_id' => $user->google_calendar_id]);
-            }
-        }
-
-        // Search for existing Serdal calendar
-        try {
-            $calendarList = $service->calendarList->listCalendarList();
-            foreach ($calendarList->getItems() as $calendarListEntry) {
-                if ($calendarListEntry->getSummary() === 'Serdal') {
-                    $calendarId = $calendarListEntry->getId();
-                    $user->update(['google_calendar_id' => $calendarId]);
-                    \Log::info('Found existing Serdal calendar', ['calendar_id' => $calendarId]);
-                    return $calendarId;
-                }
-            }
-        } catch (\Exception $e) {
-            \Log::error('Error searching for calendar', ['error' => $e->getMessage()]);
-        }
-
-        // Create new Serdal calendar
-        try {
-            $calendar = new \Google\Service\Calendar\Calendar();
-            $calendar->setSummary('Serdal');
-            $calendar->setDescription('Расписание занятий на платформе Serdal');
-            $calendar->setTimeZone(config('app.timezone'));
-
-            $createdCalendar = $service->calendars->insert($calendar);
-            $calendarId = $createdCalendar->getId();
-
-            // Save calendar ID to user
-            $user->update(['google_calendar_id' => $calendarId]);
-
-            \Log::info('Created new Serdal calendar', ['calendar_id' => $calendarId]);
-            return $calendarId;
-
-        } catch (\Exception $e) {
-            \Log::error('Error creating calendar', ['error' => $e->getMessage()]);
-            // Fallback to primary calendar
-            return 'primary';
-        }
     }
 
     private function triggerInitialSync($user)
@@ -230,11 +153,7 @@ class GoogleCalendarController extends Controller
         $user = Auth::user();
 
         if (!$user->google_access_token) {
-            Notification::make()
-                ->title('Google Calendar не подключен')
-                ->body('Сначала подключите Google Calendar.')
-                ->warning()
-                ->send();
+            $this->notify('Google Calendar не подключен', 'Сначала подключите Google Calendar.', 'warning');
 
             return redirect()->back();
         }
@@ -263,7 +182,6 @@ class GoogleCalendarController extends Controller
                 $client->setAccessToken($user->google_access_token);
             }
 
-            $service = new Calendar($client);
 
             // Get user's schedules based on role
             if ($user->role === 'student') {
@@ -280,148 +198,47 @@ class GoogleCalendarController extends Controller
                 })->where('is_active', true)->get();
             }
 
-            // Get or create Serdal calendar
-            $calendarId = $this->getOrCreateSerdalCalendar($service, $user);
-
+            // Синхронизацию делает та же задача, что и автоматическая: она учитывает отменённые и перенесённые занятия
             $syncedCount = 0;
-
             foreach ($schedules as $schedule) {
-                // Create or update Google Calendar event
-                $this->syncScheduleToGoogle($service, $schedule, $calendarId);
+                \App\Jobs\SyncScheduleToGoogleCalendar::dispatch($schedule, $user->id);
                 $syncedCount++;
             }
 
-            Notification::make()
-                ->title('Синхронизация завершена!')
-                ->body("Синхронизировано занятий: {$syncedCount}")
-                ->success()
-                ->send();
+            $this->notify('Синхронизация завершена!', "Синхронизировано занятий: {$syncedCount}", 'success');
 
             return redirect()->back();
 
         } catch (\Exception $e) {
             \Log::error('Google Calendar Sync Error: ' . $e->getMessage());
 
-            Notification::make()
-                ->title('Ошибка синхронизации')
-                ->body($e->getMessage())
-                ->danger()
-                ->send();
+            $this->notify('Ошибка синхронизации', $e->getMessage(), 'danger');
 
             return redirect()->back();
         }
     }
-
-    private function syncScheduleToGoogle(Calendar $service, $schedule, $calendarId = 'primary')
+    private function backToCabinet()
     {
-        $room = $schedule->room;
-
-        // Prepare event data
-        $eventData = [
-            'summary' => $room->name,
-            'description' => $room->welcome ?? '',
-            'location' => 'Online (BigBlueButton)',
-        ];
-
-        if ($schedule->type === 'once') {
-            // One-time event
-            $start = $schedule->scheduled_at;
-            $end = $schedule->scheduled_at->copy()->addMinutes($schedule->duration_minutes);
-
-            $eventData['start'] = ['dateTime' => $start->toRfc3339String()];
-            $eventData['end'] = ['dateTime' => $end->toRfc3339String()];
-
-        } else {
-            // Recurring event
-            // Extract just the date part from start_date and combine with recurrence_time
-            $date = \Carbon\Carbon::parse($schedule->start_date)->format('Y-m-d');
-            $startTime = \Carbon\Carbon::parse($date . ' ' . $schedule->recurrence_time);
-            $endTime = $startTime->copy()->addMinutes($schedule->duration_minutes);
-
-            $eventData['start'] = ['dateTime' => $startTime->toRfc3339String(), 'timeZone' => config('app.timezone')];
-            $eventData['end'] = ['dateTime' => $endTime->toRfc3339String(), 'timeZone' => config('app.timezone')];
-
-            // Add recurrence rule
-            $rrule = $this->buildRecurrenceRule($schedule);
-            if ($rrule) {
-                $eventData['recurrence'] = [$rrule];
-            }
+        $back = session()->pull('google_calendar_return');
+        if ($back && ! str_contains($back, '/google/calendar')) {
+            return redirect($back);
         }
 
-        $event = new \Google\Service\Calendar\Event($eventData);
-
-        // Check if this schedule already has a Google event
-        if ($schedule->google_event_id) {
-            try {
-                // Try to update existing event
-                \Log::info('Updating existing Google Calendar event', [
-                    'schedule_id' => $schedule->id,
-                    'event_id' => $schedule->google_event_id,
-                ]);
-
-                $createdEvent = $service->events->update($calendarId, $schedule->google_event_id, $event);
-
-            } catch (\Exception $e) {
-                // If event doesn't exist anymore, create a new one
-                \Log::warning('Event not found, creating new one', [
-                    'schedule_id' => $schedule->id,
-                    'old_event_id' => $schedule->google_event_id,
-                    'error' => $e->getMessage(),
-                ]);
-
-                $createdEvent = $service->events->insert($calendarId, $event);
-                $schedule->update(['google_event_id' => $createdEvent->getId()]);
-            }
-        } else {
-            // Create new event
-            \Log::info('Creating new Google Calendar event', ['schedule_id' => $schedule->id]);
-            $createdEvent = $service->events->insert($calendarId, $event);
-
-            // Save event ID to schedule
-            $schedule->update(['google_event_id' => $createdEvent->getId()]);
-        }
-
-        \Log::info('Google Calendar event synced', [
-            'schedule_id' => $schedule->id,
-            'event_id' => $createdEvent->getId(),
-        ]);
+        return Auth::user()?->role === 'student'
+            ? redirect()->route('cabinet.student.schedule')
+            : redirect()->route('cabinet.teacher.schedule');
     }
 
-    private function buildRecurrenceRule($schedule): ?string
+    /** Сообщение о результате: в старом кабинете — уведомление Filament, в новом — тост. */
+    private function notify(string $title, string $body, string $type): void
     {
-        if (!$schedule->recurrence_type) {
-            return null;
+        $path = (string) parse_url((string) (session('google_calendar_return') ?? url()->previous()), PHP_URL_PATH);
+        if (str_starts_with($path, '/tutor') || str_starts_with($path, '/student')) {
+            Notification::make()->title($title)->body($body)->{$type}()->send();
+
+            return;
         }
 
-        $rrule = 'RRULE:';
-
-        switch ($schedule->recurrence_type) {
-            case 'daily':
-                $rrule .= 'FREQ=DAILY';
-                break;
-
-            case 'weekly':
-                $rrule .= 'FREQ=WEEKLY';
-                if ($schedule->recurrence_days) {
-                    $days = array_map(function ($day) {
-                        return ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'][$day];
-                    }, $schedule->recurrence_days);
-                    $rrule .= ';BYDAY=' . implode(',', $days);
-                }
-                break;
-
-            case 'monthly':
-                $rrule .= 'FREQ=MONTHLY';
-                if ($schedule->recurrence_day_of_month) {
-                    $rrule .= ';BYMONTHDAY=' . $schedule->recurrence_day_of_month;
-                }
-                break;
-        }
-
-        if ($schedule->end_date) {
-            $rrule .= ';UNTIL=' . \Carbon\Carbon::parse($schedule->end_date)->format('Ymd\THis\Z');
-        }
-
-        return $rrule;
+        session()->flash($type === 'danger' ? 'error' : 'toast', $type === 'danger' ? $title . '. ' . $body : $title);
     }
 }

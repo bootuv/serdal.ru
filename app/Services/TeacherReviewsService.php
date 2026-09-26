@@ -35,18 +35,34 @@ class TeacherReviewsService
         }
     }
 
-    /** Жалоба на отзыв: отметка и уведомление всем администраторам. */
-    public function report(Review $review, User $teacher): void
+    /**
+     * Жалоба на отзыв: причина (Review::REPORT_REASONS), пояснение, отметка и уведомление всем администраторам.
+     * Старый кабинет жалуется без причины.
+     */
+    public function report(Review $review, User $teacher, ?string $reason = null, ?string $note = null): void
     {
         if ($review->is_reported) {
             return;
         }
 
-        $review->update(['is_reported' => true]);
+        $review->update([
+            'is_reported' => true,
+            'report_reason' => array_key_exists((string) $reason, Review::REPORT_REASONS) ? $reason : null,
+            'report_note' => filled($note) ? trim($note) : null,
+            'reported_at' => now(),
+        ]);
 
         foreach (User::where('role', User::ROLE_ADMIN)->get() as $admin) {
             $admin->notify(new TeacherReportedReview($review, $teacher));
         }
+    }
+
+    /** Поиск отзывов по имени ученика. */
+    public function searchByStudent(Builder $query, string $search): Builder
+    {
+        $term = '%' . addcslashes(trim($search), '%_\\') . '%';
+
+        return $query->whereHas('user', fn (Builder $q) => $q->where('name', 'like', $term));
     }
 
     /**

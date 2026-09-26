@@ -111,6 +111,8 @@ class TeacherTaskNewTest extends TestCase
         $this->assertCount(1, $h->attachments);
         $this->assertStringStartsWith('homework-attachments/' . $this->teacher->id . '/', $h->attachments[0]);
         Storage::disk('s3')->assertExists($h->attachments[0]);
+        // Исходное имя файла сохранено
+        $this->assertSame([$h->attachments[0] => 'Слова.pdf'], $h->file_names);
 
         Notification::assertSentTo($this->alina, NewHomework::class);
         Notification::assertNotSentTo($this->ivan, NewHomework::class);
@@ -205,6 +207,7 @@ class TeacherTaskNewTest extends TestCase
             'is_visible' => true,
             'max_score' => 10,
             'attachments' => ['homework-attachments/1/a.pdf', 'homework-attachments/1/b.pdf'],
+            'file_names' => ['homework-attachments/1/a.pdf' => 'Задачи.pdf', 'homework-attachments/1/b.pdf' => 'Ответы.pdf'],
         ]);
         $h->students()->attach($this->alina->id);
 
@@ -212,15 +215,19 @@ class TeacherTaskNewTest extends TestCase
             ->actingAs($this->teacher)
             ->test(TaskNew::class)
             ->assertSee('Изменить задание')
+            ->assertSee('Задачи.pdf')
+            ->assertSee('Ответы.pdf')
             ->assertDontSee('Сохранить черновик')
             ->assertSet('description', '<p><strong>Решите</strong> 20 задач</p><ul><li>быстро</li></ul>')
             ->set('title', 'Логарифмы: 20 задач')
             ->call('toggleStudent', $this->ivan->id)
             ->call('removeKept', 1)
             ->call('publish')
-            ->assertHasNoErrors();
+            ->assertHasNoErrors()
+            ->assertRedirect(route('cabinet.teacher.task', $h)); // изменённое задание — обратно на его экран
 
         $h->refresh();
+        $this->assertSame(['homework-attachments/1/a.pdf' => 'Задачи.pdf'], $h->file_names);
         $this->assertSame('Логарифмы: 20 задач', $h->title);
         $this->assertSame('<p><strong>Решите</strong> 20 задач</p><ul><li>быстро</li></ul>', $h->description);
         $this->assertSame(['homework-attachments/1/a.pdf'], $h->attachments);

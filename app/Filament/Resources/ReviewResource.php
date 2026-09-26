@@ -65,6 +65,11 @@ class ReviewResource extends Resource
                     ->required()
                     ->maxLength(65535)
                     ->columnSpanFull(),
+                Forms\Components\Placeholder::make('report')
+                    ->label('Жалоба учителя')
+                    ->content(fn (?Review $record) => $record ? static::reportSummary($record) : null)
+                    ->visible(fn (?Review $record) => (bool) $record?->is_reported)
+                    ->columnSpanFull(),
             ]);
     }
 
@@ -92,6 +97,14 @@ class ReviewResource extends Resource
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Дата')
                     ->formatStateUsing(fn($state) => format_datetime($state))
+                    ->toggleable(),
+                Tables\Columns\TextColumn::make('report_reason')
+                    ->label('Жалоба')
+                    ->state(fn (Review $record) => $record->is_reported ? ($record->report_reason_label ?? 'Без причины') : null)
+                    ->description(fn (Review $record) => $record->is_reported && filled($record->report_note) ? \Illuminate\Support\Str::limit($record->report_note, 80) : null)
+                    ->tooltip(fn (Review $record) => $record->is_reported ? $record->report_note : null)
+                    ->color('danger')
+                    ->wrap()
                     ->toggleable(),
                 Tables\Columns\IconColumn::make('is_rejected')
                     ->label('Отклонен')
@@ -132,6 +145,15 @@ class ReviewResource extends Resource
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ]);
+    }
+
+    /** «Это не мой ученик — «перепутал с другим учителем» · 26.09.2026 14:05». */
+    public static function reportSummary(Review $record): string
+    {
+        return implode(' · ', array_filter([
+            ($record->report_reason_label ?? 'Причина не указана') . (filled($record->report_note) ? ' — «' . $record->report_note . '»' : ''),
+            $record->reported_at ? format_datetime($record->reported_at) : null,
+        ]));
     }
 
     public static function getRelations(): array

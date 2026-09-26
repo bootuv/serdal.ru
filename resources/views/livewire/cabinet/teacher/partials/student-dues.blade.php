@@ -1,4 +1,5 @@
-{{-- Карточка ученика: «Ждёт оплаты». focus — фокус-блок (вкладка «Оплата»), waive — кнопка «Не требовать оплату». --}}
+{{-- Карточка ученика: «Ждёт оплаты». focus — фокус-блок (вкладка «Оплата»), waive — кнопка «Не требовать оплату».
+     claim — заявка «Ученик сообщил об оплате» на проверке (трейт ReviewsPaymentClaims), canRemind — есть просрочка. --}}
 <x-ui.card :focus="$focus" aria-labelledby="{{ $id }}">
     <x-ui.card-head :id="$id" title="Ждёт оплаты">
         <x-slot:action>
@@ -16,6 +17,15 @@
         </p>
     @else
         <x-ui.list>
+            @if ($claim && $dues->isNotEmpty())
+                <x-ui.row wire:key="claim-{{ $id }}-{{ $claim['id'] }}">
+                    <div class="flex min-w-0 flex-1 flex-col gap-1">
+                        <span class="text-t1 font-semibold">Ученик сообщил об оплате</span>
+                        <span class="text-t2 text-muted">{{ \Illuminate\Support\Str::ucfirst($claim['when']) }}@if ($claim['facts']) · {{ $claim['facts'] }}@endif</span>
+                    </div>
+                    <x-ui.btn size="s" wire:click="openClaim({{ $claim['id'] }})">Проверить</x-ui.btn>
+                </x-ui.row>
+            @endif
             @foreach ($dues as $d)
                 <x-ui.row wire:key="due-{{ $id }}-{{ $d['id'] }}">
                     <div class="flex min-w-0 flex-1 flex-col gap-1">
@@ -51,6 +61,7 @@
             @if ($dues->isNotEmpty())
                 <x-ui.btn size="s" wire:click="openModal('mark')">Отметить оплату</x-ui.btn>
                 <x-ui.btn size="s" wire:click="openModal('extend')">Продлить срок</x-ui.btn>
+                @if ($canRemind && ! $claim)<x-ui.btn size="s" wire:click="remind({{ $student->id }})" wire:loading.attr="disabled" wire:target="remind">Напомнить</x-ui.btn>@endif
                 @if ($waive)<x-ui.btn size="s" wire:click="openModal('waive')">Не требовать оплату</x-ui.btn>@endif
             @endif
             @if ($paidNow->isNotEmpty())

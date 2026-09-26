@@ -238,4 +238,17 @@ class TeacherSubscriptionTest extends TestCase
             ->assertSee('Проверочный 1 ₽ возвращён')
             ->assertDontSee('777 ₽');
     }
+
+    public function test_all_payments_link_leads_to_payments_screen(): void
+    {
+        $tutor = $this->tutor();
+        $basic = $this->tariff('basic');
+        SubscriptionPayment::create(['user_id' => $tutor->id, 'tariff_id' => $basic->id, 'amount' => 1490, 'period_days' => 30,
+            'status' => SubscriptionPayment::STATUS_PAID, 'gateway' => 'yookassa', 'paid_at' => now()]);
+
+        $this->actingAs($tutor)->get(route('cabinet.teacher.subscription'))
+            ->assertOk()
+            ->assertSee('Все платежи')
+            ->assertSee(route('cabinet.teacher.payments'), false);
+    }
 }

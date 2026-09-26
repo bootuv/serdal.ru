@@ -1163,7 +1163,7 @@ class SubscriptionTariffsTest extends TestCase
         // Не 500, а мягкий редирект: статус доедет вебхуком
         $this->actingAs($tutor)
             ->get(route('subscription.payment.return', $payment))
-            ->assertRedirect(route('filament.app.pages.subscription'))
+            ->assertRedirect(route('cabinet.teacher.subscription'))
             ->assertSessionHas('subscription_message');
 
         $this->assertEquals(
@@ -1193,7 +1193,7 @@ class SubscriptionTariffsTest extends TestCase
 
         $this->actingAs($tutor)
             ->get(route('subscription.payment.return', $payment))
-            ->assertRedirect(route('filament.app.pages.subscription'));
+            ->assertRedirect(route('cabinet.teacher.subscription'));
 
         $this->assertEquals(\App\Models\SubscriptionPayment::STATUS_PAID, $payment->fresh()->status);
         $this->assertEquals($basic->id, $tutor->fresh()->activeSubscription()->tariff_id);

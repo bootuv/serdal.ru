@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Cabinet\Teacher;
 
+use App\Livewire\Cabinet\Teacher\Concerns\ReviewsPaymentClaims;
 use App\Livewire\Cabinet\Teacher\Concerns\TeacherScreen;
 use App\Models\Homework;
 use App\Models\HomeworkSubmission;
@@ -28,10 +29,11 @@ use Livewire\Component;
 #[Layout('components.layouts.cabinet', ['title' => 'Ученик', 'active' => 'students'])]
 class Student extends Component
 {
-    use TeacherScreen;
+    use ReviewsPaymentClaims, TeacherScreen;
 
+    /** Ученик карточки (не $student: параметр маршрута {student} — username или id, его разбирает mount). */
     #[Locked]
-    public User $student;
+    public User $pupil;
 
     #[Url(except: 'overview')]
     public string $tab = 'overview';
@@ -54,12 +56,23 @@ class Student extends Component
     /** Только что отмеченные как оплаченные начисления — для «Отменить». */
     public array $justPaid = [];
 
-    public function mount(User $student): void
+    /**
+     * {student} — username ученика; у старых учеников без username — id (TeacherStudentsService::studentUrl).
+     * В тестах и при вложении можно передать модель.
+     */
+    public function mount(User|string|int $student): void
     {
         $teacher = $this->authorizeTeacher();
-        abort_unless($this->service()->owns($teacher, $student->id), 404);
 
-        $this->student = $student;
+        if (! $student instanceof User) {
+            $key = (string) $student;
+            $student = User::where('username', $key)->first()
+                ?? (ctype_digit($key) ? User::find((int) $key) : null);
+        }
+
+        abort_unless($student && $this->service()->owns($teacher, $student->id), 404);
+
+        $this->pupil = $student;
 
         if (! in_array($this->tab, ['overview', 'lessons', 'tasks', 'pay'], true)) {
             $this->tab = 'overview';
@@ -78,7 +91,7 @@ class Student extends Component
 
     private function unpaid(): Collection
     {
-        return $this->service()->unpaidRecords($this->teacher(), $this->student->id);
+        return $this->service()->unpaidRecords($this->teacher(), $this->pupil->id);
     }
 
     /*
@@ -93,10 +106,10 @@ class Student extends Component
             'mark', 'waive' => $this->selected = $this->unpaid()->pluck('id')->all(),
             'extend' => $this->extendDays = 3,
             'settings' => [
-                $this->settingsFree = $this->service()->isFree($this->teacher(), $this->student->id),
-                $this->settingsType = $this->service()->paymentTypeOverride($this->teacher(), $this->student->id) ?? 'default',
+                $this->settingsFree = $this->service()->isFree($this->teacher(), $this->pupil->id),
+                $this->settingsType = $this->service()->paymentTypeOverride($this->teacher(), $this->pupil->id) ?? 'default',
             ],
-            'assign' => $this->roomIds = $this->service()->studentRooms($this->teacher(), $this->student)->pluck('id')->all(),
+            'assign' => $this->roomIds = $this->service()->studentRooms($this->teacher(), $this->pupil)->pluck('id')->all(),
             'remove' => null,
             default => abort(404),
         };
@@ -125,7 +138,7 @@ class Student extends Component
             return;
         }
 
-        $marked = $this->service()->markRecords($this->teacher(), $this->student->id, $this->selected, PaymentRecord::STATUS_PAID);
+        $marked = $this->service()->markRecords($this->teacher(), $this->pupil->id, $this->selected, PaymentRecord::STATUS_PAID);
         $this->justPaid = $marked->pluck('id')->all();
         $this->modal = null;
 
@@ -133,9 +146,15 @@ class Student extends Component
         $this->dispatch('toast', message: 'Оплата отмечена' . ($sum ? ' · ' . $sum : ''));
     }
 
+    /** После подтверждения заявки ученика — «Оплачено» с «Отменить», как после «Отметить оплату». */
+    protected function rememberPaid(int $studentId, array $ids): void
+    {
+        $this->justPaid = $ids;
+    }
+
     public function undoPaid(): void
     {
-        $this->service()->undoPaid($this->teacher(), $this->student->id, $this->justPaid);
+        $this->service()->undoPaid($this->teacher(), $this->pupil->id, $this->justPaid);
         $this->justPaid = [];
         $this->dispatch('toast', message: 'Отметка оплаты отменена');
     }
@@ -146,14 +165,14 @@ class Student extends Component
             return;
         }
 
-        $this->service()->markRecords($this->teacher(), $this->student->id, $this->selected, PaymentRecord::STATUS_CANCELLED);
+        $this->service()->markRecords($this->teacher(), $this->pupil->id, $this->selected, PaymentRecord::STATUS_CANCELLED);
         $this->modal = null;
         $this->dispatch('toast', message: 'Оплата не требуется');
     }
 
     public function extend(): void
     {
-        $due = $this->service()->extendRecords($this->teacher(), $this->student->id, $this->unpaid()->pluck('id')->all(), $this->extendDays);
+        $due = $this->service()->extendRecords($this->teacher(), $this->pupil->id, $this->unpaid()->pluck('id')->all(), $this->extendDays);
         $this->modal = null;
         $this->dispatch('toast', message: $due ? 'Срок продлён до ' . HumanDate::date($due) : 'Продлевать нечего — долгов нет');
     }
@@ -162,7 +181,7 @@ class Student extends Component
     {
         $result = $this->service()->applyPaymentSettings(
             $this->teacher(),
-            $this->student,
+            $this->pupil,
             $this->settingsFree,
             $this->settingsType === 'default' ? null : $this->settingsType,
         );
@@ -204,7 +223,7 @@ class Student extends Component
 
     public function saveRooms(): void
     {
-        ['added' => $added, 'removed' => $removed] = $this->service()->syncRooms($this->teacher(), $this->student, $this->roomIds);
+        ['added' => $added, 'removed' => $removed] = $this->service()->syncRooms($this->teacher(), $this->pupil, $this->roomIds);
 
         $this->modal = null;
         $this->dispatch('toast', message: $added->isEmpty() && $removed->isEmpty() ? 'Изменений нет' : 'Занятия ученика сохранены');
@@ -212,9 +231,9 @@ class Student extends Component
 
     public function remove(): void
     {
-        $this->service()->removeFromList($this->teacher(), $this->student);
+        $this->service()->removeFromList($this->teacher(), $this->pupil);
 
-        session()->flash('cabinet_toast', $this->student->name . ' больше не в вашем списке');
+        session()->flash('cabinet_toast', $this->pupil->name . ' больше не в вашем списке');
         $this->redirect($this->studentsUrl());
     }
 
@@ -230,7 +249,7 @@ class Student extends Component
     public function render()
     {
         $teacher = $this->teacher();
-        $student = $this->student;
+        $student = $this->pupil;
         $rooms = $this->service()->studentRooms($teacher, $student)->load('schedules');
         $unpaid = $this->unpaid();
         $isFree = $this->service()->isFree($teacher, $student->id);
@@ -242,6 +261,9 @@ class Student extends Component
             : collect();
 
         return view('livewire.cabinet.teacher.student', [
+            'student' => $student,
+            'claim' => $isFree ? null : $this->pendingClaims($teacher, $student->id)->first(),
+            'canRemind' => ! $isFree && $unpaid->contains(fn (PaymentRecord $r) => $r->isOverdue()),
             'firstName' => $firstName,
             'facts' => array_filter([
                 $rooms->isNotEmpty() ? $rooms->map(fn (Room $r) => $r->name)->take(2)->implode(', ')
@@ -282,7 +304,7 @@ class Student extends Component
             'terms' => $this->tab === 'pay' || $this->modal === 'settings' ? $this->service()->paymentTerms($teacher, $student) : null,
             'debtStatus' => $unpaid->contains(fn (PaymentRecord $r) => $r->isOverdue()) ? PaymentRecordService::debtStatus($student->id, $teacher->id) : null,
             'modalData' => $this->modalData($teacher, $unpaid, $next),
-        ])->title($student->name);
+        ] + $this->claimView($teacher))->title($student->name);
     }
 
     /** Ближайшее занятие ученика у учителя: идущее сейчас или с ближайшим началом. */
@@ -290,7 +312,7 @@ class Student extends Component
     {
         $room = $rooms
             ->filter(fn (Room $r) => $r->is_running
-                || ($r->next_start && $r->next_start->copy()->addMinutes($r->duration ?: 45)->isFuture()))
+                || ($r->next_start && $r->next_start->copy()->addMinutes($r->duration ?: \App\Models\RoomSchedule::DEFAULT_DURATION)->isFuture()))
             ->sortBy(fn (Room $r) => [$r->is_running ? 0 : 1, $r->next_start?->timestamp ?? PHP_INT_MAX])
             ->first();
 
@@ -366,7 +388,7 @@ class Student extends Component
 
                 $url = $sub?->submitted_at
                     ? (Route::has('cabinet.teacher.review') ? route('cabinet.teacher.review', $sub) : url('/tutor/homework-submissions/' . $sub->id))
-                    : (Route::has('cabinet.teacher.tasks') ? route('cabinet.teacher.tasks') : url('/tutor/homework/' . $h->id));
+                    : route('cabinet.teacher.task', $h);
 
                 $waitDays = $sub?->submitted_at ? (int) $sub->submitted_at->copy()->startOfDay()->diffInDays(today()) : 0;
 
@@ -516,7 +538,7 @@ class Student extends Component
         $new = $first->extendedDue($this->extendDays);
 
         return [
-            'sub' => $this->student->name . ' · ' . ($this->service()->amountLabel($unpaid) ?? $this->service()->countLabel($unpaid)),
+            'sub' => $this->pupil->name . ' · ' . ($this->service()->amountLabel($unpaid) ?? $this->service()->countLabel($unpaid)),
             'newDate' => 'до ' . HumanDate::day($new),
             'explain' => $first->isOverdue()
                 ? 'Срок прошёл ' . HumanDate::date($first->due_date) . ' — считаем от сегодня. До новой даты вход в занятия не закроется.'

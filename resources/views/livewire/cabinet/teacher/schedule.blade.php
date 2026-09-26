@@ -26,25 +26,73 @@
         @endif
 
         @if ($view === 'week')
-            <section class="overflow-hidden rounded-xl shadow-outline" aria-label="Неделя {{ $calTitle }}">
-                <div class="grid grid-cols-1 lg:grid-cols-7">
-                    @foreach ($weekDays as $day)
-                        <div @class(['min-w-0 flex-col gap-2 border-line p-3 lg:min-h-40',
-                                     'border-t first:border-t-0 lg:border-l lg:border-t-0 lg:first:border-l-0',
-                                     'flex' => $day['events']->isNotEmpty(), 'hidden lg:flex' => $day['events']->isEmpty()])
-                             aria-label="{{ $day['short'] }}, {{ \App\Support\HumanDate::date($day['date']) }}" wire:key="wd-{{ $day['date']->format('Ymd') }}">
-                            <div class="flex items-center gap-2">
-                                <span class="text-t3 text-muted">{{ $day['short'] }}</span>
-                                <span @class(['flex size-8 items-center justify-center rounded-full text-t2 font-semibold', 'bg-ink text-white' => $day['isToday']])>{{ $day['date']->day }}</span>
-                            </div>
-                            @foreach ($day['events'] as $ev)
-                                <a href="{{ $ev['url'] }}" @class(['flex flex-col gap-1 rounded-sm bg-soft p-2 hover:shadow-outline', 'opacity-60' => $ev['past']]) wire:key="ev-{{ $ev['key'] }}">
-                                    <span class="truncate text-t3 font-semibold">{{ $ev['time'] }} · {{ $ev['title'] }}</span>
-                                    <span class="truncate text-t3 text-muted">@if ($ev['running'])<x-ui.em>идёт сейчас</x-ui.em> · @endif{{ $ev['sub'] }}</span>
-                                </a>
-                            @endforeach
+            {{-- Телефон: дни списком --}}
+            <section class="overflow-hidden rounded-xl shadow-outline lg:hidden" aria-label="Неделя {{ $calTitle }}">
+                @foreach ($weekDays as $day)
+                    <div @class(['min-w-0 flex-col gap-2 border-t border-line p-3 first:border-t-0', 'flex' => $day['events']->isNotEmpty(), 'hidden' => $day['events']->isEmpty()])
+                         aria-label="{{ $day['short'] }}, {{ \App\Support\HumanDate::date($day['date']) }}" wire:key="wdm-{{ $day['date']->format('Ymd') }}">
+                        <div class="flex items-center gap-2">
+                            <span class="text-t3 text-muted">{{ $day['short'] }}</span>
+                            <span @class(['flex size-8 items-center justify-center rounded-full text-t2 font-semibold', 'bg-ink text-white' => $day['isToday']])>{{ $day['date']->day }}</span>
                         </div>
-                    @endforeach
+                        @foreach ($day['events'] as $ev)
+                            <a href="{{ $ev['url'] }}" class="flex flex-col gap-1 rounded-sm p-2 hover:shadow-card {{ $ev['tone'] }} {{ $ev['past'] ? 'opacity-60' : '' }}" wire:key="evm-{{ $ev['key'] }}">
+                                <span class="truncate text-t3 font-semibold">{{ $ev['time'] }} · {{ $ev['title'] }}</span>
+                                @if ($ev['sub'])<span class="truncate text-t3 text-muted">{{ $ev['sub'] }}</span>@endif
+                            </a>
+                        @endforeach
+                    </div>
+                @endforeach
+            </section>
+
+            {{-- Компьютер: сетка по часам (макет LsWeek), линия «Сейчас» --}}
+            <section class="hidden overflow-hidden rounded-xl shadow-outline lg:block" aria-label="Неделя {{ $calTitle }}">
+                <div class="flex border-b border-line">
+                    <div class="w-16 shrink-0"></div>
+                    <div class="grid flex-1 grid-cols-7">
+                        @foreach ($weekDays as $day)
+                            <div @class(['flex h-16 items-center gap-2 border-l border-line px-3', 'bg-mint' => $day['isToday']]) wire:key="wh-{{ $day['date']->format('Ymd') }}">
+                                <span @class(['text-t2', 'font-semibold text-ink' => $day['isToday'], 'text-muted' => ! $day['isToday']])>{{ $day['short'] }}</span>
+                                @if ($day['isToday'])
+                                    <span class="flex size-9 items-center justify-center rounded-full bg-ink text-t1 font-semibold text-white">{{ $day['date']->day }}</span>
+                                @else
+                                    <span class="text-h2 font-medium">{{ $day['date']->day }}</span>
+                                @endif
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+                <div class="flex">
+                    <div class="w-16 shrink-0" aria-hidden="true">
+                        @foreach ($hours as $h)
+                            <div class="h-16 border-t border-line px-2 pt-1 text-right text-t3 text-muted first:border-t-0">{{ sprintf('%02d:00', $h) }}</div>
+                        @endforeach
+                    </div>
+                    <div class="grid flex-1 grid-cols-7">
+                        @foreach ($weekDays as $day)
+                            <div @class(['min-w-0 border-l border-line', 'bg-mint/60' => $day['isToday']]) aria-label="{{ $day['short'] }}, {{ \App\Support\HumanDate::date($day['date']) }}" wire:key="wd-{{ $day['date']->format('Ymd') }}">
+                                @foreach ($hours as $h)
+                                    <div class="relative h-16 border-t border-line first:border-t-0">
+                                        @if ($nowLine && $day['isToday'] && $nowLine['hour'] === $h)
+                                            <div class="pointer-events-none absolute inset-x-0 z-20 border-t-2 border-ink {{ $nowLine['top'] }}" role="img" aria-label="{{ $nowLine['label'] }}" title="{{ $nowLine['label'] }}">
+                                                <span class="absolute -left-1 -top-1 size-2 rounded-full bg-ink"></span>
+                                            </div>
+                                        @endif
+                                        @foreach ($day['events']->where('hour', $h) as $ev)
+                                            <a href="{{ $ev['url'] }}" class="absolute z-10 flex overflow-hidden rounded-sm hover:shadow-card {{ $ev['top'] }} {{ $ev['lane'] }} {{ $ev['tone'] }} {{ $ev['past'] ? 'opacity-60' : '' }}" wire:key="ev-{{ $ev['key'] }}">
+                                                {{-- Высота — длительность занятия: по 16 px на четверть часа --}}
+                                                <span class="flex flex-col" aria-hidden="true">@for ($i = 0; $i < $ev['quarters']; $i++)<span class="h-4"></span>@endfor</span>
+                                                <span class="absolute inset-0 flex min-w-0 flex-col px-2 py-1">
+                                                    <span class="truncate text-t3 font-semibold">{{ $ev['time'] }} · {{ $ev['title'] }}</span>
+                                                    @if ($ev['sub'] && $ev['quarters'] > 1)<span class="truncate text-count text-muted">{{ $ev['sub'] }}</span>@endif
+                                                </span>
+                                            </a>
+                                        @endforeach
+                                    </div>
+                                @endforeach
+                            </div>
+                        @endforeach
+                    </div>
                 </div>
             </section>
         @elseif ($view === 'month')
@@ -57,25 +105,33 @@
                 <div class="grid grid-cols-7">
                     @foreach ($cells as $cell)
                         <div @class(['flex min-h-16 min-w-0 flex-col gap-1 border-line p-1 lg:min-h-40 lg:p-2',
-                                     'border-l' => $loop->index % 7 !== 0, 'border-t' => $loop->index >= 7])
+                                     'border-l' => $loop->index % 7 !== 0, 'border-t' => $loop->index >= 7, 'bg-mint' => $cell['isToday']])
                              aria-label="{{ \App\Support\HumanDate::date($cell['date']) }}" wire:key="mc-{{ $cell['date']->format('Ymd') }}">
                             <span @class(['flex size-8 items-center justify-center rounded-full text-t2 font-semibold',
                                           'bg-ink text-white' => $cell['isToday'], 'text-faint' => ! $cell['inMonth'] && ! $cell['isToday']])>{{ $cell['date']->day }}</span>
                             @foreach ($cell['events']->take(3) as $ev)
-                                <a href="{{ $ev['url'] }}" @class(['hidden truncate rounded-sm bg-soft px-2 py-1 text-count font-medium hover:shadow-outline lg:block', 'opacity-60' => $ev['past']]) wire:key="me-{{ $ev['key'] }}">{{ $ev['time'] }} {{ $ev['title'] }}</a>
+                                <a href="{{ $ev['url'] }}" title="{{ $ev['time'] }} · {{ $ev['title'] }}{{ $ev['cancelled'] ? ' · ' . $ev['sub'] : '' }}"
+                                   class="hidden truncate rounded-sm px-2 py-1 text-count font-medium hover:shadow-card lg:block {{ $ev['tone'] }} {{ $ev['past'] ? 'opacity-60' : '' }}" wire:key="me-{{ $ev['key'] }}">{{ $ev['time'] }} {{ $ev['short'] }}</a>
                             @endforeach
                             @if ($cell['events']->count() > 3)
                                 <span class="hidden px-2 text-count text-muted lg:block">ещё {{ $cell['events']->count() - 3 }}</span>
                             @endif
                             @if ($cell['events']->isNotEmpty())
-                                <span class="flex gap-1 px-1 lg:hidden" aria-label="{{ plural_ru($cell['events']->count(), 'занятие', 'занятия', 'занятий') }}">
-                                    @foreach ($cell['events']->take(3) as $ev)<span @class(['size-2 rounded-full bg-ink', 'opacity-60' => $ev['past']])></span>@endforeach
+                                <span class="flex gap-1 px-1 lg:hidden" aria-label="{{ plural_ru($cell['events']->where('cancelled', false)->count(), 'занятие', 'занятия', 'занятий') }}">
+                                    @foreach ($cell['events']->take(3) as $ev)<span @class(['size-2 rounded-full', 'bg-ink' => ! $ev['cancelled'], 'bg-line-strong' => $ev['cancelled'], 'opacity-60' => $ev['past']])></span>@endforeach
                                 </span>
                             @endif
                         </div>
                     @endforeach
                 </div>
             </section>
+            @if ($legend)
+                <div class="flex flex-wrap items-center gap-x-6 gap-y-2" aria-label="Цвета занятий">
+                    @foreach ($legend as $item)
+                        <span class="inline-flex items-center gap-2 text-t2 text-muted"><span class="size-3 shrink-0 rounded-sm {{ $item['swatch'] }}"></span>{{ $item['label'] }}</span>
+                    @endforeach
+                </div>
+            @endif
         @elseif ($tab === 'upcoming')
             @forelse ($days as $day)
                 <div class="flex flex-col gap-2 lg:flex-row lg:gap-6" wire:key="day-{{ $day['date'] }}">

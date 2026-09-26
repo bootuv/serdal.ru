@@ -35,7 +35,7 @@ trait PlansLessons
 
     public string $planTime = '';
 
-    public int $planDuration = 60;
+    public int $planDuration = \App\Models\RoomSchedule::DEFAULT_DURATION;
 
     public string $planRepeat = 'weekly';
 
@@ -64,7 +64,7 @@ trait PlansLessons
         $this->planDays = [$start->dayOfWeek];
         $this->planUntil = '';
         $this->planSlots = [];
-        $this->planDuration = (int) ($teacher->lessonTypes()->where('type', LessonType::TYPE_INDIVIDUAL)->value('duration') ?: 90);
+        $this->planDuration = (int) ($teacher->lessonTypes()->where('type', LessonType::TYPE_INDIVIDUAL)->value('duration') ?: \App\Models\RoomSchedule::DEFAULT_DURATION);
         $this->planOpen = true;
     }
 

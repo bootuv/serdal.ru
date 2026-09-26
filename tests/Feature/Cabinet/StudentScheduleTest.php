@@ -10,6 +10,8 @@ use App\Models\Room;
 use App\Models\RoomSchedule;
 use App\Models\User;
 use App\Services\StudentScheduleService;
+use App\Services\TeacherLessonService;
+use App\Services\TeacherScheduleService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -123,8 +125,10 @@ class StudentScheduleTest extends TestCase
             ->assertOk()
             ->assertSee('16:00 · Английский язык')
             ->assertSee('Начнётся через 2 дня')
-            ->assertSee('Войти в класс')
-            ->assertSee(route('rooms.connect', $room), false)
+            // До занятия два дня — вход ещё закрыт
+            ->assertDontSee(route('rooms.connect', $room), false)
+            ->assertSee('Вход откроется за 15 минут до начала')
+            ->assertSee(route('cabinet.student.lesson', $room), false)
             ->assertSee('Следующие занятия')
             ->assertSee('Мария Соколова · ' . $weekday)
             ->assertDontSee('Чужое занятие');
@@ -132,6 +136,108 @@ class StudentScheduleTest extends TestCase
         // Два вхождения за 14 дней (через 2 и через 9 дней), третье — за горизонтом
         $events = app(StudentScheduleService::class)->events($student->id, today(), today()->addDays(14)->endOfDay());
         $this->assertCount(2, $events);
+    }
+
+    public function test_cancelled_lesson_with_reason_is_visible_to_student(): void
+    {
+        $teacher = $this->user(User::ROLE_TUTOR, 'Мария Соколова');
+        $student = $this->user(User::ROLE_STUDENT);
+        $room = $this->room($teacher, $student, 'Английский язык');
+        $schedule = $this->weekly($room);
+        $first = today()->addDays(2)->setTime(16, 0);
+
+        app(TeacherLessonService::class)->cancelOccurrence($schedule, $first, 'учитель на конференции', false, $teacher);
+
+        // Отменённое занятие не в фокусе: в фокусе — следующее, отменённое — в списке с причиной
+        Livewire::actingAs($student)
+            ->test(Schedule::class)
+            ->assertSee('Начнётся через 9 дней')
+            ->assertSee('Отменено: учитель на конференции · Мария Соколова');
+
+        $this->assertCount(1, app(StudentScheduleService::class)->events($student->id, today(), today()->addDays(14)->endOfDay()));
+        $this->assertCount(2, app(StudentScheduleService::class)->events($student->id, today(), today()->addDays(14)->endOfDay(), withCancelled: true));
+    }
+
+    public function test_moved_lesson_shows_new_time_and_origin(): void
+    {
+        $teacher = $this->user(User::ROLE_TUTOR, 'Мария Соколова');
+        $student = $this->user(User::ROLE_STUDENT);
+        $room = $this->room($teacher, $student, 'Английский язык');
+        $schedule = $this->weekly($room);
+        $first = today()->addDays(2)->setTime(16, 0);
+
+        app(TeacherLessonService::class)->moveOccurrence($schedule, $first, $first->copy()->addDay()->setTime(18, 30), 60, false, $teacher);
+
+        Livewire::actingAs($student)
+            ->test(Schedule::class)
+            ->assertSee('18:30 · Английский язык')
+            ->assertSee('Перенесено')
+            ->assertSee(TeacherScheduleService::movedFromLabel($first));
+
+        $this->assertSame($first->copy()->addDay()->setTime(18, 30)->format('Y-m-d H:i'), $room->fresh()->next_start->format('Y-m-d H:i'));
+    }
+
+    public function test_past_tab_shows_cancelled_lessons(): void
+    {
+        $teacher = $this->user(User::ROLE_TUTOR, 'Мария Соколова');
+        $student = $this->user(User::ROLE_STUDENT);
+        $room = $this->room($teacher, $student, 'Английский язык');
+        $schedule = $this->weekly($room);
+        $past = today()->addDays(2)->subWeek()->setTime(16, 0);
+
+        app(TeacherLessonService::class)->cancelOccurrence($schedule, $past, 'вы предупредили, что заболели', false, $teacher);
+
+        Livewire::actingAs($student)
+            ->test(Schedule::class)
+            ->set('tab', 'past')
+            ->assertSee('16:00 · Английский язык')
+            ->assertSee('Отменено: вы предупредили, что заболели');
+    }
+
+    public function test_extra_one_time_lesson_is_marked(): void
+    {
+        $teacher = $this->user(User::ROLE_TUTOR, 'Мария Соколова');
+        $student = $this->user(User::ROLE_STUDENT);
+        $this->weekly($this->room($teacher, $student, 'Английский язык'));
+        $extra = $this->room($teacher, $student, 'Английский, дополнительно');
+        RoomSchedule::create([
+            'room_id' => $extra->id, 'type' => 'once', 'scheduled_at' => today()->addDays(3)->setTime(16, 0),
+            'duration_minutes' => 60, 'is_active' => true,
+        ]);
+
+        Livewire::actingAs($student)
+            ->test(Schedule::class)
+            ->assertSee('Дополнительное');
+    }
+
+    public function test_join_opens_15_minutes_before_start(): void
+    {
+        $teacher = $this->user(User::ROLE_TUTOR);
+        $student = $this->user(User::ROLE_STUDENT);
+        $room = $this->room($teacher, $student, 'Математика');
+        $schedule = RoomSchedule::create([
+            'room_id' => $room->id,
+            'type' => 'once',
+            'scheduled_at' => now()->addMinutes(20),
+            'duration_minutes' => 60,
+            'is_active' => true,
+        ]);
+
+        // За 20 минут — кнопки нет, вместо неё время открытия входа
+        $this->actingAs($student)
+            ->get(route('cabinet.student.schedule'))
+            ->assertOk()
+            ->assertDontSee(route('rooms.connect', $room), false)
+            ->assertSee('Вход откроется в ' . now()->addMinutes(5)->format('H:i'));
+
+        // За 10 минут — «Войти в класс»
+        $schedule->update(['scheduled_at' => now()->addMinutes(10)]);
+
+        $this->actingAs($student)
+            ->get(route('cabinet.student.schedule'))
+            ->assertOk()
+            ->assertSee('Войти в класс')
+            ->assertSee(route('rooms.connect', $room), false);
     }
 
     public function test_running_lesson_is_in_focus(): void

@@ -36,8 +36,11 @@ class LessonStarted extends Notification implements ShouldBroadcast
     {
         return FilamentNotification::make()
             ->title('Занятие началось')
-            ->body("Занятие \"{$this->room->name}\" началось")
+            ->body("Занятие «{$this->room->name}» началось — можно входить в класс")
             ->icon('heroicon-o-play-circle')
+            ->actions([
+                \Filament\Notifications\Actions\Action::make('view')->label('Войти в класс')->url($this->getWebPushUrl($notifiable)),
+            ])
             ->iconColor('success')
             ->getDatabaseMessage();
     }
@@ -47,13 +50,9 @@ class LessonStarted extends Notification implements ShouldBroadcast
      */
     public function getWebPushUrl(object $notifiable): string
     {
-        // Determine the correct URL based on user role
-        if ($notifiable->role === 'tutor' || $notifiable->role === 'admin') {
-            return \App\Filament\App\Resources\RoomResource::getUrl('view', ['record' => $this->room->id]);
-        } elseif ($notifiable->role === 'student') {
-            return \App\Filament\Student\Resources\RoomResource::getUrl('view', ['record' => $this->room->id]);
-        }
-
-        return '/';
+        // Учитель — на страницу занятия, ученик — сразу ко входу в класс
+        return $notifiable->id === $this->room->user_id
+            ? route('cabinet.teacher.lesson', $this->room)
+            : route('rooms.join', $this->room);
     }
 }

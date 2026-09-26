@@ -70,9 +70,22 @@
                 </x-ui.card>
             </div>
         @else
-            @if ($tab === 'all' && count($students) > 1)
-                <div class="w-full sm:w-sidebar">
-                    <x-ui.select name="studentId" wire:model.live="studentId" :options="$students" placeholder="Все ученики" aria-label="Ученик" />
+            @if ($tab === 'all' && $hasAny)
+                {{-- Фильтры: ученик, занятие, поиск по названию --}}
+                <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+                    @if (count($students) > 1)
+                        <div class="w-full sm:w-sidebar">
+                            <x-ui.select name="studentId" wire:model.live="studentId" :options="$students" placeholder="Все ученики" aria-label="Ученик" />
+                        </div>
+                    @endif
+                    @if (count($rooms) > 1)
+                        <div class="w-full sm:w-sidebar">
+                            <x-ui.select name="roomId" wire:model.live="roomId" :options="$rooms" placeholder="Все занятия" aria-label="Занятие" />
+                        </div>
+                    @endif
+                    <div class="sm:ml-auto">
+                        <x-ui.search placeholder="Найти задание" wire:model.live.debounce.300ms="search" />
+                    </div>
                 </div>
             @endif
 
@@ -82,8 +95,10 @@
                         <x-ui.empty icon="tasks" title="Заданий пока нет" text="Выдайте первое задание — ученики получат уведомление и увидят его в своём кабинете." />
                     @elseif ($tab === 'issued')
                         <p class="text-t2 text-muted">Пока пусто — все выданные задания проверены.</p>
+                    @elseif ($filtered)
+                        <p class="text-t2 text-muted">Ничего не нашлось — измените название или выберите всех учеников и все занятия.</p>
                     @else
-                        <p class="text-t2 text-muted">У этого ученика заданий нет — выберите другого или всех учеников.</p>
+                        <p class="text-t2 text-muted">Пока пусто — выданные задания появятся здесь.</p>
                     @endif
                 </x-ui.card>
             @else

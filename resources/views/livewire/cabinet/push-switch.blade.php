@@ -30,6 +30,7 @@
                     this.on = ! this.on;
                 } else if (Notification.permission === 'denied') {
                     this.denied = true;
+                    $dispatch('push-blocked');
                 }
             } catch (error) {
                 console.error('Failed to toggle push subscription:', error);
@@ -51,5 +52,6 @@
               x-text="denied ? 'Заблокированы в настройках браузера' : (! supported ? 'Этот браузер не поддерживает уведомления' : (on ? 'Включены на этом устройстве' : 'Выключены на этом устройстве'))">{{ $isSubscribed ? 'Включены на этом устройстве' : 'Выключены на этом устройстве' }}</span>
         <span class="text-t2 text-muted"
               x-text="denied ? 'Разрешите уведомления для сайта в настройках браузера и обновите страницу.' : 'Начало занятия, задания и оценки, сообщения, расписание и оплата'">Начало занятия, задания и оценки, сообщения, расписание и оплата</span>
+        <button type="button" class="link self-start text-t2" x-show="denied" x-cloak x-on:click="$dispatch('push-blocked')">Как включить</button>
     </div>
 </div>

@@ -33,7 +33,7 @@
                                         <p class="line-clamp-3 whitespace-pre-line text-t1">{{ $r['text'] }}</p>
                                         <div class="flex flex-wrap items-center gap-4">
                                             <button type="button" class="link text-t2" wire:click="read({{ $r['id'] }})">Читать полностью</button>
-                                            <x-ui.btn size="s" icon="share" wire:click="share({{ $r['id'] }})">Поделиться</x-ui.btn>
+                                            @include('livewire.cabinet.teacher.partials.review-share', ['r' => $r])
                                             @if ($r['reported'])
                                                 <x-ui.badge>Жалоба на проверке</x-ui.badge>
                                                 <span class="text-t2 text-muted">Отзыв виден, пока модератор проверяет.</span>
@@ -49,11 +49,24 @@
                 @endif
 
                 {{-- Все отзывы --}}
-                @if ($all->isNotEmpty())
+                @if ($all->isNotEmpty() || $searching)
                     <x-ui.card aria-labelledby="r-all">
-                        <x-ui.card-head id="r-all" title="Все отзывы">
-                            <x-slot:action><span class="text-t2 text-muted">Сначала новые</span></x-slot:action>
-                        </x-ui.card-head>
+                        @if ($searchable)
+                            <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                                <h2 id="r-all" class="text-h2 font-medium">Все отзывы</h2>
+                                <x-ui.search wire:model.live.debounce.400ms="search" placeholder="Поиск по имени ученика" />
+                            </div>
+                        @else
+                            <x-ui.card-head id="r-all" title="Все отзывы">
+                                <x-slot:action><span class="text-t2 text-muted">Сначала новые</span></x-slot:action>
+                            </x-ui.card-head>
+                        @endif
+                        @if ($all->isEmpty())
+                            <div class="flex flex-col gap-4 border-t border-line pt-4 lg:flex-row lg:items-center lg:justify-between">
+                                <span class="text-t2 text-muted">Ничего не нашлось — проверьте, как написано имя ученика.</span>
+                                <x-ui.btn size="s" wire:click="$set('search', '')" class="self-start lg:self-auto">Сбросить поиск</x-ui.btn>
+                            </div>
+                        @endif
                         <x-ui.list>
                             @foreach ($all as $r)
                                 <x-ui.row align="start" wire:key="all-{{ $r['id'] }}">
@@ -63,7 +76,9 @@
                                         <span class="line-clamp-2 text-t1">{{ $r['text'] }}</span>
                                         <span class="text-t2 font-medium underline decoration-line-strong underline-offset-4 group-hover:decoration-ink">Читать полностью</span>
                                     </button>
-                                    <x-ui.btn size="s" square icon="share" wire:click="share({{ $r['id'] }})" aria-label="Поделиться отзывом" title="Поделиться" />
+                                    <x-ui.btn size="s" square icon="share" wire:click="share({{ $r['id'] }})" aria-label="Поделиться отзывом" title="Поделиться" class="hidden lg:inline-flex" />
+                                    <x-ui.btn size="s" square icon="share" aria-label="Поделиться отзывом" class="lg:hidden"
+                                              x-on:click="$wire.shared({{ $r['id'] }}); window.serdalShareReviewCard(@js($r['shareUrl']))" />
                                 </x-ui.row>
                             @endforeach
                         </x-ui.list>
@@ -120,7 +135,10 @@
             </x-slot:note>
             <x-slot:footer>
                 <x-ui.btn wire:click="$set('openId', null)" class="hidden lg:inline-flex">Закрыть</x-ui.btn>
-                <x-ui.btn variant="primary" icon="share" wire:click="share({{ $opened['id'] }})">Поделиться</x-ui.btn>
+                <x-ui.copy :value="$opened['caption']" message="Текст скопирован" class="lg:hidden">Скопировать текст</x-ui.copy>
+                <x-ui.btn variant="primary" icon="share" wire:click="share({{ $opened['id'] }})" class="hidden lg:inline-flex">Поделиться</x-ui.btn>
+                <x-ui.btn variant="primary" icon="share" class="lg:hidden"
+                          x-on:click="window.serdalShareReviewCard(@js($opened['shareUrl']))">Поделиться</x-ui.btn>
             </x-slot:footer>
         </x-ui.modal>
     @endif
@@ -157,17 +175,30 @@
         </x-ui.modal>
     @endif
 
-    {{-- Окно: жалоба на отзыв --}}
+    {{-- Окно: жалоба на отзыв (макет RvReport) --}}
     @if ($reported)
         <x-ui.modal title="Пожаловаться на отзыв" :sub="$reported['name'] . ' · ' . $reported['at']" width="s" close="$set('reportId', null)">
             <div class="flex flex-col gap-2 rounded-lg bg-soft p-4">
                 <x-ui.stars :value="$reported['rating']" />
                 <p class="line-clamp-3 text-t1-s">{{ $reported['text'] }}</p>
             </div>
+            <form id="report-form" wire:submit="sendReport" class="flex flex-col gap-4">
+                <fieldset class="flex min-w-0 flex-col gap-2">
+                    <legend class="mb-2 text-t2 font-medium">Что не так с отзывом</legend>
+                    @foreach ($reasons as $value => $title)
+                        <x-ui.option type="radio" name="reportReason" :value="$value" :title="$title" wire:model.live="reportReason" wire:key="reason-{{ $value }}" />
+                    @endforeach
+                    @error('reportReason')<span class="text-t2 font-medium text-danger-fg" role="alert">{{ $message }}</span>@enderror
+                </fieldset>
+                @if ($reportReason === 'other')
+                    <x-ui.field label="Опишите коротко" name="reportNote" rows="3" wire:model="reportNote" maxlength="1000"
+                                placeholder="Например: ученик перепутал меня с другим учителем" />
+                @endif
+            </form>
             <p class="text-t2 text-muted">Модератор проверит отзыв. {{ $reported['name'] }} не узнает о жалобе, а отзыв останется на странице до решения.</p>
             <x-slot:footer>
                 <x-ui.btn wire:click="$set('reportId', null)">Отмена</x-ui.btn>
-                <x-ui.btn variant="dark" wire:click="sendReport">Отправить жалобу</x-ui.btn>
+                <x-ui.btn variant="dark" type="submit" form="report-form">Отправить жалобу</x-ui.btn>
             </x-slot:footer>
         </x-ui.modal>
     @endif

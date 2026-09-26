@@ -106,7 +106,7 @@ class StudentTaskTest extends TestCase
 
         Livewire::actingAs($this->student)
             ->test(Task::class, ['homework' => $homework])
-            ->set('answer', "Last summer I went to Kazan.\n\nIt was <great>.")
+            ->set('answer', '<p>Last summer I went to <strong>Kazan</strong>.</p><p>It was &lt;great&gt;.</p><script>alert(1)</script>')
             ->set('picked', [UploadedFile::fake()->create('Тетрадь.pdf', 120, 'application/pdf')])
             ->assertHasNoErrors()
             ->set('picked', [UploadedFile::fake()->image('photo.jpg', 2400, 1600)])
@@ -122,8 +122,17 @@ class StudentTaskTest extends TestCase
         $submission = HomeworkSubmission::where('homework_id', $homework->id)->where('student_id', $this->student->id)->firstOrFail();
         $this->assertSame(HomeworkSubmission::STATUS_SUBMITTED, $submission->status);
         $this->assertNotNull($submission->submitted_at);
-        $this->assertSame('<p>Last summer I went to Kazan.</p><p>It was &lt;great&gt;.</p>', $submission->content);
+        // Ответ из редактора — с оформлением, но без опасного HTML
+        $this->assertSame('<p>Last summer I went to <strong>Kazan</strong>.</p><p>It was &lt;great&gt;.</p>', $submission->content);
         $this->assertCount(2, $submission->attachments);
+        // Исходные имена файлов сохранены и показаны
+        $this->assertEqualsCanonicalizing(['Тетрадь.pdf', 'photo.jpg'], array_values($submission->file_names));
+
+        $this->actingAs($this->student)
+            ->get(route('cabinet.student.task', $homework))
+            ->assertSee('Тетрадь.pdf')
+            ->assertSee('photo.jpg')
+            ->assertSee('<strong>Kazan</strong>', false);
         foreach ($submission->attachments as $path) {
             $this->assertStringStartsWith('homework-submissions/' . $this->student->id . '/', $path);
             Storage::disk('s3')->assertExists($path);
@@ -170,8 +179,8 @@ class StudentTaskTest extends TestCase
             ->assertSee('На доработке')
             ->assertSee('Добавьте вывод')
             ->assertSee('С пометками учителя')
-            ->assertSet('answer', 'Первый вариант')
-            ->set('answer', "Первый вариант\nС выводом")
+            ->assertSet('answer', '<p>Первый вариант</p>')
+            ->set('answer', '<p>Первый вариант</p><ul><li><p>С выводом</p></li></ul>')
             ->call('removeKept', 1)
             ->call('submit')
             ->assertHasNoErrors();
@@ -179,10 +188,97 @@ class StudentTaskTest extends TestCase
         $submission->refresh();
         $this->assertSame(HomeworkSubmission::STATUS_SUBMITTED, $submission->status);
         $this->assertSame(['homework-submissions/old/keep.jpg'], $submission->attachments);
-        $this->assertSame('<p>Первый вариант<br>' . "\n" . 'С выводом</p>', $submission->content);
+        $this->assertSame('<p>Первый вариант</p><ul><li><p>С выводом</p></li></ul>', $submission->content);
         Storage::disk('s3')->assertMissing('homework-submissions/old/drop.pdf');
         $this->assertTrue(HomeworkActivity::where('submission_id', $submission->id)->where('type', HomeworkActivity::TYPE_RESUBMITTED)->exists());
         Notification::assertSentTo($this->teacher, HomeworkSubmitted::class);
+    }
+
+    public function test_teacher_marks_are_shown_after_check_and_survive_resubmission(): void
+    {
+        $homework = $this->homework(['max_score' => 10]);
+        $photo = 'homework-submissions/s/page1.jpg';
+        $other = 'homework-submissions/s/page2.jpg';
+        $marks = 'feedback-attachments/t/page1_marks.png';
+        foreach ([$photo, $other, $marks] as $path) {
+            Storage::disk('s3')->put($path, 'x');
+        }
+        $submission = HomeworkSubmission::create([
+            'homework_id' => $homework->id,
+            'student_id' => $this->student->id,
+            'content' => '<p>Мой ответ</p>',
+            'attachments' => [$photo, $other],
+            'annotated_files' => [$photo],
+            'annotations' => [$photo => $marks],
+            'feedback_attachments' => [$marks],
+            'file_names' => [$photo => 'Тетрадь, стр. 1.jpg', $marks => 'Тетрадь, стр. 1 с пометками.png'],
+            'submitted_at' => now()->subDay(),
+            'status' => HomeworkSubmission::STATUS_SUBMITTED,
+        ]);
+
+        Storage::disk("s3")->assertExists($marks);
+        // На проверке — только оригинал, пометок не видно
+        $this->actingAs($this->student)
+            ->get(route('cabinet.student.task', $homework))
+            ->assertSee('Тетрадь, стр. 1.jpg')
+            ->assertDontSee('page1_marks.png', false)
+            ->assertDontSee('С пометками учителя');
+
+        // Вернули на доработку — пометки видны; ученик убирает фото с пометками и пересдаёт
+        $submission->update(['status' => HomeworkSubmission::STATUS_REVISION_REQUESTED, 'feedback' => '<p>Исправьте 3-е</p>']);
+        Storage::disk("s3")->assertExists($marks);
+
+        Livewire::actingAs($this->student)
+            ->test(Task::class, ['homework' => $homework])
+            ->assertSee('С пометками учителя')
+            ->assertSee('page1_marks.png', false)
+            ->call('removeKept', 0)
+            ->assertSee('Тетрадь, стр. 1 с пометками.png') // осталось в комментарии учителя
+            ->set('answer', '<p>Исправила</p>')
+            ->call('submit')
+            ->assertHasNoErrors();
+
+        $submission->refresh();
+        $this->assertSame([$other], $submission->attachments);
+        $this->assertSame([$marks], $submission->feedback_attachments);
+        Storage::disk('s3')->assertMissing($photo);
+        Storage::disk('s3')->assertExists($marks);
+
+        // Оценили — файл с пометками в комментарии, со своим именем
+        $submission->update(['status' => HomeworkSubmission::STATUS_GRADED, 'grade' => 9]);
+
+        $this->actingAs($this->student)
+            ->get(route('cabinet.student.task', $homework))
+            ->assertSee('Оценка 9/10')
+            ->assertSee('Тетрадь, стр. 1 с пометками.png')
+            ->assertSee('page1_marks.png', false);
+    }
+
+    public function test_old_marks_drawn_over_original_are_not_deleted_on_resubmission(): void
+    {
+        $homework = $this->homework();
+        $photo = 'homework-submissions/s/old.jpg';
+        Storage::disk('s3')->put($photo, 'with marks');
+        $submission = HomeworkSubmission::create([
+            'homework_id' => $homework->id,
+            'student_id' => $this->student->id,
+            'attachments' => [$photo],
+            'annotated_files' => [$photo],
+            'feedback_attachments' => [$photo],
+            'submitted_at' => now()->subDay(),
+            'status' => HomeworkSubmission::STATUS_SUBMITTED,
+        ]);
+        $submission->update(['status' => HomeworkSubmission::STATUS_REVISION_REQUESTED, 'feedback' => '<p>Переделайте</p>']);
+
+        Livewire::actingAs($this->student)
+            ->test(Task::class, ['homework' => $homework])
+            ->call('removeKept', 0)
+            ->set('answer', '<p>Новый ответ</p>')
+            ->call('submit')
+            ->assertHasNoErrors();
+
+        Storage::disk('s3')->assertExists($photo); // на него ссылается комментарий учителя
+        $this->assertSame([$photo], $submission->fresh()->feedback_attachments);
     }
 
     public function test_answer_cannot_be_changed_while_on_review_or_after_grading(): void

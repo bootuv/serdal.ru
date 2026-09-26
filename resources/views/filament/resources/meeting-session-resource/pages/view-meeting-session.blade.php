@@ -95,14 +95,8 @@
                 <tbody>
                     @forelse($participants as $p)
                         @php
-                            // Calculate Activity Score
-                            // Logic: (Talk Time (m) * 2) + (Messages * 1) + (Emoji * 1) + (Raise Hand * 2)
-                            // Normalized to 0-10 range roughly? Or just raw score.
-                            // Let's assume max reasonable score is 20 for normalization, or just show raw.
-                            // User asked for "Activity Score", likely 0-10 or similar.
-                            $talkMinutes = ($p['talking_time'] ?? 0) / 60;
-                            $rawScore = ($talkMinutes * 2) + ($p['message_count'] ?? 0) + ($p['emoji_count'] ?? 0) + (($p['raise_hand_count'] ?? 0) * 2);
-                            $score = min(10, round($rawScore));
+                            // Оценка активности 0–10 — общая с отчётом в новом кабинете
+                            $score = \App\Services\LessonActivityService::score($p);
 
                             $user = $users[$p['user_id'] ?? ''] ?? null;
                             $avatar = $user?->avatar_url ?? asset('images/default-avatar.png'); 

@@ -1,5 +1,5 @@
 @php
-    $canStart = ! $archived && ! $otherRunning;
+    $canStart = ! $archived && ! $otherRunning && ! $cancelled;
 @endphp
 <div class="flex flex-col gap-6 lg:gap-8">
     <x-ui.page-head :title="$room->name" :sub="$sub" :back="$backUrl" backLabel="Расписание">
@@ -12,15 +12,15 @@
                     <x-ui.btn size="l" wire:click="askStop">Завершить занятие</x-ui.btn>
                     <x-ui.btn variant="primary" size="l" icon="video" :href="$joinUrl" target="_blank" rel="noopener">Вернуться в класс</x-ui.btn>
                 @elseif (! $archived)
-                    {{-- Другие действия (временное меню: в ui/ пока нет компонента выпадающего меню) --}}
-                    <div class="relative" x-data="{ open: false }" x-on:click.outside="open = false" x-on:keydown.escape.window="open = false">
-                        <x-ui.btn size="l" square icon="more" x-on:click="open = ! open" aria-label="Другие действия" x-bind:aria-expanded="open" />
-                        <div x-show="open" x-cloak class="absolute right-0 top-full z-10 mt-2 flex w-sidebar flex-col rounded-lg bg-white p-2 shadow-modal">
-                            <button type="button" wire:click="openCancel" x-on:click="open = false" class="flex h-11 items-center rounded px-3 text-left text-t1-s font-medium hover:bg-soft">Отменить занятие</button>
-                            <a href="{{ $editUrl }}" class="flex h-11 items-center rounded px-3 text-t1-s font-medium hover:bg-soft">Ученики и название</a>
-                        </div>
-                    </div>
-                    <x-ui.btn size="l" wire:click="openReschedule">{{ $next ? 'Перенести' : 'Назначить время' }}</x-ui.btn>
+                    <x-ui.menu label="Другие действия">
+                        @if ($hasOccurrence && ! $cancelled)<x-ui.menu-item wire:click="openCancel">Отменить занятие</x-ui.menu-item>@endif
+                        <x-ui.menu-item wire:click="openEdit">Ученики и название</x-ui.menu-item>
+                    </x-ui.menu>
+                    @if ($cancelled)
+                        <x-ui.btn size="l" wire:click="openPlan({{ $group ? 'null' : ($room->participants->first()?->id ?? 'null') }})">Запланировать другое</x-ui.btn>
+                    @else
+                        <x-ui.btn size="l" wire:click="openReschedule">{{ $hasOccurrence ? 'Перенести' : 'Назначить время' }}</x-ui.btn>
+                    @endif
                     @if ($canStart)
                         @if ($startBlock)
                             <x-ui.btn variant="primary" size="l" icon="play" wire:click="$set('startBlockedOpen', true)">Начать занятие</x-ui.btn>
@@ -49,8 +49,15 @@
                     <x-ui.btn variant="primary" icon="play" :href="route('rooms.start', $room)" target="_blank" rel="noopener">Начать занятие</x-ui.btn>
                 @endif
             @endif
-            <x-ui.btn wire:click="openReschedule">{{ $next ? 'Перенести' : 'Назначить время' }}</x-ui.btn>
-            <x-ui.btn wire:click="openCancel">Отменить</x-ui.btn>
+            @if ($cancelled)
+                <x-ui.btn wire:click="openPlan({{ $group ? 'null' : ($room->participants->first()?->id ?? 'null') }})">Запланировать другое</x-ui.btn>
+            @else
+                <x-ui.btn wire:click="openReschedule">{{ $hasOccurrence ? 'Перенести' : 'Назначить время' }}</x-ui.btn>
+            @endif
+            <x-ui.menu label="Другие действия" align="left">
+                @if ($hasOccurrence && ! $cancelled)<x-ui.menu-item wire:click="openCancel">Отменить занятие</x-ui.menu-item>@endif
+                <x-ui.menu-item wire:click="openEdit">Ученики и название</x-ui.menu-item>
+            </x-ui.menu>
         @endif
     </div>
 
@@ -83,7 +90,13 @@
                         @foreach ($attendance as $st)
                             <x-ui.row wire:key="att-{{ $st['id'] }}">
                                 <x-ui.avatar :name="$st['name']" :id="$st['id']" :class="$st['attended'] ? '' : 'opacity-60'" />
-                                <x-ui.text :title="$st['name']" :sub="$st['attended'] ? 'Был на занятии' : 'Не был на занятии'" />
+                                <x-ui.text :title="$st['name']" :sub="$st['sub']" />
+                                @if ($st['score'])
+                                    <div class="flex shrink-0 flex-col items-end gap-1 text-right">
+                                        <span class="text-t1 font-semibold">{{ $st['score'] }}</span>
+                                        <span class="text-t3 text-muted">активность</span>
+                                    </div>
+                                @endif
                             </x-ui.row>
                         @endforeach
                         <x-ui.row>
@@ -164,7 +177,7 @@
                             <x-slot:action><a href="{{ route('cabinet.teacher.lesson', $room) }}" class="link text-t2">Открыть</a></x-slot:action>
                         </x-ui.card-head>
                         <x-ui.text :title="$nextInfo['when']" :sub="$nextInfo['sub']" />
-                        <x-ui.btn size="s" class="self-start" wire:click="openReschedule">Перенести</x-ui.btn>
+                        <x-ui.btn size="s" class="self-start" wire:click="openReschedule(true)">Перенести</x-ui.btn>
                     </x-ui.card>
                 @endif
 
@@ -214,17 +227,25 @@
                                     </x-ui.list>
                                 @endif
                             </x-ui.card>
+                            @if ($hasOccurrence)
+                                @include('livewire.cabinet.teacher.partials.lesson-plan', ['focus' => false, 'editable' => true])
+                            @endif
                             @include('livewire.cabinet.teacher.partials.lesson-homework', ['focus' => false, 'withAction' => true])
+                        @elseif ($hasOccurrence)
+                            @include('livewire.cabinet.teacher.partials.lesson-plan', ['focus' => true, 'editable' => ! $cancelled])
+                            @include('livewire.cabinet.teacher.partials.lesson-homework', ['focus' => false, 'withAction' => ! $archived])
                         @else
                             @include('livewire.cabinet.teacher.partials.lesson-homework', ['focus' => true, 'withAction' => ! $archived])
                         @endif
                     @elseif ($tab === 'materials')
                         <x-ui.card focus aria-labelledby="l-mat">
                             <x-ui.card-head id="l-mat" title="Материалы к занятию">
-                                <x-slot:action><x-ui.btn size="s" icon="plus" :href="$materialsUrl">Добавить</x-ui.btn></x-slot:action>
+                                @unless ($archived)
+                                    <x-slot:action><x-ui.btn size="s" icon="plus" wire:click="openPresentations">Добавить</x-ui.btn></x-slot:action>
+                                @endunless
                             </x-ui.card-head>
                             @if ($files->isEmpty())
-                                <p class="text-t2 text-muted">Пока пусто — откройте этому занятию материалы в разделе «Материалы».</p>
+                                <p class="text-t2 text-muted">Пока пусто — добавьте презентацию, она откроется в классе при старте. Другие файлы открывайте ученикам в <a href="{{ $materialsUrl }}" class="link">«Материалах»</a>.</p>
                             @else
                                 <x-ui.list>
                                     @foreach ($files as $f)
@@ -232,6 +253,11 @@
                                             <x-ui.file-tile :name="$f['file'] ?? $f['name']" onMint />
                                             <x-ui.text :title="$f['name']" :sub="$f['sub']" />
                                             <a href="{{ $f['url'] }}" target="_blank" rel="noopener" class="link shrink-0 text-t2">Открыть</a>
+                                            @if ($f['presentation'] && ! $archived)
+                                                <x-ui.menu label="Действия с презентацией">
+                                                    <x-ui.menu-item wire:click="askDeletePresentation('{{ $f['presentation'] }}')">Удалить</x-ui.menu-item>
+                                                </x-ui.menu>
+                                            @endif
                                         </x-ui.row>
                                     @endforeach
                                 </x-ui.list>
@@ -247,7 +273,11 @@
                                     @foreach ($past as $p)
                                         <x-ui.row wire:key="hist-{{ $p['id'] }}">
                                             <div class="flex min-w-0 flex-1 flex-col gap-1">
-                                                <a href="{{ $p['url'] }}" class="truncate text-t1 font-medium hover:underline">{{ $p['title'] }}</a>
+                                                @if ($p['url'])
+                                                    <a href="{{ $p['url'] }}" class="truncate text-t1 font-medium hover:underline">{{ $p['title'] }}</a>
+                                                @else
+                                                    <span class="truncate text-t1 font-medium text-muted">{{ $p['title'] }}</span>
+                                                @endif
                                                 <span class="text-t2 text-muted">{{ $p['sub'] }}</span>
                                             </div>
                                             @if ($p['deletion'])<x-ui.badge>На удалении</x-ui.badge>@endif
@@ -288,77 +318,86 @@
         </x-ui.modal>
     @endif
 
-    {{-- Перенести (макет LsReschedule): меняется правило расписания --}}
+    {{-- Перенести (макет LsReschedule): только это занятие или это и все следующие; без занятия — назначить время --}}
     @if ($rescheduleOpen)
-        <x-ui.modal :title="$rsScheduleId ? 'Перенести занятие' : 'Назначить время'" :sub="$whoLine . ($rsCurrent ? ' · ' . $rsCurrent : '')" close="closeReschedule">
-            @if ($rsSchedules)
-                <x-ui.select label="Какое время изменить" name="rsScheduleId" :options="$rsSchedules" wire:model.live="rsScheduleId" />
-            @endif
-            <div class="flex flex-col gap-2">
-                <span class="text-t2 font-medium">Повтор</span>
-                <x-ui.seg :items="['once' => 'Не повторять', 'weekly' => 'Каждую неделю']" model="rsRepeat" :active="$rsRepeat" aria-label="Повтор" />
-            </div>
-            @if ($rsRepeat === 'weekly')
+        <x-ui.modal :title="$rsMode === 'new' ? 'Назначить время' : 'Перенести занятие'" :sub="$whoLine . ($rsCurrent ? ' · ' . $rsCurrent : '')" close="closeReschedule">
+            @if ($rsSeries)
+                <div class="flex flex-col gap-2" role="radiogroup" aria-labelledby="rs-scope">
+                    <span class="text-t2 font-medium" id="rs-scope">Что перенести</span>
+                    @foreach ($rsScopes as $key => [$t, $d])
+                        <x-ui.option type="radio" name="rsScope" value="{{ $key }}" wire:model.live="rsScope" :title="$t" :sub="$d" wire:key="rs-scope-{{ $key }}" />
+                    @endforeach
+                </div>
+            @elseif ($rsMode === 'new')
                 <div class="flex flex-col gap-2">
-                    <span class="text-t2 font-medium">Новые дни</span>
+                    <span class="text-t2 font-medium">Повтор</span>
+                    <x-ui.seg :items="['once' => 'Не повторять', 'weekly' => 'Каждую неделю']" model="rsRepeat" :active="$rsRepeat" aria-label="Повтор" />
+                </div>
+            @endif
+            @if ($rsMode === 'following' || ($rsMode === 'new' && $rsRepeat === 'weekly'))
+                <div class="flex flex-col gap-2">
+                    <span class="text-t2 font-medium">{{ $rsMode === 'new' ? 'По каким дням' : 'Новые дни' }}</span>
                     @include('livewire.cabinet.teacher.partials.lesson-day-chips', ['selected' => $rsDays, 'action' => 'toggleRsDay', 'label' => 'Новые дни'])
                     @error('rsDays')<span class="text-t2 font-medium text-danger-fg">{{ $message }}</span>@enderror
                 </div>
             @endif
             <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
-                <x-ui.field :label="$rsRepeat === 'weekly' ? 'Начиная с' : 'Новая дата'" name="rsDate" type="date" wire:model.live="rsDate" />
+                <x-ui.field :label="match ($rsMode) { 'following' => 'Начиная с', 'one' => 'Новая дата', default => $rsRepeat === 'weekly' ? 'Первое занятие' : 'Дата' }" name="rsDate" type="date" wire:model.live="rsDate" />
                 <x-ui.field label="Время" name="rsTime" type="time" wire:model.live="rsTime" />
                 <x-ui.select label="Длительность" name="rsDuration" :options="$rsDurations" wire:model="rsDuration" />
             </div>
-            @if ($rsRepeat === 'weekly')
-                <x-ui.field label="До какого дня, необязательно" name="rsUntil" type="date" wire:model="rsUntil" />
+            @if ($rsMode === 'new' && $rsRepeat === 'weekly')
+                <x-ui.field label="До какого дня" optional name="rsUntil" type="date" wire:model="rsUntil" />
             @endif
-            @if ($room->participants->isNotEmpty())
-                <p class="text-t2 text-muted">{{ $group ? 'Ученики получат' : 'Ученик получит' }} уведомление об изменении расписания.</p>
+            @if ($notifySub)
+                <x-ui.option wire:model="rsNotify" :title="$rsMode === 'new' ? 'Сообщить о новом времени' : 'Сообщить о переносе'" :sub="$notifySub" />
             @endif
             <x-slot:note>@if ($rsNew)Новое время: <x-ui.em>{{ $rsNew }}</x-ui.em>@endif</x-slot:note>
             <x-slot:footer>
                 <x-ui.btn wire:click="closeReschedule">Отмена</x-ui.btn>
-                <x-ui.btn variant="primary" wire:click="saveReschedule">{{ $rsScheduleId ? 'Перенести' : 'Сохранить' }}</x-ui.btn>
+                <x-ui.btn variant="primary" wire:click="saveReschedule">{{ $rsMode === 'new' ? 'Сохранить' : 'Перенести' }}</x-ui.btn>
             </x-slot:footer>
         </x-ui.modal>
     @endif
 
-    {{-- Отменить (макет LsCancel): удаляется правило расписания или всё занятие --}}
+    {{-- Отменить (макет LsCancel): только это занятие или всю серию; причину видит ученик; уведомление — по галочке --}}
     @if ($cancelOpen)
-        @php
-            $scopeSchedule = $cancelMany && $cancelScope === 'schedule';
-            $once = $scopeSchedule && ($cancelSchedule['once'] ?? false);
-        @endphp
         <x-ui.modal title="Отменить занятие?" :sub="$whoLine" close="closeCancel" width="s">
-            @if ($cancelMany)
+            @if ($cancelSeries)
                 <div class="flex flex-col gap-2" role="radiogroup" aria-label="Что отменить">
-                    @foreach (['schedule' => ['Только это время', $cancelSchedule['label'] ?? ''], 'room' => ['Всё занятие', 'Все дни и время, занятие уйдёт в архив']] as $key => [$t, $d])
-                        <button type="button" role="radio" aria-checked="{{ $cancelScope === $key ? 'true' : 'false' }}" wire:click="$set('cancelScope', '{{ $key }}')"
-                                @class(['flex items-start gap-3 rounded-lg p-4 text-left', 'shadow-outline-ink' => $cancelScope === $key, 'shadow-outline' => $cancelScope !== $key])>
-                            <span @class(['mt-1 flex size-4 shrink-0 items-center justify-center rounded-full', 'bg-ink' => $cancelScope === $key, 'shadow-outline' => $cancelScope !== $key])>
-                                @if ($cancelScope === $key)<span class="size-1 rounded-full bg-white"></span>@endif
-                            </span>
-                            <span class="flex min-w-0 flex-col gap-1"><span class="text-t1-s font-medium">{{ $t }}</span><span class="text-t2 text-muted">{{ $d }}</span></span>
-                        </button>
+                    @foreach ($cancelScopes as $key => [$t, $d])
+                        <x-ui.option type="radio" name="cancelScope" value="{{ $key }}" wire:model.live="cancelScope" :title="$t" :sub="$d" wire:key="cn-scope-{{ $key }}" />
                     @endforeach
                 </div>
             @endif
+            <x-ui.field label="Причина" optional name="cancelReason" :rows="3" wire:model="cancelReason" placeholder="Например: ученица заболела" maxlength="500" :hint="$cancelReasonHint" />
             <p class="rounded-lg bg-soft p-4 text-t2 text-ink">
-                @if (! $scopeSchedule)
-                    Занятие уйдёт в архив и исчезнет из расписания у вас и у учеников. Прошедшие занятия, записи и оплаты останутся.
-                @elseif ($once)
-                    Оплата за это занятие не начислится, в лимит тарифа оно не попадёт.
+                @if ($cancelIsSeries)
+                    Будущие занятия этой серии исчезнут из расписания у вас и у {{ $group ? 'учеников' : 'ученика' }}. Прошедшие занятия, записи и оплаты останутся.
                 @else
-                    Будущие занятия в это время исчезнут из расписания у вас и у учеников. Прошедшие занятия, записи и оплаты останутся.
+                    Оплата за это занятие не начислится, в лимит тарифа оно не попадёт.
                 @endif
             </p>
-            @if ($room->participants->isNotEmpty())
-                <p class="text-t2 text-muted">{{ $group ? 'Ученики получат' : 'Ученик получит' }} уведомление об изменении расписания.</p>
+            @if ($notifySub)
+                <x-ui.option wire:model="cancelNotify" title="Сообщить об отмене" :sub="$notifySub" />
+            @endif
+            @if ($cancelCanArchive)
+                <x-ui.option wire:model="cancelArchive" title="Убрать занятие в архив" sub="Других занятий в расписании нет. Прошедшие занятия, записи и оплаты останутся." />
             @endif
             <x-slot:footer>
                 <x-ui.btn wire:click="closeCancel">Не отменять</x-ui.btn>
-                <x-ui.btn variant="dark" wire:click="confirmCancel">{{ $scopeSchedule && ! $once ? 'Отменить серию' : 'Отменить занятие' }}</x-ui.btn>
+                <x-ui.btn variant="dark" wire:click="confirmCancel">{{ $cancelIsSeries ? 'Отменить серию' : 'Отменить занятие' }}</x-ui.btn>
+            </x-slot:footer>
+        </x-ui.modal>
+    @endif
+
+    {{-- План занятия: пункты с новой строки --}}
+    @if ($lessonPlanOpen)
+        <x-ui.modal title="План занятия" :sub="$whoLine . ($next ? ' · ' . \App\Support\HumanDate::at($next['start']) : '')" close="closeLessonPlan">
+            <x-ui.field label="Что разобрать на занятии" name="lessonPlanBody" :rows="6" wire:model="lessonPlanBody" placeholder="Например: разобрать ошибки в тесте" hint="Каждый пункт — с новой строки. План видите только вы." maxlength="5000" />
+            <x-slot:footer>
+                <x-ui.btn wire:click="closeLessonPlan">Отмена</x-ui.btn>
+                <x-ui.btn variant="primary" wire:click="saveLessonPlan">Сохранить</x-ui.btn>
             </x-slot:footer>
         </x-ui.modal>
     @endif
@@ -376,6 +415,9 @@
         </x-ui.modal>
     @endif
 
+    @include('livewire.cabinet.teacher.partials.lesson-edit-modal')
+    @include('livewire.cabinet.teacher.partials.lesson-presentations-modal')
+    @include('livewire.cabinet.teacher.partials.lesson-plan-modal')
     @include('livewire.cabinet.teacher.partials.lesson-start-blocked')
     @include('livewire.cabinet.teacher.partials.lesson-mark-paid-modal')
 </div>

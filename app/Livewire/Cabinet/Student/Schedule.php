@@ -6,6 +6,7 @@ use App\Models\MeetingSession;
 use App\Models\PaymentRecord;
 use App\Models\Recording;
 use App\Models\RoomSchedule;
+use App\Models\RoomScheduleException;
 use App\Models\User;
 use App\Services\PaymentRecordService;
 use App\Services\StudentScheduleService;
@@ -69,7 +70,11 @@ class Schedule extends Component
             ? $this->past($student, $teacherId)
             : $this->upcoming($student, $teacherId);
 
+        $focus = $data['focus'] ?? null;
+
         return view('livewire.cabinet.student.schedule', $data + [
+            // Пока вход не открыт, а занятие сегодня, — проверяем раз в минуту, чтобы кнопка появилась сама
+            'poll' => $focus && ! $focus['canJoin'] && ! $focus['blocked'] && $focus['isToday'],
             'teacherFilter' => $teachers->count() > 1
                 ? ['all' => 'Все учителя'] + $teachers->pluck('name', 'id')->all()
                 : [],
@@ -78,7 +83,7 @@ class Schedule extends Component
         ]);
     }
 
-    /** Предстоящие занятия на две недели: первое (идущее или ближайшее) — в фокусе. */
+    /** Предстоящие занятия на две недели: первое (идущее или ближайшее) — в фокусе. Отменённые — с причиной от учителя. */
     private function upcoming(User $student, ?int $teacherId): array
     {
         $service = app(StudentScheduleService::class);
@@ -86,14 +91,16 @@ class Schedule extends Component
         $blockedTeacherIds = PaymentRecordService::blockedTeacherIds($student->id);
         $now = now();
 
-        // Занятия, у которых есть повторяющееся расписание: разовое в них — дополнительное
-        $recurringRoomIds = $schedules->where('type', '!=', 'once')->pluck('room_id')->unique()->all();
+        // Регулярные занятия: разовое у того же учителя (или в том же занятии) — дополнительное
+        $recurring = $schedules->where('type', '!=', 'once');
+        $recurringRoomIds = $recurring->pluck('room_id')->unique()->all();
+        $recurringTeacherIds = $recurring->map(fn (RoomSchedule $s) => $s->room?->user_id)->filter()->unique()->all();
         $recurrence = $schedules->keyBy('id');
 
-        $events = $service->events($student->id, today(), today()->addDays(self::DAYS_AHEAD)->endOfDay(), $schedules)
+        $events = $service->events($student->id, today(), today()->addDays(self::DAYS_AHEAD)->endOfDay(), $schedules, withCancelled: true)
             ->when($teacherId, fn ($c) => $c->where('teacher_id', $teacherId))
             // Идёт сейчас: комната запущена и это её сегодняшнее занятие
-            ->map(fn (array $e) => $e + ['running' => $e['is_running'] && ($e['type'] === 'running' || $e['start']->isToday())])
+            ->map(fn (array $e) => $e + ['running' => ! $e['cancelled'] && $e['is_running'] && ($e['type'] === 'running' || $e['start']->isToday())])
             ->filter(fn (array $e) => $e['running'] || $e['end']->gt($now))
             ->values();
 
@@ -104,27 +111,31 @@ class Schedule extends Component
             return $roomEvents->map(fn ($e, $k) => ['running' => $k === $live] + $e);
         })->sortBy(fn ($e) => [$e['running'] ? 0 : 1, $e['start']->timestamp])->values();
 
-        $lessons = $events->map(fn (array $e) => $this->lessonView($e, $blockedTeacherIds, $recurringRoomIds, $recurrence));
+        $lessons = $events->map(fn (array $e) => $this->lessonView($e, $blockedTeacherIds, $recurringRoomIds, $recurringTeacherIds, $recurrence));
+        $focus = $lessons->first(fn ($l) => ! $l['cancelled']);
 
         return [
             'sub' => 'Ближайшие две недели',
-            'focus' => $lessons->first(),
-            'next' => $lessons->skip(1)->values(),
+            'focus' => $focus,
+            'next' => $lessons->reject(fn ($l) => $focus && $l['key'] === $focus['key'])->values(),
         ];
     }
 
-    private function lessonView(array $e, array $blockedTeacherIds, array $recurringRoomIds, Collection $schedules): array
+    private function lessonView(array $e, array $blockedTeacherIds, array $recurringRoomIds, array $recurringTeacherIds, Collection $schedules): array
     {
         $start = $e['start'];
         $facts = [];
 
+        if ($e['cancelled']) {
+            $facts[] = 'Отменено' . ($e['reason'] ? ': ' . $e['reason'] : '');
+        }
         if ($e['room_type'] === 'group') {
             $facts[] = 'Групповое';
         }
         if ($e['owner']) {
             $facts[] = $e['owner'];
         }
-        $repeat = $this->repeatLabel($schedules->get($e['id']), $start);
+        $repeat = $e['cancelled'] || $e['moved_from'] ? null : $this->repeatLabel($schedules->get($e['id']), $start);
         if ($repeat) {
             $facts[] = $repeat;
         }
@@ -132,17 +143,24 @@ class Schedule extends Component
         $until = $e['running'] ? null : HumanDate::until($start);
 
         return [
+            'key' => $e['room_id'] . '-' . $start->timestamp,
             'title' => $start->format('H:i') . ' · ' . $e['title'],
             'facts' => implode(' · ', $facts),
             // Разовое занятие там, где есть регулярное, — исключение, выделяем
-            'extra' => $e['type'] === 'once' && in_array($e['room_id'], $recurringRoomIds, true),
+            'extra' => ! $e['cancelled'] && ! $e['moved_from'] && $e['type'] === 'once'
+                && (in_array($e['room_id'], $recurringRoomIds, true) || in_array($e['teacher_id'], $recurringTeacherIds, true)),
+            'moved' => $e['moved_from'] ? \App\Services\TeacherScheduleService::movedFromLabel($e['moved_from']) : null,
+            'cancelled' => $e['cancelled'],
             'status' => $e['running'] ? 'Идёт сейчас' : ($until ? 'Начнётся ' . $until : null),
             'start' => $start,
             'isToday' => $start->isToday(),
             'running' => $e['running'],
             'blocked' => in_array($e['teacher_id'], $blockedTeacherIds, true),
+            // «Войти в класс» — только когда занятие идёт или вот-вот начнётся
+            'canJoin' => ! $e['cancelled'] && StudentScheduleService::canJoin($e['running'], $start, $e['end']),
+            'joinHint' => StudentScheduleService::joinOpensLabel($start),
             'joinUrl' => route('rooms.connect', $e['room_id']),
-            'url' => url('/student/rooms/' . $e['room_id']),
+            'url' => route('cabinet.student.lesson', $e['room_id']),
         ];
     }
 
@@ -211,9 +229,27 @@ class Schedule extends Component
             ];
         });
 
+        // Отменённые учителем занятия за тот же период — с причиной
+        $cancelled = RoomScheduleException::query()
+            ->where('status', RoomScheduleException::STATUS_CANCELLED)
+            ->whereBetween('original_starts_at', [$since, now()])
+            ->whereHas('room', fn ($q) => $q
+                ->whereHas('participants', fn ($p) => $p->where('users.id', $student->id))
+                ->when($teacherId, fn ($r) => $r->where('user_id', $teacherId)))
+            ->with('room.user:id,name')
+            ->get()
+            ->map(fn (RoomScheduleException $e) => [
+                'title' => $e->original_starts_at->format('H:i') . ' · ' . ($e->room?->name ?? 'Занятие'),
+                'facts' => 'Отменено' . ($e->reason ? ': ' . $e->reason : '') . ($e->room?->user ? ' · ' . $e->room->user->name : ''),
+                'attended' => true,
+                'start' => $e->original_starts_at,
+                'unpaid' => false,
+                'recordingUrl' => null,
+            ]);
+
         return [
             'sub' => 'Последние ' . plural_ru($this->pastWeeks, 'неделя', 'недели', 'недель'),
-            'past' => $lessons,
+            'past' => $lessons->concat($cancelled)->sortByDesc(fn ($l) => $l['start']->timestamp)->values(),
             'hasEarlier' => (clone $base)->where('started_at', '<', $since)->exists(),
         ];
     }
