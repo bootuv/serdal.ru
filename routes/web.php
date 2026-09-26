@@ -37,8 +37,18 @@ Route::post('/payments/yookassa/callback', [\App\Http\Controllers\SubscriptionPa
     ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class])
     ->name('subscription.payment.callback');
 
-// Unified login - redirect to admin panel login
-Route::get('/login', fn() => redirect('/admin/login'))->name('login');
+// Вход для всех ролей и восстановление пароля (docs/design/BRAND.md, экраны без сайдбара).
+// Страницы входа старых панелей Filament переадресуют сюда (RedirectToCabinetLogin).
+Route::get('/login', \App\Livewire\Auth\Login::class)->name('login');
+Route::get('/forgot-password', \App\Livewire\Auth\ForgotPassword::class)->name('password.request');
+Route::get('/reset-password/{token}', \App\Livewire\Auth\ResetPassword::class)->name('password.reset');
+Route::post('/logout', function (\Illuminate\Http\Request $request) {
+    \Illuminate\Support\Facades\Auth::logout();
+    $request->session()->invalidate();
+    $request->session()->regenerateToken();
+
+    return redirect()->route('login');
+})->name('logout');
 
 // Teacher choice page - choose between new LMS and old Greenlight
 Route::get('/welcome', fn() => view('welcome-choice'))->name('teacher.choice');

@@ -1,7 +1,7 @@
 <div class="flex flex-col gap-6 lg:gap-8">
     <x-ui.page-head title="Профиль" :sub="'Ученик · на ' . \App\Support\Seo::SITE_NAME . ' с ' . $since">
         <x-slot:actions>
-            <form method="POST" action="{{ route('filament.student.auth.logout') }}">
+            <form method="POST" action="{{ route('logout') }}">
                 @csrf
                 <x-ui.btn type="submit" icon="logout">Выйти</x-ui.btn>
             </form>

@@ -3,16 +3,27 @@
 namespace App\Livewire;
 
 use App\Models\User;
-use Filament\Notifications\Notification;
+use App\Notifications\EmailVerificationCode;
+use App\Notifications\NewTeacher;
+use App\Notifications\StudentAcceptedInvite;
+use Illuminate\Auth\Events\Registered;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-use Livewire\Component;
+use Illuminate\Support\Facades\Notification;
 use Livewire\Attributes\Layout;
-use Illuminate\Auth\Events\Registered;
 use Livewire\Attributes\Locked;
+use Livewire\Component;
 
+/**
+ * Регистрация ученика по ссылке-приглашению учителя (/register/invite, подписанная ссылка).
+ * Шаг 1 — анкета и согласие, шаг 2 — код из письма. Уже вошедший ученик сразу привязывается к учителю.
+ */
+#[Layout('components.layouts.auth', ['title' => 'Приглашение от учителя'])]
 class RegisterInvitedStudent extends Component
 {
+    /** Сколько минут действует код из письма. */
+    public const CODE_TTL_MINUTES = 30;
+
     public $first_name;
     public $last_name;
     public $middle_name;
@@ -20,15 +31,23 @@ class RegisterInvitedStudent extends Component
     public $phone;
     public $password;
     public $password_confirmation;
+    public bool $agree = false;
+
     #[Locked]
     public $teacher_id;
 
     public $step = 1;
     public $verification_code;
 
+    /** Код отправлен повторно — показываем бейдж «Новый код отправлен». */
+    public bool $codeResent = false;
+
+    /** Почта уже зарегистрирована — под полем ссылка «Войти». */
+    public bool $emailTaken = false;
+
     public function mount()
     {
-        if (!request()->hasValidSignature()) {
+        if (! request()->hasValidSignature()) {
             abort(403, 'Ссылка приглашения недействительна или устарела.');
         }
 
@@ -40,15 +59,13 @@ class RegisterInvitedStudent extends Component
             if ($this->teacher_id) {
                 $teacher = User::find($this->teacher_id);
                 if ($teacher) {
-                    // Attach the student to the teacher
+                    // Привязываем ученика к учителю
                     $changes = $teacher->students()->syncWithoutDetaching([$user->id]);
 
                     if (count($changes['attached']) > 0) {
-                        // Notify teacher about accepted invite
-                        $teacher->notify(new \App\Notifications\StudentAcceptedInvite($user));
-
-                        // Notify student about new teacher
-                        $user->notify(new \App\Notifications\NewTeacher($teacher));
+                        // Учителю — «ученик принял приглашение», ученику — «новый учитель»
+                        $teacher->notify(new StudentAcceptedInvite($user));
+                        $user->notify(new NewTeacher($teacher));
 
                         session()->flash('toast', 'Вы добавлены в список учеников');
                     } else {
@@ -63,25 +80,40 @@ class RegisterInvitedStudent extends Component
 
     public function register()
     {
-        if (User::where('email', $this->email)->exists()) {
-            $loginUrl = route('login');
-            $this->addError('email', "Этот Email уже используется. <a href='{$loginUrl}' class='font-bold underline hover:text-amber-800'>Войти в аккаунт?</a>");
+        $this->emailTaken = false;
+        $this->resetErrorBag();
+
+        if ($this->email && User::where('email', $this->email)->exists()) {
+            $this->emailTaken = true;
+            $this->addError('email', 'Этот email уже зарегистрирован.');
+
             return;
         }
 
         $this->validate([
-            'first_name' => ['required', 'string', 'max:255'],
             'last_name' => ['required', 'string', 'max:255'],
+            'first_name' => ['required', 'string', 'max:255'],
             'middle_name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255'],
             'phone' => ['nullable', 'string', 'max:20'],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
+            'agree' => ['accepted'],
+        ], [
+            'last_name.required' => 'Укажите фамилию',
+            'first_name.required' => 'Укажите имя',
+            'middle_name.required' => 'Укажите отчество',
+            'email.required' => 'Укажите email',
+            'email.email' => 'Проверьте адрес — в нём ошибка',
+            'phone.max' => 'Слишком длинный номер',
+            'password.required' => 'Придумайте пароль',
+            'password.min' => 'Пароль — минимум 8 символов',
+            'password.confirmed' => 'Пароли не совпадают',
+            'agree.accepted' => 'Отметьте согласие, чтобы продолжить',
         ]);
 
-        // Генерируем код
-        $code = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+        $code = $this->generateCode();
 
-        // Сохраняем данные в сессию
+        // Данные анкеты ждут подтверждения почты в сессии
         session()->put('registration_data', [
             'first_name' => $this->first_name,
             'last_name' => $this->last_name,
@@ -91,32 +123,42 @@ class RegisterInvitedStudent extends Component
             'password' => $this->password,
             'teacher_id' => $this->teacher_id,
             'verification_code' => $code,
-            'expires_at' => now()->addMinutes(30),
+            'expires_at' => now()->addMinutes(self::CODE_TTL_MINUTES),
         ]);
 
-        // Отправляем код
-        \Illuminate\Support\Facades\Notification::route('mail', $this->email)
-            ->notify(new \App\Notifications\EmailVerificationCode($code));
+        Notification::route('mail', $this->email)->notify(new EmailVerificationCode($code));
 
+        $this->verification_code = null;
+        $this->codeResent = false;
         $this->step = 2;
     }
 
     public function verifyAndRegister()
     {
+        $this->resetErrorBag();
         $data = session()->get('registration_data');
 
-        if (!$data || now()->greaterThan($data['expires_at'])) {
+        if (! $data || now()->greaterThan($data['expires_at'])) {
             $this->step = 1;
-            $this->addError('verification_code', 'Срок действия кода истек. Пожалуйста, заполните форму заново.');
+            $this->addError('code_expired', 'Код устарел — запросите новый.');
+
             return;
         }
 
-        if ($this->verification_code !== $data['verification_code']) {
-            $this->addError('verification_code', 'Неверный код подтверждения.');
+        $code = preg_replace('/\D/', '', (string) $this->verification_code);
+
+        if (strlen($code) !== 6) {
+            $this->addError('verification_code', 'Введите все 6 цифр из письма');
+
             return;
         }
 
-        // Создаем пользователя
+        if ($code !== $data['verification_code']) {
+            $this->addError('verification_code', 'Код не подходит — проверьте цифры в письме');
+
+            return;
+        }
+
         $user = User::create([
             'first_name' => $data['first_name'],
             'last_name' => $data['last_name'],
@@ -125,16 +167,17 @@ class RegisterInvitedStudent extends Component
             'phone' => $data['phone'],
             'password' => Hash::make($data['password']),
             'role' => 'student',
-            'email_verified_at' => now(),
         ]);
+        // Почта подтверждена кодом (email_verified_at нет в $fillable — ставим напрямую)
+        $user->forceFill(['email_verified_at' => now()])->save();
 
         // Привязываем ученика к учителю
         if ($data['teacher_id']) {
             $teacher = User::find($data['teacher_id']);
             if ($teacher) {
                 $teacher->students()->syncWithoutDetaching([$user->id]);
-                $teacher->notify(new \App\Notifications\StudentAcceptedInvite($user));
-                $user->notify(new \App\Notifications\NewTeacher($teacher));
+                $teacher->notify(new StudentAcceptedInvite($user));
+                $user->notify(new NewTeacher($teacher));
             }
         }
 
@@ -151,33 +194,54 @@ class RegisterInvitedStudent extends Component
     {
         $data = session()->get('registration_data');
 
-        if (!$data) {
+        if (! $data) {
             $this->step = 1;
+            $this->addError('code_expired', 'Код устарел — запросите новый.');
+
             return;
         }
 
-        $code = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+        $code = $this->generateCode();
         $data['verification_code'] = $code;
-        $data['expires_at'] = now()->addMinutes(30);
+        $data['expires_at'] = now()->addMinutes(self::CODE_TTL_MINUTES);
         session()->put('registration_data', $data);
 
-        \Illuminate\Support\Facades\Notification::route('mail', $data['email'])
-            ->notify(new \App\Notifications\EmailVerificationCode($code));
+        Notification::route('mail', $data['email'])->notify(new EmailVerificationCode($code));
 
-        Notification::make()
-            ->title('Код отправлен повторно')
-            ->success()
-            ->send();
+        $this->resetErrorBag('verification_code');
+        $this->codeResent = true;
     }
 
     public function backToForm()
     {
+        $this->resetErrorBag();
+        $this->codeResent = false;
         $this->step = 1;
     }
 
-    #[Layout('components.layouts.app')]
+    private function generateCode(): string
+    {
+        return str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+    }
+
+    /** «Мария Соколова» — имя и фамилия учителя для заголовка; null — учитель не найден. */
+    private function teacherName(): ?string
+    {
+        $teacher = $this->teacher_id ? User::find($this->teacher_id) : null;
+        if (! $teacher) {
+            return null;
+        }
+
+        $short = trim($teacher->first_name . ' ' . $teacher->last_name);
+
+        return $short !== '' ? $short : ($teacher->name ?: null);
+    }
+
     public function render()
     {
-        return view('livewire.register-invited-student');
+        return view('livewire.auth.invite', [
+            'teacherName' => $this->teacherName(),
+            'ttl' => self::CODE_TTL_MINUTES,
+        ]);
     }
 }

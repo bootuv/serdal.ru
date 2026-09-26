@@ -29,6 +29,8 @@ const sizes = {
     dialogs: '360px', // колонка диалогов в «Сообщениях»
     bubble: '480px',  // ширина сообщения в чате
     drawer: '440px',  // боковая панель (уведомления)
+    'auth-form': '440px', // форма на экранах входа
+    'auth-side': '720px', // левая колонка экранов входа (справа — фото)
     screen: '100vh',  // сайдбар и экран «Сообщения» на компьютере
     'modal-s': '480px',
     'modal-m': '640px',
@@ -40,7 +42,9 @@ export default {
     content: [
         './resources/views/components/ui/**/*.blade.php',
         './resources/views/components/layouts/cabinet*.blade.php',
+        './resources/views/components/layouts/auth.blade.php',
         './resources/views/livewire/cabinet/**/*.blade.php',
+        './resources/views/livewire/auth/**/*.blade.php',
         './app/Livewire/Cabinet/**/*.php',
     ],
     theme: {

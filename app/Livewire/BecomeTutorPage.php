@@ -2,33 +2,48 @@
 
 namespace App\Livewire;
 
+use App\Jobs\SendTeacherApplicationTelegramNotification;
+use App\Livewire\Cabinet\Teacher\Onboarding;
+use App\Mail\NewTeacherApplicationMail;
 use App\Models\Direct;
 use App\Models\Subject;
 use App\Models\Tariff;
 use App\Models\TeacherApplication;
 use App\Models\User;
-use Filament\Forms;
-use Filament\Forms\Form;
-use Filament\Forms\Concerns\InteractsWithForms;
-use Filament\Forms\Contracts\HasForms;
-use Filament\Notifications\Notification;
+use App\Notifications\TeacherApplicationReceived;
+use App\Services\ReferralService;
+use App\Services\TeacherProfileService;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Validation\Rule;
+use Livewire\Attributes\Layout;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 
-use Livewire\Attributes\Layout;
-
-#[Layout('components.layouts.app')]
-class BecomeTutorPage extends Component implements HasForms
+/**
+ * Заявка учителя (/application): анкета → «Заявка отправлена».
+ * Заявка уходит админам (уведомление, письмо, Telegram); после одобрения учитель получает доступ в кабинет.
+ */
+#[Layout('components.layouts.auth', ['title' => 'Заявка учителя', 'index' => true])]
+class BecomeTutorPage extends Component
 {
-    use InteractsWithForms;
+    /** Поля анкеты (ключи совпадают с колонками teacher_applications). */
+    public array $data = [];
 
-    public ?array $data = [];
     public bool $isSubmitted = false;
+
+    /** Почта уже зарегистрирована — под полем ссылка «Войти в кабинет». */
+    public bool $emailTaken = false;
+
+    /** Имя и почта отправленной заявки — для экрана «Заявка отправлена». */
+    public ?string $sentName = null;
+    public ?string $sentEmail = null;
 
     /** Тариф, выбранный на странице тарифов (?tariff=slug) — сохраняется в заявку. */
     public ?int $desiredTariffId = null;
 
     /** Реферальный код пригласившего учителя (из cookie ссылки /r/{code} или ?ref=). */
-    #[\Livewire\Attributes\Locked]
+    #[Locked]
     public ?string $referralCode = null;
 
     public function mount(): void
@@ -37,16 +52,31 @@ class BecomeTutorPage extends Component implements HasForms
             $this->desiredTariffId = Tariff::active()->where('slug', $slug)->value('id');
         }
 
-        $this->referralCode = request('ref') ?: request()->cookie(\App\Services\ReferralService::COOKIE);
+        $this->referralCode = request('ref') ?: request()->cookie(ReferralService::COOKIE);
 
-        $this->form->fill();
+        $this->resetForm();
+    }
+
+    private function resetForm(): void
+    {
+        $this->data = [
+            'last_name' => '',
+            'first_name' => '',
+            'middle_name' => '',
+            'email' => '',
+            'phone' => '',
+            'subjects' => [],
+            'directs' => [],
+            'grade' => [],
+            'about' => '',
+        ];
     }
 
     /** Пригласивший учитель — показываем плашку «Вас пригласил…». */
     public function referrer(): ?User
     {
-        return \App\Services\ReferralService::enabled()
-            ? \App\Services\ReferralService::findReferrer($this->referralCode)
+        return ReferralService::enabled()
+            ? ReferralService::findReferrer($this->referralCode)
             : null;
     }
 
@@ -55,170 +85,138 @@ class BecomeTutorPage extends Component implements HasForms
         return $this->desiredTariffId ? Tariff::find($this->desiredTariffId) : null;
     }
 
-    public function form(Form $form): Form
+    /** Чипы «Что вы преподаёте» и «Направления»: выбрать / снять. */
+    public function toggle(string $field, int $id): void
     {
-        return $form
-            ->schema([
-                Forms\Components\Placeholder::make('desired_tariff_note')
-                    ->hiddenLabel()
-                    ->content(function () {
-                        $tariff = $this->desiredTariff();
+        if (! in_array($field, ['subjects', 'directs'], true)) {
+            return;
+        }
 
-                        return 'Вы выбрали тариф «' . $tariff->name . '»'
-                            . ($tariff->isFree() ? ' (бесплатный)' : ' — ' . number_format($tariff->price, 0, ',', ' ') . ' ₽/мес')
-                            . '. После одобрения заявки и настройки профиля '
-                            . ($tariff->isFree() ? 'он подключится автоматически.' : 'вы сможете сразу перейти к его оплате.');
-                    })
-                    ->visible(fn() => $this->desiredTariff() !== null),
-                Forms\Components\Section::make('Личные данные')
-                    ->schema([
-                        Forms\Components\Group::make([
-                            Forms\Components\TextInput::make('last_name')
-                                ->label('Фамилия')
-                                ->required()
-                                ->maxLength(255),
-                            Forms\Components\TextInput::make('first_name')
-                                ->label('Имя')
-                                ->required()
-                                ->maxLength(255),
-                            Forms\Components\TextInput::make('middle_name')
-                                ->label('Отчество')
-                                ->required() // Теперь обязательно
-                                ->maxLength(255),
-                        ])->columns(3)->columnSpanFull(),
+        $current = array_map('intval', (array) ($this->data[$field] ?? []));
+        $this->data[$field] = in_array($id, $current, true)
+            ? array_values(array_diff($current, [$id]))
+            : [...$current, $id];
+        $this->resetErrorBag('data.' . $field);
+    }
 
-                        Forms\Components\TextInput::make('email')
-                            ->label('Электронная почта')
-                            ->email()
-                            ->required()
-                            ->maxLength(255)
-                            ->columnSpanFull()
-                            ->unique('users', 'email')
-                            ->validationMessages([
-                                'unique' => 'Пользователь с таким Email уже зарегистрирован.',
-                            ])
-                            ->rules([
-                                function () {
-                                    return function (string $attribute, $value, \Closure $fail) {
-                                        if (\App\Models\TeacherApplication::where('email', $value)->where('status', 'pending')->exists()) {
-                                            $fail('Ваша заявка уже отправлена и находится на рассмотрении.');
-                                        }
-                                    };
-                                },
-                            ]),
+    /** Чипы «С кем занимаетесь» — группы классов, как в первых шагах кабинета. */
+    public function toggleGradeGroup(string $key): void
+    {
+        $members = Onboarding::GRADE_GROUPS[$key][1] ?? null;
+        if (! $members) {
+            return;
+        }
 
-                        Forms\Components\TextInput::make('phone')
-                            ->tel()
-                            ->label('Телефон')
-                            ->required()
-                            ->columnSpanFull(), // Выносим телефон из группы соцсетей
-                    ]),
+        $grades = array_map('strval', (array) ($this->data['grade'] ?? []));
+        $this->data['grade'] = empty(array_diff($members, $grades))
+            ? array_values(array_diff($grades, $members))
+            : TeacherProfileService::gradesForForm([...$grades, ...$members]);
+        $this->resetErrorBag('data.grade');
+    }
 
-                Forms\Components\Section::make('Профессиональные навыки')
-                    ->schema([
-                        Forms\Components\Select::make('subjects')
-                            ->label('Предметы')
-                            ->multiple()
-                            ->options(Subject::all()->pluck('name', 'id'))
-                            ->preload()
-                            ->searchable()
-                            ->required(),
+    protected function rules(): array
+    {
+        return [
+            'data.last_name' => ['required', 'string', 'max:255'],
+            'data.first_name' => ['required', 'string', 'max:255'],
+            'data.middle_name' => ['required', 'string', 'max:255'],
+            'data.email' => [
+                'required', 'string', 'email', 'max:255',
+                Rule::unique('users', 'email'),
+                function (string $attribute, $value, \Closure $fail) {
+                    if (TeacherApplication::where('email', $value)->where('status', 'pending')->exists()) {
+                        $fail('Ваша заявка уже отправлена и находится на рассмотрении.');
+                    }
+                },
+            ],
+            // Как у поля tel() в прежней форме Filament
+            'data.phone' => ['required', 'string', 'max:255', 'regex:/^[+]*[(]{0,1}[0-9]{1,4}[)]{0,1}[-\s\.\/0-9]*$/'],
+            'data.subjects' => ['required', 'array', 'min:1'],
+            'data.subjects.*' => ['integer', Rule::exists('subjects', 'id')],
+            // Направления обязательны, только если они заведены в справочнике
+            'data.directs' => Direct::query()->exists() ? ['required', 'array', 'min:1'] : ['array'],
+            'data.directs.*' => ['integer', Rule::exists('directs', 'id')],
+            'data.grade' => ['required', 'array', 'min:1'],
+            'data.grade.*' => [Rule::in(array_map('strval', array_keys(TeacherProfileService::GRADES)))],
+            'data.about' => ['required', 'string'],
+        ];
+    }
 
-                        Forms\Components\Select::make('directs')
-                            ->label('Направления')
-                            ->multiple()
-                            ->options(Direct::all()->pluck('name', 'id'))
-                            ->preload()
-                            ->searchable()
-                            ->required(),
-
-                        Forms\Components\Select::make('grade')
-                            ->label('Классы')
-                            ->multiple()
-                            ->options([
-                                'preschool' => 'Дошкольники',
-                                '1' => '1 класс',
-                                '2' => '2 класс',
-                                '3' => '3 класс',
-                                '4' => '4 класс',
-                                '5' => '5 класс',
-                                '6' => '6 класс',
-                                '7' => '7 класс',
-                                '8' => '8 класс',
-                                '9' => '9 класс',
-                                '10' => '10 класс',
-                                '11' => '11 класс',
-                                'adults' => 'Взрослые',
-                            ])
-                            ->required(),
-
-                        Forms\Components\Textarea::make('about') // Changed to Textarea for simple public form, or RichEditor? Use Textarea for simplicity first.
-                            ->label('О себе')
-                            ->rows(5)
-                            ->required()
-                            ->columnSpanFull(),
-                    ]),
-            ])
-            ->statePath('data');
+    protected function messages(): array
+    {
+        return [
+            'data.last_name.required' => 'Укажите фамилию',
+            'data.first_name.required' => 'Укажите имя',
+            'data.middle_name.required' => 'Укажите отчество',
+            'data.email.required' => 'Укажите почту',
+            'data.email.email' => 'Проверьте адрес — в нём ошибка',
+            'data.email.unique' => 'Пользователь с такой почтой уже зарегистрирован.',
+            'data.phone.required' => 'Укажите телефон',
+            'data.phone.regex' => 'Проверьте номер — только цифры, пробелы, скобки и дефисы',
+            'data.subjects.required' => 'Выберите хотя бы один предмет',
+            'data.subjects.min' => 'Выберите хотя бы один предмет',
+            'data.subjects.*' => 'Выберите предмет из списка',
+            'data.directs.required' => 'Выберите хотя бы одно направление',
+            'data.directs.min' => 'Выберите хотя бы одно направление',
+            'data.directs.*' => 'Выберите направление из списка',
+            'data.grade.required' => 'Выберите, с кем занимаетесь',
+            'data.grade.min' => 'Выберите, с кем занимаетесь',
+            'data.grade.*' => 'Выберите классы из списка',
+            'data.about.required' => 'Расскажите пару слов о себе',
+        ];
     }
 
     public function create(): void
     {
-        try {
-            $data = $this->form->getState();
-        } catch (\Illuminate\Validation\ValidationException $exception) {
-            Notification::make()
-                ->title('Не удалось отправить заявку')
-                ->body(implode('<br>', collect($exception->validator->errors()->all())->unique()->all()))
-                ->danger()
-                ->persistent()
-                ->send();
+        $data = array_map(fn ($v) => is_string($v) ? trim($v) : $v, $this->data);
+        $this->data = $data;
+        $this->emailTaken = filled($data['email'] ?? null) && User::where('email', $data['email'])->exists();
 
-            throw $exception;
-        }
+        $validated = $this->validate()['data'];
+        $validated['subjects'] = array_map('intval', $validated['subjects']);
+        $validated['directs'] = array_map('intval', $validated['directs']);
+        $validated['grade'] = TeacherProfileService::gradesForForm($validated['grade']);
 
-        // Создаем заявку
-        $referrer = \App\Services\ReferralService::referrerForApplication($this->referralCode, $data['email'] ?? null);
+        $referrer = ReferralService::referrerForApplication($this->referralCode, $validated['email'] ?? null);
 
-        $application = TeacherApplication::create($data + [
+        $application = TeacherApplication::create($validated + [
             'desired_tariff_id' => $this->desiredTariffId,
             'referred_by_id' => $referrer?->id,
         ]);
 
         // Telegram-уведомление в чат техслужбы
-        \App\Jobs\SendTeacherApplicationTelegramNotification::dispatch($application);
+        SendTeacherApplicationTelegramNotification::dispatch($application);
 
-        // Отправка уведомления администраторам
-        $admins = \App\Models\User::where('role', \App\Models\User::ROLE_ADMIN)->get();
+        // Уведомление администраторам: в админке и письмом
+        $admins = User::where('role', User::ROLE_ADMIN)->get();
 
         foreach ($admins as $admin) {
-            // Database notification
-            $admin->notify(new \App\Notifications\TeacherApplicationReceived($application));
+            $admin->notify(new TeacherApplicationReceived($application));
 
-            // Email notification
             try {
-                \Illuminate\Support\Facades\Mail::to($admin->email)
-                    ->send(new \App\Mail\NewTeacherApplicationMail($application));
+                Mail::to($admin->email)->send(new NewTeacherApplicationMail($application));
             } catch (\Exception $e) {
-                \Illuminate\Support\Facades\Log::error('Ошибка отправки уведомления администратору (' . $admin->email . '): ' . $e->getMessage());
+                Log::error('Ошибка отправки уведомления администратору (' . $admin->email . '): ' . $e->getMessage());
             }
         }
 
-        // Устанавливаем флаг успешной отправки
+        $this->sentName = $application->first_name;
+        $this->sentEmail = $application->email;
         $this->isSubmitted = true;
-
-        // Очищаем форму
-        $this->form->fill();
-
-        Notification::make()
-            ->title('Заявка успешно отправлена!')
-            ->body('Мы рассмотрим её в ближайшее время и пришлем ответ на почту.')
-            ->success()
-            ->send();
+        $this->resetForm();
     }
 
     public function render()
     {
-        return view('livewire.become-tutor-page');
+        $referrer = $this->isSubmitted ? null : $this->referrer();
+
+        return view('livewire.auth.application', [
+            'subjectOptions' => $this->isSubmitted ? collect() : Subject::orderBy('name')->pluck('name', 'id'),
+            'directOptions' => $this->isSubmitted ? collect() : Direct::orderBy('name')->pluck('name', 'id'),
+            'gradeGroups' => Onboarding::GRADE_GROUPS,
+            'referrer' => $referrer,
+            'referralBonus' => $referrer ? ReferralService::referredBonus() : 0,
+            'tariff' => $this->isSubmitted ? null : $this->desiredTariff(),
+        ]);
     }
 }

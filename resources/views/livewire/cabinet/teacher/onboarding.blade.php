@@ -25,7 +25,7 @@
         </ol>
         <div class="flex flex-col gap-2 text-t2 text-muted">
             <span>Есть вопросы? <a href="mailto:info@serdal.ru" class="link">info@serdal.ru</a></span>
-            <form method="POST" action="{{ route('filament.app.auth.logout') }}">
+            <form method="POST" action="{{ route('logout') }}">
                 @csrf
                 <button type="submit" class="link">Выйти</button>
             </form>
@@ -179,7 +179,7 @@
             </footer>
             <div class="flex flex-wrap items-center gap-2 text-t2 text-muted lg:hidden">
                 <span>Есть вопросы? <a href="mailto:info@serdal.ru" class="link">info@serdal.ru</a></span>
-                <form method="POST" action="{{ route('filament.app.auth.logout') }}">
+                <form method="POST" action="{{ route('logout') }}">
                     @csrf
                     <button type="submit" class="link">Выйти</button>
                 </form>

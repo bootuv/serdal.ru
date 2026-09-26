@@ -99,7 +99,7 @@ class StudentProfileTest extends TestCase
             ->assertSee('Личные данные')
             ->assertSee('Алина Смирнова')
             ->assertSee('Уведомления')
-            ->assertSee(route('filament.student.auth.logout'), false)
+            ->assertSee(route('logout'), false)
             ->assertSee('Выйти');
 
         Livewire::actingAs($student)->test(Profile::class)->assertSet('grade', '10');

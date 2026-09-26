@@ -144,7 +144,7 @@
                                     hint="Сменить почту можно через поддержку" />
                         <x-ui.field label="Новый пароль" name="password" type="password" wire:model="password" autocomplete="new-password"
                                     placeholder="Оставьте пустым, чтобы не менять" />
-                        <form method="POST" action="{{ route('filament.app.auth.logout') }}">
+                        <form method="POST" action="{{ route('logout') }}">
                             @csrf
                             <button type="submit" class="link inline-flex items-center gap-2 text-t2"><x-ui.icon name="logout" size="s" />Выйти из кабинета</button>
                         </form>

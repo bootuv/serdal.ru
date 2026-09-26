@@ -17,9 +17,13 @@ class BrandRulesTest extends TestCase
         $dirs = [
             resource_path('views/components/ui'),
             resource_path('views/livewire/cabinet'),
+            resource_path('views/livewire/auth'),
         ];
-        $files = [resource_path('views/components/layouts/cabinet.blade.php') => null];
+        $files = [resource_path('views/components/layouts/cabinet.blade.php') => null, resource_path('views/components/layouts/auth.blade.php') => null];
         foreach ($dirs as $dir) {
+            if (! is_dir($dir)) {
+                continue;
+            }
             foreach (File::allFiles($dir) as $f) {
                 $files[$f->getPathname()] = null;
             }
