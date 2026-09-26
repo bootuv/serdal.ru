@@ -1,8 +1,16 @@
-{{-- Модальное окно. Показывается, пока родитель рендерит его (@if). close — выражение Livewire для закрытия.
+{{-- Модальное окно. Показывается, пока родитель рендерит его (@if). close — метод Livewire или выражение ($set(…)) для закрытия.
      width: s (480, подтверждение) | m (640, форма) | l (960, превью). Слоты: default (тело), footer (кнопки справа), note (слева в подвале). --}}
 @props(['title', 'sub' => null, 'close', 'width' => 'm'])
-@php $w = ['s' => 'max-w-modal-s', 'm' => 'max-w-modal-m', 'l' => 'max-w-modal-l'][$width]; @endphp
-<div class="fixed inset-0 z-20 flex items-center justify-center bg-scrim p-4 lg:p-8" x-data x-on:keydown.escape.window="$wire.{{ $close }}">
+@php
+    $w = ['s' => 'max-w-modal-s', 'm' => 'max-w-modal-m', 'l' => 'max-w-modal-l'][$width];
+    $call = '$wire.' . (str_contains($close, '(') ? $close : $close . '()');
+@endphp
+{{-- Закрывается крестиком, Esc и кликом по затемнению. Клик считается, только если и нажатие, и отпускание
+     пришлись на затемнение: выделение текста внутри окна, отпущенное снаружи, окно не закрывает. --}}
+<div class="fixed inset-0 z-20 flex items-center justify-center bg-scrim p-4 lg:p-8" x-data="{ down: false }"
+     x-on:keydown.escape.window="if (! document.body.dataset.lightbox) {{ $call }}"
+     x-on:mousedown="down = $event.target === $el"
+     x-on:click="if (down && $event.target === $el) {{ $call }}; down = false">
     <div role="dialog" aria-modal="true" aria-labelledby="modal-title" {{ $attributes->class("flex max-h-full w-full flex-col overflow-hidden rounded-xl bg-white shadow-modal $w") }}>
         <div class="flex items-start justify-between gap-4 border-b border-line px-6 py-4">
             <div class="flex min-w-0 flex-col gap-1">

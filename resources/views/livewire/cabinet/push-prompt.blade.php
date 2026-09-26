@@ -18,7 +18,8 @@
         },
     }">
     <template x-if="ask">
-        <div class="fixed inset-0 z-20 flex items-center justify-center bg-scrim p-4" x-on:keydown.escape.window="ask = false; $wire.later()">
+        <div class="fixed inset-0 z-20 flex items-center justify-center bg-scrim p-4" x-data="{ down: false }" x-on:keydown.escape.window="ask = false; $wire.later()"
+             x-on:mousedown="down = $event.target === $el" x-on:click="if (down && $event.target === $el) { ask = false; $wire.later() } down = false">
             <div role="dialog" aria-modal="true" aria-labelledby="push-title" class="flex w-full max-w-modal-s flex-col overflow-hidden rounded-xl bg-white shadow-modal">
                 <div class="flex items-start justify-between gap-4 border-b border-line px-6 py-4">
                     <h2 id="push-title" class="text-h2 font-medium">Включить уведомления?</h2>

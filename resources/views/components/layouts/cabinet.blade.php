@@ -209,6 +209,7 @@
 
 {{-- Сбой запроса Livewire (resources/js/cabinet.js): 419 — «Страница устарела», 500 — «Что-то пошло не так» (макеты SySession, SyError) --}}
 <div x-data="{ kind: null }" x-on:cabinet-request-failed.window="kind = $event.detail.kind" x-show="kind" x-cloak
+     x-on:keydown.escape.window="kind = null" x-on:click.self="kind = null"
      class="fixed inset-0 z-40 flex items-center justify-center bg-scrim p-4">
     <div role="alertdialog" aria-modal="true" aria-labelledby="fail-title" class="flex w-full max-w-modal-s flex-col items-center gap-6 rounded-xl bg-white p-8 text-center shadow-modal">
         <span class="flex size-16 items-center justify-center rounded-lg bg-soft" aria-hidden="true"><x-ui.icon name="clock" x-show="kind === 'expired'" /><x-ui.icon name="help" x-show="kind !== 'expired'" /></span>
