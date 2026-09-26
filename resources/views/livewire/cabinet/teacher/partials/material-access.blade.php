@@ -10,10 +10,7 @@
     @else
         <div class="flex flex-col gap-2" role="group" aria-label="Ученики и группы">
             @foreach ($roomOptions as $room)
-                <label wire:key="{{ $roomsModel }}-{{ $room['id'] }}" class="flex min-h-11 cursor-pointer items-center gap-3 rounded px-4 py-2 shadow-outline hover:shadow-outline-ink">
-                    <input type="checkbox" value="{{ $room['id'] }}" wire:model="{{ $roomsModel }}" class="size-5 shrink-0 accent-ink">
-                    <span class="min-w-0 truncate text-t1-s">{{ $room['label'] }}</span>
-                </label>
+                <x-ui.option value="{{ $room['id'] }}" wire:model="{{ $roomsModel }}" wire:key="{{ $roomsModel }}-{{ $room['id'] }}" :title="$room['label']" />
             @endforeach
         </div>
         @error($roomsModel)<span class="text-t2 font-medium text-danger-fg">{{ $message }}</span>@enderror

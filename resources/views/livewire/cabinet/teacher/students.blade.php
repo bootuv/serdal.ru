@@ -184,15 +184,7 @@
 
             @if ($inviteTab === 'link')
                 <div class="flex flex-col gap-6">
-                    <div class="flex flex-col gap-2" x-data="{ copied: false, link: @js($invite['link']) }">
-                        <label for="invite-link" class="text-t2 font-medium">Ссылка-приглашение</label>
-                        <div class="flex items-center gap-2">
-                            <input id="invite-link" type="text" readonly value="{{ $invite['link'] }}" class="field min-w-0 flex-1 bg-soft text-muted shadow-none" x-on:focus="$el.select()">
-                            <x-ui.btn x-show="! copied" x-on:click="navigator.clipboard.writeText(link); copied = true; $dispatch('toast', { message: 'Ссылка скопирована' })">Скопировать</x-ui.btn>
-                            <x-ui.badge tone="ok" x-show="copied" x-cloak>Скопировано</x-ui.badge>
-                        </div>
-                        <span class="text-t3 text-muted">Одна для всех учеников и не устаревает</span>
-                    </div>
+                    <x-ui.copy-field label="Ссылка-приглашение" id="invite-link" :value="$invite['link']" hint="Одна для всех учеников и не устаревает" />
                     <x-ui.field label="Или отправим на почту" name="inviteEmail" type="email" placeholder="Email ученика" wire:model="inviteEmail" wire:keydown.enter="sendInvite" />
                 </div>
             @else

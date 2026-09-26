@@ -16,14 +16,7 @@
                     <h2 id="rf-link" class="text-h2 font-medium">Пригласите коллегу — получите +{{ $lessons($referrerBonus) }}</h2>
                     <p class="text-t2 text-muted">Когда учитель, которого вы пригласили, оплатит любой тариф, вам начислится +{{ $lessons($referrerBonus) }}@if ($referredBonus > 0), а ему — +{{ $lessons($referredBonus) }} в подарок@endif.</p>
                 </div>
-                <div class="flex flex-col gap-3 lg:flex-row lg:items-end" x-data="{ url: @js($inviteUrl) }">
-                    <label class="flex min-w-0 flex-1 flex-col gap-2">
-                        <span class="text-t2 font-medium">Ваша ссылка</span>
-                        <input type="text" readonly value="{{ $inviteUrl }}" class="field" x-on:focus="$el.select()">
-                    </label>
-                    <x-ui.btn variant="primary" icon="share"
-                              x-on:click="navigator.clipboard.writeText(url); $dispatch('toast', { message: 'Ссылка скопирована' })">Скопировать ссылку</x-ui.btn>
-                </div>
+                <x-ui.copy-field label="Ваша ссылка" :value="$inviteUrl" variant="primary" button="Скопировать ссылку" />
                 <div class="flex flex-wrap items-center gap-2">
                     <x-ui.btn size="s" :href="$telegramUrl" target="_blank" rel="noopener">Telegram</x-ui.btn>
                     <x-ui.btn size="s" :href="$whatsappUrl" target="_blank" rel="noopener">WhatsApp</x-ui.btn>

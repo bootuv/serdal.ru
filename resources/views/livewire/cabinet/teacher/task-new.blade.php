@@ -20,15 +20,7 @@
             @if ($students->isNotEmpty())
                 <div class="flex flex-wrap gap-2">
                     @foreach ($students as $s)
-                        @php $on = in_array($s->id, $studentIds, true); @endphp
-                        <button type="button" wire:click="toggleStudent({{ $s->id }})" aria-pressed="{{ $on ? 'true' : 'false' }}" wire:key="st-{{ $s->id }}"
-                                @class(['inline-flex h-11 max-w-full items-center gap-2 rounded pl-1 pr-3 text-t1-s font-medium',
-                                        'bg-mint shadow-outline-ink' => $on,
-                                        'bg-white shadow-outline hover:shadow-outline-ink' => ! $on])>
-                            <x-ui.avatar :user="$s" />
-                            <span class="truncate">{{ $s->name }}</span>
-                            @if ($on)<x-ui.icon name="check" size="s" />@endif
-                        </button>
+                        <x-ui.pick :user="$s" :on="in_array($s->id, $studentIds, true)" wire:click="toggleStudent({{ $s->id }})" wire:key="st-{{ $s->id }}" />
                     @endforeach
                 </div>
             @endif

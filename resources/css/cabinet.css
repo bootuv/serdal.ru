@@ -34,5 +34,8 @@
     .ProseMirror p.is-editor-empty:first-child::before { @apply pointer-events-none float-left h-0 text-faint; content: attr(data-placeholder); }
 
     /* Поле ввода */
+    /* Выбранный вариант (x-ui.option) — тёмная обводка */
+    .option:has(input:checked) { @apply shadow-selected; }
+
     .field { @apply h-11 w-full rounded bg-white px-4 text-t1 text-ink shadow-outline outline-none placeholder:text-faint focus:shadow-outline-ink; }
 }

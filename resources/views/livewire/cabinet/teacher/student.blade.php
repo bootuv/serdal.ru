@@ -223,14 +223,13 @@
                 </div>
                 <div class="flex flex-col gap-2" role="group" aria-label="Занятия">
                     @foreach ($modalData['rows'] as $row)
-                        <label class="flex cursor-pointer items-center gap-3 rounded-lg p-3 shadow-outline hover:shadow-outline-ink" wire:key="sel-{{ $row['id'] }}">
-                            <input type="checkbox" value="{{ $row['id'] }}" wire:model.live="selected" class="size-6 shrink-0 rounded-sm accent-ink">
+                        <x-ui.option value="{{ $row['id'] }}" wire:model.live="selected" wire:key="sel-{{ $row['id'] }}">
                             <span class="flex min-w-0 flex-1 flex-col gap-1">
                                 <span class="truncate text-t1-s font-medium">{{ $row['title'] }}</span>
                                 @if ($row['hint'])<span @class(['text-t2', 'font-semibold text-ink' => $row['overdue'], 'text-muted' => ! $row['overdue']])>{{ $row['hint'] }}</span>@endif
                             </span>
                             @if ($row['amount'])<span class="shrink-0 text-t1-s font-medium">{{ $row['amount'] }}</span>@endif
-                        </label>
+                        </x-ui.option>
                     @endforeach
                 </div>
                 @error('selected')<span class="text-t2 font-medium text-danger-fg">{{ $message }}</span>@enderror
@@ -294,13 +293,7 @@
                 <div class="flex flex-col gap-2 border-t border-line pt-4" role="radiogroup" aria-labelledby="st-type">
                     <span id="st-type" class="text-t2 font-medium">Как {{ $firstName }} платит</span>
                     @foreach ($terms['options'] as $value => $option)
-                        <label class="flex cursor-pointer items-center gap-3 rounded-lg p-3 shadow-outline hover:shadow-outline-ink" wire:key="pt-{{ $value }}">
-                            <input type="radio" name="settingsType" value="{{ $value }}" wire:model.live="settingsType" class="size-5 shrink-0 accent-ink">
-                            <span class="flex min-w-0 flex-1 flex-col gap-1">
-                                <span class="text-t1-s font-medium">{{ $option['title'] }}</span>
-                                <span class="text-t2 text-muted">{{ $option['sub'] }}</span>
-                            </span>
-                        </label>
+                        <x-ui.option type="radio" name="settingsType" value="{{ $value }}" wire:model.live="settingsType" wire:key="pt-{{ $value }}" :title="$option['title']" :sub="$option['sub']" />
                     @endforeach
                     <span class="text-t3 text-muted">Действует для следующих счетов</span>
                 </div>
@@ -321,8 +314,7 @@
             @else
                 <div class="flex flex-col gap-2" role="group" aria-label="Ваши занятия">
                     @foreach ($modalData['rooms'] as $r)
-                        <label class="flex cursor-pointer items-center gap-3 rounded-lg p-3 shadow-outline hover:shadow-outline-ink" wire:key="room-{{ $r['id'] }}">
-                            <input type="checkbox" value="{{ $r['id'] }}" wire:model.live="roomIds" class="size-6 shrink-0 rounded-sm accent-ink">
+                        <x-ui.option value="{{ $r['id'] }}" wire:model.live="roomIds" wire:key="room-{{ $r['id'] }}">
                             @if ($r['group'])
                                 <x-ui.avatar group />
                             @else
@@ -332,7 +324,7 @@
                                 <span class="truncate text-t1-s font-medium">{{ $r['name'] }}</span>
                                 <span class="truncate text-t2 text-muted">{{ $r['sub'] }}</span>
                             </span>
-                        </label>
+                        </x-ui.option>
                     @endforeach
                 </div>
             @endif

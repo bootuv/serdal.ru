@@ -1,8 +1,5 @@
 @php
     use App\Models\LessonType;
-    $chip = 'h-10 rounded px-4 text-t1-s';
-    $chipOn = 'bg-ink text-white';
-    $chipOff = 'bg-white text-ink shadow-outline hover:shadow-outline-ink';
     $hasPhoto = $photo || ($user->avatar && ! $removePhoto);
 @endphp
 <div class="grid grid-cols-1 items-start gap-6 lg:grid-cols-3 lg:gap-8">
@@ -73,9 +70,7 @@
                             <span id="o-dir" class="text-t2 font-medium">Направления</span>
                             <div class="flex flex-wrap gap-2">
                                 @foreach ($directOptions as $id => $name)
-                                    @php $on = in_array($id, $directs, true); @endphp
-                                    <button type="button" wire:click="toggleDirect({{ $id }})" aria-pressed="{{ $on ? 'true' : 'false' }}"
-                                            class="{{ $chip }} {{ $on ? $chipOn : $chipOff }}" wire:key="dir-{{ $id }}">{{ $name }}</button>
+                                    <x-ui.chip :on="in_array($id, $directs, true)" wire:click="toggleDirect({{ $id }})" wire:key="dir-{{ $id }}">{{ $name }}</x-ui.chip>
                                 @endforeach
                             </div>
                         </div>
@@ -85,9 +80,7 @@
                         <span id="o-grade" class="text-t2 font-medium">С кем занимаетесь</span>
                         <div class="flex flex-wrap gap-2">
                             @foreach ($gradeGroups as $key => [$label, $members])
-                                @php $on = empty(array_diff($members, $grades)); @endphp
-                                <button type="button" wire:click="toggleGradeGroup('{{ $key }}')" aria-pressed="{{ $on ? 'true' : 'false' }}"
-                                        class="{{ $chip }} {{ $on ? $chipOn : $chipOff }}">{{ $label }}</button>
+                                <x-ui.chip :on="empty(array_diff($members, $grades))" wire:click="toggleGradeGroup('{{ $key }}')">{{ $label }}</x-ui.chip>
                             @endforeach
                         </div>
                     </div>
@@ -206,13 +199,7 @@
                     <h2 id="o-inv" class="text-h2 font-medium">Пригласите первого ученика</h2>
                     <p class="text-t2 text-muted">Ученик создаст аккаунт по ссылке и сразу появится в вашем списке.</p>
                 </div>
-                <div class="flex flex-col gap-3 lg:flex-row lg:items-end" x-data="{ url: @js($inviteUrl) }">
-                    <label class="flex min-w-0 flex-1 flex-col gap-2">
-                        <span class="text-t2 font-medium">Ссылка-приглашение</span>
-                        <input type="text" readonly value="{{ $inviteUrl }}" class="field" x-on:focus="$el.select()">
-                    </label>
-                    <x-ui.btn icon="share" x-on:click="navigator.clipboard.writeText(url); $dispatch('toast', { message: 'Ссылка скопирована' })">Скопировать</x-ui.btn>
-                </div>
+                <x-ui.copy-field label="Ссылка-приглашение" :value="$inviteUrl" />
             </x-ui.card>
 
             <div class="flex flex-wrap items-center gap-4">

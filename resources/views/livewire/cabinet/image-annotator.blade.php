@@ -1,8 +1,7 @@
 {{-- Холст пометок нового кабинета (App\Livewire\ImageAnnotator, embedded). Стоит внутри x-ui.modal родителя;
      кнопка «Сохранить пометки» в подвале окна шлёт событие annotator-save. Сохранение — saveAnnotatedImage (как в старом кабинете).
-     Иконок инструментов в x-ui.icon нет — пока нарисованы здесь. Цвета пера — hex в скрипте. --}}
+     Цвета пера — токены pen-* (в скрипте те же значения: canvas не читает классы). --}}
 @php
-    $svg = fn (string $path) => '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">' . $path . '</svg>';
     $tool = 'flex size-9 items-center justify-center rounded-sm text-muted hover:text-ink';
 @endphp
 <div class="flex min-w-0 flex-1 flex-col gap-4">
@@ -10,20 +9,20 @@
         <div class="flex min-w-0 flex-col gap-4" x-data="cabinetAnnotator(@js($imageUrl))" x-on:annotator-save.window="save()">
             <div class="flex flex-wrap items-center gap-2" role="toolbar" aria-label="Инструменты">
                 <div class="flex gap-1 rounded bg-soft p-1" role="group" aria-label="Инструмент">
-                    <button type="button" class="{{ $tool }}" x-bind:class="pan ? '' : 'bg-white text-ink shadow-seg'" x-bind:aria-pressed="pan ? 'false' : 'true'" x-on:click="pan = false" aria-label="Карандаш">{!! $svg('<path d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4"/>') !!}</button>
-                    <button type="button" class="{{ $tool }}" x-bind:class="pan ? 'bg-white text-ink shadow-seg' : ''" x-bind:aria-pressed="pan ? 'true' : 'false'" x-on:click="pan = true" aria-label="Перемещение">{!! $svg('<path d="M12 3v18M3 12h18M12 3 9.5 5.5M12 3l2.5 2.5M12 21l-2.5-2.5M12 21l2.5-2.5M3 12l2.5-2.5M3 12l2.5 2.5M21 12l-2.5-2.5M21 12l-2.5 2.5"/>') !!}</button>
+                    <button type="button" class="{{ $tool }}" x-bind:class="pan ? '' : 'bg-white text-ink shadow-seg'" x-bind:aria-pressed="pan ? 'false' : 'true'" x-on:click="pan = false" aria-label="Карандаш"><x-ui.icon name="pencil" /></button>
+                    <button type="button" class="{{ $tool }}" x-bind:class="pan ? 'bg-white text-ink shadow-seg' : ''" x-bind:aria-pressed="pan ? 'true' : 'false'" x-on:click="pan = true" aria-label="Перемещение"><x-ui.icon name="move" /></button>
                 </div>
                 <div class="flex gap-1 rounded bg-soft p-1" role="group" aria-label="Цвет">
-                    <button type="button" class="{{ $tool }}" x-bind:class="color === colors.red ? 'bg-white shadow-seg' : ''" x-bind:aria-pressed="color === colors.red ? 'true' : 'false'" x-on:click="color = colors.red; pan = false" aria-label="Красный"><span class="size-4 rounded-full bg-danger"></span></button>
-                    <button type="button" class="{{ $tool }}" x-bind:class="color === colors.blue ? 'bg-white shadow-seg' : ''" x-bind:aria-pressed="color === colors.blue ? 'true' : 'false'" x-on:click="color = colors.blue; pan = false" aria-label="Синий"><span class="size-4 rounded-full bg-chart-1"></span></button>
-                    <button type="button" class="{{ $tool }}" x-bind:class="color === colors.green ? 'bg-white shadow-seg' : ''" x-bind:aria-pressed="color === colors.green ? 'true' : 'false'" x-on:click="color = colors.green; pan = false" aria-label="Зелёный"><span class="size-4 rounded-full bg-chart-2"></span></button>
+                    <button type="button" class="{{ $tool }}" x-bind:class="color === colors.red ? 'bg-white shadow-seg' : ''" x-bind:aria-pressed="color === colors.red ? 'true' : 'false'" x-on:click="color = colors.red; pan = false" aria-label="Красный"><span class="size-4 rounded-full bg-pen-red"></span></button>
+                    <button type="button" class="{{ $tool }}" x-bind:class="color === colors.blue ? 'bg-white shadow-seg' : ''" x-bind:aria-pressed="color === colors.blue ? 'true' : 'false'" x-on:click="color = colors.blue; pan = false" aria-label="Синий"><span class="size-4 rounded-full bg-pen-blue"></span></button>
+                    <button type="button" class="{{ $tool }}" x-bind:class="color === colors.green ? 'bg-white shadow-seg' : ''" x-bind:aria-pressed="color === colors.green ? 'true' : 'false'" x-on:click="color = colors.green; pan = false" aria-label="Зелёный"><span class="size-4 rounded-full bg-pen-green"></span></button>
                 </div>
                 <div class="flex gap-1 rounded bg-soft p-1" role="group" aria-label="Действия с фото">
-                    <button type="button" class="{{ $tool }}" x-on:click="undo()" aria-label="Отменить последнюю пометку">{!! $svg('<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>') !!}</button>
-                    <button type="button" class="{{ $tool }}" x-on:click="clear()" aria-label="Стереть все пометки">{!! $svg('<path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/>') !!}</button>
-                    <button type="button" class="{{ $tool }}" x-on:click="rotate()" aria-label="Повернуть фото">{!! $svg('<path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v4h-4"/>') !!}</button>
-                    <button type="button" class="{{ $tool }}" x-on:click="zoomBy(1 / 1.5)" aria-label="Уменьшить">{!! $svg('<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4M8 11h6"/>') !!}</button>
-                    <button type="button" class="{{ $tool }}" x-on:click="zoomBy(1.5)" aria-label="Увеличить">{!! $svg('<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4M11 8v6M8 11h6"/>') !!}</button>
+                    <button type="button" class="{{ $tool }}" x-on:click="undo()" aria-label="Отменить последнюю пометку"><x-ui.icon name="undo" /></button>
+                    <button type="button" class="{{ $tool }}" x-on:click="clear()" aria-label="Стереть все пометки"><x-ui.icon name="trash" /></button>
+                    <button type="button" class="{{ $tool }}" x-on:click="rotate()" aria-label="Повернуть фото"><x-ui.icon name="rotate" /></button>
+                    <button type="button" class="{{ $tool }}" x-on:click="zoomBy(1 / 1.5)" aria-label="Уменьшить"><x-ui.icon name="zoom-out" /></button>
+                    <button type="button" class="{{ $tool }}" x-on:click="zoomBy(1.5)" aria-label="Увеличить"><x-ui.icon name="zoom-in" /></button>
                 </div>
                 <span class="text-t2 text-muted" wire:loading wire:target="saveAnnotatedImage">Сохраняем…</span>
             </div>

@@ -61,6 +61,7 @@ export default {
             star: '#FFA41C',
             av: { 1: '#FFEC70', 2: '#C2DCFF', 3: '#DDD0FF' },
             chart: { 1: '#2A78D6', 2: '#1BAF7A', 3: '#EDA100' },
+            pen: { red: '#DC2626', blue: '#2A78D6', green: '#1BAF7A' }, // карандаш пометок на фото работ
             scrim: '#202323B8',
         },
         spacing: {
@@ -110,6 +111,9 @@ export default {
             seg: '0 1px 2px #2023231A',
             outline: 'inset 0 0 0 1px #20232340',
             'outline-ink': 'inset 0 0 0 1px #202323',
+            line: 'inset 0 0 0 1px #2023231F',       // вариант выбора (x-ui.option)
+            selected: 'inset 0 0 0 1.5px #202323',   // выбранный вариант, выбранный человек
+            radio: 'inset 0 0 0 6px #202323',        // отмеченная радиокнопка
             'dot-ring': '0 0 0 2px #FFFFFF',
         },
         width: sizes,

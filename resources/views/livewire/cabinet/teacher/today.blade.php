@@ -20,12 +20,7 @@
                                     </div>
                                 </div>
                                 @if ($step['key'] === 'invite' && $steps['invitation'])
-                                    <div class="flex flex-col gap-2 lg:flex-row">
-                                        <label class="sr-only" for="inv-link">Ссылка-приглашение</label>
-                                        <input id="inv-link" type="text" readonly value="{{ $steps['invitation'] }}" class="field min-w-0 flex-1 text-muted">
-                                        <x-ui.btn variant="primary" icon="share" x-data
-                                                  x-on:click="navigator.clipboard.writeText({{ \Illuminate\Support\Js::from($steps['invitation']) }}); $dispatch('toast', { message: 'Ссылка скопирована — отправьте её ученику' })">Скопировать ссылку</x-ui.btn>
-                                    </div>
+                                    <x-ui.copy-field label="Ссылка-приглашение" hide-label id="inv-link" :value="$steps['invitation']" variant="primary" button="Скопировать ссылку" message="Ссылка скопирована — отправьте её ученику" />
                                     <a href="{{ $steps['emailUrl'] }}" class="link self-start text-t2">Отправить на почту</a>
                                 @elseif ($step['key'] === 'plan')
                                     <x-ui.btn variant="primary" icon="plus" wire:click="openPlan" class="self-start">Запланировать занятие</x-ui.btn>

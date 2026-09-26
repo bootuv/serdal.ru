@@ -1,8 +1,5 @@
 @php
     $canStart = ! $archived && ! $otherRunning;
-    $copyGuest = isset($guestUrl)
-        ? 'navigator.clipboard.writeText(' . \Illuminate\Support\Js::from($guestUrl) . "); \$dispatch('toast', { message: 'Ссылка скопирована — отправьте её гостю в любом мессенджере' })"
-        : '';
 @endphp
 <div class="flex flex-col gap-6 lg:gap-8">
     <x-ui.page-head :title="$room->name" :sub="$sub" :back="$backUrl" backLabel="Расписание">
@@ -269,10 +266,7 @@
                         <x-ui.card aria-labelledby="lv-guest">
                             <x-ui.card-head id="lv-guest" title="Позвать гостя" />
                             <p class="text-t2 text-muted">Родитель или второй учитель войдут по ссылке, без регистрации</p>
-                            <div class="flex gap-2">
-                                <input type="text" readonly value="{{ $guestUrl }}" class="field min-w-0 flex-1 text-muted" aria-label="Ссылка для гостя">
-                                <x-ui.btn square icon="share" x-data x-on:click="{{ $copyGuest }}" aria-label="Скопировать ссылку" />
-                            </div>
+                            <x-ui.copy-field label="Ссылка для гостя" :value="$guestUrl" message="Ссылка скопирована — отправьте её гостю в любом мессенджере" />
                         </x-ui.card>
                     @endif
 

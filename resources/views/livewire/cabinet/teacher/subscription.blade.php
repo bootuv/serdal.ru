@@ -3,7 +3,6 @@
     use App\Support\HumanDate;
     $rub = fn ($v) => number_format((float) $v, 0, ',', ' ') . ' ₽';
     $limit = $subscription?->tariff->lessons_per_month;
-    $percent = $limit ? min(100, (int) round($lessonsUsed / $limit * 100)) : 0;
     $daysLeft = $subscription?->ends_at ? max(0, (int) now()->diffInDays($subscription->ends_at, false)) : null;
 @endphp
 <div class="flex flex-col gap-6 lg:gap-8">
@@ -49,10 +48,7 @@
                         <span><x-ui.em>{{ $lessonsUsed }}</x-ui.em>@if ($limit) из {{ $limit }}@endif @if ($extraBalance > 0)<span class="text-muted"> + {{ $extraBalance }} доп.</span>@endif</span>
                     </div>
                     @if ($limit)
-                        <svg class="h-2 w-full" role="progressbar" aria-label="Занятия в этом периоде" aria-valuemin="0" aria-valuemax="{{ $limit }}" aria-valuenow="{{ min($lessonsUsed, $limit) }}">
-                            <rect width="100%" height="8" rx="4" class="fill-white" />
-                            @if ($percent > 0)<rect width="{{ $percent }}%" height="8" rx="4" class="fill-ink" />@endif
-                        </svg>
+                        <x-ui.progress :value="$lessonsUsed" :max="$limit" label="Занятия в этом периоде" on-mint />
                         <span class="text-t3 text-muted">
                             @if ($limitReached)
                                 <x-ui.em>Лимит тарифа исчерпан</x-ui.em>{{ $periodResetsAt ? ', обновится ' . HumanDate::date($periodResetsAt) : '' }}.

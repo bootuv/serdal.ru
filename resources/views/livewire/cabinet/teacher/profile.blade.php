@@ -1,8 +1,3 @@
-@php
-    $tagBox = 'flex min-h-11 flex-wrap items-center gap-2 rounded p-2 shadow-outline';
-    $tag = 'inline-flex h-8 items-center gap-1 rounded-sm bg-soft pl-2 pr-1 text-t2 font-medium';
-    $tagSelect = 'h-8 min-w-0 flex-1 cursor-pointer appearance-none bg-transparent px-1 text-t2 text-muted outline-none hover:text-ink';
-@endphp
 <div class="flex flex-col gap-6 lg:gap-8">
     <x-ui.page-head title="Профиль и цены">
         <x-slot:actions>
@@ -65,55 +60,13 @@
                     {{-- Чему вы учите --}}
                     <x-ui.card aria-labelledby="p-subj">
                         <x-ui.card-head id="p-subj" title="Чему вы учите" />
-                        <div class="flex flex-col gap-2">
-                            <span id="f-subj" class="text-t2 font-medium">Предметы</span>
-                            <div class="{{ $tagBox }}" role="group" aria-labelledby="f-subj">
-                                @foreach ($subjects as $id)
-                                    @if (isset($subjectOptions[$id]))
-                                        <span class="{{ $tag }}" wire:key="subj-{{ $id }}">{{ $subjectOptions[$id] }}
-                                            <button type="button" wire:click="removeSubject({{ $id }})" class="flex size-5 items-center justify-center rounded-sm text-muted hover:text-ink" aria-label="Убрать предмет «{{ $subjectOptions[$id] }}»"><x-ui.icon name="x" size="s" /></button>
-                                        </span>
-                                    @endif
-                                @endforeach
-                                @if (count($subjects) < $subjectOptions->count())
-                                    <select wire:model.live="addSubject" class="{{ $tagSelect }}" aria-label="Добавить предмет">
-                                        <option value="">Добавить предмет</option>
-                                        @foreach ($subjectOptions as $id => $name)
-                                            @unless (in_array($id, $subjects, true))<option value="{{ $id }}">{{ $name }}</option>@endunless
-                                        @endforeach
-                                    </select>
-                                @endif
-                            </div>
-                        </div>
-                        <div class="flex flex-col gap-2">
-                            <span id="f-dir" class="text-t2 font-medium">Направления</span>
-                            <div class="{{ $tagBox }}" role="group" aria-labelledby="f-dir">
-                                @foreach ($directs as $id)
-                                    @if (isset($directOptions[$id]))
-                                        <span class="{{ $tag }}" wire:key="dir-{{ $id }}">{{ $directOptions[$id] }}
-                                            <button type="button" wire:click="removeDirect({{ $id }})" class="flex size-5 items-center justify-center rounded-sm text-muted hover:text-ink" aria-label="Убрать направление «{{ $directOptions[$id] }}»"><x-ui.icon name="x" size="s" /></button>
-                                        </span>
-                                    @endif
-                                @endforeach
-                                @if (count($directs) < $directOptions->count())
-                                    <select wire:model.live="addDirect" class="{{ $tagSelect }}" aria-label="Добавить направление">
-                                        <option value="">Добавить</option>
-                                        @foreach ($directOptions as $id => $name)
-                                            @unless (in_array($id, $directs, true))<option value="{{ $id }}">{{ $name }}</option>@endunless
-                                        @endforeach
-                                    </select>
-                                @endif
-                            </div>
-                        </div>
+                        <x-ui.tags label="Предметы" id="f-subj" :selected="$subjects" :options="$subjectOptions" model="addSubject" remove="removeSubject" what="предмет" add="Добавить предмет" />
+                        <x-ui.tags label="Направления" id="f-dir" :selected="$directs" :options="$directOptions" model="addDirect" remove="removeDirect" what="направление" />
                         <div class="flex flex-col gap-2">
                             <span id="f-grade" class="text-t2 font-medium">С кем занимаетесь</span>
                             <div class="flex flex-wrap gap-2" role="group" aria-labelledby="f-grade">
                                 @foreach ($gradeOptions as $key => $label)
-                                    @php $on = in_array((string) $key, $grades, true); @endphp
-                                    <button type="button" wire:click="toggleGrade('{{ $key }}')" aria-pressed="{{ $on ? 'true' : 'false' }}" aria-label="{{ $label }}"
-                                            @class(['h-9 min-w-9 rounded px-3 text-t2',
-                                                    'bg-mint font-semibold text-ink shadow-outline-ink' => $on,
-                                                    'bg-white font-medium text-muted shadow-outline hover:text-ink' => ! $on])>{{ is_numeric($key) ? $key : $label }}</button>
+                                    <x-ui.chip :square="is_numeric($key)" :on="in_array((string) $key, $grades, true)" wire:click="toggleGrade('{{ $key }}')" aria-label="{{ $label }}">{{ is_numeric($key) ? $key : $label }}</x-ui.chip>
                                 @endforeach
                             </div>
                         </div>
@@ -177,10 +130,9 @@
                             </div>
                         </div>
                         @if ($preview['url'])
-                            <div class="flex flex-wrap items-center justify-between gap-2" x-data="{ copied: false }">
+                            <div class="flex flex-wrap items-center justify-between gap-2">
                                 <a href="{{ $preview['url'] }}" target="_blank" rel="noopener" class="link inline-flex min-w-0 items-center gap-1 text-t2"><span class="truncate">{{ preg_replace('#^https?://#', '', $preview['url']) }}</span><x-ui.icon name="share" size="s" /></a>
-                                <x-ui.btn size="s" icon="share" x-show="! copied" x-on:click="navigator.clipboard.writeText(@js($preview['url'])); copied = true">Скопировать</x-ui.btn>
-                                <x-ui.badge tone="ok" x-show="copied" x-cloak>Скопировано</x-ui.badge>
+                                <x-ui.copy size="s" icon="share" :value="$preview['url']" message="Ссылка на профиль скопирована" />
                             </div>
                         @endif
                     </x-ui.card>
