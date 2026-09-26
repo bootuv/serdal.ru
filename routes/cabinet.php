@@ -64,4 +64,30 @@ Route::middleware(['auth', \App\Http\Middleware\CheckUserActive::class])
                 Route::get($uri, $fqcn)->name('teacher.' . $name)->middleware(\App\Http\Middleware\EnsureCabinetRole::class . ':teacher');
             }
         }
+
+        // Новая админка (заменяет Filament /admin). Маршрут подключается, когда готов класс экрана.
+        $admin = [
+            'today' => ['/admin', 'Today'],
+            'support' => ['/admin/support', 'Support'],
+            'applications' => ['/admin/applications', 'Applications'],
+            'reviews' => ['/admin/reviews', 'Reviews'],
+            'lessons' => ['/admin/lessons', 'Lessons'],           // вкладки: расписание, проведённые, запросы на удаление, записи (?tab=)
+            'lesson' => ['/admin/lessons/{room}', 'Lesson'],
+            'session' => ['/admin/sessions/{session}', 'Session'],
+            'users' => ['/admin/users', 'Users'],
+            'user' => ['/admin/users/{user}', 'User'],
+            'payments' => ['/admin/payments', 'Payments'],        // вкладки: платежи, подписки
+            'tariffs' => ['/admin/tariffs', 'Tariffs'],
+            'tariff' => ['/admin/tariffs/{tariff}', 'Tariff'],     // {tariff} = id или new
+            'referrals' => ['/admin/referrals', 'Referrals'],
+            'help' => ['/admin/help', 'Help'],
+            'help-article' => ['/admin/help/articles/{article}', 'HelpArticle'], // {article} = id или new
+            'settings' => ['/admin/settings', 'Settings'],        // вкладки, в т.ч. «Справочники» (предметы и направления)
+        ];
+        foreach ($admin as $name => [$uri, $class]) {
+            $fqcn = 'App\\Livewire\\Cabinet\\Admin\\' . $class;
+            if (class_exists($fqcn)) {
+                Route::get($uri, $fqcn)->name('admin.' . $name)->middleware(\App\Http\Middleware\EnsureCabinetRole::class . ':admin');
+            }
+        }
     });

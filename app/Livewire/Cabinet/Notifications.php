@@ -76,6 +76,10 @@ class Notifications extends Component
     /** Счётчики пунктов меню: сообщения, работы на проверку, новые отзывы. */
     public static function navCounts(\App\Models\User $user): array
     {
+        if ($user->role === \App\Models\User::ROLE_ADMIN && request()->routeIs('cabinet.admin.*', 'livewire.update')) {
+            return app(\App\Services\AdminInboxService::class)->counts();
+        }
+
         $counts = ['messages' => app(\App\Services\MessengerService::class)->unreadCount($user)];
         if ($user->role !== \App\Models\User::ROLE_STUDENT) {
             $counts['tasks'] = \App\Services\HomeworkSubmissionService::toReview($user->id)->reorder()->count();

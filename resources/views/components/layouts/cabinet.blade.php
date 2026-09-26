@@ -5,6 +5,8 @@
 @php
     $user = auth()->user();
     $isStudent = $user?->role === \App\Models\User::ROLE_STUDENT;
+    // Админка — та же раскладка со своим меню (экраны cabinet.admin.*)
+    $isAdmin = $user?->role === \App\Models\User::ROLE_ADMIN && request()->routeIs('cabinet.admin.*');
     $unread = $user?->unreadNotifications()->count() ?? 0;
     $unreadMessages = $user ? app(\App\Services\MessengerService::class)->unreadCount($user) : 0;
 
@@ -31,20 +33,49 @@
             ['key' => 'recordings', 'label' => 'Записи', 'icon' => 'video', 'href' => $to('cabinet.teacher.recordings', '/tutor/recordings')],
             ['key' => 'reviews', 'label' => 'Отзывы', 'icon' => 'star', 'href' => $to('cabinet.teacher.reviews', '/tutor/reviews'), 'count' => app(\App\Services\TeacherReviewsService::class)->unreadCount($user)],
         ];
-    $mobileTabs = array_values(array_filter($nav, fn ($i) => in_array($i['key'], ['home', 'today', 'schedule', 'tasks', 'messages'])));
-    $profileHref = $isStudent ? $to('cabinet.student.profile', '/student/profile') : $to('cabinet.teacher.profile', '/tutor/edit-profile');
+    if ($isAdmin) {
+        $inbox = app(\App\Services\AdminInboxService::class)->counts();
+        $a = fn (string $name, array $params = []) => \Illuminate\Support\Facades\Route::has('cabinet.admin.' . $name) ? route('cabinet.admin.' . $name, $params) : '#';
+        // Разделители (sep) — вместо подписей групп: входящие · занятия и люди · деньги · сайт
+        $nav = [
+            ['key' => 'today', 'label' => 'Сегодня', 'icon' => 'home', 'href' => $a('today')],
+            ['sep' => true],
+            ['key' => 'support', 'label' => 'Поддержка', 'icon' => 'chat', 'href' => $a('support'), 'count' => $inbox['support']],
+            ['key' => 'applications', 'label' => 'Заявки', 'icon' => 'user', 'href' => $a('applications'), 'count' => $inbox['applications']],
+            ['key' => 'reviews', 'label' => 'Отзывы', 'icon' => 'star', 'href' => $a('reviews'), 'count' => $inbox['reviews']],
+            ['sep' => true],
+            ['key' => 'lessons', 'label' => 'Занятия', 'icon' => 'calendar', 'href' => $a('lessons'), 'count' => $inbox['lessons']],
+            ['key' => 'users', 'label' => 'Пользователи', 'icon' => 'users', 'href' => $a('users')],
+            ['sep' => true],
+            ['key' => 'payments', 'label' => 'Платежи', 'icon' => 'wallet', 'href' => $a('payments')],
+            ['key' => 'tariffs', 'label' => 'Тарифы', 'icon' => 'tasks', 'href' => $a('tariffs')],
+            ['key' => 'referrals', 'label' => 'Приглашения', 'icon' => 'share', 'href' => $a('referrals')],
+            ['sep' => true],
+            ['key' => 'help', 'label' => 'База знаний', 'icon' => 'help', 'href' => $a('help')],
+        ];
+    }
+    $mobileTabs = array_values(array_filter($nav, fn ($i) => in_array($i['key'] ?? null, $isAdmin ? ['today', 'support', 'lessons', 'users'] : ['home', 'today', 'schedule', 'tasks', 'messages'])));
+    $profileHref = match (true) {
+        $isAdmin => \Illuminate\Support\Facades\Route::has('cabinet.admin.settings') ? route('cabinet.admin.settings') : '#',
+        $isStudent => $to('cabinet.student.profile', '/student/profile'),
+        default => $to('cabinet.teacher.profile', '/tutor/edit-profile'),
+    };
     $supportHref = $user ? \App\Services\MessengerService::url($user, support: true) : '#';
 
     // Тариф и лимиты учитель видит карточкой на «Сегодня» (x-ui.tariff), в сайдбаре — только ссылка
-    $profileSub = $isStudent ? 'Профиль' : 'Профиль и тариф';
+    $profileSub = $isAdmin ? 'Администратор' : ($isStudent ? 'Профиль' : 'Профиль и тариф');
 
     // «Ещё» на телефоне: разделы, которых нет на нижней панели, + поддержка, партнёрка, профиль
-    $moreItems = array_values(array_filter($nav, fn ($i) => ! in_array($i, $mobileTabs, true)));
-    if (! $isStudent && \App\Services\ReferralService::enabled() && \Illuminate\Support\Facades\Route::has('cabinet.teacher.referrals')) {
+    $moreItems = array_values(array_filter($nav, fn ($i) => empty($i['sep']) && ! in_array($i, $mobileTabs, true)));
+    if (! $isStudent && ! $isAdmin && \App\Services\ReferralService::enabled() && \Illuminate\Support\Facades\Route::has('cabinet.teacher.referrals')) {
         $moreItems[] = ['key' => 'referrals', 'label' => 'Пригласить коллег', 'icon' => 'share', 'href' => route('cabinet.teacher.referrals')];
     }
-    $moreItems[] = ['key' => 'support', 'label' => 'Поддержка', 'icon' => 'help', 'href' => $supportHref];
-    $moreItems[] = ['key' => 'profile', 'label' => $isStudent ? 'Профиль' : 'Профиль и тариф', 'icon' => 'user', 'href' => $profileHref];
+    if ($isAdmin) {
+        $moreItems[] = ['key' => 'settings', 'label' => 'Настройки', 'icon' => 'settings', 'href' => $profileHref];
+    } else {
+        $moreItems[] = ['key' => 'support', 'label' => 'Поддержка', 'icon' => 'help', 'href' => $supportHref];
+        $moreItems[] = ['key' => 'profile', 'label' => $isStudent ? 'Профиль' : 'Профиль и тариф', 'icon' => 'user', 'href' => $profileHref];
+    }
     $moreActive = $active === null || in_array($active, array_column($moreItems, 'key'), true);
 @endphp
 <!DOCTYPE html>
@@ -76,11 +107,15 @@
 
         <nav class="flex flex-col gap-1" aria-label="Разделы">
             @foreach ($nav as $item)
+                @if (! empty($item['sep']))
+                    <span class="mx-3 my-2 h-px bg-line" aria-hidden="true"></span>
+                    @continue
+                @endif
                 <a href="{{ $item['href'] }}" @class([
                     'flex h-11 items-center gap-3 rounded px-3 text-t1-s font-medium',
                     'bg-mint font-semibold text-ink' => $active === $item['key'],
                     'text-muted hover:bg-soft-hover hover:text-ink' => $active !== $item['key'],
-                ]) @if($active === $item['key']) aria-current="page" @endif>
+                ]) {!! $active === $item['key'] ? 'aria-current="page"' : '' !!}>
                     <x-ui.icon :name="$item['icon']" />{{ $item['label'] }}
                     @if (array_key_exists('count', $item))
                         {{-- Живой счётчик: обновляется событием cabinet-counts (панель уведомлений) --}}
@@ -92,14 +127,18 @@
         </nav>
 
         <div class="mt-auto flex flex-col gap-2">
-            @unless ($isStudent)
+            @unless ($isStudent || $isAdmin)
                 <livewire:cabinet.referral-promo />
                 {{-- Плашку скрыли — партнёрка остаётся доступной обычной ссылкой --}}
                 @if (\App\Services\ReferralService::enabled() && ! \App\Services\ReferralService::shouldShowBanner($user) && \Illuminate\Support\Facades\Route::has('cabinet.teacher.referrals'))
                     <a href="{{ route('cabinet.teacher.referrals') }}" class="flex h-11 items-center gap-3 rounded px-3 text-t1-s font-medium text-muted hover:bg-soft-hover hover:text-ink"><x-ui.icon name="share" />Пригласить коллег</a>
                 @endif
             @endunless
-            <a href="{{ $supportHref }}" class="flex h-11 items-center gap-3 rounded px-3 text-t1-s font-medium text-muted hover:bg-soft-hover hover:text-ink"><x-ui.icon name="help" />Поддержка</a>
+            @if ($isAdmin)
+                <a href="{{ $profileHref }}" @class(['flex h-11 items-center gap-3 rounded px-3 text-t1-s font-medium', 'bg-mint font-semibold text-ink' => $active === 'settings', 'text-muted hover:bg-soft-hover hover:text-ink' => $active !== 'settings'])><x-ui.icon name="settings" />Настройки</a>
+            @else
+                <a href="{{ $supportHref }}" class="flex h-11 items-center gap-3 rounded px-3 text-t1-s font-medium text-muted hover:bg-soft-hover hover:text-ink"><x-ui.icon name="help" />Поддержка</a>
+            @endif
             <a href="{{ $profileHref }}" class="flex items-center gap-3 border-t border-line px-3 pt-4">
                 <x-ui.avatar :user="$user" />
                 <span class="flex min-w-0 flex-col gap-1">

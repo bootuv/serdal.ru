@@ -136,7 +136,7 @@ class BrandRulesTest extends TestCase
         $violations = [];
         foreach ($this->templates() as $path => $content) {
             $text = preg_replace('/\{\{--.*?--\}\}/s', ' ', $content);
-            preg_match_all('/<(?!--)([a-zA-Z][\w.:-]*)\b((?:[^<>"\']|"[^"]*"|\'[^\']*\')*?)>/s', $text, $tags, PREG_SET_ORDER);
+            preg_match_all('/<(?!--)([a-zA-Z][\w.:-]*)\b((?:=>|->|[^<>"\']|"[^"]*"|\'[^\']*\')*?)>/s', $text, $tags, PREG_SET_ORDER);
             foreach ($tags as $tag) {
                 if (preg_match('/@(if|unless|isset|empty|foreach|auth|guest|error|else|endif)\b/', $tag[2], $m)) {
                     $violations[] = basename($path) . ': <' . $tag[1] . '> содержит @' . $m[1];

@@ -9,7 +9,7 @@ use Symfony\Component\HttpFoundation\Response;
 
 /**
  * Пускает в кабинет только свою роль; остальных мягко отправляет в их кабинет (без экрана 403).
- * Использование: ->middleware('cabinet.role:student') / 'cabinet.role:teacher'.
+ * Использование: ->middleware(EnsureCabinetRole::class . ':student') / ':teacher' / ':admin'.
  */
 class EnsureCabinetRole
 {
@@ -18,7 +18,11 @@ class EnsureCabinetRole
     public function handle(Request $request, Closure $next, string $cabinet): Response
     {
         $role = $request->user()?->role;
-        $allowed = $cabinet === 'student' ? $role === User::ROLE_STUDENT : in_array($role, self::TEACHER_ROLES, true);
+        $allowed = match ($cabinet) {
+            'student' => $role === User::ROLE_STUDENT,
+            'admin' => $role === User::ROLE_ADMIN,
+            default => in_array($role, self::TEACHER_ROLES, true),
+        };
 
         return $allowed ? $next($request) : redirect(self::homeFor($request->user()));
     }
@@ -29,7 +33,7 @@ class EnsureCabinetRole
         return match ($user?->role) {
             User::ROLE_STUDENT => route('cabinet.student.home'),
             User::ROLE_TUTOR => \Illuminate\Support\Facades\Route::has('cabinet.teacher.today') ? route('cabinet.teacher.today') : url('/tutor'),
-            default => url('/admin'),
+            default => \Illuminate\Support\Facades\Route::has('cabinet.admin.today') ? route('cabinet.admin.today') : url('/admin'),
         };
     }
 }

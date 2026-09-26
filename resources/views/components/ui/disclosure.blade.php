@@ -1,6 +1,6 @@
 {{-- Раскрывающаяся секция (история по месяцам и т.п.): строка-заголовок со стрелкой, содержимое под ней. --}}
 @props(['title', 'meta' => null, 'open' => false])
-<details {{ $attributes->class('group border-t border-line') }} @if($open) open @endif>
+<details {{ $attributes->class('group border-t border-line') }} {!! $open ? 'open' : '' !!}>
     <summary class="flex cursor-pointer list-none items-center gap-4 py-4">
         <span class="flex-1 text-t1 font-medium">{{ $title }}</span>
         @if ($meta)<span class="text-t2 text-muted">{{ $meta }}</span>@endif
