@@ -38,7 +38,7 @@
                                 @endif
                             </div>
                             <div class="flex shrink-0 flex-col gap-3 lg:items-end">
-                                <x-ui.btn variant="primary" size="l" :href="$focus['url']">{{ $focus['state'] === 'revision' ? 'Пересдать работу' : 'Сдать работу' }}</x-ui.btn>
+                                <x-ui.btn variant="primary" size="l" icon="send" :href="$focus['url']">{{ $focus['state'] === 'revision' ? 'Пересдать работу' : 'Сдать работу' }}</x-ui.btn>
                                 @if ($focus['hasFiles'])
                                     <a href="{{ $focus['url'] }}#files" class="link self-start text-t2 lg:self-end">Файлы от учителя</a>
                                 @endif

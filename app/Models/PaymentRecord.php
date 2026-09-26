@@ -107,6 +107,18 @@ class PaymentRecord extends Model
     }
 
     /**
+     * Сумма поурочного начисления, ₽: цена ученика из снимка цен на момент завершения занятия.
+     * У помесячных начислений суммы нет (null).
+     */
+    public function amount(): ?int
+    {
+        $participants = $this->meetingSession?->pricing_snapshot['participants'] ?? [];
+        $price = collect($participants)->firstWhere('user_id', $this->student_id)['price'] ?? null;
+
+        return $price !== null ? (int) $price : null;
+    }
+
+    /**
      * Месяц, к которому относится начисление: период помесячной оплаты или дата занятия.
      */
     public function billingMonth(): \Illuminate\Support\Carbon
@@ -146,11 +158,19 @@ class PaymentRecord extends Model
      */
     public function extendDue(int $days): void
     {
-        $base = $this->due_date->lt(today()) ? today() : $this->due_date;
-
         $this->update([
-            'due_date' => $base->copy()->addDays($days),
+            'due_date' => $this->extendedDue($days),
             'reminded_at' => null,
         ]);
+    }
+
+    /**
+     * Каким станет срок после продления на $days дней (для предпросмотра в окне продления).
+     */
+    public function extendedDue(int $days): \Illuminate\Support\Carbon
+    {
+        $base = $this->due_date->lt(today()) ? today() : $this->due_date;
+
+        return $base->copy()->addDays($days);
     }
 }

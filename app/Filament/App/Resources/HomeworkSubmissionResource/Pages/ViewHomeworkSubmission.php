@@ -4,7 +4,7 @@ namespace App\Filament\App\Resources\HomeworkSubmissionResource\Pages;
 
 use App\Filament\App\Resources\HomeworkSubmissionResource;
 use App\Models\HomeworkSubmission;
-use App\Notifications\HomeworkRevisionRequested;
+use App\Services\HomeworkSubmissionService;
 use Filament\Actions;
 use Filament\Forms;
 use Filament\Infolists;
@@ -25,10 +25,8 @@ class ViewHomeworkSubmission extends ViewRecord
     {
         $this->annotatedImages[] = $path;
 
-        // Add to record's feedback_attachments
-        $existing = $this->record->feedback_attachments ?? [];
-        $existing[] = $path;
-        $this->record->update(['feedback_attachments' => $existing]);
+        // Фото с пометками — к файлам комментария (общая логика со старым и новым кабинетом)
+        app(HomeworkSubmissionService::class)->addAnnotation($this->record, $path);
 
         \Filament\Notifications\Notification::make()
             ->title('Аннотация сохранена')
@@ -82,23 +80,18 @@ class ViewHomeworkSubmission extends ViewRecord
                         ->columnSpanFull(),
                 ])
                 ->action(function (array $data) {
-                    $this->record->homework->update([
-                        'max_score' => $data['max_score'],
-                    ]);
-
-                    $this->record->update([
-                        'grade' => $data['grade'],
-                        'feedback' => $data['feedback'],
-                        'status' => HomeworkSubmission::STATUS_GRADED,
-                    ]);
+                    // Оценка, максимальный балл задания и уведомление ученика — в общем сервисе
+                    app(HomeworkSubmissionService::class)->grade(
+                        $this->record,
+                        (int) $data['grade'],
+                        $data['feedback'] ?? null,
+                        (int) $data['max_score'],
+                    );
 
                     Notification::make()
                         ->title('Оценка сохранена')
                         ->success()
                         ->send();
-
-                    // Notify student
-                    $this->record->student->notify(new \App\Notifications\HomeworkGraded($this->record->homework, $data['grade']));
 
                     $this->refreshFormData(['*']);
                 })
@@ -135,19 +128,17 @@ class ViewHomeworkSubmission extends ViewRecord
                         ->columnSpanFull(),
                 ])
                 ->action(function (array $data) {
-                    $this->record->update([
-                        'status' => HomeworkSubmission::STATUS_REVISION_REQUESTED,
-                        'feedback' => $data['feedback'],
-                        'feedback_attachments' => $data['feedback_attachments'] ?? null,
-                    ]);
+                    // Статус, комментарий, файлы и уведомление ученика — в общем сервисе
+                    app(HomeworkSubmissionService::class)->requestRevision(
+                        $this->record,
+                        $data['feedback'],
+                        $data['feedback_attachments'] ?? null,
+                    );
 
                     Notification::make()
                         ->title('Работа отправлена на доработку')
                         ->success()
                         ->send();
-
-                    // Notify student
-                    $this->record->student->notify(new HomeworkRevisionRequested($this->record->homework, $data['feedback']));
 
                     $this->refreshFormData(['*']);
                 })

@@ -35,16 +35,8 @@ class RequestSessionDeletionAction extends Action
                     ->required(),
             ])
             ->action(function (MeetingSession $record, array $data) {
-                $record->update([
-                    'deletion_requested_at' => now(),
-                    'deletion_reason' => $data['deletion_reason'],
-                ]);
-
-                // Notify admins about the deletion request
-                $admins = User::where('role', User::ROLE_ADMIN)->get();
-                foreach ($admins as $admin) {
-                    $admin->notify(new \App\Notifications\SessionDeletionRequested($record, auth()->user()));
-                }
+                // Запрос администраторам — общий с новым кабинетом учителя
+                $record->requestDeletion($data['deletion_reason'], auth()->user());
 
                 Notification::make()
                     ->title('Запрос отправлен')

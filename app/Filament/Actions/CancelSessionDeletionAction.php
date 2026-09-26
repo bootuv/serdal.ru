@@ -25,10 +25,7 @@ class CancelSessionDeletionAction extends Action
             ->requiresConfirmation()
             ->modalHeading('Отменить запрос на удаление?')
             ->action(function (MeetingSession $record) {
-                $record->update([
-                    'deletion_requested_at' => null,
-                    'deletion_reason' => null,
-                ]);
+                $record->cancelDeletionRequest();
 
                 Notification::make()
                     ->title('Запрос отменен')

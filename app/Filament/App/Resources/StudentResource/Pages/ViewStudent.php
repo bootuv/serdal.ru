@@ -341,62 +341,10 @@ class ViewStudent extends ViewRecord
 
     protected function getAttendanceHistory(User $student): array
     {
-        $teacherId = auth()->id();
-
-        $sessions = MeetingSession::whereHas('room', function ($q) use ($teacherId) {
-            $q->where('user_id', $teacherId);
-        })
-            ->where('status', 'completed')
-            ->orderBy('ended_at', 'desc')
-            ->get();
-
-        $history = [];
-        $studentIdStr = (string) $student->id;
-
-        foreach ($sessions as $session) {
-            $room = $session->room;
-            if (!$room || !$room->participants->contains($student->id)) {
-                continue;
-            }
-
-            $isAttended = false;
-            $activityScore = 0;
-
-            $analytics = $session->analytics_data ?? [];
-            $participants = $analytics['participants'] ?? [];
-
-            // Check pricing_snapshot first
-            if (isset($session->pricing_snapshot['participants'])) {
-                foreach ($session->pricing_snapshot['participants'] as $p) {
-                    if (($p['user_id'] ?? '') == $studentIdStr && ($p['attended'] ?? false)) {
-                        $isAttended = true;
-                        break;
-                    }
-                }
-            }
-
-            // Get activity score from analytics
-            foreach ($participants as $p) {
-                if (($p['user_id'] ?? '') == $studentIdStr) {
-                    $isAttended = true;
-                    // Calculate activity score: (Talk Time (m) * 2) + (Messages * 1) + (Emoji * 1) + (Raise Hand * 2)
-                    $talkMinutes = ($p['talking_time'] ?? 0) / 60;
-                    $rawScore = ($talkMinutes * 2) + ($p['message_count'] ?? 0) + ($p['emoji_count'] ?? 0) + (($p['raise_hand_count'] ?? 0) * 2);
-                    $activityScore = min(10, round($rawScore));
-                    break;
-                }
-            }
-
-            $history[] = [
-                'session_id' => $session->id,
-                'room_id' => $room->id,
-                'room_name' => $room->name ?? 'Урок',
-                'date' => format_datetime($session->ended_at) ?? '-',
-                'attended' => $isAttended,
-                'activity_score' => $activityScore,
-            ];
-        }
-
-        return $history;
+        return collect(app(\App\Services\TeacherStudentsService::class)->attendanceHistory(auth()->user(), $student))
+            ->map(fn (array $row) => $row + [
+                'date' => format_datetime($row['ended_at']) ?? '-',
+            ])
+            ->all();
     }
 }

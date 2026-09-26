@@ -306,17 +306,8 @@ class RoomResource extends Resource
                                         if ($itemData && isset($itemData['id'])) {
                                             $schedule = \App\Models\RoomSchedule::find($itemData['id']);
                                             if ($schedule) {
-                                                // Get room and participants before deleting
-                                                $room = $schedule->room;
-                                                $participants = $room ? $room->participants : collect();
-                                                $teacher = auth()->user();
-
-                                                $schedule->delete();
-
-                                                // Notify participants about schedule update (deletion)
-                                                foreach ($participants as $student) {
-                                                    $student->notify(new \App\Notifications\TeacherUpdatedSchedule($teacher));
-                                                }
+                                                // Удаление с уведомлением учеников — общее с новым кабинетом
+                                                app(\App\Services\TeacherLessonService::class)->deleteSchedule($schedule, auth()->user());
                                             }
                                         }
 

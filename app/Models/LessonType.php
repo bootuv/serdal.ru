@@ -17,6 +17,29 @@ class LessonType extends Model
     /** Сколько недель считаем в месяце при пересчёте помесячной цены в цену за урок */
     const WEEKS_PER_MONTH = 4;
 
+    /** Типы занятий: у учителя — не больше одной цены каждого типа. */
+    const TYPES = [
+        self::TYPE_INDIVIDUAL => 'Индивидуальный',
+        self::TYPE_GROUP => 'Групповой',
+    ];
+
+    /** Типы, для которых у учителя ещё нет цены ($exceptId — редактируемая цена, её тип тоже доступен). */
+    public static function availableTypesFor(int $userId, ?int $exceptId = null): array
+    {
+        $taken = static::where('user_id', $userId)
+            ->when($exceptId, fn(Builder $q) => $q->where('id', '!=', $exceptId))
+            ->pluck('type')
+            ->all();
+
+        return array_diff_key(self::TYPES, array_flip($taken));
+    }
+
+    /** Можно ли учителю добавить ещё одну цену (по одной на каждый тип). */
+    public static function canCreateFor(int $userId): bool
+    {
+        return static::where('user_id', $userId)->count() < count(self::TYPES);
+    }
+
     protected $fillable = [
         'type',
         'price',

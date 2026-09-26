@@ -52,6 +52,12 @@ class Recording extends Model
         return $query->whereIn('meeting_id', $meetingIds);
     }
 
+    /** Записи занятий учителя (как в старом кабинете учителя, RecordingResource). */
+    public function scopeForTeacher(Builder $query, User $teacher): Builder
+    {
+        return $query->whereIn('meeting_id', Room::where('user_id', $teacher->id)->pluck('meeting_id')->filter());
+    }
+
     /**
      * Записи, которые показываем в списке: с видео, со ссылкой на просмотр или свежие (< 2 часов, ещё обрабатываются).
      * Скрывает устаревшие записи, которые ещё не убрала синхронизация.

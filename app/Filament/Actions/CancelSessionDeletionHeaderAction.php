@@ -32,10 +32,7 @@ class CancelSessionDeletionHeaderAction extends Action
         return static::make()
             ->modalDescription(fn() => "Причина: {$record->deletion_reason}")
             ->action(function () use ($record) {
-                $record->update([
-                    'deletion_requested_at' => null,
-                    'deletion_reason' => null,
-                ]);
+                $record->cancelDeletionRequest();
 
                 Notification::make()
                     ->title('Запрос отменен')

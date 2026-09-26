@@ -26,14 +26,12 @@ class ReviewResource extends Resource
     {
         return parent::getEloquentQuery()
             ->where('teacher_id', auth()->id())
-            ->where('is_rejected', false);
+            ->where('is_rejected', false); // как TeacherReviewsService::query()
     }
 
     public static function getNavigationBadge(): ?string
     {
-        $count = static::getEloquentQuery()
-            ->whereNull('teacher_read_at')
-            ->count();
+        $count = app(\App\Services\TeacherReviewsService::class)->unreadCount(auth()->user());
 
         return $count > 0 ? (string) $count : null;
     }
@@ -122,11 +120,7 @@ class ReviewResource extends Resource
                     // но сам экшен должен оставаться видимым, иначе клик не смонтирует модалку
                     ->extraAttributes(['class' => 'hidden'])
                     // открытие модалки считается прочтением отзыва
-                    ->mountUsing(function (Review $record) {
-                        if ($record->teacher_read_at === null) {
-                            $record->forceFill(['teacher_read_at' => now()])->saveQuietly();
-                        }
-                    })
+                    ->mountUsing(fn (Review $record) => app(\App\Services\TeacherReviewsService::class)->markRead($record))
                     ->modalHeading('Отзыв')
                     ->modalCancelAction(false)
                     ->infolist([
@@ -164,16 +158,8 @@ class ReviewResource extends Resource
                             ->modalDescription('Вы уверены, что хотите пожаловаться на этот отзыв? Администратор проверит его.')
                             ->visible(fn(Review $record) => !$record->is_reported)
                             ->action(function (Review $record) {
-                                $record->update(['is_reported' => true]);
-
-                                // Notify all admins
-                                $teacher = auth()->user();
-                                $admins = \App\Models\User::where('role', \App\Models\User::ROLE_ADMIN)->get();
-                                $studentName = $record->user?->name ?? 'Ученик';
-
-                                foreach ($admins as $admin) {
-                                    $admin->notify(new \App\Notifications\TeacherReportedReview($record, $teacher));
-                                }
+                                // Отметка и уведомление администраторам — общий сервис с новым кабинетом
+                                app(\App\Services\TeacherReviewsService::class)->report($record, auth()->user());
 
                                 \Filament\Notifications\Notification::make()
                                     ->title('Жалоба отправлена')

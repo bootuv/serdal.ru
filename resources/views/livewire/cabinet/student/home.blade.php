@@ -116,15 +116,7 @@
                 <x-ui.card aria-labelledby="perf">
                     <x-ui.card-head id="perf" title="Успеваемость" />
                     @if ($teachers->count() > 1)
-                        <div class="flex gap-1 rounded bg-soft p-1" role="group" aria-label="Учитель">
-                            @foreach ($teachers as $t)
-                                <button type="button" wire:click="$set('perfTeacherId', {{ $t->id }})"
-                                        @class(['h-9 flex-1 truncate rounded-sm px-3 text-t2 font-medium',
-                                                'bg-white font-semibold text-ink shadow-seg' => $perfTeacherId === $t->id,
-                                                'text-muted hover:text-ink' => $perfTeacherId !== $t->id])
-                                        aria-pressed="{{ $perfTeacherId === $t->id ? 'true' : 'false' }}">{{ $t->name }}</button>
-                            @endforeach
-                        </div>
+                        <x-ui.seg model="perfTeacherId" :active="$perfTeacherId" :items="$teachers->pluck('name', 'id')->all()" aria-label="Учитель" />
                     @endif
                     <x-ui.rings :metrics="$metrics" stacked />
                 </x-ui.card>

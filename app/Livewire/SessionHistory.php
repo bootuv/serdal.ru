@@ -78,16 +78,7 @@ class SessionHistory extends Component
         $session = MeetingSession::find($this->deletionSessionId);
 
         if ($session) {
-            $session->update([
-                'deletion_requested_at' => now(),
-                'deletion_reason' => $this->deletionReason,
-            ]);
-
-            // Notify admins
-            $admins = User::where('role', User::ROLE_ADMIN)->get();
-            foreach ($admins as $admin) {
-                $admin->notify(new \App\Notifications\SessionDeletionRequested($session, auth()->user()));
-            }
+            $session->requestDeletion($this->deletionReason, auth()->user());
 
             $this->dispatch('notify', [
                 'type' => 'success',
@@ -115,10 +106,7 @@ class SessionHistory extends Component
         $session = MeetingSession::find($this->cancelSessionId);
 
         if ($session && $session->deletion_requested_at) {
-            $session->update([
-                'deletion_requested_at' => null,
-                'deletion_reason' => null,
-            ]);
+            $session->cancelDeletionRequest();
 
             $this->dispatch('notify', [
                 'type' => 'success',

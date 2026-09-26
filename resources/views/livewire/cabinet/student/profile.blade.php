@@ -33,20 +33,7 @@
 
                 <div class="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-x-6">
                     <x-ui.field label="Имя и фамилия" name="name" wire:model="name" autocomplete="name" />
-                    {{-- Выпадающий список: компонента в ui/ пока нет --}}
-                    <label class="flex flex-col gap-2">
-                        <span class="text-t2 font-medium">Класс</span>
-                        <span class="relative flex items-center">
-                            <select name="grade" wire:model="grade" @class(['field appearance-none pr-12', 'shadow-outline-ink' => $errors->has('grade')])>
-                                <option value="">Не указан</option>
-                                @foreach ($grades as $value => $label)
-                                    <option value="{{ $value }}">{{ $label }}</option>
-                                @endforeach
-                            </select>
-                            <x-ui.icon name="chevron-down" size="s" class="pointer-events-none absolute right-4 text-muted" />
-                        </span>
-                        @error('grade')<span class="text-t2 font-medium text-danger-fg">{{ $message }}</span>@enderror
-                    </label>
+                    <x-ui.select label="Класс" name="grade" :options="$grades" placeholder="Не указан" wire:model="grade" />
                     <x-ui.field label="Почта" name="email" type="email" wire:model="email" autocomplete="email" />
                     <x-ui.field label="Телефон" name="phone" type="tel" wire:model="phone" autocomplete="tel" />
                     <x-ui.field label="Новый пароль" name="password" type="password" wire:model="password" autocomplete="new-password"
@@ -79,11 +66,7 @@
                                         <x-ui.badge>Отзыв скрыт модератором</x-ui.badge>
                                     @else
                                         @if ($t['review'])
-                                            <span class="flex gap-1" role="img" aria-label="Ваша оценка {{ $t['review']->rating }} из 5">
-                                                @for ($i = 1; $i <= 5; $i++)
-                                                    <x-ui.icon name="star" size="s" :class="$i <= $t['review']->rating ? 'fill-star text-star' : 'fill-mint-2 text-mint-2'" />
-                                                @endfor
-                                            </span>
+                                            <x-ui.stars :value="$t['review']->rating" role="img" />
                                         @endif
                                         @if ($t['canReview'])
                                             <button type="button" class="link text-t2" wire:click="openReview({{ $t['id'] }})">{{ $t['review'] ? 'Изменить отзыв' : 'Оставить отзыв' }}</button>
@@ -118,17 +101,9 @@
         @endphp
         <x-ui.modal :title="$hasReview ? 'Ваш отзыв' : 'Отзыв об учителе'" :sub="$sub" close="closeReview">
             <div class="flex flex-col gap-2">
-                <span id="rv-rate" class="text-t2 font-medium">Оценка</span>
+                <span class="text-t2 font-medium">Оценка</span>
                 <div class="flex flex-wrap items-center gap-4">
-                    <div class="flex gap-1" role="radiogroup" aria-labelledby="rv-rate">
-                        @for ($i = 1; $i <= 5; $i++)
-                            <button type="button" role="radio" aria-checked="{{ $rating === $i ? 'true' : 'false' }}"
-                                    aria-label="{{ plural_ru($i, 'звезда', 'звезды', 'звёзд') }}" wire:click="$set('rating', {{ $i }})"
-                                    class="flex size-11 items-center justify-center rounded hover:bg-soft">
-                                <x-ui.icon name="star" :class="$i <= $rating ? 'size-8 fill-star text-star' : 'size-8 fill-mint-2 text-mint-2'" />
-                            </button>
-                        @endfor
-                    </div>
+                    <x-ui.stars :value="$rating" model="rating" />
                     <span class="text-t1 font-semibold">{{ $stars[$rating] ?? '' }}</span>
                 </div>
                 @error('rating')<span class="text-t2 font-medium text-danger-fg">{{ $message }}</span>@enderror

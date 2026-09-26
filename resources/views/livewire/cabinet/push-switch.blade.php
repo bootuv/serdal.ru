@@ -40,12 +40,11 @@
     }">
     <div class="flex min-h-9 items-center justify-between gap-4">
         <h2 id="pf-notify" class="text-h2 font-medium">Уведомления</h2>
-        <button type="button" role="switch" aria-labelledby="pf-notify" x-show="supported && ! denied"
-                x-on:click="toggle()" x-bind:disabled="busy" x-bind:aria-checked="on ? 'true' : 'false'"
-                x-bind:class="on ? 'justify-end bg-ink' : 'justify-start bg-line-strong'"
-                class="flex h-6 w-11 shrink-0 items-center rounded-full p-1 disabled:opacity-50">
-            <span class="size-4 rounded-full bg-white"></span>
-        </button>
+        {{-- Состояние меняется в браузере: два положения переключателя, видно одно --}}
+        <div class="flex shrink-0" x-show="supported && ! denied" x-cloak>
+            <x-ui.switch checked label="Уведомления" x-show="on" x-on:click="toggle()" x-bind:disabled="busy" class="disabled:opacity-50" />
+            <x-ui.switch label="Уведомления" x-show="! on" x-on:click="toggle()" x-bind:disabled="busy" class="disabled:opacity-50" />
+        </div>
     </div>
     <div class="flex flex-col gap-1">
         <span class="text-t1 font-medium"

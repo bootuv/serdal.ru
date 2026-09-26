@@ -3,7 +3,7 @@
 
     <div class="flex flex-col gap-6">
         @if ($teacherFilter)
-            <x-ui.seg :items="$teacherFilter" model="teacher" :active="$teacher" aria-label="Учитель" class="lg:grid lg:grid-flow-col lg:auto-cols-max lg:self-start" />
+            <x-ui.seg :items="$teacherFilter" model="teacher" :active="$teacher" aria-label="Учитель" fit />
         @endif
 
         {{-- Плеер открытой записи --}}

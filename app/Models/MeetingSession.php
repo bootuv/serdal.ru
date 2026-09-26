@@ -62,6 +62,29 @@ class MeetingSession extends Model
         return $this->belongsTo(User::class);
     }
 
+    /**
+     * Учитель просит удалить проведённое занятие: запрос уходит администраторам, решение — в уведомлениях.
+     */
+    public function requestDeletion(string $reason, User $requestedBy): void
+    {
+        $this->update([
+            'deletion_requested_at' => now(),
+            'deletion_reason' => $reason,
+        ]);
+
+        User::where('role', User::ROLE_ADMIN)->get()
+            ->each(fn (User $admin) => $admin->notify(new \App\Notifications\SessionDeletionRequested($this, $requestedBy)));
+    }
+
+    /** Отозвать запрос на удаление. */
+    public function cancelDeletionRequest(): void
+    {
+        $this->update([
+            'deletion_requested_at' => null,
+            'deletion_reason' => null,
+        ]);
+    }
+
     public function room()
     {
         return $this->belongsTo(Room::class);

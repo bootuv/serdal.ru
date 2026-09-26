@@ -13,7 +13,7 @@
                 <x-ui.card aria-labelledby="task-body">
                     <x-ui.card-head id="task-body" title="Задание от учителя" />
                     @if ($description)
-                        <div class="flex flex-col gap-3 break-words text-t1">{{ $description }}</div>
+                        <div class="rich break-words">{{ $description }}</div>
                     @elseif (empty($teacherFiles))
                         <p class="text-t2 text-muted">Учитель не добавил описания — подробности можно спросить в сообщениях.</p>
                     @endif
@@ -46,7 +46,7 @@
                         <div class="flex flex-col gap-3">
                             <p class="text-t2 text-muted">Комментарий учителя</p>
                             @if ($feedback)
-                                <div class="flex flex-col gap-3 break-words rounded-lg bg-white px-4 py-3 text-t1">{{ $feedback }}</div>
+                                <div class="rich break-words rounded-lg bg-white px-4 py-3">{{ $feedback }}</div>
                             @endif
                             @include('livewire.cabinet.student.partials.task-files', ['files' => $feedbackFiles])
                         </div>
@@ -59,16 +59,9 @@
                         @error('answer')<span class="text-t2 font-medium text-danger-fg">{{ $message }}</span>@enderror
                     </div>
 
-                    <label for="task-files" class="flex cursor-pointer items-center gap-4 rounded-lg border border-dashed border-line-strong bg-white p-6 hover:border-ink">
-                        <span class="flex size-12 shrink-0 items-center justify-center rounded bg-soft"><x-ui.icon name="share" /></span>
-                        <span class="flex min-w-0 flex-col gap-1">
-                            <span class="text-t1 font-medium">Прикрепите файлы или фото тетради</span>
-                            <span class="text-t2 text-muted" wire:loading.remove wire:target="picked">PDF, Word, JPG или PNG до 50 МБ</span>
-                            <span class="text-t2 text-muted" wire:loading wire:target="picked">Загружаем…</span>
-                        </span>
-                        <input id="task-files" type="file" multiple class="sr-only" wire:model="picked"
-                               accept="{{ implode(',', \App\Services\HomeworkSubmissionService::ACCEPTED_MIMES) }}">
-                    </label>
+                    <x-ui.dropzone onMint title="Прикрепите файлы или фото тетради" hint="PDF, Word, JPG или PNG до 50 МБ" :accept="implode(',', \App\Services\HomeworkSubmissionService::ACCEPTED_MIMES)"
+                                   wire:model="picked" aria-label="Прикрепите файлы или фото тетради" />
+                    <span class="text-t2 text-muted" wire:loading wire:target="picked">Загружаем…</span>
                     @error('picked.*')<span class="text-t2 font-medium text-danger-fg">{{ $message }}</span>@enderror
                     @error('files.*')<span class="text-t2 font-medium text-danger-fg">{{ $message }}</span>@enderror
 
@@ -76,7 +69,7 @@
                         <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
                             @foreach ($keptFiles as $i => $file)
                                 <div class="flex items-center gap-3 rounded-lg bg-white p-3" wire:key="kept-{{ $file['path'] }}">
-                                    <x-ui.file-tile :name="$file['path']" />
+                                    <x-ui.file-tile :name="$file['path']" onMint />
                                     <div class="flex min-w-0 flex-1 flex-col gap-1">
                                         <a href="{{ $file['url'] }}" target="_blank" rel="noopener" class="truncate text-t1 font-medium">{{ $file['name'] }}</a>
                                         <span class="truncate text-t2 text-muted">@if ($file['annotated'])<x-ui.em>С пометками учителя</x-ui.em>@else{{ $file['meta'] }}@endif</span>
@@ -86,7 +79,7 @@
                             @endforeach
                             @foreach ($newFiles as $i => $file)
                                 <div class="flex items-center gap-3 rounded-lg bg-white p-3" wire:key="new-{{ $i }}-{{ $file['name'] }}">
-                                    <x-ui.file-tile :name="$file['name']" />
+                                    <x-ui.file-tile :name="$file['name']" onMint />
                                     <div class="flex min-w-0 flex-1 flex-col gap-1">
                                         <span class="truncate text-t1 font-medium">{{ $file['name'] }}</span>
                                         <span class="truncate text-t2 text-muted">{{ $file['meta'] }}</span>
@@ -98,7 +91,7 @@
                     @endif
 
                     <div class="flex flex-col gap-4 pt-2 sm:flex-row sm:items-center">
-                        <x-ui.btn variant="primary" size="l" wire:click="submit" wire:loading.attr="disabled" wire:target="submit,picked">Отправить на проверку</x-ui.btn>
+                        <x-ui.btn variant="primary" size="l" icon="send" wire:click="submit" wire:loading.attr="disabled" wire:target="submit,picked">Отправить на проверку</x-ui.btn>
                         <span class="text-t2 text-muted">Изменить ответ можно, только если учитель вернёт работу</span>
                     </div>
                 </x-ui.card>
@@ -128,7 +121,7 @@
                         <div class="flex flex-col gap-3 pt-2">
                             <h3 class="text-t2 text-muted">Комментарий учителя</h3>
                             @if ($feedback)
-                                <div class="flex flex-col gap-3 break-words rounded-lg bg-white px-4 py-3 text-t1">{{ $feedback }}</div>
+                                <div class="rich break-words rounded-lg bg-white px-4 py-3">{{ $feedback }}</div>
                             @endif
                             @include('livewire.cabinet.student.partials.task-files', ['files' => $feedbackFiles])
                         </div>
@@ -138,7 +131,7 @@
                         <div class="flex flex-col gap-3 pt-2">
                             <h3 class="text-t2 text-muted">Ваш ответ</h3>
                             @if ($content)
-                                <div class="flex flex-col gap-3 break-words rounded-lg bg-white px-4 py-3 text-t1">{{ $content }}</div>
+                                <div class="rich break-words rounded-lg bg-white px-4 py-3">{{ $content }}</div>
                             @endif
                             @include('livewire.cabinet.student.partials.task-files', ['files' => $myFiles])
                         </div>

@@ -3,9 +3,9 @@
 namespace App\Filament\App\Resources\MaterialResource\Pages;
 
 use App\Filament\App\Resources\MaterialResource;
-use App\Helpers\FileUploadHelper;
 use App\Models\MaterialFolder;
 use App\Models\TeacherMaterial;
+use App\Services\TeacherMaterialsService;
 use Filament\Actions;
 use Filament\Forms;
 use Filament\Notifications\Notification;
@@ -264,39 +264,19 @@ class ListMaterials extends Page
                 $created = 0;
 
                 foreach ($this->pendingFiles as $index => $file) {
-                    // Во временном файле имя может быть укорочено (лимит длины имени
-                    // на диске) — полное название берём из метаданных, присланных браузером,
-                    // если они относятся к этому же файлу
-                    $originalName = $file->getClientOriginalName();
-                    $metaName = $this->uploadingMeta[$index]['name'] ?? null;
+                    // Сжатие изображений, S3, миниатюра и доступ — общий сервис с новым кабинетом
+                    $material = app(TeacherMaterialsService::class)->storeUpload(
+                        auth()->user(),
+                        $file,
+                        $data['folder_id'] ?? null,
+                        $data['visibility'],
+                        $data['rooms'] ?? [],
+                        $this->uploadingMeta[$index]['name'] ?? null,
+                    );
 
-                    if ($metaName && str_starts_with($metaName, pathinfo($originalName, PATHINFO_FILENAME))) {
-                        $originalName = $metaName;
+                    if ($material) {
+                        $created++;
                     }
-
-                    // Сжимает изображения, кладёт на S3 в teacher-materials/{id}, удаляет temp
-                    $path = FileUploadHelper::processAndStoreFile($file, 'teacher-materials');
-
-                    if (! $path) {
-                        continue;
-                    }
-
-                    $material = TeacherMaterial::create([
-                        'teacher_id' => auth()->id(),
-                        'folder_id' => $data['folder_id'] ?? null,
-                        'title' => pathinfo($originalName, PATHINFO_FILENAME) ?: $originalName,
-                        'file_path' => $path,
-                        'original_name' => $originalName,
-                        'visibility' => $data['visibility'],
-                        // Для изображений миниатюра создаётся сразу — сетка не грузит полноразмер
-                        'thumbnail_path' => \App\Jobs\GenerateMaterialThumbnail::generateFromPath($path),
-                    ]);
-
-                    if ($data['visibility'] === TeacherMaterial::VISIBILITY_ROOMS) {
-                        $material->rooms()->sync($data['rooms'] ?? []);
-                    }
-
-                    $created++;
                 }
 
                 $this->pendingFiles = [];
@@ -419,15 +399,9 @@ class ListMaterials extends Page
      */
     public function moveMaterial(int $materialId, ?int $targetFolderId): void
     {
-        if ($targetFolderId !== null && ! $this->folderQuery()->whereKey($targetFolderId)->exists()) {
-            return;
-        }
-
         $ids = in_array($materialId, $this->selected) ? $this->selected : [$materialId];
 
-        $moved = $this->materialQuery()
-            ->whereKey($ids)
-            ->update(['folder_id' => $targetFolderId, 'sort_order' => 0]);
+        $moved = app(TeacherMaterialsService::class)->moveMaterials(auth()->user(), $ids, $targetFolderId);
 
         $this->selected = [];
 
@@ -450,27 +424,24 @@ class ListMaterials extends Page
     {
         $folder = $this->folderQuery()->find($folderId);
 
-        if (! $folder || $targetFolderId === $folderId || $targetFolderId === $folder->parent_id) {
+        if (! $folder) {
             return;
         }
 
-        if ($targetFolderId !== null) {
-            if (! $this->folderQuery()->whereKey($targetFolderId)->exists()) {
-                return;
-            }
+        $result = app(TeacherMaterialsService::class)->moveFolder(auth()->user(), $folder, $targetFolderId);
 
-            // Нельзя перемещать папку внутрь её собственного поддерева
-            if ($folder->descendantIds()->contains($targetFolderId)) {
-                Notification::make()
-                    ->title('Нельзя переместить папку внутрь самой себя')
-                    ->warning()
-                    ->send();
+        if ($result === 'inside') {
+            Notification::make()
+                ->title('Нельзя переместить папку внутрь самой себя')
+                ->warning()
+                ->send();
 
-                return;
-            }
+            return;
         }
 
-        $folder->update(['parent_id' => $targetFolderId]);
+        if ($result !== 'moved') {
+            return;
+        }
 
         $target = $targetFolderId ? $this->folderQuery()->find($targetFolderId)?->name : null;
 
@@ -652,11 +623,8 @@ class ListMaterials extends Page
                     return;
                 }
 
-                // Поднимаем содержимое к родителю удаляемой папки
-                $folder->children()->update(['parent_id' => $folder->parent_id]);
-                $folder->materials()->update(['folder_id' => $folder->parent_id]);
-
-                $folder->delete();
+                // Содержимое поднимается к родителю удаляемой папки
+                app(TeacherMaterialsService::class)->deleteFolder($folder);
 
                 Notification::make()->title('Папка удалена')->success()->send();
             });
@@ -673,13 +641,12 @@ class ListMaterials extends Page
             ->action(function () {
                 // Удаляем по одному через delete() модели, чтобы observer
                 // почистил файл и миниатюру на S3 для каждого материала
-                $materials = $this->materialQuery()->whereKey($this->selected)->get();
-                $materials->each->delete();
+                $deleted = app(TeacherMaterialsService::class)->deleteMaterials(auth()->user(), $this->selected);
 
                 $this->selected = [];
 
                 Notification::make()
-                    ->title('Удалено файлов: ' . $materials->count())
+                    ->title('Удалено файлов: ' . $deleted)
                     ->success()
                     ->send();
             });

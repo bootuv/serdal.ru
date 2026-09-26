@@ -105,11 +105,7 @@ class EditProfile extends Page implements HasForms
                 Forms\Components\Select::make('grade')
                     ->label('Классы')
                     ->multiple()
-                    ->options([
-                        'preschool' => 'Дошкольники',
-                        ...array_combine(range(1, 11), array_map(fn($i) => "$i класс", range(1, 11))),
-                        'adults' => 'Взрослые',
-                    ])
+                    ->options(\App\Services\TeacherProfileService::GRADES)
                     ->columnSpanFull(),
 
                 Forms\Components\RichEditor::make('about')
@@ -131,46 +127,16 @@ class EditProfile extends Page implements HasForms
     public function submit(): void
     {
         $data = $this->form->getState();
-        $user = auth()->user();
 
-        // Process Avatar
-        // Check if avatar is set and not empty (it will be empty if user didn't upload new one)
-        if (!empty($data['avatar'])) {
-            $processed = \App\Helpers\FileUploadHelper::processFiles(
-                $data['avatar'],
-                'avatars',
-                640,
-                640
-            );
-            $data['avatar'] = $processed[0] ?? null;
-        } else {
-            // If empty, unset it to preserve existing avatar
+        // Новое фото не загружали — оставляем текущее
+        if (empty($data['avatar'])) {
             unset($data['avatar']);
         }
 
-        // Extract relationships
-        $subjects = $data['subjects'] ?? [];
-        $directs = $data['directs'] ?? [];
+        $data['subjects'] = $data['subjects'] ?? [];
+        $data['directs'] = $data['directs'] ?? [];
 
-        // Remove relationships from data to avoid update error on user model
-        unset($data['subjects']);
-        unset($data['directs']);
-
-        // Remove password if empty (double check, though dehydrated handles this usually)
-        if (empty($data['password'])) {
-            unset($data['password']);
-        }
-
-        $user->update($data);
-
-        // Sync relationships
-        $user->subjects()->sync($subjects);
-        $user->directs()->sync($directs);
-
-        // If password was updated, we must re-login to keep session
-        if (isset($data['password'])) {
-            \Illuminate\Support\Facades\Auth::login($user);
-        }
+        app(\App\Services\TeacherProfileService::class)->update(auth()->user(), $data);
 
         \Filament\Notifications\Notification::make()
             ->title('Профиль обновлен')

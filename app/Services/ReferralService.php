@@ -274,6 +274,61 @@ class ReferralService
     }
 
     /**
+     * Приглашённые учителем: сначала заявки на рассмотрении, затем зарегистрированные.
+     * state: application | waiting | credited | limit | rejected | revoked; status/color — подпись для старого кабинета.
+     */
+    public static function invited(User $user): \Illuminate\Support\Collection
+    {
+        $rewards = ReferralReward::where('referrer_id', $user->id)->get()->keyBy('referred_id');
+
+        $invited = User::where('referred_by_id', $user->id)
+            ->latest()
+            ->get()
+            ->map(function (User $referred) use ($rewards) {
+                $reward = $rewards->get($referred->id);
+                $state = match ($reward?->status) {
+                    ReferralReward::STATUS_CREDITED => 'credited',
+                    ReferralReward::STATUS_LIMIT => 'limit',
+                    ReferralReward::STATUS_REJECTED => 'rejected',
+                    ReferralReward::STATUS_REVOKED => 'revoked',
+                    default => 'waiting',
+                };
+
+                return [
+                    'id' => $referred->id,
+                    'name' => $referred->name,
+                    'date' => $referred->created_at,
+                    'state' => $state,
+                    'lessons' => (int) ($reward?->referrer_lessons ?? 0),
+                    'status' => match ($state) {
+                        'credited' => 'Оплатил · вам +' . $reward->referrer_lessons . ' ' . SubscriptionService::lessonsWord($reward->referrer_lessons),
+                        'limit' => 'Оплатил · лимит бонусов в этом месяце',
+                        'rejected' => 'Бонус не начислен',
+                        'revoked' => 'Платёж возвращён',
+                        default => 'Зарегистрировался · ждём оплату',
+                    },
+                    'color' => $state === 'credited' ? 'success' : 'gray',
+                ];
+            });
+
+        $pending = \App\Models\TeacherApplication::where('referred_by_id', $user->id)
+            ->where('status', 'pending')
+            ->latest()
+            ->get()
+            ->map(fn(\App\Models\TeacherApplication $application) => [
+                'id' => $application->id,
+                'name' => trim($application->first_name . ' ' . $application->last_name),
+                'date' => $application->created_at,
+                'state' => 'application',
+                'lessons' => 0,
+                'status' => 'Заявка на рассмотрении',
+                'color' => 'gray',
+            ]);
+
+        return $pending->concat($invited)->values();
+    }
+
+    /**
      * Признаки того, что учитель пригласил сам себя: совпадает телефон
      * или сохранённый способ оплаты ЮKassa.
      */

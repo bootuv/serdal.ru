@@ -63,26 +63,17 @@
                         <x-ui.card-head id="pay-hist" title="История оплат" />
                         <x-ui.list>
                             @foreach ($months as $month)
-                                <div wire:key="m-{{ $loop->index }}-{{ $month['title'] }}" x-data="{ open: {{ $loop->first ? 'true' : 'false' }} }" class="flex flex-col border-t border-line">
-                                    <button type="button" class="flex items-center gap-4 py-4 text-left" x-on:click="open = ! open" x-bind:aria-expanded="open">
-                                        <span class="flex min-w-0 flex-1 flex-col gap-1">
-                                            <span class="text-t1 font-medium">{{ $month['title'] }}</span>
-                                            <span class="text-t2 text-muted">{{ $month['note'] }}</span>
-                                        </span>
-                                        <x-ui.icon name="chevron-right" class="text-faint transition-transform" x-bind:class="open && 'rotate-90'" />
-                                    </button>
-                                    <div x-show="open" @if (! $loop->first) x-cloak @endif class="flex flex-col pb-4">
-                                        @foreach ($month['rows'] as $row)
-                                            <div class="flex items-center gap-4 border-t border-line py-3 pl-4">
-                                                <div class="flex min-w-0 flex-1 flex-col gap-1">
-                                                    <span class="text-t1-s font-medium">{{ $row['title'] }}</span>
-                                                    <span class="text-t2 text-muted">{{ $row['sub'] }}</span>
-                                                </div>
-                                                @if ($row['waived'])<x-ui.badge>Без оплаты</x-ui.badge>@endif
+                                <x-ui.disclosure :title="$month['title']" :meta="$month['note']" :open="$loop->first" wire:key="m-{{ $loop->index }}-{{ $month['title'] }}">
+                                    @foreach ($month['rows'] as $row)
+                                        <div class="flex items-center gap-4 border-t border-line py-3 pl-4">
+                                            <div class="flex min-w-0 flex-1 flex-col gap-1">
+                                                <span class="text-t1-s font-medium">{{ $row['title'] }}</span>
+                                                <span class="text-t2 text-muted">{{ $row['sub'] }}</span>
                                             </div>
-                                        @endforeach
-                                    </div>
-                                </div>
+                                            @if ($row['waived'])<x-ui.badge>Без оплаты</x-ui.badge>@endif
+                                        </div>
+                                    @endforeach
+                                </x-ui.disclosure>
                             @endforeach
                         </x-ui.list>
                     </x-ui.card>

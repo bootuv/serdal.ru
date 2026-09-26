@@ -37,22 +37,7 @@ class LessonTypeResource extends Resource
             ->schema([
                 Forms\Components\Select::make('type')
                     ->label('Тип урока')
-                    ->options(function (?LessonType $record) {
-                        $existingTypesQuery = LessonType::where('user_id', auth()->id());
-
-                        if ($record) {
-                            $existingTypesQuery->where('id', '!=', $record->id);
-                        }
-
-                        $existingTypes = $existingTypesQuery->pluck('type')->toArray();
-
-                        $allTypes = [
-                            LessonType::TYPE_INDIVIDUAL => 'Индивидуальный',
-                            LessonType::TYPE_GROUP => 'Групповой',
-                        ];
-
-                        return array_diff_key($allTypes, array_flip($existingTypes));
-                    })
+                    ->options(fn(?LessonType $record) => LessonType::availableTypesFor((int) auth()->id(), $record?->id))
                     ->required()
                     ->live()
                     ->afterStateUpdated(function ($state, Forms\Set $set) {
@@ -174,6 +159,6 @@ class LessonTypeResource extends Resource
 
     public static function canCreate(): bool
     {
-        return LessonType::where('user_id', auth()->id())->count() < 2;
+        return LessonType::canCreateFor((int) auth()->id());
     }
 }

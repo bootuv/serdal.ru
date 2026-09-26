@@ -4,14 +4,12 @@ namespace App\Filament\App\Resources;
 
 use App\Filament\App\Resources\RecordingResource\Pages;
 use App\Models\Recording;
-use App\Models\Room;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use JoisarJignesh\Bigbluebutton\Facades\Bigbluebutton;
 use Filament\Notifications\Notification;
 use Filament\Tables\Actions\Action;
 
@@ -111,48 +109,8 @@ class RecordingResource extends Resource
                     ->visible(fn(Recording $record) => empty($record->s3_url) && !empty($record->url)),
 
                 Tables\Actions\DeleteAction::make()
-                    ->before(function (Recording $record) {
-                        // Delete from BBB First
-                        try {
-                            // Configure BBB from global settings
-                            $globalUrl = \App\Models\Setting::where('key', 'bbb_url')->value('value');
-                            $globalSecret = \App\Models\Setting::where('key', 'bbb_secret')->value('value');
-                            if ($globalUrl && $globalSecret) {
-                                config([
-                                    'bigbluebutton.BBB_SERVER_BASE_URL' => $globalUrl,
-                                    'bigbluebutton.BBB_SECURITY_SALT' => $globalSecret,
-                                ]);
-                            }
-
-                            \Log::info('Attempting to delete recording from BBB', [
-                                'record_id' => $record->record_id,
-                                'bbb_url' => config('bigbluebutton.BBB_SERVER_BASE_URL')
-                            ]);
-
-                            // Debug: Check if recording exists and its state before deleting
-                            try {
-                                $check = Bigbluebutton::getRecordings(['recordID' => $record->record_id, 'state' => 'any']);
-                                \Log::info('BBB Check Before Delete', ['record_id' => $record->record_id, 'check_result' => $check]);
-                            } catch (\Exception $e) {
-                                \Log::error('BBB Check Before Delete Failed', ['error' => $e->getMessage()]);
-                            }
-
-                            $response = Bigbluebutton::deleteRecordings(['recordID' => $record->record_id]);
-                            \Log::info('BBB Delete Recording Response', ['record_id' => $record->record_id, 'response' => $response]);
-
-                            if ($response instanceof \Illuminate\Support\Collection) {
-                                $messageKey = $response->get('messageKey');
-                                $returnCode = $response->get('returncode');
-
-                                if ($messageKey === 'notFound' || $returnCode === 'SUCCESS') {
-                                    return;
-                                }
-                            }
-                        } catch (\Exception $e) {
-                            \Log::error('BBB Delete Recording Error', ['record_id' => $record->record_id, 'error' => $e->getMessage()]);
-                            // Don't throw - allow local delete even if BBB delete fails
-                        }
-                    }),
+                    // Сначала удаляем с сервера занятий (общий сервис с новым кабинетом)
+                    ->before(fn (Recording $record) => app(\App\Services\TeacherRecordingsService::class)->deleteFromServer($record)),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
@@ -176,8 +134,7 @@ class RecordingResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        // Scope to User's Rooms
-        $userMeetingIds = Room::where('user_id', auth()->id())->pluck('meeting_id');
-        return parent::getEloquentQuery()->whereIn('meeting_id', $userMeetingIds);
+        // Записи занятий учителя
+        return parent::getEloquentQuery()->forTeacher(auth()->user());
     }
 }

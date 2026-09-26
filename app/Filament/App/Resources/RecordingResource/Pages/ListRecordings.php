@@ -28,19 +28,8 @@ class ListRecordings extends ListRecords
 
     public function mount(): void
     {
-        try {
-            // Optimization: Run sync in background with throttling
-            $user = auth()->user();
-            $cacheKey = "last_recordings_sync_{$user->id}";
-
-            if (!\Illuminate\Support\Facades\Cache::has($cacheKey)) {
-                \App\Jobs\SyncUserRecordings::dispatch($user);
-                // Cache for 60 seconds to prevent spamming
-                \Illuminate\Support\Facades\Cache::put($cacheKey, true, 60);
-            }
-        } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::error('Recording Sync Dispatch Error: ' . $e->getMessage());
-        }
+        // Новые записи подтягиваются в фоне, не чаще раза в минуту (общий сервис с новым кабинетом)
+        app(\App\Services\TeacherRecordingsService::class)->syncInBackground(auth()->user());
 
         parent::mount();
     }

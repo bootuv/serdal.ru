@@ -257,8 +257,8 @@ class Task extends Component
     }
 
     /**
-     * Текст из редактора учителя — очищаем так же, как старый кабинет (Filament sanitizeHtml),
-     * и добавляем классы кабинета спискам и ссылкам (в базовых стилях у них нет маркеров и подчёркивания).
+     * Текст из редактора учителя — очищаем так же, как старый кабинет (Filament sanitizeHtml).
+     * Оформление — класс `.rich` во вьюхе; ссылки открываются в новой вкладке.
      */
     private function rich(?string $html): ?HtmlString
     {
@@ -266,14 +266,7 @@ class Task extends Component
             return null;
         }
 
-        $clean = Str::sanitizeHtml($html);
-        $clean = preg_replace(
-            ['/<ul(?=[\s>])/i', '/<ol(?=[\s>])/i', '/<a(?=\s)/i'],
-            ['<ul class="flex list-disc flex-col gap-1 pl-6"', '<ol class="flex list-decimal flex-col gap-1 pl-6"', '<a class="link" target="_blank" rel="noopener"'],
-            $clean
-        );
-
-        return new HtmlString($clean);
+        return new HtmlString(preg_replace('/<a(?=\s)/i', '<a target="_blank" rel="noopener"', Str::sanitizeHtml($html)));
     }
 
     /** Простой текст ответа → HTML для хранения (абзацы и переносы строк). */

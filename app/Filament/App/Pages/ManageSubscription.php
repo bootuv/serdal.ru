@@ -6,6 +6,7 @@ use App\Models\SubscriptionPayment;
 use App\Models\Tariff;
 use App\Services\YooKassaService;
 use App\Services\SubscriptionService;
+use App\Services\SubscriptionCheckoutService;
 use Filament\Actions\Action;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
@@ -42,7 +43,7 @@ class ManageSubscription extends Page
     /**
      * За сколько дней до окончания подписки показывать кнопку «Продлить».
      */
-    const RENEW_WINDOW_DAYS = 14;
+    const RENEW_WINDOW_DAYS = SubscriptionCheckoutService::RENEW_WINDOW_DAYS;
 
     public function mount(): void
     {
@@ -74,50 +75,7 @@ class ManageSubscription extends Page
 
     protected function getViewData(): array
     {
-        $user = auth()->user();
-        $subscription = $user->activeSubscription();
-        $tariffs = Tariff::active()->get();
-
-        // Была подписка, но срок вышел (или крон ещё не пометил её истёкшей)
-        $expired = $subscription ? null : $user->subscriptions()
-            ->whereIn('status', [\App\Models\Subscription::STATUS_EXPIRED, \App\Models\Subscription::STATUS_ACTIVE])
-            ->with('tariff')
-            ->latest('starts_at')
-            ->first();
-
-        // Какая карточка получает залитую primary-кнопку (одна на страницу):
-        // истёк срок — «Продлить»; нет подписки — бесплатный «Старт»;
-        // активная подписка — популярный тариф дороже текущего (апгрейд)
-        $primaryTariffId = match (true) {
-            $expired !== null => $expired->tariff_id,
-            $subscription === null => $tariffs->first(fn(Tariff $t) => $t->isFree())?->id,
-            default => $tariffs->first(fn(Tariff $t) => $t->is_popular && $t->price > $subscription->tariff->price)?->id,
-        };
-
-        return [
-            'subscription' => $subscription,
-            'scheduled' => $user->scheduledSubscription(),
-            'expired' => $expired,
-            'primaryTariffId' => $primaryTariffId,
-            // «Продлить» показываем незадолго до окончания, а не сразу после оплаты
-            'showRenew' => $subscription && !$subscription->tariff->isFree() && $subscription->ends_at
-                && now()->diffInDays($subscription->ends_at, false) <= self::RENEW_WINDOW_DAYS,
-            'refundProcessingDays' => \App\Support\OfferSettings::offer()['refund_processing_days'],
-            'hasYearly' => $tariffs->contains(fn(Tariff $t) => $t->hasYearly()),
-            'tariffs' => $tariffs,
-            'lessonsUsed' => SubscriptionService::lessonsUsedThisPeriod($user),
-            'limitReached' => SubscriptionService::lessonLimitReached($user),
-            'periodResetsAt' => SubscriptionService::periodResetsAt($user),
-            'extraBalance' => (int) $user->extra_lessons_balance,
-            'canBuyExtra' => SubscriptionService::canBuyExtraLessons($user),
-            'payments' => SubscriptionPayment::where('user_id', $user->id)
-                // Неудавшиеся попытки не показываем — они остаются в админке для сверки
-                ->where('status', '!=', SubscriptionPayment::STATUS_FAILED)
-                ->with('tariff')
-                ->latest()
-                ->take(20)
-                ->get(),
-        ];
+        return SubscriptionCheckoutService::overview(auth()->user());
     }
 
     /**
@@ -125,9 +83,7 @@ class ManageSubscription extends Page
      */
     protected static function tariffUnavailable(int|string|null $tariffId): bool
     {
-        $tariff = Tariff::withTrashed()->find($tariffId);
-
-        return !$tariff || $tariff->trashed() || !$tariff->is_active;
+        return SubscriptionCheckoutService::tariffUnavailable($tariffId);
     }
 
     /**
@@ -326,13 +282,7 @@ class ManageSubscription extends Page
      */
     protected function nextTariffUp(): ?Tariff
     {
-        $currentPrice = auth()->user()->activeSubscription()?->tariff->price ?? 0;
-
-        return Tariff::active()
-            ->where('price', '>', $currentPrice)
-            ->whereNotNull('lessons_per_month')
-            ->orderBy('price')
-            ->first();
+        return SubscriptionCheckoutService::nextTariffUp(auth()->user());
     }
 
     /**
@@ -343,73 +293,53 @@ class ManageSubscription extends Page
     public function buyExtraLessons(int $quantity, ?string $method = null)
     {
         $user = auth()->user();
+        $result = SubscriptionCheckoutService::buyExtraLessons($user, $quantity, $method);
 
-        if (!SubscriptionService::canBuyExtraLessons($user)) {
-            Notification::make()
-                ->title('Докупка занятий недоступна')
-                ->body(YooKassaService::isConfigured()
-                    ? 'Докупать занятия можно только на тарифе с лимитом занятий.'
-                    : 'Онлайн-оплата подключается. Напишите в поддержку: info@serdal.ru.')
-                ->warning()
-                ->send();
-            return null;
-        }
+        switch ($result['status']) {
+            case 'unavailable':
+                Notification::make()
+                    ->title('Докупка занятий недоступна')
+                    ->body($result['configured']
+                        ? 'Докупать занятия можно только на тарифе с лимитом занятий.'
+                        : 'Онлайн-оплата подключается. Напишите в поддержку: info@serdal.ru.')
+                    ->warning()
+                    ->send();
+                return null;
 
-        $max = SubscriptionService::extraLessonsMax();
-        if ($quantity < 1 || $quantity > $max) {
-            Notification::make()
-                ->title("Укажите количество от 1 до {$max}")
-                ->warning()
-                ->send();
-            return null;
-        }
+            case 'invalid_quantity':
+                Notification::make()
+                    ->title("Укажите количество от 1 до {$result['max']}")
+                    ->warning()
+                    ->send();
+                return null;
 
-        $payment = SubscriptionService::createExtraLessonsPayment($user, $quantity);
-
-        // Карта уже сохранена — списываем в один клик
-        if ($user->yookassa_payment_method_id) {
-            $status = YooKassaService::createRecurringPayment($payment, $user->yookassa_payment_method_id);
-
-            if ($status === 'succeeded') {
-                SubscriptionService::applyPaidPayment($payment);
+            case 'paid':
                 Notification::make()
                     ->title('Оплачено')
-                    ->body('Оплачено в один клик (' . ($user->payment_method_title ?? 'сохранённый способ оплаты') . '). Зачислено '
+                    ->body('Оплачено в один клик (' . ($result['method_title'] ?? 'сохранённый способ оплаты') . '). Зачислено '
                         . $quantity . ' ' . SubscriptionService::lessonsWord($quantity) . '.')
                     ->success()
                     ->send();
                 return null;
-            }
 
-            if ($status === 'pending' || $status === 'waiting_for_capture') {
+            case 'processing':
                 Notification::make()
                     ->title('Платёж обрабатывается')
                     ->body('Занятия зачислятся автоматически после подтверждения оплаты.')
                     ->info()
                     ->send();
                 return null;
-            }
 
-            // Списание не прошло — отправляем на обычную платёжную страницу
+            case 'failed':
+                Notification::make()
+                    ->title('Не удалось создать платёж')
+                    ->body($result['error'])
+                    ->danger()
+                    ->send();
+                return null;
         }
 
-        try {
-            $url = YooKassaService::createPayment(
-                $payment,
-                route('subscription.payment.return', $payment),
-                methodType: $method,
-            );
-        } catch (\Throwable $e) {
-            $payment->update(['status' => SubscriptionPayment::STATUS_FAILED]);
-            Notification::make()
-                ->title('Не удалось создать платёж')
-                ->body($e->getMessage())
-                ->danger()
-                ->send();
-            return null;
-        }
-
-        return redirect()->away($url);
+        return redirect()->away($result['url']);
     }
 
     /**
@@ -418,17 +348,7 @@ class ManageSubscription extends Page
      */
     public static function paymentMethodField(?array $only = null): \Filament\Forms\Components\Radio
     {
-        $methods = [
-            'sbp' => ['icon' => 'sbp.svg', 'title' => 'СБП', 'subtitle' => 'Приложение вашего банка — рекомендуем'],
-            'sberbank' => ['icon' => 'sberpay.svg', 'title' => 'SberPay', 'subtitle' => 'Быстрая оплата для клиентов Сбера'],
-            'tinkoff_bank' => ['icon' => 'tpay.svg', 'title' => 'T-Pay', 'subtitle' => 'Приложение Т-Банка'],
-            'bank_card' => ['icon' => 'card.svg', 'title' => 'Банковская карта', 'subtitle' => 'Любой банк'],
-            'yoo_money' => ['icon' => 'yoomoney.png', 'title' => 'ЮMoney', 'subtitle' => 'Кошелёк или привязанная карта'],
-        ];
-
-        if ($only !== null) {
-            $methods = array_intersect_key($methods, array_flip($only));
-        }
+        $methods = SubscriptionCheckoutService::paymentMethods($only);
 
         return \Filament\Forms\Components\Radio::make('payment_method')
             ->label('Способ оплаты')
@@ -444,9 +364,9 @@ class ManageSubscription extends Page
      */
     public function toggleAutoRenew(): void
     {
-        $user = auth()->user();
+        $result = SubscriptionCheckoutService::toggleAutoRenew(auth()->user());
 
-        if (!$user->yookassa_payment_method_id) {
+        if ($result['status'] === 'no_method') {
             Notification::make()
                 ->title('Сначала сохраните способ оплаты')
                 ->body('Отметьте «Сохранить способ оплаты» при следующей оплате — после неё автопродление можно будет включить.')
@@ -455,10 +375,8 @@ class ManageSubscription extends Page
             return;
         }
 
-        $user->update(['auto_renew' => !$user->auto_renew]);
-
         Notification::make()
-            ->title($user->auto_renew ? 'Автопродление включено' : 'Автопродление выключено')
+            ->title($result['status'] === 'enabled' ? 'Автопродление включено' : 'Автопродление выключено')
             ->success()
             ->send();
     }
@@ -512,64 +430,31 @@ class ManageSubscription extends Page
      */
     public function bindCard(?string $method = null)
     {
-        $user = auth()->user();
+        $result = SubscriptionCheckoutService::bindCard(auth()->user(), $method);
 
-        if ($user->yookassa_payment_method_id) {
-            Notification::make()->title('Способ оплаты уже привязан')->info()->send();
-            return null;
+        switch ($result['status']) {
+            case 'already_bound':
+                Notification::make()->title('Способ оплаты уже привязан')->info()->send();
+                return null;
+
+            case 'disabled':
+                Notification::make()
+                    ->title('Привязка пока недоступна')
+                    ->body('Автоплатежи подключаются на стороне платёжного сервиса. Попробуйте позже.')
+                    ->warning()
+                    ->send();
+                return null;
+
+            case 'no_tariffs':
+                Notification::make()->title('Нет доступных тарифов')->danger()->send();
+                return null;
+
+            case 'failed':
+                Notification::make()->title('Не удалось привязать способ оплаты')->body($result['error'])->danger()->send();
+                return null;
         }
 
-        if (!YooKassaService::recurringEnabled()) {
-            Notification::make()
-                ->title('Привязка пока недоступна')
-                ->body('Автоплатежи подключаются на стороне платёжного сервиса. Попробуйте позже.')
-                ->warning()
-                ->send();
-            return null;
-        }
-
-        // Платёж требует тариф (FK): берём текущий или первый платный — на подписку не влияет
-        $tariff = $user->activeSubscription()?->tariff;
-        if (!$tariff || $tariff->isFree()) {
-            $tariff = Tariff::active()->where('price', '>', 0)->first();
-        }
-
-        if (!$tariff) {
-            Notification::make()->title('Нет доступных тарифов')->danger()->send();
-            return null;
-        }
-
-        $payment = SubscriptionPayment::create([
-            'user_id' => $user->id,
-            'tariff_id' => $tariff->id,
-            'amount' => 1,
-            'period_days' => $tariff->period_days,
-            'status' => SubscriptionPayment::STATUS_PENDING,
-            'gateway' => 'yookassa',
-            'meta' => ['card_binding' => true, 'save_method' => true],
-        ]);
-
-        // Только методы с включённой привязкой — иначе ЮKassa вернёт
-        // «This store can't make recurring payments»
-        $savable = YooKassaService::savableMethods();
-        if (!in_array($method, $savable, true)) {
-            $method = $savable[0];
-        }
-
-        try {
-            $url = YooKassaService::createPayment(
-                $payment,
-                route('subscription.payment.return', $payment),
-                savePaymentMethod: true,
-                methodType: $method,
-            );
-        } catch (\Throwable $e) {
-            $payment->update(['status' => SubscriptionPayment::STATUS_FAILED]);
-            Notification::make()->title('Не удалось привязать способ оплаты')->body($e->getMessage())->danger()->send();
-            return null;
-        }
-
-        return redirect()->away($url);
+        return redirect()->away($result['url']);
     }
 
     /**
@@ -577,11 +462,7 @@ class ManageSubscription extends Page
      */
     public function removePaymentMethod(): void
     {
-        auth()->user()->update([
-            'yookassa_payment_method_id' => null,
-            'payment_method_title' => null,
-            'auto_renew' => false,
-        ]);
+        SubscriptionCheckoutService::removePaymentMethod(auth()->user());
 
         Notification::make()->title('Карта отвязана, автопродление выключено')->success()->send();
     }
@@ -594,42 +475,35 @@ class ManageSubscription extends Page
      */
     public function selectTariff(int $tariffId, bool $saveMethod = false, bool $autoRenew = false, ?string $method = null)
     {
-        $user = auth()->user();
+        $result = SubscriptionCheckoutService::selectTariff(
+            auth()->user(),
+            $tariffId,
+            $this->billingPeriod === 'year',
+            $saveMethod,
+            $autoRenew,
+            $method,
+        );
+        $tariff = $result['tariff'] ?? null;
 
-        // Сохранение возможно только для способов с включённой привязкой
-        // и только когда магазину разрешены автоплатежи — иначе ЮKassa
-        // отклонит платёж («This store can't make recurring payments»)
-        $saveMethod = $saveMethod
-            && YooKassaService::recurringEnabled()
-            && in_array($method, YooKassaService::savableMethods(), true);
+        switch ($result['status']) {
+            case 'unavailable':
+                Notification::make()
+                    ->title('Тариф больше недоступен')
+                    ->body('Этот тариф снят с продажи. Выберите другой тариф из списка.')
+                    ->warning()
+                    ->send();
+                return null;
 
-        if (self::tariffUnavailable($tariffId)) {
-            Notification::make()
-                ->title('Тариф больше недоступен')
-                ->body('Этот тариф снят с продажи. Выберите другой тариф из списка.')
-                ->warning()
-                ->send();
-            return null;
-        }
-
-        $tariff = Tariff::active()->findOrFail($tariffId);
-        $subscription = $user->activeSubscription();
-
-        if ($tariff->isFree()) {
-            if ($subscription && $subscription->tariff_id === $tariff->id) {
+            case 'already_active':
                 Notification::make()->title('Этот тариф уже подключён')->info()->send();
                 return null;
-            }
 
-            // Даунгрейд с оплаченного тарифа: переключаем только после окончания
-            // оплаченного периода, чтобы оплаченные лимиты не сгорали
-            if ($subscription && !$subscription->tariff->isFree() && $subscription->ends_at?->isFuture()) {
-                if ($user->scheduledSubscription()?->tariff_id === $tariff->id) {
-                    Notification::make()->title('Переключение уже запланировано')->info()->send();
-                    return null;
-                }
+            case 'already_scheduled':
+                Notification::make()->title('Переключение уже запланировано')->info()->send();
+                return null;
 
-                SubscriptionService::scheduleTariffChange($user, $tariff, $subscription->ends_at);
+            case 'scheduled':
+                $subscription = $result['subscription'];
                 Notification::make()
                     ->title('Переключение запланировано')
                     ->body('Тариф «' . $tariff->name . '» будет подключён ' . $subscription->ends_at->format('d.m.Y')
@@ -639,78 +513,45 @@ class ManageSubscription extends Page
                     ->persistent()
                     ->send();
                 return null;
-            }
 
-            SubscriptionService::activate($user, $tariff);
-            Notification::make()->title('Тариф «' . $tariff->name . '» подключён')->success()->send();
-            return null;
-        }
+            case 'activated':
+                Notification::make()->title('Тариф «' . $tariff->name . '» подключён')->success()->send();
+                return null;
 
-        if (!YooKassaService::isConfigured()) {
-            Notification::make()
-                ->title('Онлайн-оплата подключается')
-                ->body('Пока платные тарифы можно оформить через поддержку: info@serdal.ru — мы подключим тариф вручную.')
-                ->warning()
-                ->persistent()
-                ->send();
-            return null;
-        }
+            case 'not_configured':
+                Notification::make()
+                    ->title('Онлайн-оплата подключается')
+                    ->body('Пока платные тарифы можно оформить через поддержку: info@serdal.ru — мы подключим тариф вручную.')
+                    ->warning()
+                    ->persistent()
+                    ->send();
+                return null;
 
-        $yearly = $this->billingPeriod === 'year' && $tariff->hasYearly();
-
-        $payment = SubscriptionPayment::create([
-            'user_id' => $user->id,
-            'tariff_id' => $tariff->id,
-            'amount' => $yearly ? $tariff->yearly_price : $tariff->price,
-            'period_days' => $yearly ? 365 : $tariff->period_days,
-            'status' => SubscriptionPayment::STATUS_PENDING,
-            'gateway' => 'yookassa',
-            'meta' => $saveMethod ? ['save_method' => true, 'auto_renew_opt_in' => $autoRenew] : null,
-        ]);
-
-        // Карта уже сохранена — списываем в один клик, без ухода на платёжную страницу
-        if ($user->yookassa_payment_method_id) {
-            $status = YooKassaService::createRecurringPayment($payment, $user->yookassa_payment_method_id);
-
-            if ($status === 'succeeded') {
-                SubscriptionService::applyPaidPayment($payment);
+            case 'paid':
                 Notification::make()
                     ->title('Оплачено')
-                    ->body('Оплачено в один клик (' . ($user->payment_method_title ?? 'сохранённый способ оплаты') . '). Тариф «' . $tariff->name . '» подключён.')
+                    ->body('Оплачено в один клик (' . ($result['method_title'] ?? 'сохранённый способ оплаты') . '). Тариф «' . $tariff->name . '» подключён.')
                     ->success()
                     ->send();
                 return null;
-            }
 
-            if ($status === 'pending' || $status === 'waiting_for_capture') {
+            case 'processing':
                 Notification::make()
                     ->title('Платёж обрабатывается')
                     ->body('Подписка активируется автоматически после подтверждения оплаты.')
                     ->info()
                     ->send();
                 return null;
-            }
 
-            // Списание не прошло — отправляем на обычную платёжную страницу
+            case 'failed':
+                Notification::make()
+                    ->title('Не удалось создать платёж')
+                    ->body($result['error'])
+                    ->danger()
+                    ->send();
+                return null;
         }
 
-        try {
-            $url = YooKassaService::createPayment(
-                $payment,
-                route('subscription.payment.return', $payment),
-                savePaymentMethod: $saveMethod,
-                methodType: $method,
-            );
-        } catch (\Throwable $e) {
-            $payment->update(['status' => SubscriptionPayment::STATUS_FAILED]);
-            Notification::make()
-                ->title('Не удалось создать платёж')
-                ->body($e->getMessage())
-                ->danger()
-                ->send();
-            return null;
-        }
-
-        return redirect()->away($url);
+        return redirect()->away($result['url']);
     }
 }

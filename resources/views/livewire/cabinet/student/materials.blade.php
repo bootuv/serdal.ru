@@ -25,19 +25,14 @@
         @if ($teachers->isEmpty())
             <x-ui.empty icon="folder" title="Материалов пока нет" text="Здесь появятся файлы, которыми поделятся ваши учителя." />
         @else
-            <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div @class(['flex flex-col gap-4 lg:flex-row lg:items-center', 'lg:justify-between' => $multi, 'lg:justify-end' => ! $multi])>
                 @if ($multi)
-                    <x-ui.seg model="teacher" :active="$teacher" aria-label="Учитель" class="w-full min-w-0 lg:max-w-modal-m"
+                    <x-ui.seg model="teacher" :active="$teacher" aria-label="Учитель" fit class="min-w-0"
                               :items="['all' => 'Все материалы'] + $teachers->pluck('name', 'id')->all()" />
-                @else
-                    <span></span>
                 @endif
-                <label class="flex h-9 w-full items-center gap-2 rounded px-3 text-muted shadow-outline focus-within:shadow-outline-ink lg:w-sidebar lg:shrink-0">
-                    <x-ui.icon name="search" size="s" />
-                    <span class="sr-only">Поиск по материалам</span>
-                    <input type="search" wire:model.live.debounce.400ms="search" placeholder="Поиск по материалам"
-                           class="h-full min-w-0 flex-1 bg-transparent text-t2 text-ink outline-none placeholder:text-faint">
-                </label>
+                <div class="lg:shrink-0">
+                    <x-ui.search placeholder="Поиск по материалам" wire:model.live.debounce.400ms="search" />
+                </div>
             </div>
 
             @if ($searching)

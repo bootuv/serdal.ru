@@ -15,7 +15,7 @@
         <div class="relative flex flex-col gap-4">
             <x-ui.tabs :items="['upcoming' => 'Предстоящие', 'past' => 'Прошедшие']" model="tab" :active="$tab" aria-label="Какие занятия показать" />
             @if ($teacherFilter)
-                <x-ui.seg :items="$teacherFilter" model="teacher" :active="$teacher" aria-label="Учитель" class="lg:absolute lg:bottom-2 lg:right-0 lg:grid lg:grid-flow-col lg:auto-cols-max" />
+                <x-ui.seg :items="$teacherFilter" model="teacher" :active="$teacher" aria-label="Учитель" fit class="lg:absolute lg:bottom-2 lg:right-0" />
             @endif
         </div>
 

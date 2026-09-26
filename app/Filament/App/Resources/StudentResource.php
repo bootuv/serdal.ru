@@ -8,6 +8,7 @@ use App\Models\PaymentRecord;
 use App\Models\Room;
 use App\Models\User;
 use App\Services\PaymentRecordService;
+use App\Services\TeacherStudentsService;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -32,6 +33,12 @@ class StudentResource extends Resource
     protected static ?string $slug = 'students'; // Url slug
 
     protected static ?int $navigationSort = 1;
+
+    /** Логика учеников и оплаты — общая со страницами нового кабинета. */
+    protected static function service(): TeacherStudentsService
+    {
+        return app(TeacherStudentsService::class);
+    }
 
     // Disable the default create button since we use custom "Add Student" action
     public static function canCreate(): bool
@@ -193,44 +200,23 @@ class StudentResource extends Resource
                 Tables\Columns\TextColumn::make('payment_status')
                     ->label('Оплата')
                     ->state(function (User $record) {
-                        if (static::isFreeStudent($record)) {
-                            return 'Бесплатно';
-                        }
+                        $payment = static::service()->paymentState(auth()->user(), $record->id);
 
-                        $records = PaymentRecord::where('teacher_id', auth()->id())
-                            ->where('student_id', $record->id)
-                            ->get();
-
-                        // Записей об оплате ещё не было (не прошло ни одного занятия / месяца)
-                        if ($records->isEmpty()) {
-                            return 'Занятий не было';
-                        }
-
-                        $unpaid = $records->where('status', PaymentRecord::STATUS_UNPAID);
-
-                        if ($unpaid->isEmpty()) {
+                        return match ($payment['state']) {
+                            'free' => 'Бесплатно',
+                            // Записей об оплате ещё не было (не прошло ни одного занятия / месяца)
+                            'none' => 'Занятий не было',
+                            'paid' => 'Оплачено',
                             // Ни одной реальной оплаты — только отменённые записи
-                            return $records->contains('status', PaymentRecord::STATUS_PAID)
-                                ? 'Оплачено'
-                                : 'Оплата не требуется';
-                        }
-
-                        $overdue = $unpaid->filter(fn(PaymentRecord $r) => $r->isOverdue());
-
-                        if ($overdue->isNotEmpty()) {
+                            'waived' => 'Оплата не требуется',
                             // Посетил лимит занятий с просроченным долгом: не допускается к занятиям
                             // этого учителя, пока оплата не отмечена; подробности — в подсказке
-                            if (PaymentRecordService::isBlockedForTeacher($record->id, auth()->id())) {
-                                return 'Заблокирован';
-                            }
-
-                            if ($overdue->firstWhere('type', PaymentRecord::TYPE_MONTHLY)) {
-                                return 'Просрочено';
-                            }
-                            return 'Просрочено: ' . trans_choice('{1} :count занятие|[2,4] :count занятия|[5,*] :count занятий', $overdue->count());
-                        }
-
-                        return 'Ожидает оплаты';
+                            'blocked' => 'Заблокирован',
+                            'overdue' => $payment['monthly_overdue']
+                                ? 'Просрочено'
+                                : 'Просрочено: ' . trans_choice('{1} :count занятие|[2,4] :count занятия|[5,*] :count занятий', $payment['overdue']->count()),
+                            default => 'Ожидает оплаты',
+                        };
                     })
                     ->badge()
                     ->icon(fn(string $state): ?string => $state === 'Заблокирован' ? 'heroicon-m-lock-closed' : null)
@@ -387,11 +373,7 @@ class StudentResource extends Resource
      */
     public static function teacherRoomsForAssignment(): \Illuminate\Support\Collection
     {
-        return Room::query()
-            ->where('user_id', auth()->id())
-            ->withCount('participants')
-            ->orderBy('name')
-            ->get();
+        return static::service()->teacherRooms(auth()->user());
     }
 
     /**
@@ -454,45 +436,9 @@ class StudentResource extends Resource
      */
     public static function syncStudentRooms(User $record, array $data): void
     {
-        $teacher = auth()->user();
+        ['added' => $added, 'removed' => $removed] = static::service()->syncRooms(auth()->user(), $record, $data['room_ids'] ?? []);
 
-        $teacherRooms = Room::where('user_id', $teacher->id)->get()->keyBy('id');
-
-        // Чужие id отбрасываем — назначать можно только свои занятия
-        $wantedIds = collect($data['room_ids'] ?? [])
-            ->map(fn($id) => (int) $id)
-            ->filter(fn(int $id) => $teacherRooms->has($id))
-            ->unique()
-            ->values();
-
-        $currentIds = $record->assignedRooms()
-            ->where('rooms.user_id', $teacher->id)
-            ->pluck('rooms.id');
-
-        $addedIds = $wantedIds->diff($currentIds)->values();
-        $removedIds = $currentIds->diff($wantedIds)->values();
-
-        foreach ($addedIds as $roomId) {
-            $room = $teacherRooms[$roomId];
-            $room->participants()->attach($record->id);
-            static::refreshRoomType($room);
-
-            // Как и при добавлении через форму занятия: выдаём ученику задания этого занятия
-            $room->attachParticipantsToHomeworks([$record->id]);
-
-            $record->notify(new \App\Notifications\TeacherAssignedLesson($room, $teacher));
-        }
-
-        foreach ($removedIds as $roomId) {
-            $room = $teacherRooms[$roomId];
-            $room->participants()->detach($record->id);
-            static::refreshRoomType($room);
-        }
-
-        // Таблица перерисуется в этом же запросе — сбрасываем загруженное отношение
-        $record->unsetRelation('assignedRooms');
-
-        if ($addedIds->isEmpty() && $removedIds->isEmpty()) {
+        if ($added->isEmpty() && $removed->isEmpty()) {
             Notification::make()
                 ->title('Изменений нет')
                 ->info()
@@ -503,12 +449,12 @@ class StudentResource extends Resource
 
         $parts = [];
 
-        if ($addedIds->isNotEmpty()) {
-            $parts[] = 'Назначено: ' . $addedIds->map(fn(int $id) => '«' . $teacherRooms[$id]->name . '»')->join(', ');
+        if ($added->isNotEmpty()) {
+            $parts[] = 'Назначено: ' . $added->map(fn(Room $room) => '«' . $room->name . '»')->join(', ');
         }
 
-        if ($removedIds->isNotEmpty()) {
-            $parts[] = 'Снято: ' . $removedIds->map(fn(int $id) => '«' . $teacherRooms[$id]->name . '»')->join(', ');
+        if ($removed->isNotEmpty()) {
+            $parts[] = 'Снято: ' . $removed->map(fn(Room $room) => '«' . $room->name . '»')->join(', ');
         }
 
         Notification::make()
@@ -523,15 +469,7 @@ class StudentResource extends Resource
      */
     protected static function refreshRoomType(Room $room): void
     {
-        $participantCount = $room->participants()->count();
-
-        $room->updateQuietly([
-            'type' => match (true) {
-                $participantCount === 0 => 'pending',
-                $participantCount === 1 => 'individual',
-                default => 'group',
-            },
-        ]);
+        static::service()->refreshRoomType($room);
     }
 
     /**
@@ -560,30 +498,7 @@ class StudentResource extends Resource
      */
     public static function removeStudentFromList(User $record): void
     {
-        $teacher = auth()->user();
-        $teacher->students()->detach($record);
-
-        // Убираем ученика из всех занятий учителя
-        Room::where('user_id', $teacher->id)->get()->each(function (Room $room) use ($record) {
-            $room->participants()->detach($record->id);
-        });
-
-        // Может ли ученик оставить отзыв: было хотя бы одно занятие и отзыва ещё нет
-        $studentId = (string) $record->id;
-        $hasCompletedLesson = \App\Models\MeetingSession::whereHas('room', function ($q) use ($teacher) {
-            $q->where('user_id', $teacher->id);
-        })
-            ->where(function ($q) use ($studentId) {
-                $q->whereJsonContains('analytics_data->participants', ['user_id' => $studentId])
-                    ->orWhereJsonContains('analytics_data->participants', ['user_id' => (int) $studentId]);
-            })
-            ->exists();
-
-        $hasExistingReview = \App\Models\Review::where('user_id', $record->id)
-            ->where('teacher_id', $teacher->id)
-            ->exists();
-
-        $record->notify(new \App\Notifications\TeacherRemoved($teacher, $hasCompletedLesson && !$hasExistingReview));
+        static::service()->removeFromList(auth()->user(), $record);
     }
 
     /**
@@ -591,10 +506,7 @@ class StudentResource extends Resource
      */
     public static function isFreeStudent(User $record): bool
     {
-        return \Illuminate\Support\Facades\DB::table('teacher_student')
-            ->where('teacher_id', auth()->id())
-            ->where('student_id', $record->id)
-            ->value('is_free') == true;
+        return static::service()->isFree(auth()->user(), $record->id);
     }
 
     /**
@@ -602,10 +514,7 @@ class StudentResource extends Resource
      */
     public static function paymentTypeOverride(User $record): ?string
     {
-        return \Illuminate\Support\Facades\DB::table('teacher_student')
-            ->where('teacher_id', auth()->id())
-            ->where('student_id', $record->id)
-            ->value('payment_type_override');
+        return static::service()->paymentTypeOverride(auth()->user(), $record->id);
     }
 
     /**
@@ -643,10 +552,7 @@ class StudentResource extends Resource
      */
     public static function hasUnpaidRecords(User $record): bool
     {
-        return !static::isFreeStudent($record) && PaymentRecord::unpaid()
-            ->where('teacher_id', auth()->id())
-            ->where('student_id', $record->id)
-            ->exists();
+        return static::service()->hasUnpaidRecords(auth()->user(), $record->id);
     }
 
     /**
@@ -740,22 +646,14 @@ class StudentResource extends Resource
 
         $teacher = auth()->user();
 
-        $records = PaymentRecord::unpaid()
-            ->where('teacher_id', $teacher->id)
-            ->where('student_id', $record->id)
-            ->whereIn('id', $data['record_ids'])
-            ->get();
-
         // Продление срока: сдвигаем due_date, сбрасываем отметку о напоминании
         // и снимаем блокировку, если просроченных долгов не осталось
         if (($data['mark_action'] ?? 'paid') === 'extend') {
-            $days = max(1, (int) ($data['extend_days'] ?? 3));
+            $latestDue = static::service()->extendRecords($teacher, $record->id, $data['record_ids'], (int) ($data['extend_days'] ?? 3));
 
-            foreach ($records as $paymentRecord) {
-                $paymentRecord->extendDue($days);
+            if (! $latestDue) {
+                return;
             }
-
-            $latestDue = $records->map(fn(PaymentRecord $r) => $r->fresh()->due_date)->max();
 
             Notification::make()
                 ->title('Срок оплаты продлён')
@@ -770,9 +668,7 @@ class StudentResource extends Resource
             ? PaymentRecord::STATUS_CANCELLED
             : PaymentRecord::STATUS_PAID;
 
-        foreach ($records as $paymentRecord) {
-            $paymentRecord->markAs($status, $teacher->id);
-        }
+        static::service()->markRecords($teacher, $record->id, $data['record_ids'], $status);
 
         Notification::make()
             ->title($status === PaymentRecord::STATUS_PAID ? 'Отметили: оплачено' : 'Готово: оплата не требуется')
@@ -805,30 +701,24 @@ class StudentResource extends Resource
 
     public static function applyPaymentSettings(User $record, array $data): void
     {
-        $teacher = auth()->user();
-        $wasFree = static::isFreeStudent($record);
-        $isFree = (bool) ($data['is_free'] ?? false);
+        $result = static::service()->applyPaymentSettings(
+            auth()->user(),
+            $record,
+            (bool) ($data['is_free'] ?? false),
+            ($data['payment_type_override'] ?? null) ?: null,
+        );
 
-        if ($isFree !== $wasFree) {
-            $teacher->students()->updateExistingPivot($record->id, ['is_free' => $isFree]);
+        if ($result['free_changed'] && $result['is_free']) {
+            Notification::make()
+                ->title('Ученик занимается бесплатно')
+                ->body('Записи об оплате и напоминания для этого ученика отключены.')
+                ->success()
+                ->send();
 
-            if ($isFree) {
-                // Отменяем все неоплаченные записи, чтобы не осталось долгов и напоминаний
-                PaymentRecord::unpaid()
-                    ->where('teacher_id', $teacher->id)
-                    ->where('student_id', $record->id)
-                    ->get()
-                    ->each(fn(PaymentRecord $r) => $r->markAs(PaymentRecord::STATUS_CANCELLED, $teacher->id));
+            return;
+        }
 
-                Notification::make()
-                    ->title('Ученик занимается бесплатно')
-                    ->body('Записи об оплате и напоминания для этого ученика отключены.')
-                    ->success()
-                    ->send();
-
-                return;
-            }
-
+        if ($result['free_changed']) {
             Notification::make()
                 ->title('Оплата снова отслеживается')
                 ->body('Новые записи появятся после следующего занятия или в начале месяца.')
@@ -836,24 +726,16 @@ class StudentResource extends Resource
                 ->send();
         }
 
-        // Персональный тип оплаты (для бесплатного ученика неактуален)
-        if (!$isFree) {
-            $newOverride = $data['payment_type_override'] ?: null;
-            $oldOverride = static::paymentTypeOverride($record);
-
-            if ($newOverride !== $oldOverride) {
-                $teacher->students()->updateExistingPivot($record->id, ['payment_type_override' => $newOverride]);
-
-                Notification::make()
-                    ->title('Тип оплаты ученика обновлён')
-                    ->body(match ($newOverride) {
-                        PaymentRecord::TYPE_PER_LESSON => 'Теперь этот ученик оплачивает поурочно.',
-                        PaymentRecord::TYPE_MONTHLY => 'Теперь этот ученик оплачивает помесячно.',
-                        default => 'Теперь действует настройка из «Базовых цен».',
-                    })
-                    ->success()
-                    ->send();
-            }
+        if ($result['override_changed']) {
+            Notification::make()
+                ->title('Тип оплаты ученика обновлён')
+                ->body(match ($result['override']) {
+                    PaymentRecord::TYPE_PER_LESSON => 'Теперь этот ученик оплачивает поурочно.',
+                    PaymentRecord::TYPE_MONTHLY => 'Теперь этот ученик оплачивает помесячно.',
+                    default => 'Теперь действует настройка из «Базовых цен».',
+                })
+                ->success()
+                ->send();
         }
     }
 
@@ -862,10 +744,7 @@ class StudentResource extends Resource
      */
     protected static function availableStudentsQuery(): Builder
     {
-        return User::where('role', 'student')
-            ->whereDoesntHave('teachers', function (Builder $query) {
-                $query->where('users.id', auth()->id());
-            });
+        return static::service()->availableStudentsQuery(auth()->user());
     }
 
     /**
@@ -919,14 +798,7 @@ class StudentResource extends Resource
                     ->searchable()
                     ->searchPrompt('Введите имя или email...')
                     ->noSearchResultsMessage('Никого не нашли. Если ученик ещё не зарегистрирован, выберите вариант «Ученика ещё нет на Serdal».')
-                    ->getSearchResultsUsing(fn (string $search) => static::availableStudentsQuery()
-                        ->where(function (Builder $query) use ($search) {
-                            $query->where('name', 'like', "%{$search}%")
-                                ->orWhere('email', 'like', "%{$search}%");
-                        })
-                        ->orderBy('name')
-                        ->limit(50)
-                        ->get()
+                    ->getSearchResultsUsing(fn (string $search) => static::service()->searchAvailable(auth()->user(), $search)
                         ->mapWithKeys(fn (User $student) => [
                             $student->id => static::studentOptionLabel($student),
                         ]))
@@ -942,7 +814,7 @@ class StudentResource extends Resource
                     ->schema([
                         Forms\Components\TextInput::make('invitation_link')
                             ->label('Ссылка')
-                            ->default(fn () => \Illuminate\Support\Facades\URL::signedRoute('student.invitation', ['teacher' => auth()->id()]))
+                            ->default(fn () => static::service()->invitationLink(auth()->user()))
                             ->readOnly()
                             ->suffixAction(
                                 Forms\Components\Actions\Action::make('copy')
@@ -987,9 +859,7 @@ class StudentResource extends Resource
             return;
         }
 
-        $changes = auth()->user()->students()->syncWithoutDetaching([$student->id]);
-
-        if (count($changes['attached']) === 0) {
+        if (! static::service()->attachExisting(auth()->user(), $student)) {
             Notification::make()
                 ->title('Ученик уже в вашем списке')
                 ->warning()
@@ -997,8 +867,6 @@ class StudentResource extends Resource
 
             return;
         }
-
-        $student->notify(new \App\Notifications\NewTeacher(auth()->user()));
 
         Notification::make()
             ->title('Ученик добавлен')
@@ -1022,8 +890,7 @@ class StudentResource extends Resource
             return;
         }
 
-        \Illuminate\Support\Facades\Mail::to($data['email'])
-            ->send(new \App\Mail\StudentInvitation($data['invitation_link'], auth()->user()->name));
+        static::service()->sendInvitation(auth()->user(), $data['email']);
 
         Notification::make()
             ->title('Приглашение отправлено')

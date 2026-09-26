@@ -19,10 +19,8 @@ class CreateHomework extends CreateRecord
 
     protected function afterCreate(): void
     {
-        // Отправить уведомления всем назначенным ученикам
-        foreach ($this->record->students as $student) {
-            $student->notify(new \App\Notifications\NewHomework($this->record));
-        }
+        // Уведомить назначенных учеников (о черновике не сообщаем) — общий сервис с новым кабинетом
+        app(\App\Services\HomeworkSubmissionService::class)->notifyAssigned($this->record, $this->record->students);
     }
 
     protected function getRedirectUrl(): string

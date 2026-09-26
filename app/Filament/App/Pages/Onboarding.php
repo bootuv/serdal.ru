@@ -48,23 +48,11 @@ class Onboarding extends Page implements HasForms
 
         // fill() с массивом не применяет дефолты полей, поэтому первую строку
         // цен подставляем сами: шаг «Цены» сразу показывает открытую форму
-        $existing = $user->lessonTypes()
-            ->get(['type', 'payment_type', 'price', 'count_per_week', 'duration'])
-            ->map->only(['type', 'payment_type', 'price', 'count_per_week', 'duration'])
-            ->all();
-
-        $state['lesson_types'] = $existing ?: [[
-            'type' => LessonType::TYPE_INDIVIDUAL,
-            'payment_type' => 'per_lesson',
-            'price' => null,
-            'count_per_week' => null,
-            'duration' => 60,
-        ]];
+        $state['lesson_types'] = \App\Services\TeacherOnboardingService::lessonTypesForForm($user);
 
         // Предвыбор тарифа: выбранный на публичной странице при подаче заявки,
         // иначе бесплатный
-        $desired = $user->desired_tariff_id ? Tariff::active()->find($user->desired_tariff_id) : null;
-        $state['tariff_id'] = $desired?->id ?? Tariff::active()->where('price', 0)->value('id');
+        $state['tariff_id'] = \App\Services\TeacherOnboardingService::defaultTariffId($user);
         $state['billing_period'] = 'month';
         $state['payment_method'] = 'sbp';
 
@@ -259,55 +247,11 @@ class Onboarding extends Page implements HasForms
     public function submit()
     {
         $data = $this->form->getState();
-        $user = Auth::user();
 
         /** @var User $user */
-        // Пересоздаём базовые цены из шага «Цены для учеников»
-        $user->lessonTypes()->delete();
+        $user = Auth::user();
 
-        foreach ($data['lesson_types'] ?? [] as $item) {
-            $user->lessonTypes()->create([
-                'type' => $item['type'],
-                'payment_type' => $item['payment_type'],
-                'price' => $item['price'],
-                'duration' => $item['duration'],
-                'count_per_week' => ($item['payment_type'] ?? null) === 'monthly' ? ($item['count_per_week'] ?? null) : null,
-            ]);
-        }
-
-        // Process Avatar
-        if (isset($data['avatar'])) {
-            $processed = \App\Helpers\FileUploadHelper::processFiles(
-                $data['avatar'],
-                'avatars',
-                640,
-                640
-            );
-            $data['avatar'] = $processed[0] ?? null;
-        }
-
-        $user->update([
-            'avatar' => $data['avatar'],
-            'whatsup' => $data['whatsup'],
-            'telegram' => $data['telegram'],
-            'is_profile_completed' => true,
-        ]);
-
-        // Бесплатный «Старт» — база до оплаты, чтобы пользователь
-        // не остался без подписки, даже если передумает платить
-        if (!$user->activeSubscription()) {
-            $freeTariff = Tariff::active()->where('price', 0)->first();
-
-            if ($freeTariff) {
-                \App\Services\SubscriptionService::activate($user, $freeTariff);
-            }
-        }
-
-        // Notify all admins about teacher completing onboarding
-        $admins = User::where('role', User::ROLE_ADMIN)->get();
-        foreach ($admins as $admin) {
-            $admin->notify(new \App\Notifications\TeacherCompletedOnboarding($user));
-        }
+        $result = app(\App\Services\TeacherOnboardingService::class)->complete($user, $data);
 
         Notification::make()
             ->title('Профиль успешно настроен!')
@@ -315,37 +259,17 @@ class Onboarding extends Page implements HasForms
             ->send();
 
         // Выбран платный тариф — сразу уводим на платёжную страницу
-        $tariff = isset($data['tariff_id']) ? Tariff::active()->find($data['tariff_id']) : null;
+        if ($result['payment_url']) {
+            return redirect()->away($result['payment_url']);
+        }
 
-        if ($tariff && !$tariff->isFree() && YooKassaService::isConfigured()) {
-            $yearly = ($data['billing_period'] ?? 'month') === 'year' && $tariff->hasYearly();
-
-            $payment = SubscriptionPayment::create([
-                'user_id' => $user->id,
-                'tariff_id' => $tariff->id,
-                'amount' => $yearly ? $tariff->yearly_price : $tariff->price,
-                'period_days' => $yearly ? 365 : $tariff->period_days,
-                'status' => SubscriptionPayment::STATUS_PENDING,
-                'gateway' => 'yookassa',
-            ]);
-
-            try {
-                $url = YooKassaService::createPayment(
-                    $payment,
-                    route('subscription.payment.return', $payment),
-                    methodType: $data['payment_method'] ?? null,
-                );
-
-                return redirect()->away($url);
-            } catch (\Throwable $e) {
-                $payment->update(['status' => SubscriptionPayment::STATUS_FAILED]);
-                Notification::make()
-                    ->title('Не удалось создать платёж')
-                    ->body('Оплатить тариф «' . $tariff->name . '» можно в любой момент в разделе «Подписка».')
-                    ->warning()
-                    ->persistent()
-                    ->send();
-            }
+        if ($result['payment_failed']) {
+            Notification::make()
+                ->title('Не удалось создать платёж')
+                ->body('Оплатить тариф «' . $result['tariff']->name . '» можно в любой момент в разделе «Подписка».')
+                ->warning()
+                ->persistent()
+                ->send();
         }
 
         return redirect()->route('filament.app.pages.dashboard');

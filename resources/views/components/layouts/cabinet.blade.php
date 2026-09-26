@@ -27,7 +27,7 @@
             ['key' => 'tasks', 'label' => 'Задания', 'icon' => 'tasks', 'href' => $to('cabinet.teacher.tasks', '/tutor/homework')],
             ['key' => 'materials', 'label' => 'Материалы', 'icon' => 'folder', 'href' => $to('cabinet.teacher.materials', '/tutor/materials')],
             ['key' => 'recordings', 'label' => 'Записи', 'icon' => 'video', 'href' => $to('cabinet.teacher.recordings', '/tutor/recordings')],
-            ['key' => 'reviews', 'label' => 'Отзывы', 'icon' => 'star', 'href' => $to('cabinet.teacher.reviews', '/tutor/reviews')],
+            ['key' => 'reviews', 'label' => 'Отзывы', 'icon' => 'star', 'href' => $to('cabinet.teacher.reviews', '/tutor/reviews'), 'count' => app(\App\Services\TeacherReviewsService::class)->unreadCount($user)],
         ];
     $mobileTabs = array_values(array_filter($nav, fn ($i) => in_array($i['key'], ['home', 'today', 'schedule', 'tasks', 'messages'])));
     $profileHref = $isStudent ? $to('cabinet.student.profile', '/student/profile') : $to('cabinet.teacher.profile', '/tutor/edit-profile');
