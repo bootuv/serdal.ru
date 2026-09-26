@@ -45,7 +45,7 @@
                 </x-ui.list>
             </x-ui.card>
 
-            @if ($tariff)<x-ui.tariff :summary="$tariff" variant="card" />@endif
+            @if ($tariff)<x-ui.tariff :summary="$tariff" />@endif
         </div>
     @else
         <x-ui.page-head title="Сегодня" :sub="$today">
@@ -112,7 +112,7 @@
 
             <div class="flex min-w-0 flex-col gap-6">
                 {{-- Тариф на виду: остаток занятий и лимиты --}}
-                <x-ui.tariff :summary="$tariff" variant="card" />
+                <x-ui.tariff :summary="$tariff" />
 
                 {{-- Ждут оплаты --}}
                 @if ($payments->isNotEmpty())

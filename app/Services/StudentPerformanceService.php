@@ -40,6 +40,8 @@ class StudentPerformanceService
             ->get();
 
         $missing = 0;
+        // Не сдано, но срок ещё не прошёл — пока не в счёт: ни «в срок», ни «опоздание»
+        $pending = 0;
         $gradesSum = 0.0;
         $gradedCount = 0;
 
@@ -61,10 +63,12 @@ class StudentPerformanceService
                 }
             } elseif ($homework->is_overdue) {
                 $missing++;
+            } else {
+                $pending++;
             }
         }
 
-        $homeworkTotal = $homeworks->count();
+        $homeworkTotal = $homeworks->count() - $pending;
 
         return [
             'attendance' => $lessonsTotal > 0 ? (int) round($lessonsAttended / $lessonsTotal * 100) : 0,
@@ -73,6 +77,7 @@ class StudentPerformanceService
             'lessons_total' => $lessonsTotal,
             'lessons_attended' => $lessonsAttended,
             'homework_total' => $homeworkTotal,
+            'homework_pending' => $pending,
             'homework_on_time' => $homeworkTotal - $missing,
             'graded_count' => $gradedCount,
         ];
@@ -101,7 +106,7 @@ class StudentPerformanceService
                 : 'занятий ещё не было'],
             ['value' => $s['discipline'], 'label' => 'Задания в срок', 'empty' => ! $s['homework_total'], 'sub' => $s['homework_total']
                 ? $s['homework_on_time'] . ' из ' . plural_ru($s['homework_total'], 'задания', 'заданий', 'заданий')
-                : 'заданий ещё не было'],
+                : (($s['homework_pending'] ?? 0) ? 'сроки сдачи ещё не наступили' : 'заданий ещё не было')],
             ['value' => $s['knowledge'], 'label' => 'Качество знаний', 'empty' => ! $s['graded_count'], 'sub' => $s['graded_count']
                 ? 'средний балл за ' . plural_ru($s['graded_count'], 'работу', 'работы', 'работ')
                 : 'оценок пока нет'],

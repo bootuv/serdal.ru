@@ -59,9 +59,11 @@
                     <p class="text-t2 text-muted">Откроется после оплаты · <a href="{{ $debt['reportUrl'] ?? $paymentsUrl }}" class="link">сообщить об оплате</a></p>
                 @elseif ($next['canJoin'])
                     <x-ui.btn variant="primary" size="l" icon="video" :href="$next['joinUrl']" target="_blank" rel="noopener">Войти в класс</x-ui.btn>
+                    <a href="{{ $next['url'] }}" class="link text-t2">Материалы к занятию</a>
                 @else
+                    {{-- Вход ещё закрыт: крупная кнопка на месте «Войти в класс», чтобы блок не пустел посередине --}}
+                    <x-ui.btn size="l" :href="$next['url']">Подробнее о занятии</x-ui.btn>
                     <p class="text-t2 text-muted">{{ $next['joinHint'] }}</p>
-                    <a href="{{ $next['url'] }}" class="link text-t2">Подробнее о занятии</a>
                 @endif
             </div>
         </x-ui.card>

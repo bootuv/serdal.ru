@@ -8,7 +8,7 @@ use App\Services\SubscriptionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
-/** Тариф учителя на виду: плашка в сайдбаре на каждом экране и карточка с лимитами на «Сегодня». */
+/** Тариф учителя на виду: карточка с остатком занятий и лимитами на «Сегодня». */
 class TeacherTariffVisibilityTest extends TestCase
 {
     use RefreshDatabase;
@@ -34,11 +34,11 @@ class TeacherTariffVisibilityTest extends TestCase
         $teacher = $this->teacher();
         SubscriptionService::activate($teacher, $this->tariff(['name' => 'Базовый', 'lessons_per_month' => 40]), days: 30);
 
-        // Сайдбар на любом экране
+        // В сайдбаре тарифа нет — только ссылка «Профиль и тариф»
         $this->actingAs($teacher)->get(route('cabinet.teacher.students'))
             ->assertOk()
-            ->assertSee('Тариф «Базовый»')
-            ->assertSee('Осталось 40 из 40 занятий');
+            ->assertDontSee('Тариф «Базовый»')
+            ->assertSee('Профиль и тариф');
 
         // «Сегодня» — карточка с остатком и лимитами
         $this->actingAs($teacher)->get(route('cabinet.teacher.today'))
@@ -60,7 +60,7 @@ class TeacherTariffVisibilityTest extends TestCase
 
     public function test_no_tariff(): void
     {
-        $this->actingAs($this->teacher())->get(route('cabinet.teacher.students'))
+        $this->actingAs($this->teacher())->get(route('cabinet.teacher.today'))
             ->assertSee('Тариф не выбран')
             ->assertSee('Выберите тариф, чтобы проводить занятия');
     }

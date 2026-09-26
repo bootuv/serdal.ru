@@ -35,9 +35,8 @@
     $profileHref = $isStudent ? $to('cabinet.student.profile', '/student/profile') : $to('cabinet.teacher.profile', '/tutor/edit-profile');
     $supportHref = $user ? \App\Services\MessengerService::url($user, support: true) : '#';
 
-    // Тариф учителя на виду: плашка в сайдбаре и в «Ещё» (название, срок, остаток занятий)
-    $tariffSummary = ! $isStudent && $user ? \App\Services\SubscriptionService::teacherSummary($user) : null;
-    $profileSub = $isStudent ? 'Профиль' : 'Профиль и цены';
+    // Тариф и лимиты учитель видит карточкой на «Сегодня» (x-ui.tariff), в сайдбаре — только ссылка
+    $profileSub = $isStudent ? 'Профиль' : 'Профиль и тариф';
 
     // «Ещё» на телефоне: разделы, которых нет на нижней панели, + поддержка, партнёрка, профиль
     $moreItems = array_values(array_filter($nav, fn ($i) => ! in_array($i, $mobileTabs, true)));
@@ -100,7 +99,6 @@
                     <a href="{{ route('cabinet.teacher.referrals') }}" class="flex h-11 items-center gap-3 rounded px-3 text-t1-s font-medium text-muted hover:bg-soft-hover hover:text-ink"><x-ui.icon name="share" />Пригласить коллег</a>
                 @endif
             @endunless
-            @if ($tariffSummary)<x-ui.tariff :summary="$tariffSummary" />@endif
             <a href="{{ $supportHref }}" class="flex h-11 items-center gap-3 rounded px-3 text-t1-s font-medium text-muted hover:bg-soft-hover hover:text-ink"><x-ui.icon name="help" />Поддержка</a>
             <a href="{{ $profileHref }}" class="flex items-center gap-3 border-t border-line px-3 pt-4">
                 <x-ui.avatar :user="$user" />
@@ -148,7 +146,7 @@
                     <span class="text-h2 font-medium">Ещё</span>
                     <x-ui.btn square icon="x" x-on:click="open = false" aria-label="Закрыть" />
                 </div>
-                @if ($tariffSummary)<x-ui.tariff :summary="$tariffSummary" class="mb-2" />@endif
+
                 @foreach ($moreItems as $item)
                     <a href="{{ $item['href'] }}" @class([
                         'flex h-11 items-center gap-3 rounded px-3 text-t1-s font-medium',
