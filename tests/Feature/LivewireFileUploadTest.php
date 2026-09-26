@@ -53,8 +53,12 @@ class LivewireFileUploadTest extends TestCase
         $paths = $response->json('paths');
 
         $this->assertCount(1, $paths);
-        $this->assertNotSame('', $paths[0]);
-        $this->assertLessThanOrEqual(255, strlen($paths[0]));
-        Storage::disk('tmp-for-tests')->assertExists('livewire-tmp/' . $paths[0]);
+
+        // Путь подписан: иначе Livewire (3.8+) отклонит загрузку с 403 «Invalid upload reference»
+        $path = TemporaryUploadedFile::extractPathFromSignedPath($paths[0]);
+        $this->assertNotFalse($path, 'путь временного файла должен быть подписан');
+        $this->assertNotSame('', $path);
+        $this->assertLessThanOrEqual(255, strlen($path));
+        Storage::disk('tmp-for-tests')->assertExists('livewire-tmp/' . $path);
     }
 }

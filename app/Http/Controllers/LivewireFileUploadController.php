@@ -8,6 +8,7 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Livewire\Features\SupportFileUploads\FileUploadConfiguration;
 use Livewire\Features\SupportFileUploads\FileUploadController;
+use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 
 /**
  * Приём временных файлов Livewire (wire:model на полях загрузки).
@@ -46,8 +47,8 @@ class LivewireFileUploadController extends FileUploadController
                 ]);
             }
 
-            // Livewire ждёт только имя файла без каталога
-            return str_replace(FileUploadConfiguration::path('/'), '', $stored);
+            // Livewire ждёт имя файла без каталога, подписанное (с 3.8 неподписанный путь — 403 «Invalid upload reference»)
+            return TemporaryUploadedFile::signPath(str_replace(FileUploadConfiguration::path('/'), '', $stored));
         })->values()->all();
     }
 
