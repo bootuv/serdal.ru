@@ -1,12 +1,13 @@
-{{-- Плеер записей занятий: своё управление под <video> (resources/js/video-player.js).
-     Тёмная рамка вокруг видео и панель под ним: записи — чаще белая доска, плеер не должен сливаться со страницей.
+{{-- Плеер записей занятий: своё управление поверх <video> (resources/js/video-player.js).
+     Тёмная рамка вокруг видео: записи — чаще белая доска, плеер не должен сливаться со страницей.
+     Панель — внизу поверх видео, видна при наведении (касании), на паузе и пока открыто меню скорости.
      Жёлтая кнопка «Смотреть» до начала; панель: пауза, перемотка, время, громкость, скорость 0,5–2× (запоминается), полный экран.
      Клавиши: пробел, ←/→ — 10 с, ↑/↓ — громкость, M, F. src — адрес видео, title — название (для экранного диктора). --}}
 @props(['src', 'title' => null])
 <div x-data="videoPlayer" tabindex="0" role="region" aria-label="{{ $title ? 'Запись: ' . $title : 'Запись занятия' }}"
-     x-on:keydown="key($event)"
-     x-bind:class="full ? 'justify-center' : ''"
-     {{ $attributes->class('group relative flex w-full flex-col gap-1 rounded-lg bg-ink p-1 text-white shadow-card') }}>
+     x-on:keydown="key($event)" x-on:mousemove="wake()" x-on:touchstart.passive="wake()" x-on:mouseleave="rest()" x-on:focusin="wake()"
+     x-bind:class="(full ? 'justify-center ' : '') + (playing && ! hover ? 'cursor-none' : '')"
+     {{ $attributes->class('group relative flex w-full flex-col rounded-lg bg-ink p-1 text-white shadow-card') }}>
     <div class="relative min-h-0" x-bind:class="full ? 'flex flex-1 items-center justify-center' : ''">
         <video x-ref="video" src="{{ $src }}" preload="metadata" playsinline
                class="block w-full rounded bg-ink" x-bind:class="full ? 'h-full object-contain' : 'aspect-video'"
@@ -22,10 +23,10 @@
         <span x-show="waiting && playing" x-cloak class="pointer-events-none absolute left-1/2 top-1/2 flex size-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-scrim" aria-hidden="true">
             <span class="size-6 animate-spin rounded-full border-2 border-brand border-t-transparent"></span>
         </span>
-    </div>
 
-    {{-- Панель управления — под видео, всегда на виду --}}
-    <div class="flex flex-col gap-1 px-2 pb-1">
+    {{-- Панель управления — внизу поверх видео --}}
+    <div x-show="started && (hover || ! playing || speedOpen || scrubbing)" x-cloak x-transition.opacity
+         class="absolute inset-x-0 bottom-0 flex flex-col gap-1 rounded-b bg-scrim px-3 pb-2 pt-1 lg:px-4">
         <div class="vp-track">
             <progress class="vp-buffer" max="1" x-bind:value="duration ? buffered / duration : 0" aria-hidden="true"></progress>
             <progress class="vp-played" max="1" x-bind:value="duration ? shown() / duration : 0" aria-hidden="true"></progress>
@@ -76,5 +77,6 @@
                 <span x-show="full" x-cloak><x-ui.icon name="shrink" /></span>
             </button>
         </div>
+    </div>
     </div>
 </div>

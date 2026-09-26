@@ -1,5 +1,6 @@
 /**
- * Плеер записей занятий (resources/views/components/ui/video-player.blade.php): своё управление под <video>.
+ * Плеер записей занятий (resources/views/components/ui/video-player.blade.php): своё управление поверх <video>,
+ * панель показывается при наведении и касании, прячется через 2,5 с без движения во время просмотра.
  * Перемотка: пока бегунок тянут, меняется только показанное время; видео перематывается один раз — при отпускании
  * (иначе каждое движение — новый запрос к хранилищу, а обновления времени дёргают бегунок назад).
  * Воспроизведение, перемотка с буфером, время, громкость, скорость (запоминается), полный экран.
@@ -43,6 +44,8 @@ function registerVideoPlayer(Alpine) {
         full: false,
         scrubbing: false,
         scrubTime: 0,
+        hover: false,
+        hoverTimer: null,
 
         init() {
             const v = this.$refs.video;
@@ -63,6 +66,20 @@ function registerVideoPlayer(Alpine) {
             document.addEventListener('fullscreenchange', () => { this.full = document.fullscreenElement === this.$root; });
             // Отпустили бегунок за его пределами — всё равно перематываем
             window.addEventListener('pointerup', () => { if (this.scrubbing) this.scrubEnd(this.scrubTime); });
+        },
+
+        // Панель видна, пока двигают мышью (касаются); через 2,5 с без движения во время просмотра прячется
+        wake() {
+            this.hover = true;
+            clearTimeout(this.hoverTimer);
+            this.hoverTimer = setTimeout(() => {
+                if (this.playing && !this.speedOpen && !this.scrubbing) this.hover = false;
+            }, 2500);
+        },
+
+        rest() {
+            clearTimeout(this.hoverTimer);
+            if (!this.speedOpen && !this.scrubbing) this.hover = false;
         },
 
         shown() {
@@ -157,6 +174,7 @@ function registerVideoPlayer(Alpine) {
             if (action && !e.metaKey && !e.ctrlKey && !e.altKey) {
                 e.preventDefault();
                 action();
+                this.wake();
             }
         },
 
