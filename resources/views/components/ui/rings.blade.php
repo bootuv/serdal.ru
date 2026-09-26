@@ -1,7 +1,8 @@
 {{-- Успеваемость: вложенные кольца + общая оценка в центре + легенда (всегда видна).
      metrics: [['value' => 92, 'label' => 'Посещаемость', 'sub' => '22 из 24 занятий', 'empty' => false], …] — максимум 3, порядок фиксирован.
      В центре — общая оценка: среднее по показателям с данными (empty — показателя ещё нет, в среднее не входит).
-     stacked — кольца над легендой (узкая колонка). Цвета chart-1..3 — только для графиков. --}}
+     stacked — кольца над легендой всегда (узкая колонка); без stacked — над легендой на телефоне, рядом с ней с sm.
+     Цвета chart-1..3 — только для графиков. --}}
 @props(['metrics', 'stacked' => false])
 @php
     // Кольца 12 с зазором 4; внутри остаётся круг ~90 для общей оценки
@@ -11,8 +12,8 @@
     $total = \App\Services\StudentPerformanceService::overall($metrics);
     $aria = ($total !== null ? 'в среднем ' . $total . '%; ' : '') . collect($metrics)->map(fn ($m) => $m['label'] . ' ' . $m['value'] . '%')->implode('; ');
 @endphp
-<div {{ $attributes->class(['flex gap-8', 'flex-col items-stretch gap-6' => $stacked, 'items-center' => ! $stacked]) }}>
-    <div @class(['relative shrink-0', 'self-center' => $stacked])>
+<div {{ $attributes->class(['flex flex-col items-stretch gap-6', 'sm:flex-row sm:items-center sm:gap-8' => ! $stacked]) }}>
+    <div class="relative shrink-0 self-center">
     <svg viewBox="0 0 176 176" role="img" aria-label="Успеваемость: {{ $aria }}"
          class="{{ $stacked ? 'size-40' : 'size-40 lg:size-44' }} -rotate-90">
         @foreach ($metrics as $i => $m)
