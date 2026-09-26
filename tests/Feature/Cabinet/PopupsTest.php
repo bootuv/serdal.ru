@@ -32,4 +32,14 @@ class PopupsTest extends TestCase
             ->assertOk()
             ->assertSee('aria-label="Просмотр изображения"', false);
     }
+
+    /** Логотип — и в меню, и в верхней полосе на телефоне — ведёт на главный экран кабинета. */
+    public function test_logo_leads_to_cabinet_home(): void
+    {
+        $this->withoutVite();
+        $student = User::factory()->create(['role' => User::ROLE_STUDENT, 'username' => 's' . uniqid(), 'is_profile_completed' => true]);
+
+        $html = $this->actingAs($student)->get(route('cabinet.student.profile'))->assertOk()->getContent();
+        $this->assertSame(2, preg_match_all('#<a href="' . preg_quote(route('cabinet.student.home'), '#') . '"[^>]*><img src="[^"]*Logo\.svg"#', $html));
+    }
 }

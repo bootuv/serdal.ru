@@ -153,7 +153,7 @@
     <div @class(['flex min-w-0 flex-1 flex-col', 'lg:h-screen' => $bare])>
         {{-- Верхняя панель (телефон) --}}
         <div class="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-line bg-white px-4 lg:hidden">
-            <img src="{{ asset('images/Logo.svg') }}" alt="Serdal" class="h-6 w-auto">
+            <a href="{{ $nav[0]['href'] }}" aria-label="Serdal — на главный экран кабинета"><img src="{{ asset('images/Logo.svg') }}" alt="Serdal" class="h-6 w-auto"></a>
             <button type="button" x-data="{ n: {{ $unread }} }" x-on:notifications-count.window="n = $event.detail.count" x-on:click="$dispatch('notifications-open')"
                 class="relative flex size-11 items-center justify-center rounded shadow-outline" x-bind:aria-label="n ? 'Уведомления, есть новые' : 'Уведомления'" aria-label="Уведомления">
                 <x-ui.icon name="bell" />
