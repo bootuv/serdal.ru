@@ -23,6 +23,7 @@ class PaymentRecord extends Model
         'type',
         'meeting_session_id',
         'period',
+        'amount',
         'status',
         'due_date',
         'paid_at',
@@ -31,6 +32,8 @@ class PaymentRecord extends Model
     ];
 
     protected $casts = [
+        // Каст нужен и для того, чтобы $record->amount всегда читался как поле, а не как метод amount()
+        'amount' => 'integer',
         'due_date' => 'date',
         'paid_at' => 'datetime',
         'reminded_at' => 'datetime',
@@ -113,11 +116,19 @@ class PaymentRecord extends Model
     }
 
     /**
-     * Сумма поурочного начисления, ₽: цена ученика из снимка цен на момент завершения занятия.
-     * У помесячных начислений суммы нет (null).
+     * Сумма начисления, ₽. Помесячные хранят цену за месяц в поле amount (фиксируется при создании);
+     * поурочные — цена ученика из снимка цен на момент завершения занятия. null — сумма неизвестна.
      */
     public function amount(): ?int
     {
+        if (($stored = $this->getAttribute('amount')) !== null) {
+            return (int) $stored;
+        }
+
+        if ($this->type === self::TYPE_MONTHLY) {
+            return null;
+        }
+
         $participants = $this->meetingSession?->pricing_snapshot['participants'] ?? [];
         $price = collect($participants)->firstWhere('user_id', $this->student_id)['price'] ?? null;
 

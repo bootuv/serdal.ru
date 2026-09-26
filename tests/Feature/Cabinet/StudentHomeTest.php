@@ -241,7 +241,8 @@ class StudentHomeTest extends TestCase
             ->assertSee('Вход на занятия закрыт')
             ->assertSee('Не оплачено')
             ->assertSee('вход закрыт')
-            ->assertSee('Откроется после оплаты');
+            ->assertSee('Вход закрыт до оплаты')
+            ->assertDontSee('Откроется после оплаты');
     }
 
     /** Занятие учителя, на котором были ученик и учитель (как в analytics_data от BBB). */
@@ -298,6 +299,8 @@ class StudentHomeTest extends TestCase
             ->test(Home::class)
             ->assertSee('Иван Орлов')
             ->assertSee(route('tutors.show', ['username' => $teacher->username]), false)
+            ->assertSee('>Написать учителю</a>', false)
+            ->assertDontSee('>Написать</a>', false)
             ->assertSee('Оставить отзыв')
             ->call('openReview', $teacher->id)
             ->assertSee('Отзыв об учителе')

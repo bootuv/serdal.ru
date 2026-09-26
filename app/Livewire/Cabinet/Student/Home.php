@@ -214,7 +214,9 @@ class Home extends Component
             'teacher' => $room->user?->name,
             'teacherId' => $room->user_id,
             'running' => $running,
-            'blocked' => in_array($room->user_id, $blockedTeacherIds, true),
+            'blocked' => $blocked = in_array($room->user_id, $blockedTeacherIds, true),
+            // Вход закрыт до оплаты — ссылка сразу открывает «Сообщить об оплате» учителю этого занятия
+            'reportUrl' => $blocked ? $this->paymentsUrl(['report' => $room->user_id]) : null,
             // «Войти в класс» — только когда занятие идёт или вот-вот начнётся
             'canJoin' => StudentScheduleService::canJoin($running, $start, $end),
             'joinHint' => StudentScheduleService::joinOpensLabel($start),
@@ -367,12 +369,15 @@ class Home extends Component
         $teacherIds = $claimable->pluck('teacher_id')->unique();
         $sum = PaymentClaimService::knownSum($unpaid);
 
+        $countLabel = app(TeacherStudentsService::class)->countLabel($unpaid);
+
         return [
             'count' => $unpaid->count(),
+            'countLabel' => $countLabel,
             'sum' => $sum ? Money::format($sum) : null,
             // Под суммой: сколько занятий и до какого числа; просроченный срок — жирным
             'facts' => implode(' · ', array_filter([
-                $sum ? plural_ru($unpaid->count(), 'занятие', 'занятия', 'занятий') : null,
+                $sum ? $countLabel : null,
                 $first->due_date && ! $first->isOverdue() ? 'оплатить до ' . HumanDate::date($first->due_date) : null,
             ])),
             'late' => $first->due_date && $first->isOverdue() ? 'срок прошёл ' . HumanDate::date($first->due_date) : null,

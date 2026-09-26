@@ -23,6 +23,9 @@ class PaymentRecordService
      */
     const MONTHLY_DUE_DAY = 5;
 
+    /** Счёт за месяц, выставленный после 1-го (ученика добавили позже), — не меньше стольких дней на оплату. */
+    const MONTHLY_MIN_DUE_DAYS = 3;
+
     /**
      * Сколько занятий ученик может посетить с просроченным долгом, прежде чем
      * доступ к занятиям этого преподавателя закроется. До этого ученик видит
@@ -75,7 +78,7 @@ class PaymentRecordService
         foreach ($attendedIds as $studentId) {
             $effectiveType = $overrides[$studentId] ?? $roomPaymentType;
 
-            // Помесячным ученикам поурочные записи не создаём — их запись создаётся 1-го числа
+            // Помесячным ученикам поурочные записи не создаём — у них один счёт за месяц (generateMonthlyRecords)
             if ($effectiveType !== PaymentRecord::TYPE_PER_LESSON) {
                 continue;
             }
@@ -100,12 +103,21 @@ class PaymentRecordService
     }
 
     /**
-     * Создаёт помесячные начисления за текущий месяц.
-     * Запускается командой 1-го числа каждого месяца.
+     * Создаёт помесячные начисления за текущий месяц. Запускается каждый день (payments:generate-monthly):
+     * 1-го счёт получают все, у кого в месяце есть занятия, позже — те, у кого занятия появились
+     * (добавили в расписание, назначили новое занятие).
+     *
+     * Правило: ученик получает счёт за месяц, только если у него с сегодняшнего дня до конца месяца есть
+     * хотя бы одно занятие с этим учителем с оплатой за месяц — по расписанию, без отменённых (перенесённые
+     * считаются в месяце, куда их перенесли). Нет занятий — нет счёта. Сумма — полная цена за месяц
+     * (monthlyAmount), даже если ученик начал в середине месяца: скидку учитель договаривает сам.
+     * Срок — до числа из «Цен на занятия», но не раньше чем через MONTHLY_MIN_DUE_DAYS дней.
+     * Повторный запуск не создаёт дублей: одно начисление на учителя, ученика и месяц.
      */
     public static function generateMonthlyRecords(): int
     {
-        $period = today()->format('Y-m');
+        $month = today()->startOfMonth();
+        $period = $month->format('Y-m');
         $created = 0;
 
         // Все учителя, у которых есть занятия с участниками
@@ -117,16 +129,28 @@ class PaymentRecordService
             // Срок оплаты — из помесячной базовой цены учителя (если есть)
             $dueDay = (int) ($teacher->lessonTypes->firstWhere('payment_type', PaymentRecord::TYPE_MONTHLY)?->payment_due_day
                 ?? self::MONTHLY_DUE_DAY);
-            $dueDate = today()->startOfMonth()->addDays($dueDay - 1);
+            $dueDate = $month->copy()->addDays($dueDay - 1)->max(today()->addDays(self::MONTHLY_MIN_DUE_DAYS));
 
             $freeIds = self::freeStudentIds($teacher->id);
             $overrides = self::paymentTypeOverrides($teacher->id);
 
-            // Собираем учеников, для которых действует помесячная оплата:
-            // персональное переопределение → иначе настройка формата занятия
-            $monthlyStudentIds = collect();
+            // Занятия учителя, у которых до конца месяца есть хотя бы одно неотменённое вхождение
+            // (с сегодняшнего дня: ученику, добавленному 28-го в группу, счёт за прошедшие занятия не нужен)
+            $roomIdsWithLessons = app(StudentScheduleService::class)
+                ->occurrences(app(TeacherScheduleService::class)->schedules($teacher->id), today(), $month->copy()->endOfMonth())
+                ->pluck('room_id')
+                ->unique()
+                ->all();
 
-            foreach ($teacher->rooms()->with('participants:users.id')->get() as $room) {
+            if ($roomIdsWithLessons === []) {
+                continue;
+            }
+
+            // Ученики с помесячной оплатой и их занятия в этом месяце:
+            // персональное переопределение → иначе настройка формата занятия
+            $roomsByStudent = [];
+
+            foreach ($teacher->rooms()->whereIn('id', $roomIdsWithLessons)->with('participants')->get() as $room) {
                 $roomPaymentType = $lessonTypes[$room->type ?? 'individual']?->payment_type ?? PaymentRecord::TYPE_PER_LESSON;
 
                 foreach ($room->participants as $participant) {
@@ -136,15 +160,13 @@ class PaymentRecordService
                         continue;
                     }
 
-                    $effectiveType = $overrides[$studentId] ?? $roomPaymentType;
-
-                    if ($effectiveType === PaymentRecord::TYPE_MONTHLY) {
-                        $monthlyStudentIds->push($studentId);
+                    if (($overrides[$studentId] ?? $roomPaymentType) === PaymentRecord::TYPE_MONTHLY) {
+                        $roomsByStudent[$studentId][] = $room;
                     }
                 }
             }
 
-            foreach ($monthlyStudentIds->unique() as $studentId) {
+            foreach ($roomsByStudent as $studentId => $rooms) {
                 try {
                     $record = PaymentRecord::firstOrCreate(
                         [
@@ -156,6 +178,7 @@ class PaymentRecordService
                             'type' => PaymentRecord::TYPE_MONTHLY,
                             'status' => PaymentRecord::STATUS_UNPAID,
                             'due_date' => $dueDate,
+                            'amount' => self::monthlyAmount($teacher->lessonTypes, $studentId, collect($rooms)),
                         ]
                     );
 
@@ -169,6 +192,98 @@ class PaymentRecordService
         }
 
         return $created;
+    }
+
+    /**
+     * Цена ученика за месяц, ₽, по его занятиям с оплатой за месяц ($rooms): сумма цен этих занятий.
+     * Цена занятия с помесячным типом — цена ученика в занятии (личная → цена занятия → «Цены на занятия»).
+     * Если за месяц платит только этот ученик (условия оплаты), а занятие оплачивается за каждое, —
+     * помесячная цена учителя, если она у него одна. null — хотя бы одну цену не определить.
+     *
+     * @param  \Illuminate\Support\Collection<int, LessonType>  $lessonTypes  цены учителя
+     * @param  \Illuminate\Support\Collection<int, Room>  $rooms
+     */
+    public static function monthlyAmount(\Illuminate\Support\Collection $lessonTypes, int $studentId, \Illuminate\Support\Collection $rooms): ?int
+    {
+        if ($rooms->isEmpty()) {
+            return null;
+        }
+
+        $monthlyTypes = $lessonTypes->filter(fn (LessonType $lt) => $lt->isMonthly())->values();
+
+        $prices = $rooms->map(function (Room $room) use ($lessonTypes, $monthlyTypes, $studentId) {
+            $roomType = $lessonTypes->firstWhere('type', $room->type ?? LessonType::TYPE_INDIVIDUAL);
+
+            if ($roomType?->isMonthly()) {
+                return $room->getEffectivePrice($studentId);
+            }
+
+            return $monthlyTypes->count() === 1 ? $monthlyTypes->first()->price : null;
+        });
+
+        if ($prices->contains(fn ($price) => $price === null || (int) $price <= 0)) {
+            return null;
+        }
+
+        return (int) $prices->sum();
+    }
+
+    /**
+     * Занятия учителя, в которых ученик платит за месяц (персональные условия → тип занятия в ценах).
+     *
+     * @return \Illuminate\Support\Collection<int, Room>
+     */
+    public static function monthlyRooms(User $teacher, int $studentId): \Illuminate\Support\Collection
+    {
+        $lessonTypes = $teacher->lessonTypes()->get();
+        $override = self::paymentTypeOverrides($teacher->id)[$studentId] ?? null;
+
+        return Room::where('user_id', $teacher->id)
+            ->whereHas('participants', fn ($q) => $q->where('users.id', $studentId))
+            ->with('participants')
+            ->get()
+            ->filter(fn (Room $room) => ($override
+                ?? $lessonTypes->firstWhere('type', $room->type ?? LessonType::TYPE_INDIVIDUAL)?->payment_type
+                ?? PaymentRecord::TYPE_PER_LESSON) === PaymentRecord::TYPE_MONTHLY)
+            ->values();
+    }
+
+    /**
+     * Сумма для неоплаченных помесячных начислений, созданных без неё (до появления поля amount):
+     * текущая цена за месяц, если у ученика у этого учителя ровно одно занятие с оплатой за месяц
+     * и его цену можно определить. Иначе сумма остаётся пустой.
+     *
+     * @return int сколько начислений получили сумму
+     */
+    public static function backfillMonthlyAmounts(): int
+    {
+        $filled = 0;
+
+        PaymentRecord::unpaid()
+            ->where('type', PaymentRecord::TYPE_MONTHLY)
+            ->whereNull('amount')
+            ->with('teacher')
+            ->get()
+            ->each(function (PaymentRecord $record) use (&$filled) {
+                if (! $record->teacher) {
+                    return;
+                }
+
+                $rooms = self::monthlyRooms($record->teacher, (int) $record->student_id);
+
+                if ($rooms->count() !== 1) {
+                    return;
+                }
+
+                $amount = self::monthlyAmount($record->teacher->lessonTypes()->get(), (int) $record->student_id, $rooms);
+
+                if ($amount !== null) {
+                    $record->update(['amount' => $amount]);
+                    $filled++;
+                }
+            });
+
+        return $filled;
     }
 
     /**

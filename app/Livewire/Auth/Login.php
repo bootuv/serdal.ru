@@ -28,8 +28,15 @@ class Login extends Component
 
     public function mount()
     {
+        // ?next= — куда вернуть после входа (например, на приглашение учителя); только адреса этого сайта
+        $next = self::safeReturnUrl(request()->query('next'));
+
         if (Auth::check()) {
-            return redirect(EnsureCabinetRole::homeFor(Auth::user()));
+            return redirect($next ?? EnsureCabinetRole::homeFor(Auth::user()));
+        }
+
+        if ($next) {
+            session()->put('url.intended', $next);
         }
 
         // Заблокировали, пока человек был в кабинете (CheckUserActive)
@@ -74,6 +81,27 @@ class Login extends Component
         session()->regenerate();
 
         return (new LoginResponse)->toResponse(request());
+    }
+
+    /** Адрес возврата после входа: путь или полный адрес этого же сайта; чужие адреса и «//host» — null. */
+    public static function safeReturnUrl(mixed $value): ?string
+    {
+        if (! is_string($value) || $value === '' || strlen($value) > 2000 || preg_match('/[\\\\\x00-\x1F\x7F]/', $value)) {
+            return null;
+        }
+
+        if (str_starts_with($value, '/')) {
+            return str_starts_with($value, '//') ? null : url($value);
+        }
+
+        $parts = parse_url($value);
+        $host = parse_url(url('/'), PHP_URL_HOST);
+        if (! $parts || ! in_array(strtolower($parts['scheme'] ?? ''), ['http', 'https'], true) || isset($parts['user']) || isset($parts['pass'])
+            || strcasecmp($parts['host'] ?? '', (string) $host) !== 0) {
+            return null;
+        }
+
+        return $value;
     }
 
     public function back(): void

@@ -97,7 +97,9 @@ class StudentTaskTest extends TestCase
             ->assertDontSee('<script>alert(1)</script>', false)
             ->assertSee('Файл 1')
             ->assertSee('sample.pdf', false)
-            ->assertSee('Отправить на проверку');
+            ->assertSee('Отправить на проверку')
+            ->assertSee('>Написать учителю</a>', false)
+            ->assertDontSee('>Написать</a>', false);
     }
 
     public function test_student_submits_answer_with_files(): void

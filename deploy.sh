@@ -110,6 +110,10 @@ echo "==> Миграции"
 "$PHP_BIN" artisan config:clear
 "$PHP_BIN" artisan migrate --force
 
+echo "==> База знаний"
+# Статьи из database/help/*.md; правленные в админке не затираются (HelpContentImporter)
+"$PHP_BIN" artisan help:sync
+
 echo "==> Кэши"
 "$PHP_BIN" artisan optimize:clear
 "$PHP_BIN" artisan config:cache

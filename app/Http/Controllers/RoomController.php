@@ -8,6 +8,9 @@ use JoisarJignesh\Bigbluebutton\Facades\Bigbluebutton;
 
 class RoomController extends Controller
 {
+    /** Диск, на котором FileUploadHelper хранит презентации занятий. */
+    private const PRESENTATIONS_DISK = 's3';
+
     public function start(Room $room)
     {
         if ($room->user_id !== auth()->id()) {
@@ -148,14 +151,15 @@ class RoomController extends Controller
                     ];
                 }
 
-                // Add user-uploaded presentations
+                // Презентации учителя: проверяем и берём ссылку на том же диске, куда их сохранил
+                // FileUploadHelper (s3), а не на диске по умолчанию — иначе при FILESYSTEM_DISK=local
+                // файлы молча пропускались и не попадали в класс
+                $presentationDisk = \Illuminate\Support\Facades\Storage::disk(self::PRESENTATIONS_DISK);
                 if (!empty($presentationFiles)) {
-                    foreach ($room->presentations as $path) {
-                        // Use Storage facade to check existence and get URL
-                        // This works for both 'local' (public disk) and 's3' drivers transparently
-                        if (\Illuminate\Support\Facades\Storage::exists($path)) {
+                    foreach ($presentationFiles as $path) {
+                        if (is_string($path) && $path !== '' && $presentationDisk->exists($path)) {
                             $presentationUrls[] = [
-                                'link' => \Illuminate\Support\Facades\Storage::url($path),
+                                'link' => $presentationDisk->url($path),
                                 'fileName' => basename($path),
                             ];
                         }
@@ -164,9 +168,8 @@ class RoomController extends Controller
 
                 // Determine if we should send presentations
                 $shouldSendPresentations = !$isLocalhost || $forceLocalPresentations;
-                // Exception: If we are using S3 (or any cloud driver), we ALWAYS send presentations
-                // because cloud URLs are globally accessible even if the app triggers creation from localhost.
-                if (config('filesystems.default') !== 'local' && config('filesystems.default') !== 'public') {
+                // Облачный диск презентаций отдаёт ссылки, доступные серверу BBB даже при запуске с localhost
+                if (! in_array(config('filesystems.disks.' . self::PRESENTATIONS_DISK . '.driver'), ['local', null], true)) {
                     $shouldSendPresentations = true;
                 }
 
@@ -181,7 +184,7 @@ class RoomController extends Controller
                             'presentations' => array_column($presentationUrls, 'fileName'),
                             'is_localhost' => $isLocalhost,
                             'forced' => $forceLocalPresentations,
-                            'filesystem' => config('filesystems.default')
+                            'filesystem' => self::PRESENTATIONS_DISK
                         ]);
                     }
                 } else {
@@ -255,7 +258,7 @@ class RoomController extends Controller
                 'error' => $e->getMessage(),
             ]);
 
-            return back()->with('error', 'Произошла ошибка при запуске занятия: ' . $e->getMessage());
+            return back()->with('error', 'Не удалось начать занятие. Попробуйте через минуту.');
         }
     }
 
@@ -360,7 +363,7 @@ class RoomController extends Controller
             ? app(\App\Services\LessonStopService::class)->stopByAdmin($room, auth()->user())
             : app(\App\Services\LessonStopService::class)->stop($room);
 
-        return back()->with('success', 'Meeting stopped successfully.');
+        return back()->with('success', 'Занятие завершено');
     }
 
 }

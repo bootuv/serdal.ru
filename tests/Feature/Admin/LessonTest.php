@@ -104,7 +104,9 @@ class LessonTest extends TestCase
         Bigbluebutton::shouldReceive('getMeetingInfo')->andReturn(null);
         Bigbluebutton::shouldReceive('close')->andThrow(new \RuntimeException('unreachable'));
 
-        $this->actingAs($this->admin())->from('/cabinet/admin')->get(route('rooms.stop', $room))->assertRedirect('/cabinet/admin');
+        $this->actingAs($this->admin())->from('/cabinet/admin')->get(route('rooms.stop', $room))
+            ->assertRedirect('/cabinet/admin')
+            ->assertSessionHas('success', 'Занятие завершено');
 
         $this->assertFalse($room->fresh()->is_running);
         Notification::assertSentTo($teacher, LessonStoppedByAdmin::class);

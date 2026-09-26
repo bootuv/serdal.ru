@@ -165,16 +165,35 @@ class SubscriptionCheckoutService
             : null;
     }
 
+    /** Сумма и срок платежа за тариф: [₽, дней] — на месяц (период тарифа) или год. */
+    public static function paymentTerms(Tariff $tariff, bool $yearly): array
+    {
+        $yearly = $yearly && $tariff->hasYearly();
+
+        return [(float) ($yearly ? $tariff->yearly_price : $tariff->price), (int) ($yearly ? 365 : $tariff->period_days)];
+    }
+
+    /**
+     * Перенос остатка текущего платного тарифа при переходе на $tariff — для строки в окне смены тарифа.
+     * Считается так же, как при оплате (SubscriptionService::carryOver). Null — переноса не будет.
+     */
+    public static function carryOverPreview(User $user, Tariff $tariff, bool $yearly): ?array
+    {
+        [$amount, $days] = self::paymentTerms($tariff, $yearly);
+
+        return SubscriptionService::carryOver($user, $tariff, $amount, $days);
+    }
+
     /** Ожидающий платёж за тариф на месяц (период тарифа) или год. */
     public static function createTariffPayment(User $user, Tariff $tariff, bool $yearly, ?array $meta = null): SubscriptionPayment
     {
-        $yearly = $yearly && $tariff->hasYearly();
+        [$amount, $days] = self::paymentTerms($tariff, $yearly);
 
         return SubscriptionPayment::create([
             'user_id' => $user->id,
             'tariff_id' => $tariff->id,
-            'amount' => $yearly ? $tariff->yearly_price : $tariff->price,
-            'period_days' => $yearly ? 365 : $tariff->period_days,
+            'amount' => $amount,
+            'period_days' => $days,
             'status' => SubscriptionPayment::STATUS_PENDING,
             'gateway' => 'yookassa',
             'meta' => $meta,

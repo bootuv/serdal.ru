@@ -3,7 +3,7 @@
     @if ($step === 1)
         <div class="flex flex-col gap-2">
             <h1 class="text-h1-m font-medium lg:text-h1">{{ $teacherName ? $teacherName . ' приглашает вас заниматься' : 'Создайте аккаунт ученика' }}</h1>
-            <p class="text-t1 text-muted">Уже есть аккаунт? <a href="{{ route('login') }}" class="link">Войти</a></p>
+            <p class="text-t1 text-muted">Уже есть аккаунт? <a href="{{ $loginUrl ?: route('login') }}" class="link">Войти</a></p>
         </div>
 
         <form wire:submit="register" class="flex flex-col gap-6" novalidate>
@@ -11,12 +11,12 @@
                 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <x-ui.field label="Фамилия" name="last_name" size="l" autocomplete="family-name" wire:model="last_name" />
                     <x-ui.field label="Имя" name="first_name" size="l" autocomplete="given-name" wire:model="first_name" />
-                    <x-ui.field label="Отчество" name="middle_name" size="l" autocomplete="additional-name" wire:model="middle_name" />
+                    <x-ui.field label="Отчество" name="middle_name" size="l" optional autocomplete="additional-name" wire:model="middle_name" />
                     <x-ui.field label="Телефон" name="phone" type="tel" size="l" optional autocomplete="tel" inputmode="tel" placeholder="+7 900 000-00-00" wire:model="phone" />
                 </div>
                 <div class="flex flex-col gap-2">
                     <x-ui.field label="Почта" name="email" type="email" size="l" autocomplete="email" inputmode="email" placeholder="Ваша почта" wire:model="email" />
-                    @if ($emailTaken)<a href="{{ route('login') }}" class="link self-start text-t2">Войти с этой почтой</a>@endif
+                    @if ($emailTaken)<a href="{{ $loginUrl ?: route('login') }}" class="link self-start text-t2">Войти с этой почтой</a>@endif
                 </div>
                 <div class="flex flex-col gap-2">
                     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">

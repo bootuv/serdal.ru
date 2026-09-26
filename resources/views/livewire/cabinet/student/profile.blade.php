@@ -39,7 +39,7 @@
                     <x-ui.field label="Почта" name="email" type="email" wire:model="email" autocomplete="email" />
                     <x-ui.field label="Телефон" name="phone" type="tel" wire:model="phone" autocomplete="tel" />
                     <x-ui.field label="Новый пароль" name="password" type="password" wire:model="password" autocomplete="new-password"
-                                placeholder="Оставьте пустым, если не меняете" />
+                                placeholder="Оставьте пустым, если не меняете" hint="Минимум 8 символов" />
                 </div>
 
                 <div class="flex items-center gap-4 pt-2">

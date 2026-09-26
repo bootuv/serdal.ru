@@ -143,7 +143,7 @@
                 <div class="flex items-center gap-3">
                     <x-ui.avatar :user="$teacher" />
                     <x-ui.text :title="$teacher->name" sub="Ваш учитель" />
-                    <x-ui.btn size="s" :href="$messengerUrl">Написать</x-ui.btn>
+                    <x-ui.btn size="s" :href="$messengerUrl">Написать учителю</x-ui.btn>
                 </div>
                 @if ($previous)
                     <x-ui.list>

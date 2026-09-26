@@ -310,7 +310,7 @@ class Students extends Component
                 $note = null;
 
                 if ($r['state'] === 'blocked') {
-                    $note = $r['firstName'] . ' не может войти в ваши занятия, пока вы не отметите оплату или не продлите срок.';
+                    $note = $r['firstName'] . ' не может войти в ваши занятия, пока вы не отметите оплату, не продлите срок или не нажмёте «Не требовать оплату».';
                 } elseif ($overdue) {
                     $left = PaymentRecordService::debtStatus($r['id'], $teacher->id)['lessons_left'];
                     $note = 'Ещё ' . plural_ru($left, 'занятие', 'занятия', 'занятий') . ' с долгом — и ' . $r['firstName'] . ' не сможет войти в ваши занятия.';

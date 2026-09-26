@@ -120,6 +120,36 @@ class SeoTest extends TestCase
             ->assertSee('<link rel="canonical" href="http://localhost/' . $tutor->username . '">', false);
     }
 
+    public function test_public_pages_do_not_show_teacher_login_email(): void
+    {
+        $tutor = $this->makeTutor();
+        $tutor->update(['email' => 'secret-login@example.test', 'phone' => '+79990001122', 'telegram' => 'seo_tutor']);
+
+        // Способы связи — только телефон, WhatsApp и Telegram; почта для входа не публикуется
+        $this->get('/' . $tutor->username)
+            ->assertOk()
+            ->assertSee('Способы связи')
+            ->assertSee('+79990001122')
+            ->assertSee('https://t.me/seo_tutor', false)
+            ->assertDontSee('secret-login@example.test', false)
+            ->assertDontSee('mailto:secret-login', false);
+
+        foreach (['/', '/sitemap.xml', '/llms.txt', '/llms-full.txt'] as $url) {
+            $this->get($url)->assertOk()->assertDontSee('secret-login@example.test', false);
+        }
+    }
+
+    public function test_contacts_block_is_hidden_when_teacher_has_no_contacts(): void
+    {
+        $tutor = $this->makeTutor();
+        $tutor->update(['phone' => null, 'whatsup' => null, 'telegram' => null]);
+
+        $this->get('/' . $tutor->username)
+            ->assertOk()
+            ->assertDontSee('Способы связи')
+            ->assertDontSee($tutor->email, false);
+    }
+
     public function test_tariffs_page_has_offer_structured_data(): void
     {
         $this->get('/tariffs')

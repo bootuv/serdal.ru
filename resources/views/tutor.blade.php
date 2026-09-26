@@ -201,13 +201,14 @@
         @endif
       </div>
       <div class="col-25">
-        @if($user->phone || $user->whatsup || $user->telegram || $user->email)
+        @if($user->phone || $user->whatsup || $user->telegram)
+          @php($lastContact = $user->telegram ? 'telegram' : ($user->whatsup ? 'whatsup' : 'phone'))
           <div class="content-card">
             <h4 class="h4">Способы связи</h4>
             <div class="contacts">
               <div class="param-list">
                 @if($user->phone)
-                  <div class="param-list-item icon">
+                  <div class="param-list-item icon{{ $lastContact === 'phone' ? ' last' : '' }}">
                     <div class="param-item-label p18">Телефон</div>
                     <div class="param-item-data">
                       <div class="price">
@@ -221,7 +222,7 @@
                   </div>
                 @endif
                 @if($user->whatsup)
-                  <div class="param-list-item icon">
+                  <div class="param-list-item icon{{ $lastContact === 'whatsup' ? ' last' : '' }}">
                     <div class="param-item-label p18">WhatsApp</div>
                     <div class="param-item-data">
                       <div class="param-list-item-text">
@@ -235,7 +236,7 @@
                   </div>
                 @endif
                 @if($user->telegram)
-                  <div class="param-list-item icon">
+                  <div class="param-list-item icon{{ $lastContact === 'telegram' ? ' last' : '' }}">
                     <div class="param-item-label p18">Telegram</div>
                     <div class="param-item-data">
                       <div class="param-list-item-text">
@@ -246,20 +247,6 @@
                     </div>
                     <div class="w-layout-blockcontainer contact-icon w-container"><img src="images/Telegram.svg"
                         loading="lazy" alt="" class="icon-svg"></div>
-                  </div>
-                @endif
-                @if($user->email)
-                  <div class="param-list-item icon last">
-                    <div class="param-item-label p18">Email</div>
-                    <div class="param-item-data">
-                      <div class="param-list-item-text">
-                        <a href="mailto:{{ $user->email }}" class="text-link w-inline-block">
-                          <div class="p18-medium">{{ $user->email }}</div>
-                        </a>
-                      </div>
-                    </div>
-                    <div class="w-layout-blockcontainer contact-icon w-container"><img src="images/Email.svg" loading="lazy"
-                        alt="" class="icon-svg"></div>
                   </div>
                 @endif
               </div>

@@ -144,7 +144,7 @@ class TeacherStudentTest extends TestCase
             ->assertSee('История оплат')
             ->assertSee('Оплачено ')
             ->assertSee('Условия оплаты')
-            ->assertSee('Поурочно');
+            ->assertSee('За каждое занятие');
     }
 
     public function test_mark_selected_as_paid_and_undo(): void

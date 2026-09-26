@@ -276,6 +276,9 @@ class StudentScheduleTest extends TestCase
             ->get(route('cabinet.student.schedule'))
             ->assertOk()
             ->assertSee('Вход закрыт до оплаты')
+            ->assertSee('сообщить об оплате')
+            ->assertDontSee('>оплатить<', false)
+            ->assertSee(route('cabinet.student.payments', ['report' => $teacher->id]), false)
             ->assertDontSee(route('rooms.connect', $room), false);
     }
 

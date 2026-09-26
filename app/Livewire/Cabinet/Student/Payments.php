@@ -23,7 +23,7 @@ use Livewire\WithFileUploads;
  * Оплата ученика. Макет: «Ученик · Оплата» (StudentPayments, docs/design/BRAND.md).
  * Онлайн-оплаты у ученика нет (решение владельца): он платит учителю напрямую и «Сообщает об оплате» —
  * выбирает занятия, прикладывает чек; учитель подтверждает (PaymentClaimService). ?report=<id учителя> — сразу открыть окно.
- * Суммы — PaymentRecord::amount() (у поурочных; у помесячных суммы нет).
+ * Суммы — PaymentRecord::amount() (поурочные — из снимка цен занятия, помесячные — цена за месяц в начислении).
  */
 #[Layout('components.layouts.cabinet', ['title' => 'Оплата', 'active' => 'payments'])]
 class Payments extends Component

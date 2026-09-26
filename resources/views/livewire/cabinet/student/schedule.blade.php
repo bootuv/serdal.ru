@@ -39,7 +39,7 @@
                     <div class="flex shrink-0 flex-col gap-2 lg:items-end">
                         @if ($focus['blocked'])
                             <x-ui.btn variant="outline" size="l" icon="lock" disabled>Войти в класс</x-ui.btn>
-                            <p class="text-t2 text-muted">Вход закрыт до оплаты · <a href="{{ $paymentsUrl }}" class="link">оплатить</a></p>
+                            <p class="text-t2 text-muted">Вход закрыт до оплаты · <a href="{{ $focus['reportUrl'] ?? $paymentsUrl }}" class="link">сообщить об оплате</a></p>
                         @elseif ($focus['canJoin'])
                             <x-ui.btn variant="primary" size="l" icon="video" :href="$focus['joinUrl']" target="_blank" rel="noopener">Войти в класс</x-ui.btn>
                         @else

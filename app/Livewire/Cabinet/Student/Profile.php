@@ -66,8 +66,16 @@ class Profile extends Component
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore(auth()->id())],
             'phone' => ['nullable', 'string', 'max:255', 'regex:/^[+]*[(]{0,1}[0-9]{1,4}[)]{0,1}[-\s\.\/0-9]*$/'],
             'grade' => ['nullable', Rule::in(array_keys(StudentProfileService::GRADES))],
-            'password' => ['nullable', 'string', 'max:255'],
+            // Как при регистрации и сбросе: не короче 8 символов; пусто — пароль не меняем
+            'password' => ['nullable', 'string', 'min:8', 'max:255'],
             'photo' => ['nullable', 'image'],
+        ];
+    }
+
+    protected function messages(): array
+    {
+        return [
+            'password.min' => 'Пароль — минимум 8 символов',
         ];
     }
 

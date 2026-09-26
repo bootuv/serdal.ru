@@ -48,6 +48,10 @@ class RegisterInvitedStudent extends Component
     /** Почта уже зарегистрирована — под полем ссылка «Войти». */
     public bool $emailTaken = false;
 
+    /** Вход с возвратом на это приглашение. */
+    #[Locked]
+    public string $loginUrl = '';
+
     public function mount()
     {
         if (! request()->hasValidSignature()) {
@@ -57,35 +61,44 @@ class RegisterInvitedStudent extends Component
         $this->teacher_id = request()->query('teacher');
 
         if (Auth::check()) {
-            $user = Auth::user();
+            return $this->attachSignedInUser(Auth::user());
+        }
 
-            // Приглашение — только для учеников: учитель или админ по ссылке учеником не становится
-            if ($user->role !== User::ROLE_STUDENT) {
-                session()->flash('error', 'Это приглашение для ученика. Откройте ссылку, выйдя из своего аккаунта, или отправьте её ученику.');
+        // «Войти» ведёт на вход с возвратом сюда: после входа ученик вернётся по приглашению и будет привязан к учителю
+        $this->loginUrl = route('login', ['next' => request()->getRequestUri()]);
+    }
 
-                return redirect(\App\Http\Middleware\EnsureCabinetRole::homeFor($user));
-            }
+    /** Ссылку открыл уже вошедший пользователь: ученика привязываем к учителю и ведём в кабинет, остальным — объяснение. */
+    private function attachSignedInUser(User $user)
+    {
+        // Приглашение — только для учеников: учитель или админ по ссылке учеником не становится
+        if ($user->role !== User::ROLE_STUDENT) {
+            session()->flash('error', 'Это приглашение для ученика. Откройте ссылку, выйдя из своего аккаунта, или отправьте её ученику.');
 
-            if ($this->teacher_id) {
-                $teacher = User::whereKey($this->teacher_id)->whereIn('role', [User::ROLE_TUTOR])->first();
-                if ($teacher) {
-                    // Привязываем ученика к учителю
-                    $changes = $teacher->students()->syncWithoutDetaching([$user->id]);
+            return redirect(\App\Http\Middleware\EnsureCabinetRole::homeFor($user));
+        }
 
-                    if (count($changes['attached']) > 0) {
-                        // Учителю — «ученик принял приглашение», ученику — «новый учитель»
-                        $teacher->notify(new StudentAcceptedInvite($user));
-                        $user->notify(new NewTeacher($teacher));
-
-                        session()->flash('toast', 'Вы добавлены в список учеников');
-                    } else {
-                        session()->flash('toast', 'Вы уже в списке учеников');
-                    }
-                }
-            }
+        $teacher = $this->teacher_id ? User::whereKey($this->teacher_id)->where('role', User::ROLE_TUTOR)->first() : null;
+        if (! $teacher) {
+            session()->flash('error', 'Не нашли учителя по этой ссылке. Попросите у него новое приглашение.');
 
             return redirect()->route('cabinet.student.home');
         }
+
+        $name = $this->teacherName() ?? 'Учитель';
+        $changes = $teacher->students()->syncWithoutDetaching([$user->id]);
+
+        if (count($changes['attached']) > 0) {
+            // Учителю — «ученик принял приглашение», ученику — «новый учитель»
+            $teacher->notify(new StudentAcceptedInvite($user));
+            $user->notify(new NewTeacher($teacher));
+
+            session()->flash('toast', $name . ' — теперь ваш учитель');
+        } else {
+            session()->flash('toast', $name . ' — уже ваш учитель');
+        }
+
+        return redirect()->route('cabinet.student.home');
     }
 
     public function register()
@@ -103,7 +116,7 @@ class RegisterInvitedStudent extends Component
         $this->validate([
             'last_name' => ['required', 'string', 'max:255'],
             'first_name' => ['required', 'string', 'max:255'],
-            'middle_name' => ['required', 'string', 'max:255'],
+            'middle_name' => ['nullable', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255'],
             'phone' => ['nullable', 'string', 'max:20'],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
@@ -111,7 +124,6 @@ class RegisterInvitedStudent extends Component
         ], [
             'last_name.required' => 'Укажите фамилию',
             'first_name.required' => 'Укажите имя',
-            'middle_name.required' => 'Укажите отчество',
             'email.required' => 'Укажите почту',
             'email.email' => 'Проверьте адрес — в нём ошибка',
             'phone.max' => 'Слишком длинный номер',
@@ -136,7 +148,7 @@ class RegisterInvitedStudent extends Component
         session()->put('registration_data', [
             'first_name' => $this->first_name,
             'last_name' => $this->last_name,
-            'middle_name' => $this->middle_name,
+            'middle_name' => filled($this->middle_name) ? trim($this->middle_name) : null,
             'email' => $this->email,
             'phone' => $this->phone,
             // В сессии — только хеш пароля
@@ -194,7 +206,7 @@ class RegisterInvitedStudent extends Component
         $user = User::create([
             'first_name' => $data['first_name'],
             'last_name' => $data['last_name'],
-            'middle_name' => $data['middle_name'],
+            'middle_name' => filled($data['middle_name'] ?? null) ? $data['middle_name'] : null,
             'email' => $data['email'],
             'phone' => $data['phone'],
             'password' => $data['password_hash'] ?? Hash::make($data['password']),

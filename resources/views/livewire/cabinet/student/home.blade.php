@@ -56,7 +56,7 @@
             <div class="flex shrink-0 flex-col gap-3 lg:items-end">
                 @if ($next['blocked'])
                     <x-ui.btn variant="outline" size="l" icon="lock" disabled>Войти в класс</x-ui.btn>
-                    <p class="text-t2 text-muted">Откроется после оплаты · <a href="{{ $debt['reportUrl'] ?? $paymentsUrl }}" class="link">сообщить об оплате</a></p>
+                    <p class="text-t2 text-muted">Вход закрыт до оплаты · <a href="{{ $next['reportUrl'] ?? $paymentsUrl }}" class="link">сообщить об оплате</a></p>
                 @elseif ($next['canJoin'])
                     <x-ui.btn variant="primary" size="l" icon="video" :href="$next['joinUrl']" target="_blank" rel="noopener">Войти в класс</x-ui.btn>
                     <a href="{{ $next['url'] }}" class="link text-t2">Материалы к занятию</a>
@@ -163,7 +163,7 @@
                                     @endif
                                 @endif
                                 @if ($t['chat'])
-                                    <x-ui.btn size="s" :href="$t['chat']">Написать</x-ui.btn>
+                                    <x-ui.btn size="s" :href="$t['chat']">Написать учителю</x-ui.btn>
                                 @endif
                             </div>
                         </x-ui.row>
@@ -181,7 +181,7 @@
                         <x-slot:action><a href="{{ $paymentsUrl }}" class="link text-t2">Подробнее</a></x-slot:action>
                     </x-ui.card-head>
                     <div class="flex flex-col gap-1">
-                        <span class="text-num font-medium">{{ $payment['sum'] ?? plural_ru($payment['count'], 'занятие', 'занятия', 'занятий') }}</span>
+                        <span class="text-num font-medium">{{ $payment['sum'] ?? $payment['countLabel'] }}</span>
                         @if ($payment['facts'] || $payment['late'])
                             <span class="text-t2 text-muted">{{ $payment['facts'] }}@if ($payment['facts'] && $payment['late']) · @endif @if ($payment['late'])<x-ui.em>{{ $payment['late'] }}</x-ui.em>@endif</span>
                         @endif

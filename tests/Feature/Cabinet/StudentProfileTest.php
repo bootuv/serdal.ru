@@ -109,4 +109,24 @@ class StudentProfileTest extends TestCase
             ->set('photo', UploadedFile::fake()->create('doc.pdf', 10, 'application/pdf'))
             ->assertHasErrors(['photo']);
     }
+
+    public function test_new_password_needs_eight_characters_and_empty_keeps_old(): void
+    {
+        $student = $this->user(User::ROLE_STUDENT, ['first_name' => 'Алина', 'last_name' => 'Смирнова', 'password' => Hash::make('old-secret')]);
+
+        Livewire::actingAs($student)
+            ->test(Profile::class)
+            ->set('password', 'short')
+            ->call('save')
+            ->assertHasErrors(['password' => 'min'])
+            ->assertSee('Пароль — минимум 8 символов')
+            ->assertSet('saved', false)
+            // Пустое поле — пароль не меняем
+            ->set('password', '')
+            ->call('save')
+            ->assertHasNoErrors()
+            ->assertSet('saved', true);
+
+        $this->assertTrue(Hash::check('old-secret', $student->fresh()->password));
+    }
 }

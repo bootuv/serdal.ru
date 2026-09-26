@@ -328,8 +328,11 @@ class AdminPaymentsService
         }
 
         $current = $p->user?->activeSubscription();
-        $base = $current && $current->tariff_id === $p->tariff_id && $current->ends_at?->isFuture() ? $current->ends_at : now();
-        $until = $base->copy()->addDays((int) $p->period_days);
+        $renew = $current && $current->tariff_id === $p->tariff_id;
+        $base = $renew && $current->ends_at?->isFuture() ? $current->ends_at : now();
+        // Смена платного тарифа: неиспользованный остаток прошлого добавится к сроку, как при обычной оплате
+        $carry = ! $renew && $p->user && $p->tariff ? SubscriptionService::carryOver($p->user, $p->tariff, (float) $p->amount, (int) ($p->period_days ?: $p->tariff->period_days)) : null;
+        $until = $base->copy()->addDays((int) $p->period_days + ($carry['days'] ?? 0));
 
         return 'Тариф «' . $p->tariff?->name . '» подключится до ' . HumanDate::date($until)
             . ', как при обычной оплате, и учитель получит уведомление.';
@@ -353,16 +356,21 @@ class AdminPaymentsService
                 . ' с баланса учителя — останется ' . $left . '.' . $bonus;
         }
 
-        $sub = $p->subscription
-            ?? $p->user?->subscriptions()->active()->where('tariff_id', $p->tariff_id)->latest('starts_at')->first();
-        $name = 'Тариф «' . $p->tariff?->name . '»';
-        $days = plural_ru((int) $p->period_days, 'день', 'дня', 'дней');
+        // Какую подписку и на сколько дней сократит возврат (с учётом переноса остатка при смене тарифа)
+        $plan = $p->user ? SubscriptionService::refundPlan($p) : null;
+        $sub = $plan['subscription'] ?? null;
 
         if (! $sub || ! $sub->ends_at || ! $sub->isActive()) {
             return 'Оплаченный период уже закончился — тариф не изменится.' . $bonus;
         }
 
-        $newEnd = $sub->ends_at->copy()->subDays((int) $p->period_days);
+        if ($plan['days'] <= 0) {
+            return 'Срок тарифа не изменится.' . $bonus;
+        }
+
+        $name = 'Тариф «' . $sub->tariff?->name . '»';
+        $days = plural_ru($plan['days'], 'день', 'дня', 'дней');
+        $newEnd = $sub->ends_at->copy()->subDays($plan['days']);
 
         return ($newEnd->isPast()
             ? $name . ' закончится сегодня: оплаченные этим платежом ' . $days . ' отменятся.'

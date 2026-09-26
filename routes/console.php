@@ -17,8 +17,8 @@ Schedule::command('lessons:remind')->everyMinute()->withoutOverlapping();
 // Ученикам: срок сдачи задания через сутки, работа не сдана
 Schedule::command('homework:remind-deadlines')->hourly()->withoutOverlapping();
 
-// Monthly payment records for students with monthly billing
-Schedule::command('payments:generate-monthly')->monthlyOn(1, '06:00');
+// Счета за месяц ученикам с помесячной оплатой: 1-го — всем, в остальные дни — тем, у кого занятия появились позже
+Schedule::command('payments:generate-monthly')->dailyAt('06:00');
 
 // Remind students about overdue payments
 Schedule::command('payments:check-overdue')->dailyAt('09:00');

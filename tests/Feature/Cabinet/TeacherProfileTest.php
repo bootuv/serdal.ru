@@ -124,6 +124,23 @@ class TeacherProfileTest extends TestCase
             ->assertHasErrors(['first_name' => 'required', 'phone' => 'regex']);
     }
 
+    public function test_new_password_needs_eight_characters_and_empty_keeps_old(): void
+    {
+        $teacher = $this->user(User::ROLE_TUTOR, ['password' => Hash::make('old-secret')]);
+
+        Livewire::actingAs($teacher)->test(Profile::class)
+            ->set('password', '1234567')
+            ->call('save')
+            ->assertHasErrors(['password' => 'min'])
+            ->assertSee('Пароль — минимум 8 символов')
+            ->set('password', '')
+            ->call('save')
+            ->assertHasNoErrors()
+            ->assertSet('saved', true);
+
+        $this->assertTrue(Hash::check('old-secret', $teacher->fresh()->password));
+    }
+
     public function test_prices_crud_one_per_type(): void
     {
         $teacher = $this->user(User::ROLE_TUTOR);

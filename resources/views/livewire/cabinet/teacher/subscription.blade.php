@@ -286,6 +286,9 @@
                     Переключиться на тариф «{{ $selecting->name }}»{{ $selecting->isFree() ? '' : $periodText . ' и перейти к оплате' }}?
                 @endif
             </p>
+            @if ($carryOver)
+                <p class="text-t2">Остаток тарифа «{{ $carryOver['name'] }}»{{ $carryOver['left_days'] > 0 ? ' (' . plural_ru($carryOver['left_days'], 'день', 'дня', 'дней') . ')' : '' }} добавим к новому: +{{ plural_ru($carryOver['days'], 'день', 'дня', 'дней') }}</p>
+            @endif
             @if (! $selectUnavailable && $showPicker)
                 @include('livewire.cabinet.teacher.partials.pay-methods', ['methods' => $methods, 'model' => 'payMethod', 'active' => $payMethod])
                 @if ($canSave)

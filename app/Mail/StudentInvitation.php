@@ -29,7 +29,7 @@ class StudentInvitation extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Приглашение ученика',
+            subject: $this->teacherName . ' приглашает вас заниматься',
         );
     }
 

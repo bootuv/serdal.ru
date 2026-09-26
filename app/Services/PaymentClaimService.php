@@ -285,7 +285,7 @@ class PaymentClaimService
         }
     }
 
-    /** Сумма, если известна у всех начислений (у помесячных суммы нет). */
+    /** Сумма, если известна у всех начислений (PaymentRecord::amount(); у старых помесячных её может не быть). */
     public static function knownSum(Collection $records): ?int
     {
         $amounts = $records->map(fn (PaymentRecord $r) => $r->amount());

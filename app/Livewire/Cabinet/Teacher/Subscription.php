@@ -315,6 +315,10 @@ class Subscription extends Component
             'selecting' => $selecting,
             'selectUnavailable' => $selecting && SubscriptionCheckoutService::tariffUnavailable($selecting->id),
             'selectDeferred' => $selecting && ! $selecting->trashed() ? SubscriptionCheckoutService::deferredUntil($user, $selecting) : null,
+            // Переход на другой платный тариф: остаток текущего добавится к новому
+            'carryOver' => $selecting && ! $this->selectRenew && ! SubscriptionCheckoutService::tariffUnavailable($selecting->id)
+                ? SubscriptionCheckoutService::carryOverPreview($user, $selecting, $this->billingPeriod === 'year')
+                : null,
             'showPicker' => $this->needsMethodPicker($selecting),
             'canSave' => $this->canSaveMethod(),
             'methods' => SubscriptionCheckoutService::paymentMethods(),

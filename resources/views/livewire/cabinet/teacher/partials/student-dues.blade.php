@@ -58,7 +58,7 @@
         @if ($debtStatus && $dues->isNotEmpty())
             <p class="text-t2 text-muted">
                 @if ($debtStatus['blocked'])
-                    <x-ui.em>{{ $firstName }} не может войти в ваши занятия</x-ui.em>, пока вы не отметите оплату или не продлите срок.
+                    <x-ui.em>{{ $firstName }} не может войти в ваши занятия</x-ui.em>, пока вы не отметите оплату, не продлите срок или не нажмёте «Не требовать оплату».
                 @else
                     Ещё {{ plural_ru($debtStatus['lessons_left'], 'занятие', 'занятия', 'занятий') }} с долгом — и {{ $firstName }} не сможет войти в ваши занятия.
                 @endif

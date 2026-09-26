@@ -9,7 +9,7 @@ class GenerateMonthlyPaymentRecords extends Command
 {
     protected $signature = 'payments:generate-monthly';
 
-    protected $description = 'Создать помесячные начисления за текущий месяц для учеников с помесячной оплатой';
+    protected $description = 'Создать счета за текущий месяц ученикам с помесячной оплатой, у которых до конца месяца есть занятия (запускается каждый день)';
 
     public function handle(): int
     {

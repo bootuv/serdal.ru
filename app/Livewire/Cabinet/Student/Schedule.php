@@ -155,7 +155,11 @@ class Schedule extends Component
             'start' => $start,
             'isToday' => $start->isToday(),
             'running' => $e['running'],
-            'blocked' => in_array($e['teacher_id'], $blockedTeacherIds, true),
+            'blocked' => $blocked = in_array($e['teacher_id'], $blockedTeacherIds, true),
+            // Вход закрыт до оплаты — ссылка сразу открывает «Сообщить об оплате» этому учителю
+            'reportUrl' => $blocked && Route::has('cabinet.student.payments')
+                ? route('cabinet.student.payments', ['report' => $e['teacher_id']])
+                : null,
             // «Войти в класс» — только когда занятие идёт или вот-вот начнётся
             'canJoin' => ! $e['cancelled'] && StudentScheduleService::canJoin($e['running'], $start, $e['end']),
             'joinHint' => StudentScheduleService::joinOpensLabel($start),

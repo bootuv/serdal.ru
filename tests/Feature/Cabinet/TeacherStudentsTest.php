@@ -217,7 +217,7 @@ class TeacherStudentsTest extends TestCase
     public function test_invite_by_email_and_link(): void
     {
         Mail::fake();
-        $teacher = $this->user(User::ROLE_TUTOR);
+        $teacher = $this->user(User::ROLE_TUTOR, ['first_name' => 'Мария', 'last_name' => 'Соколова', 'middle_name' => 'Андреевна']);
 
         Livewire::actingAs($teacher)->test(Students::class)
             ->call('openInvite', 'link')
@@ -232,7 +232,9 @@ class TeacherStudentsTest extends TestCase
             ->assertDispatched('toast');
 
         Mail::assertSent(StudentInvitation::class, fn (StudentInvitation $m) => $m->hasTo('new.student@example.com')
-            && str_contains($m->link, 'teacher=' . $teacher->id));
+            && str_contains($m->link, 'teacher=' . $teacher->id)
+            // В письме — имя и фамилия учителя, без отчества
+            && $m->teacherName === 'Мария Соколова');
     }
 
     public function test_find_and_add_registered_student(): void

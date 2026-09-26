@@ -118,7 +118,10 @@ class TeacherStudentsService
     /** Отправить приглашение на почту. */
     public function sendInvitation(User $teacher, string $email): void
     {
-        Mail::to($email)->send(new StudentInvitation($this->invitationLink($teacher), $teacher->name));
+        // В письме — «Мария Соколова», без отчества
+        $name = trim($teacher->first_name . ' ' . $teacher->last_name);
+
+        Mail::to($email)->send(new StudentInvitation($this->invitationLink($teacher), $name !== '' ? $name : ($teacher->name ?: 'Учитель')));
     }
 
     /** Зарегистрированные ученики, которых ещё нет в списке учителя. */
@@ -540,19 +543,18 @@ class TeacherStudentsService
         $dueDay = (int) ($lessonTypes->firstWhere('payment_type', PaymentRecord::TYPE_MONTHLY)?->payment_due_day
             ?? PaymentRecordService::MONTHLY_DUE_DAY);
 
-        // Как в базовых ценах: тип оплаты форматов занятий ученика (по умолчанию — поурочно)
+        // Как в базовых ценах: тип оплаты форматов занятий ученика (по умолчанию — за каждое занятие)
         $defaultType = $rooms->map(fn (Room $r) => $lessonTypes->firstWhere('type', $r->type)?->payment_type)
             ->filter()->unique()->first() ?? PaymentRecord::TYPE_PER_LESSON;
 
         $perLesson = 'оплата в течение ' . plural_ru($dueDays, 'дня', 'дней', 'дней') . ' после занятия';
-        $monthly = 'счёт 1-го числа, оплатить до ' . $dueDay . '-го';
-        $block = 'Если оплата просрочена и ученик придёт ещё на ' . plural_ru(PaymentRecordService::BLOCK_AFTER_LESSONS, 'занятие', 'занятия', 'занятий')
-            . ', вход в ваши занятия закроется, пока вы не отметите оплату.';
+        $monthly = 'счёт за месяц, если в нём есть занятия, оплатить до ' . $dueDay . '-го';
+        $block = self::blockRule();
 
         $options = [
             'default' => ['title' => 'Как в ваших ценах', 'sub' => $defaultType === PaymentRecord::TYPE_MONTHLY ? 'Сейчас — за месяц' : 'Сейчас — за каждое занятие'],
             PaymentRecord::TYPE_PER_LESSON => ['title' => 'За каждое занятие', 'sub' => 'Счёт после занятия, оплатить за ' . plural_ru($dueDays, 'день', 'дня', 'дней')],
-            PaymentRecord::TYPE_MONTHLY => ['title' => 'За месяц', 'sub' => 'Один счёт 1-го числа, оплатить до ' . $dueDay . '-го'],
+            PaymentRecord::TYPE_MONTHLY => ['title' => 'За месяц', 'sub' => 'Один счёт за месяц, оплатить до ' . $dueDay . '-го'],
         ];
 
         if ($pivot?->is_free) {
@@ -565,12 +567,14 @@ class TeacherStudentsService
 
         $override = $pivot?->payment_type_override;
         $type = $override ?: $defaultType;
-        $price = $type === PaymentRecord::TYPE_PER_LESSON ? $rooms->first()?->getEffectivePrice($student->id) : null;
+        $price = $type === PaymentRecord::TYPE_PER_LESSON
+            ? $rooms->first()?->getEffectivePrice($student->id)
+            : PaymentRecordService::monthlyAmount($lessonTypes, $student->id, PaymentRecordService::monthlyRooms($teacher, $student->id));
 
         return [
             'line' => $type === PaymentRecord::TYPE_MONTHLY
-                ? 'Помесячно · ' . $monthly
-                : 'Поурочно' . ($price ? ' · ' . self::rub((int) $price) . ' за занятие' : '') . ' · ' . $perLesson,
+                ? 'За месяц' . ($price ? ' · ' . self::rub((int) $price) : '') . ' · ' . $monthly
+                : 'За каждое занятие' . ($price ? ' · ' . self::rub((int) $price) : '') . ' · ' . $perLesson,
             'note' => ($override ? 'Выбрано для этого ученика отдельно от ваших цен. ' : 'Как в ваших базовых ценах. ') . $block,
             'options' => $options,
         ];
@@ -599,10 +603,13 @@ class TeacherStudentsService
         if ($type === PaymentRecord::TYPE_MONTHLY) {
             $monthly = $lessonTypes->firstWhere('payment_type', PaymentRecord::TYPE_MONTHLY);
             $dueDay = (int) ($monthly?->payment_due_day ?? PaymentRecordService::MONTHLY_DUE_DAY);
+            // Та же цена, что попадёт в счёт за месяц; не определить — цена за месяц из «Цен на занятия»
+            $price = PaymentRecordService::monthlyAmount($lessonTypes, $student->id, PaymentRecordService::monthlyRooms($teacher, $student->id))
+                ?? $monthly?->price;
 
             return [
                 'free' => false,
-                'price' => $monthly?->price ? self::rub((int) $monthly->price) : null,
+                'price' => $price ? self::rub((int) $price) : null,
                 'unit' => 'в месяц',
                 'due' => 'до ' . $dueDay . '-го числа',
             ];
@@ -641,7 +648,7 @@ class TeacherStudentsService
         };
     }
 
-    /** Сумма начислений «3 000 ₽» — только если она известна у всех (у помесячных суммы нет). */
+    /** Сумма начислений «3 000 ₽» — только если она известна у всех (PaymentRecord::amount()). */
     public function amountLabel(Collection $records): ?string
     {
         $amounts = $records->map(fn (PaymentRecord $r) => $r->amount());
@@ -651,6 +658,16 @@ class TeacherStudentsService
         }
 
         return self::rub((int) $amounts->sum());
+    }
+
+    /**
+     * Когда закрывается и открывается вход в занятия при долге (PaymentRecordService::debtStatus) — одной фразой для учителя.
+     */
+    public static function blockRule(): string
+    {
+        return 'Если срок оплаты прошёл, а ученик побывал после него ещё на '
+            . plural_ru(PaymentRecordService::BLOCK_AFTER_LESSONS, 'вашем занятии', 'ваших занятиях', 'ваших занятиях')
+            . ', вход в ваши занятия закроется. Он откроется, когда вы подтвердите или отметите оплату, продлите срок или нажмёте «Не требовать оплату».';
     }
 
     /** «1 500 ₽». */

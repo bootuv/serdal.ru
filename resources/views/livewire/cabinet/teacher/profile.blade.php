@@ -143,7 +143,7 @@
                         <x-ui.field label="Почта" name="email" type="email" :value="$user->email" disabled class="disabled:bg-soft disabled:text-muted disabled:shadow-none"
                                     hint="Сменить почту можно через поддержку" />
                         <x-ui.field label="Новый пароль" name="password" type="password" wire:model="password" autocomplete="new-password"
-                                    placeholder="Оставьте пустым, чтобы не менять" />
+                                    placeholder="Оставьте пустым, чтобы не менять" hint="Минимум 8 символов" />
                         <form method="POST" action="{{ route('logout') }}">
                             @csrf
                             <button type="submit" class="link inline-flex items-center gap-2 text-t2"><x-ui.icon name="logout" size="s" />Выйти из кабинета</button>
@@ -204,7 +204,7 @@
 
                 <x-ui.card aria-labelledby="c-how">
                     <x-ui.card-head id="c-how" title="Если ученик не оплатил" />
-                    <p class="text-t2 text-muted">После срока ученик видит напоминание в кабинете. После <x-ui.em>{{ plural_ru($blockAfter, 'неоплаченного занятия', 'неоплаченных занятий', 'неоплаченных занятий') }}</x-ui.em> он не сможет подключаться, пока вы не отметите оплату.</p>
+                    <p class="text-t2 text-muted">После срока ученик получает напоминание. Если после срока он побывал ещё на <x-ui.em>{{ plural_ru($blockAfter, 'вашем занятии', 'ваших занятиях', 'ваших занятиях') }}</x-ui.em>, вход в ваши занятия закроется. Он откроется, когда вы подтвердите или отметите оплату, продлите срок или нажмёте «Не требовать оплату».</p>
                 </x-ui.card>
             </div>
         @else

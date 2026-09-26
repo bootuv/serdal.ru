@@ -153,7 +153,8 @@ class Profile extends Component
             'last_name' => ['required', 'string', 'max:255'],
             'first_name' => ['required', 'string', 'max:255'],
             'middle_name' => ['nullable', 'string', 'max:255'],
-            'password' => ['nullable', 'string', 'max:255'],
+            // Как при регистрации и сбросе: не короче 8 символов; пусто — пароль не меняем
+            'password' => ['nullable', 'string', 'min:8', 'max:255'],
             'subjects' => ['array'],
             'subjects.*' => ['integer', Rule::exists('subjects', 'id')],
             'directs' => ['array'],
@@ -165,6 +166,13 @@ class Profile extends Component
             'phone' => ['nullable', 'string', 'max:255', self::TEL],
             'whatsup' => ['nullable', 'string', 'max:255', self::TEL],
             'telegram' => ['nullable', 'string', 'max:255'],
+        ];
+    }
+
+    protected function messages(): array
+    {
+        return [
+            'password.min' => 'Пароль — минимум 8 символов',
         ];
     }
 

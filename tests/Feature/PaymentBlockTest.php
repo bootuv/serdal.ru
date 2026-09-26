@@ -414,7 +414,9 @@ class PaymentBlockTest extends TestCase
         $this->actingAs($student)
             ->get(route('cabinet.student.home'))
             ->assertOk()
-            ->assertSee('Откроется после оплаты')
+            ->assertSee('Вход закрыт до оплаты · ', false)
+            ->assertSee('сообщить об оплате')
+            ->assertSee(route('cabinet.student.payments', ['report' => $teacher->id]), false)
             ->assertDontSee(route('rooms.connect', $room));
 
         // Расписание
@@ -422,6 +424,8 @@ class PaymentBlockTest extends TestCase
             ->get(route('cabinet.student.schedule'))
             ->assertOk()
             ->assertSee('Вход закрыт до оплаты')
+            ->assertSee('сообщить об оплате')
+            ->assertSee(route('cabinet.student.payments', ['report' => $teacher->id]), false)
             ->assertDontSee(route('rooms.connect', $room));
 
         // Экран занятия
@@ -429,6 +433,8 @@ class PaymentBlockTest extends TestCase
             ->get(route('cabinet.student.lesson', $room))
             ->assertOk()
             ->assertSee('Вход закрыт до оплаты')
+            ->assertSee('сообщить об оплате')
+            ->assertSee(route('cabinet.student.payments', ['report' => $teacher->id]), false)
             ->assertDontSee(route('rooms.connect', $room));
     }
 

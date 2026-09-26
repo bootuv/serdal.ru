@@ -2,7 +2,9 @@
 
 namespace Tests\Feature\Cabinet;
 
+use App\Livewire\Auth\Login;
 use App\Livewire\RegisterInvitedStudent;
+use App\Mail\StudentInvitation;
 use App\Models\User;
 use App\Notifications\EmailVerificationCode;
 use App\Notifications\NewTeacher;
@@ -99,7 +101,14 @@ class AuthInviteTest extends TestCase
             ->assertOk()
             ->assertSee('Мария Соколова приглашает вас заниматься')
             ->assertSee('Получить код на почту')
-            ->assertSee(route('login'), false);
+            // «Войти» — с возвратом на это приглашение
+            ->assertSee(e(route('login', ['next' => $this->relative($this->inviteUrl($teacher))])), false);
+    }
+
+    /** «/register/invite?teacher=…&signature=…» — путь и параметры ссылки без домена. */
+    private function relative(string $url): string
+    {
+        return parse_url($url, PHP_URL_PATH) . '?' . parse_url($url, PHP_URL_QUERY);
     }
 
     public function test_invalid_signature_is_forbidden(): void
@@ -147,7 +156,8 @@ class AuthInviteTest extends TestCase
         // Без согласия, пароли не совпадают
         $this->fill($this->invitePage($teacher), ['agree' => false, 'password_confirmation' => 'other-pass', 'middle_name' => ''])
             ->call('register')
-            ->assertHasErrors(['agree' => 'accepted', 'password' => 'confirmed', 'middle_name' => 'required'])
+            ->assertHasErrors(['agree' => 'accepted', 'password' => 'confirmed'])
+            ->assertHasNoErrors('middle_name')
             ->assertSee('Отметьте согласие, чтобы продолжить')
             ->assertSee('Пароли не совпадают')
             ->assertSet('step', 1);
@@ -230,17 +240,112 @@ class AuthInviteTest extends TestCase
             ->assertSee('Получить код на почту');
     }
 
+    public function test_patronymic_is_optional(): void
+    {
+        $teacher = $this->tutor();
+
+        $c = $this->fill($this->invitePage($teacher), ['middle_name' => ''])
+            ->call('register')
+            ->assertHasNoErrors()
+            ->assertSet('step', 2);
+
+        $c->set('verification_code', $this->sentCode())
+            ->call('verifyAndRegister')
+            ->assertRedirect(route('cabinet.student.home'));
+
+        $student = User::where('email', 'alina@mail.ru')->firstOrFail();
+        $this->assertNull($student->middle_name);
+        $this->assertSame('Смирнова Алина', $student->name);
+    }
+
+    private function student(array $attrs = []): User
+    {
+        return User::factory()->create($attrs + ['role' => User::ROLE_STUDENT, 'username' => 'st' . uniqid(), 'is_active' => true, 'is_blocked' => false]);
+    }
+
     public function test_signed_in_student_is_attached_to_teacher(): void
     {
         $teacher = $this->tutor();
-        $student = User::factory()->create(['role' => User::ROLE_STUDENT, 'username' => 'st' . uniqid(), 'is_active' => true, 'is_blocked' => false]);
+        $student = $this->student();
 
         $this->actingAs($student)
             ->get($this->inviteUrl($teacher))
-            ->assertRedirect(route('cabinet.student.home'));
+            ->assertRedirect(route('cabinet.student.home'))
+            ->assertSessionHas('toast', 'Мария Соколова — теперь ваш учитель');
 
         $this->assertTrue($teacher->students()->whereKey($student->id)->exists());
         Notification::assertSentTo($teacher, StudentAcceptedInvite::class);
+        Notification::assertSentTo($student, NewTeacher::class);
+
+        // Повторно по той же ссылке — без дублей и повторных уведомлений
+        $this->get($this->inviteUrl($teacher))
+            ->assertRedirect(route('cabinet.student.home'))
+            ->assertSessionHas('toast', 'Мария Соколова — уже ваш учитель');
+        $this->assertSame(1, $teacher->students()->whereKey($student->id)->count());
+        Notification::assertSentToTimes($teacher, StudentAcceptedInvite::class, 1);
+
+    }
+
+    public function test_existing_student_logs_in_from_invite_and_is_attached(): void
+    {
+        $teacher = $this->tutor();
+        $student = $this->student(['email' => 'alina@mail.ru', 'password' => Hash::make('englishday')]);
+        $invite = $this->relative($this->inviteUrl($teacher));
+
+        // Ссылка «Войти» со страницы приглашения запоминает, куда вернуться
+        $this->get(route('login', ['next' => $invite]))->assertOk();
+        $this->assertSame(url($invite), session('url.intended'));
+
+        Livewire::test(Login::class)
+            ->set('email', 'alina@mail.ru')
+            ->set('password', 'englishday')
+            ->call('login')
+            ->assertRedirect(url($invite));
+        $this->assertAuthenticatedAs($student);
+
+        // Возврат на приглашение привязывает к учителю и ведёт в кабинет
+        $this->get(url($invite))
+            ->assertRedirect(route('cabinet.student.home'))
+            ->assertSessionHas('toast', 'Мария Соколова — теперь ваш учитель');
+        $this->assertTrue($teacher->students()->whereKey($student->id)->exists());
+    }
+
+    public function test_login_return_url_must_be_internal(): void
+    {
+        foreach (['https://evil.example/cabinet', '//evil.example/x', '/\\evil.example', 'javascript:alert(1)', "/cab\ninet"] as $next) {
+            session()->forget('url.intended');
+            $this->get(route('login', ['next' => $next]))->assertOk();
+            $this->assertNull(session('url.intended'), $next);
+        }
+
+        $this->get(route('login', ['next' => url('/cabinet/student/schedule')]));
+        $this->assertSame(url('/cabinet/student/schedule'), session('url.intended'));
+
+        // Уже вошедшего ведём по безопасному адресу сразу, по чужому — в кабинет
+        $student = $this->student();
+        $this->actingAs($student)->get(route('login', ['next' => '/cabinet/student/schedule']))->assertRedirect(url('/cabinet/student/schedule'));
+        $this->actingAs($student)->get(route('login', ['next' => 'https://evil.example']))->assertRedirect(route('cabinet.student.home'));
+    }
+
+    public function test_signed_in_student_with_unknown_teacher_gets_message(): void
+    {
+        $student = $this->student();
+        $url = URL::signedRoute('student.invitation', ['teacher' => 999999]);
+
+        $this->actingAs($student)->get($url)
+            ->assertRedirect(route('cabinet.student.home'))
+            ->assertSessionHas('error');
+    }
+
+    public function test_invitation_email_text(): void
+    {
+        $mail = new StudentInvitation('https://serdal.ru/register/invite?teacher=1', 'Мария Соколова');
+
+        $mail->assertHasSubject('Мария Соколова приглашает вас заниматься');
+        $mail->assertSeeInHtml('Мария Соколова приглашает вас заниматься');
+        $mail->assertSeeInHtml('Принять приглашение');
+        $mail->assertDontSeeInHtml('Преподаватель');
+        $mail->assertDontSeeInHtml('Вас');
     }
 
     public function test_code_burns_after_five_wrong_attempts_and_password_is_not_kept_in_session(): void

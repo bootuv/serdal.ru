@@ -165,7 +165,24 @@ class SubscriptionService
         if ($current && $current->tariff_id === $payment->tariff_id) {
             $subscription = self::extend($current, $payment);
         } else {
-            $subscription = self::activate($user, $payment->tariff, $payment, days: $payment->period_days);
+            // Неиспользованный остаток прошлого платного тарифа добавляется к сроку нового
+            $periodDays = (int) ($payment->period_days ?: $payment->tariff->period_days);
+            $carry = self::carryOver($user, $payment->tariff, (float) $payment->amount, $periodDays);
+            if ($carry) {
+                $payment->update(['meta' => array_merge($payment->meta ?? [], ['carry_over' => [
+                    'from' => $carry['from']->id,
+                    'value' => $carry['value'],
+                    'days' => $carry['days'],
+                ]])]);
+            }
+
+            $subscription = self::activate(
+                $user,
+                $payment->tariff,
+                $payment,
+                days: $periodDays + ($carry['days'] ?? 0),
+                comment: $carry ? 'Остаток тарифа «' . $carry['name'] . '» добавлен к новому: +' . plural_ru($carry['days'], 'день', 'дня', 'дней') : null,
+            );
         }
 
         // При продлении сбрасываем флаг предупреждения, чтобы оно пришло и в новом периоде
@@ -186,9 +203,138 @@ class SubscriptionService
     }
 
     /**
+     * Перенос остатка при смене платного тарифа на другой платный (оплата иного тарифа при действующей
+     * оплаченной подписке). Неиспользованная часть оплаченного срока пересчитывается по стоимости в дни нового тарифа:
+     *
+     *   остаток, ₽ = оплачено, ₽ × оставшееся время / весь срок подписки (starts_at → ends_at)
+     *   дни        = ⌊ остаток, ₽ / сумма нового платежа × дней в новом платеже ⌋
+     *
+     * «Оплачено» — оплаченные (не возвращённые) платежи за тариф, привязанные к подписке, плюс остаток,
+     * перенесённый в неё с прошлого тарифа; если платежей нет (назначена администратором) — цена-снимок подписки.
+     * Null — переносить нечего: нет подписки, тот же тариф (это продление), новый или текущий тариф бесплатный,
+     * подписка бессрочная или предоставлена бесплатно, остаток меньше дня нового тарифа.
+     * Используется и при оплате (applyPaidPayment), и в окне смены тарифа — строка в окне совпадает с начислением.
+     *
+     * @return array{from: Subscription, name: string, left_days: int, value: float, days: int}|null
+     */
+    public static function carryOver(User $user, Tariff $tariff, float $amount, int $periodDays): ?array
+    {
+        $current = $user->activeSubscription();
+
+        if (! $current || $current->tariff_id === $tariff->id || $tariff->isFree() || $current->tariff->isFree()
+            || ! $current->ends_at || ! $current->ends_at->isFuture() || $amount <= 0 || $periodDays <= 0) {
+            return null;
+        }
+
+        $length = $current->starts_at->diffInSeconds($current->ends_at);
+        $left = now()->diffInSeconds($current->ends_at);
+        $paid = self::paidValue($current);
+
+        if ($paid <= 0 || $length <= 0) {
+            return null;
+        }
+
+        $value = round($paid * min(1, $left / $length), 2);
+        $days = (int) floor($value / $amount * $periodDays);
+
+        if ($days < 1) {
+            return null;
+        }
+
+        return [
+            'from' => $current,
+            'name' => $current->tariff->name,
+            // Как «осталось N дней» на карточке тарифа
+            'left_days' => (int) now()->diffInDays($current->ends_at),
+            'value' => $value,
+            'days' => $days,
+        ];
+    }
+
+    /** Сколько заплачено за подписку, ₽: оплаченные платежи за тариф и перенесённый в неё остаток. */
+    private static function paidValue(Subscription $subscription): float
+    {
+        $payments = $subscription->payments()
+            ->where('period_days', '>', 0)
+            ->get()
+            ->reject(fn (SubscriptionPayment $p) => $p->isExtraLessons() || ! empty($p->meta['card_binding']));
+
+        if ($payments->isEmpty()) {
+            return (float) $subscription->price;
+        }
+
+        return (float) $payments->where('status', SubscriptionPayment::STATUS_PAID)->sum('amount')
+            + (float) $payments->sum(fn (SubscriptionPayment $p) => (float) ($p->meta['carry_over']['value'] ?? 0));
+    }
+
+    /**
+     * Что сделает возврат платежа за тариф: какую подписку и на сколько дней сократить.
+     *
+     * - Обычный платёж — подписка платежа минус оплаченный им период.
+     * - Платёж, при оплате которого перенесли остаток прошлого тарифа, — минус оплаченный период; перенесённые дни
+     *   остаются (их оплатил прошлый платёж), но пересчитываются по месячной цене тарифа, чтобы годовая скидка
+     *   не доставалась без оплаты года.
+     * - Платёж подписки, остаток которой перенесли в новый тариф, — новая подписка теряет перенесённые дни
+     *   в доле возвращённых денег: остаётся ⌊ дни × max(0, остаток − возврат) / остаток ⌋.
+     *
+     * carry — платёж с отметкой переноса и её значения после возврата. Null — подписку менять не нужно.
+     *
+     * @return array{subscription: Subscription, days: int, carry: ?array{payment: SubscriptionPayment, value: float, days: int}}|null
+     */
+    public static function refundPlan(SubscriptionPayment $payment): ?array
+    {
+        if ($payment->isExtraLessons() || ! empty($payment->meta['card_binding'])) {
+            return null;
+        }
+
+        // Остаток этой подписки перенесли в новый тариф — возврат забирает перенесённые дни
+        if ($payment->subscription_id) {
+            $moved = SubscriptionPayment::where('meta->carry_over->from', $payment->subscription_id)->latest('id')->first();
+
+            if ($moved) {
+                $target = $moved->subscription;
+                $carry = $moved->meta['carry_over'];
+                $value = (float) $carry['value'];
+                $keepValue = max(0, $value - (float) $payment->amount);
+                $keepDays = $value > 0 ? (int) floor((int) $carry['days'] * $keepValue / $value) : 0;
+
+                return $target && $target->ends_at ? [
+                    'subscription' => $target,
+                    'days' => (int) $carry['days'] - $keepDays,
+                    'carry' => ['payment' => $moved, 'value' => round($keepValue, 2), 'days' => $keepDays],
+                ] : null;
+            }
+        }
+
+        $subscription = $payment->subscription
+            ?? $payment->user->subscriptions()->active()->where('tariff_id', $payment->tariff_id)->latest('starts_at')->first();
+
+        // Бессрочные (бесплатные/подаренные) подписки не трогаем
+        if (! $subscription || ! $subscription->ends_at) {
+            return null;
+        }
+
+        $days = (int) $payment->period_days;
+        $carry = null;
+
+        if (! empty($payment->meta['carry_over'])) {
+            $c = $payment->meta['carry_over'];
+            $tariff = $payment->tariff;
+            $keepDays = $tariff && ! $tariff->isFree() && $tariff->period_days > 0
+                ? min((int) $c['days'], (int) floor((float) $c['value'] / (float) $tariff->price * $tariff->period_days))
+                : 0;
+            $days += (int) $c['days'] - $keepDays;
+            $carry = ['payment' => $payment, 'value' => (float) $c['value'], 'days' => $keepDays];
+        }
+
+        return ['subscription' => $subscription, 'days' => $days, 'carry' => $carry];
+    }
+
+    /**
      * Корректирует подписку после возврата платежа: оплаченный возвращённым
-     * платежом период вычитается из срока подписки. Если срока не остаётся —
-     * подписка завершается сразу. Возвращает скорректированную подписку или null.
+     * платежом период вычитается из срока подписки (перенос остатка при смене
+     * тарифа — см. refundPlan). Если срока не остаётся — подписка завершается
+     * сразу. Возвращает скорректированную подписку или null.
      */
     public static function applyRefund(SubscriptionPayment $payment): ?Subscription
     {
@@ -206,15 +352,28 @@ class SubscriptionService
             return null;
         }
 
-        $subscription = $payment->subscription
-            ?? $payment->user->subscriptions()->active()->where('tariff_id', $payment->tariff_id)->latest('starts_at')->first();
+        $plan = self::refundPlan($payment);
 
-        // Бессрочные (бесплатные/подаренные) подписки не трогаем
-        if (!$subscription || !$subscription->ends_at) {
+        if (! $plan) {
             return null;
         }
 
-        $newEnd = $subscription->ends_at->copy()->subDays($payment->period_days);
+        $subscription = $plan['subscription'];
+
+        // Запоминаем, сколько перенесённых дней осталось, — чтобы следующий возврат не списал их повторно
+        if ($plan['carry']) {
+            $moved = $plan['carry']['payment'];
+            $moved->update(['meta' => array_merge($moved->meta ?? [], ['carry_over' => array_merge($moved->meta['carry_over'], [
+                'value' => $plan['carry']['value'],
+                'days' => $plan['carry']['days'],
+            ])])]);
+        }
+
+        if ($plan['days'] <= 0) {
+            return $subscription->fresh();
+        }
+
+        $newEnd = $subscription->ends_at->copy()->subDays($plan['days']);
 
         if ($newEnd->isPast()) {
             $subscription->update(['ends_at' => now(), 'status' => Subscription::STATUS_EXPIRED]);

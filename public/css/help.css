@@ -405,7 +405,7 @@
 }
 
 .help-article-body h3 {
-  margin: 24px 0 12px;
+  margin: 40px 0 12px;
   font-size: 21px;
   font-weight: 600;
   line-height: 28px;
@@ -413,6 +413,10 @@
 
 .help-article-body p {
   margin-bottom: 14px;
+}
+
+.help-article-body > :first-child {
+  margin-top: 0;
 }
 
 .help-article-body ul,
