@@ -63,7 +63,7 @@ export default {
             danger: { DEFAULT: '#DC2626', bg: '#FDE7E4', fg: '#A3261B' },
             ok: { bg: '#D3F8F3', fg: '#0E5A53' },
             promo: '#FFFBD6',
-            folder: '#FFF0A0', // плитка папки в материалах
+            folder: '#F2B200', // заливной значок папки в материалах (плитка — нейтральная, как у файлов)
             star: '#FFA41C',
             av: { 1: '#FFEC70', 2: '#C2DCFF', 3: '#DDD0FF' },
             chart: { 1: '#2A78D6', 2: '#1BAF7A', 3: '#EDA100' },

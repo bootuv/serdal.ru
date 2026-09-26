@@ -1,5 +1,5 @@
 {{-- Плитка файла 40: превью картинки (thumb), иначе тип (PDF, DOC, MP3, IMG…) по расширению или иконка.
-     onMint — белая плитка внутри фокус-блока. Папка (icon="folder") — всегда жёлтая (`folder`). --}}
+     onMint — белая плитка внутри фокус-блока. Папка (icon="folder") — нейтральная плитка с заливным янтарным значком (`folder`). --}}
 @props(['name' => null, 'icon' => null, 'onMint' => false, 'thumb' => null])
 @php
     $folder = $icon === 'folder';
@@ -19,7 +19,7 @@
 <img src="{{ $thumb }}" alt="" loading="lazy" {{ $attributes->class(['size-10 shrink-0 rounded object-cover', 'bg-white' => $onMint, 'bg-soft' => ! $onMint]) }}>
 @else
 <span {{ $attributes->class(['flex size-10 shrink-0 items-center justify-center rounded text-count font-semibold text-muted',
-    'bg-folder' => $folder, 'bg-white' => $onMint && ! $folder, 'bg-soft' => ! $onMint && ! $folder]) }}>
-    @if ($icon)<x-ui.icon :name="$icon" size="s" class="text-ink" />@else{{ $label }}@endif
+    'bg-white' => $onMint, 'bg-soft' => ! $onMint]) }}>
+    @if ($folder)<x-ui.icon name="folder-fill" class="text-folder" />@elseif ($icon)<x-ui.icon :name="$icon" size="s" class="text-ink" />@else{{ $label }}@endif
 </span>
 @endif

@@ -9,6 +9,7 @@
         'user' => '<circle cx="12" cy="8" r="3.5"/><path d="M5 20c.8-3.5 3.6-5.5 7-5.5s6.2 2 7 5.5"/>',
         'tasks' => '<rect x="5" y="4" width="14" height="17" rx="3"/><path d="M9 3h6v3H9zM9 13l2 2 4-4"/>',
         'folder' => '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+        'folder-fill' => '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" fill="currentColor"/>',
         'video' => '<rect x="3" y="6" width="13" height="12" rx="3"/><path d="M16 10.5 21 8v8l-5-2.5"/>',
         'star' => '<path d="M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1 5.9L12 16.9l-5.2 2.8 1-5.9-4.3-4.1 5.9-.8z"/>',
         'wallet' => '<rect x="3" y="6" width="18" height="13" rx="3"/><path d="M3 10h18M15 15h3"/>',
