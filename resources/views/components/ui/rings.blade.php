@@ -1,10 +1,11 @@
 {{-- Успеваемость: вложенные кольца + общая оценка в центре + легенда (всегда видна).
      metrics: [['value' => 92, 'label' => 'Посещаемость', 'sub' => '22 из 24 занятий', 'empty' => false], …] — максимум 3, порядок фиксирован.
-     В центре — среднее по показателям с данными (empty — показателя ещё нет, в среднее не входит).
+     В центре — общая оценка: среднее по показателям с данными (empty — показателя ещё нет, в среднее не входит).
      stacked — кольца над легендой (узкая колонка). Цвета chart-1..3 — только для графиков. --}}
 @props(['metrics', 'stacked' => false])
 @php
-    $radii = [80, 62, 44];
+    // Кольца 12 с зазором 4; внутри остаётся круг ~90 для общей оценки
+    $radii = [82, 66, 50];
     $strokes = ['stroke-chart-1', 'stroke-chart-2', 'stroke-chart-3'];
     $dots = ['bg-chart-1', 'bg-chart-2', 'bg-chart-3'];
     $total = \App\Services\StudentPerformanceService::overall($metrics);
@@ -16,17 +17,15 @@
          class="{{ $stacked ? 'size-40' : 'size-40 lg:size-44' }} -rotate-90">
         @foreach ($metrics as $i => $m)
             @php $c = 2 * M_PI * $radii[$i]; $v = max(0, min(100, (int) $m['value'])); @endphp
-            <circle cx="88" cy="88" r="{{ $radii[$i] }}" fill="none" stroke-width="14" class="{{ $strokes[$i] }}" stroke-opacity="0.16" />
+            <circle cx="88" cy="88" r="{{ $radii[$i] }}" fill="none" stroke-width="12" class="{{ $strokes[$i] }}" stroke-opacity="0.16" />
             @if ($v > 0)
-                <circle cx="88" cy="88" r="{{ $radii[$i] }}" fill="none" stroke-width="14" stroke-linecap="round" class="{{ $strokes[$i] }}"
+                <circle cx="88" cy="88" r="{{ $radii[$i] }}" fill="none" stroke-width="12" stroke-linecap="round" class="{{ $strokes[$i] }}"
                         stroke-dasharray="{{ round($c * $v / 100, 1) }} {{ round($c, 1) }}" />
             @endif
         @endforeach
     </svg>
-        <span class="absolute inset-0 flex flex-col items-center justify-center" aria-hidden="true">
-            <span class="text-h2 font-semibold tabular-nums">{{ $total !== null ? $total . '%' : '—' }}</span>
-            <span class="text-count text-muted">в среднем</span>
-        </span>
+        {{-- Общая оценка: подпись не нужна — карточка называется «Успеваемость» --}}
+        <span class="absolute inset-0 flex items-center justify-center text-h2 font-semibold tabular-nums" aria-hidden="true">{{ $total !== null ? $total . '%' : '—' }}</span>
     </div>
     <div class="flex min-w-0 flex-1 flex-col gap-4">
         @foreach ($metrics as $i => $m)
