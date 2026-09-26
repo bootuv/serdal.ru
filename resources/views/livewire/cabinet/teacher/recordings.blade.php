@@ -19,11 +19,7 @@
         {{-- Плеер открытой записи --}}
         @if ($current)
             <section class="flex flex-col gap-6 lg:flex-row" aria-label="Открытая запись" wire:key="player-{{ $current['id'] }}">
-                <div class="w-full overflow-hidden rounded-lg bg-ink lg:max-w-form lg:shrink-0">
-                    <video class="aspect-video w-full" src="{{ $current['video'] }}" controls preload="metadata" playsinline>
-                        Ваш браузер не поддерживает воспроизведение видео.
-                    </video>
-                </div>
+                <x-ui.video-player :src="$current['video']" :title="$current['title']" class="lg:max-w-form lg:shrink-0" />
                 <div class="flex min-w-0 flex-1 flex-col gap-6 lg:pt-2">
                     <div class="flex flex-col gap-2">
                         <h2 class="text-h2 font-medium">{{ $current['title'] }}</h2>

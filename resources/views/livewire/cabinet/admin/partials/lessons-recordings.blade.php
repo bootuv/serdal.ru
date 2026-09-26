@@ -52,9 +52,7 @@
 @if ($player)
     <x-ui.modal :title="$player['title']" :sub="$player['meta']" width="l" close="closePlayer" wire:key="player-{{ $player['id'] }}">
         @if ($player['video'])
-            <div class="overflow-hidden rounded-lg bg-ink">
-                <video class="aspect-video w-full" src="{{ $player['video'] }}" controls preload="metadata" playsinline>Ваш браузер не поддерживает воспроизведение видео.</video>
-            </div>
+            <x-ui.video-player :src="$player['video']" :title="$player['title']" />
         @elseif ($player['externalUrl'])
             <div class="flex aspect-video w-full flex-col items-center justify-center gap-4 rounded-lg bg-ink p-6 text-center">
                 <x-ui.btn variant="primary" icon="play" :href="$player['externalUrl']" target="_blank" rel="noopener">Смотреть запись</x-ui.btn>

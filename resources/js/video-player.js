@@ -1,0 +1,160 @@
+/**
+ * Плеер записей занятий (resources/views/components/ui/video-player.blade.php): своё управление поверх <video>.
+ * Воспроизведение, перемотка с буфером, время, громкость, скорость (запоминается), полный экран.
+ * Клавиши, когда плеер в фокусе: пробел/K — пауза, ←/→ — 10 секунд, ↑/↓ — громкость, M — звук, F — полный экран.
+ */
+const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
+const SPEED_KEY = 'serdal.recordingSpeed';
+
+function storedSpeed() {
+    try {
+        const v = parseFloat(localStorage.getItem(SPEED_KEY));
+        return SPEEDS.includes(v) ? v : 1;
+    } catch {
+        return 1;
+    }
+}
+
+function clock(seconds) {
+    if (!Number.isFinite(seconds) || seconds < 0) seconds = 0;
+    const s = Math.floor(seconds % 60);
+    const m = Math.floor(seconds / 60) % 60;
+    const h = Math.floor(seconds / 3600);
+    const mm = h ? String(m).padStart(2, '0') : String(m);
+
+    return (h ? h + ':' : '') + mm + ':' + String(s).padStart(2, '0');
+}
+
+function registerVideoPlayer(Alpine) {
+    Alpine.data('videoPlayer', () => ({
+        speeds: SPEEDS,
+        playing: false,
+        started: false,
+        waiting: false,
+        current: 0,
+        duration: 0,
+        buffered: 0,
+        volume: 1,
+        muted: false,
+        speed: storedSpeed(),
+        speedOpen: false,
+        full: false,
+        idle: false,
+        idleTimer: null,
+
+        init() {
+            const v = this.$refs.video;
+            v.playbackRate = this.speed;
+            v.addEventListener('loadedmetadata', () => { this.duration = v.duration || 0; v.playbackRate = this.speed; });
+            v.addEventListener('durationchange', () => { this.duration = v.duration || 0; });
+            v.addEventListener('timeupdate', () => { this.current = v.currentTime; this.updateBuffered(); });
+            v.addEventListener('progress', () => this.updateBuffered());
+            v.addEventListener('play', () => { this.playing = true; this.started = true; this.wake(); });
+            v.addEventListener('pause', () => { this.playing = false; this.idle = false; });
+            v.addEventListener('ended', () => { this.playing = false; this.idle = false; });
+            v.addEventListener('waiting', () => { this.waiting = true; });
+            v.addEventListener('playing', () => { this.waiting = false; });
+            v.addEventListener('canplay', () => { this.waiting = false; });
+            v.addEventListener('volumechange', () => { this.volume = v.volume; this.muted = v.muted || v.volume === 0; });
+            v.addEventListener('ratechange', () => { this.speed = v.playbackRate; });
+            document.addEventListener('fullscreenchange', () => { this.full = document.fullscreenElement === this.$root; });
+        },
+
+        updateBuffered() {
+            const v = this.$refs.video;
+            if (v.buffered.length && v.duration) {
+                this.buffered = v.buffered.end(v.buffered.length - 1);
+            }
+        },
+
+        toggle() {
+            const v = this.$refs.video;
+            v.paused || v.ended ? v.play().catch(() => {}) : v.pause();
+        },
+
+        seek(value) {
+            this.$refs.video.currentTime = Math.min(Math.max(0, Number(value)), this.duration || 0);
+            this.current = this.$refs.video.currentTime;
+        },
+
+        skip(seconds) {
+            this.seek(this.$refs.video.currentTime + seconds);
+            this.wake();
+        },
+
+        setVolume(value) {
+            const v = this.$refs.video;
+            v.volume = Math.min(Math.max(0, Number(value)), 1);
+            v.muted = v.volume === 0;
+        },
+
+        toggleMute() {
+            const v = this.$refs.video;
+            if (v.muted || v.volume === 0) {
+                v.muted = false;
+                if (v.volume === 0) v.volume = 0.6;
+            } else {
+                v.muted = true;
+            }
+        },
+
+        setSpeed(rate) {
+            this.$refs.video.playbackRate = rate;
+            this.speed = rate;
+            this.speedOpen = false;
+            try { localStorage.setItem(SPEED_KEY, String(rate)); } catch {}
+        },
+
+        speedLabel(rate) {
+            return String(rate).replace('.', ',') + '×';
+        },
+
+        toggleFull() {
+            const root = this.$root;
+            const v = this.$refs.video;
+            if (document.fullscreenElement) {
+                document.exitFullscreen().catch(() => {});
+            } else if (root.requestFullscreen) {
+                root.requestFullscreen().catch(() => {});
+            } else if (v.webkitEnterFullscreen) {
+                v.webkitEnterFullscreen(); // iPhone: полный экран есть только у самого видео
+            }
+        },
+
+        // Панель прячется через 2,5 с без движения, пока идёт видео
+        wake() {
+            this.idle = false;
+            clearTimeout(this.idleTimer);
+            if (this.playing) {
+                this.idleTimer = setTimeout(() => { if (this.playing && !this.speedOpen) this.idle = true; }, 2500);
+            }
+        },
+
+        key(e) {
+            if (e.target.closest('input[type="range"]') && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) return;
+            const actions = {
+                ' ': () => this.toggle(), k: () => this.toggle(), 'л': () => this.toggle(),
+                ArrowLeft: () => this.skip(-10), ArrowRight: () => this.skip(10),
+                ArrowUp: () => this.setVolume(this.$refs.video.volume + 0.1), ArrowDown: () => this.setVolume(this.$refs.video.volume - 0.1),
+                m: () => this.toggleMute(), 'ь': () => this.toggleMute(),
+                f: () => this.toggleFull(), 'а': () => this.toggleFull(),
+            };
+            const action = actions[e.key] || actions[e.key.toLowerCase()];
+            if (action && !e.metaKey && !e.ctrlKey && !e.altKey) {
+                e.preventDefault();
+                action();
+                this.wake();
+            }
+        },
+
+        time(seconds) {
+            return clock(seconds);
+        },
+    }));
+}
+
+if (window.Alpine) {
+    registerVideoPlayer(window.Alpine);
+} else {
+    document.addEventListener('alpine:init', () => registerVideoPlayer(window.Alpine));
+}

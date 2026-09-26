@@ -21,6 +21,23 @@
     /* Ссылка — подчёркнутый текст */
     .link { @apply font-medium text-ink underline underline-offset-4 decoration-line-strong hover:decoration-ink; }
 
+    /* Плеер записей (x-ui.video-player): дорожка — просмотрено жёлтым поверх загруженного, прозрачный бегунок сверху */
+    .vp-track { @apply relative flex h-4 items-center; }
+    .vp-track::before { content: ''; @apply absolute inset-x-0 h-1 rounded-full bg-white/25; }
+    .vp-buffer, .vp-played { @apply pointer-events-none absolute inset-x-0 h-1 w-full appearance-none overflow-hidden rounded-full border-0 bg-transparent; }
+    .vp-buffer::-webkit-progress-bar, .vp-played::-webkit-progress-bar { background: transparent; }
+    .vp-buffer::-webkit-progress-value { @apply bg-white/40; }
+    .vp-buffer::-moz-progress-bar { @apply bg-white/40; }
+    .vp-played::-webkit-progress-value { @apply bg-brand; }
+    .vp-played::-moz-progress-bar { @apply bg-brand; }
+    .vp-seek { @apply absolute inset-x-0 h-4 w-full cursor-pointer appearance-none bg-transparent; }
+    .vp-seek::-webkit-slider-runnable-track { background: transparent; }
+    .vp-seek::-webkit-slider-thumb { @apply size-3 appearance-none rounded-full bg-brand opacity-0 transition-opacity; }
+    .vp-track:hover .vp-seek::-webkit-slider-thumb, .vp-seek:focus-visible::-webkit-slider-thumb { @apply opacity-100; }
+    .vp-seek::-moz-range-track { background: transparent; }
+    .vp-seek::-moz-range-thumb { @apply size-3 rounded-full border-0 bg-brand; }
+    .vp-volume { @apply h-1 w-16 cursor-pointer; accent-color: theme('colors.brand.DEFAULT'); }
+
     /* Текст из редактора (условие задания, описание): абзацы, списки, ссылки */
     .rich { @apply flex flex-col gap-3 text-t1 text-ink; }
     .rich ul { @apply flex list-disc flex-col gap-1 pl-6; }

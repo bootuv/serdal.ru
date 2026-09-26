@@ -133,7 +133,11 @@ class TeacherRecordingsTest extends TestCase
             ->call('play', $rec->id)
             ->assertSet('open', $rec->id)
             ->assertSee($rec->s3_url, false)
-            ->assertSee(route('recordings.download', $rec), false);
+            ->assertSee(route('recordings.download', $rec), false)
+            // Свой плеер со скоростями вместо стандартного
+            ->assertSeeHtml('x-data="videoPlayer"')
+            ->assertSee('Скорость воспроизведения')
+            ->assertDontSeeHtml(' controls ');
     }
 
     public function test_open_recording_is_deleted_from_menu(): void
