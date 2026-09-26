@@ -17,12 +17,7 @@ class RedirectIfNotAdmin
 
         // If user is authenticated but not admin, redirect to their panel
         if (auth()->check() && auth()->user()->role !== User::ROLE_ADMIN) {
-            $url = match (auth()->user()->role) {
-                User::ROLE_STUDENT => '/student',
-                default => '/tutor',
-            };
-
-            return redirect($url);
+            return redirect(EnsureCabinetRole::homeFor(auth()->user()));
         }
 
         return $next($request);

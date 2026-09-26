@@ -36,7 +36,7 @@ class SessionDeletionRejected extends Notification implements ShouldBroadcast
 
         return FilamentNotification::make()
             ->title('Запрос отклонён')
-            ->body("Ваш запрос на удаление сессии \"{$roomName}\" был отклонён")
+            ->body("Ваш запрос на удаление занятия \"{$roomName}\" был отклонён")
             ->danger()
             ->actions([
                 Action::make('view')

@@ -95,12 +95,6 @@ class AuthController extends Controller
 
     private function redirectToPanel(User $user)
     {
-        $url = match ($user->role) {
-            User::ROLE_ADMIN => '/admin',
-            User::ROLE_STUDENT => '/student',
-            default => '/tutor',
-        };
-
-        return redirect($url);
+        return redirect(\App\Http\Middleware\EnsureCabinetRole::homeFor($user));
     }
 }

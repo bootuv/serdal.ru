@@ -21,12 +21,7 @@ class LoginResponse implements LoginResponseContract
                 ->with('error', 'Ваш профиль деактивирован. Обратитесь к администратору.');
         }
 
-        $defaultUrl = match ($user->role) {
-            User::ROLE_ADMIN => '/admin',
-            User::ROLE_STUDENT => '/student',
-            default => '/tutor',
-        };
-
-        return redirect()->intended($defaultUrl);
+        // Ученик и учитель — в новый кабинет, админ — в /admin
+        return redirect()->intended(\App\Http\Middleware\EnsureCabinetRole::homeFor($user));
     }
 }

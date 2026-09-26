@@ -81,7 +81,7 @@ class TeacherStudentsService
         return $at ? Carbon::parse($at) : null;
     }
 
-    /** Ссылка «Написать ученику»: чат последнего общего занятия (экран сообщений пока в старом кабинете). */
+    /** Ссылка «Написать ученику»: чат последнего общего занятия. */
     public function chatUrl(User $teacher, int $studentId): string
     {
         $roomId = Room::query()
@@ -90,7 +90,7 @@ class TeacherStudentsService
             ->latest('updated_at')
             ->value('id');
 
-        return url('/tutor/messenger' . ($roomId ? '?room=' . $roomId : ''));
+        return MessengerService::url($teacher, $roomId);
     }
 
     /*

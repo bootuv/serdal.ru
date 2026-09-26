@@ -164,7 +164,7 @@ class Task extends Component
             'checkedAt' => $submission ? HumanDate::date($submission->updated_at) : null,
             'previous' => $state === Hw::STATE_TODO || $state === Hw::STATE_OVERDUE || $state === Hw::STATE_REVIEW
                 ? $this->previousComment($homework) : null,
-            'messengerUrl' => url('/student/messenger' . ($homework->room_id ? '?room=' . $homework->room_id : '')),
+            'messengerUrl' => \App\Services\MessengerService::url(auth()->user(), $homework->room_id),
         ])->title($homework->title);
     }
 

@@ -46,10 +46,8 @@ class NewSupportMessage extends Notification implements ShouldBroadcast
         try {
             if ($role === User::ROLE_ADMIN) {
                 $url = route('filament.admin.pages.admin-messenger', ['chat' => $chatId]);
-            } elseif (in_array($role, [User::ROLE_TUTOR, User::ROLE_MENTOR])) {
-                $url = route('filament.app.pages.messenger', ['support' => '1']);
-            } elseif ($role === User::ROLE_STUDENT) {
-                $url = route('filament.student.pages.messenger', ['support' => '1']);
+            } elseif (in_array($role, [User::ROLE_TUTOR, User::ROLE_MENTOR, User::ROLE_STUDENT])) {
+                $url = \App\Services\MessengerService::url($notifiable, support: true);
             }
         } catch (\Exception $e) {
             $url = null;

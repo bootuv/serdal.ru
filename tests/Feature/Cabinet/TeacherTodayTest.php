@@ -151,7 +151,7 @@ class TeacherTodayTest extends TestCase
             ->assertSee('Просрочено')
             ->assertSee('Сообщения')
             ->assertSee('Можно перенести субботу на 12:00?')
-            ->assertSee('/tutor/messenger?room=' . $room->id, false);
+            ->assertSee(e(route('cabinet.teacher.messages', ['room' => $room->id])), false);
     }
 
     public function test_mark_paid_and_undo(): void

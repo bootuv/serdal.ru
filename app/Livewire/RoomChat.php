@@ -414,11 +414,8 @@ class RoomChat extends Component implements HasActions, HasForms
             return;
         }
 
-        $user = auth()->user();
-        $isOwn = $message->user_id === $user->id;
-        $isStaff = in_array($user->role, [\App\Models\User::ROLE_ADMIN, \App\Models\User::ROLE_TUTOR, \App\Models\User::ROLE_MENTOR]);
-
-        if (!$isOwn && !$isStaff) {
+        // Своё сообщение; учитель — только в своём занятии; админ — любое
+        if (! app(\App\Services\MessengerService::class)->canDelete(auth()->user(), $message)) {
             return;
         }
 

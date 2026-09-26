@@ -23,6 +23,8 @@ Laravel 11 + Livewire 3 + Tailwind 3. Занятия идут в BigBlueButton, 
 
 - Кабинеты учителя и ученика переписываются на Livewire + Blade по макетам. Старые Filament-панели (`/tutor`, `/student`) работают параллельно, пока новые экраны не заменят их; маршруты переключаем по одному.
 - Новые кабинеты: маршруты `routes/cabinet.php`, Livewire-страницы `app/Livewire/Cabinet/{Student,Teacher}/*`, раскладка `resources/views/components/layouts/cabinet.blade.php`.
+- После входа ученик и учитель попадают в новые кабинеты (`EnsureCabinetRole::homeFor`), админ — в `/admin`. Старые панели открываются только по прямой ссылке.
+- Общие для обеих ролей экраны: «Сообщения» (`App\Livewire\Cabinet\Messages`, логика — `MessengerService`) и панель уведомлений (`App\Livewire\Cabinet\Notifications`). Уведомления хранят ссылки старого кабинета — при показе их переводит `App\Support\CabinetUrl`.
 - Бизнес-логику не копируем из Filament Resources, а выносим в `app/Services/*` / actions и используем из обоих мест.
 - Админка (`/admin`) пока остаётся на Filament; её переписываем после кабинетов.
 

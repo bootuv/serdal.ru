@@ -1,10 +1,12 @@
 {{-- Раскладка кабинетов (учитель, ученик). Правила — docs/design/BRAND.md.
-     active — ключ активного пункта меню. Пункты без нового экрана пока ведут в старый кабинет (Filament). --}}
-@props(['title' => null, 'active' => null])
+     active — ключ активного пункта меню. Пункты без нового экрана пока ведут в старый кабинет (Filament).
+     bare — экран сам управляет отступами и высотой (Сообщения). --}}
+@props(['title' => null, 'active' => null, 'bare' => false])
 @php
     $user = auth()->user();
     $isStudent = $user?->role === \App\Models\User::ROLE_STUDENT;
     $unread = $user?->unreadNotifications()->count() ?? 0;
+    $unreadMessages = $user ? app(\App\Services\MessengerService::class)->unreadCount($user) : 0;
 
     // Новый экран, если маршрут уже есть, иначе — страница старого кабинета
     $to = fn (string $route, string $legacy) => \Illuminate\Support\Facades\Route::has($route) ? route($route) : url($legacy);
@@ -14,7 +16,7 @@
             ['key' => 'home', 'label' => 'Главная', 'icon' => 'home', 'href' => route('cabinet.student.home')],
             ['key' => 'schedule', 'label' => 'Расписание', 'icon' => 'calendar', 'href' => $to('cabinet.student.schedule', '/student/schedule-calendar')],
             ['key' => 'tasks', 'label' => 'Задания', 'icon' => 'tasks', 'href' => $to('cabinet.student.tasks', '/student/homework')],
-            ['key' => 'messages', 'label' => 'Сообщения', 'icon' => 'chat', 'href' => url('/student/messenger')],
+            ['key' => 'messages', 'label' => 'Сообщения', 'icon' => 'chat', 'href' => $to('cabinet.student.messages', '/student/messenger'), 'count' => $unreadMessages],
             ['key' => 'materials', 'label' => 'Материалы', 'icon' => 'folder', 'href' => $to('cabinet.student.materials', '/student/materials')],
             ['key' => 'recordings', 'label' => 'Записи', 'icon' => 'video', 'href' => $to('cabinet.student.recordings', '/student/recordings')],
             ['key' => 'payments', 'label' => 'Оплата', 'icon' => 'wallet', 'href' => $to('cabinet.student.payments', '/student/payment-debts')],
@@ -22,16 +24,16 @@
         : [
             ['key' => 'today', 'label' => 'Сегодня', 'icon' => 'home', 'href' => $to('cabinet.teacher.today', '/tutor')],
             ['key' => 'schedule', 'label' => 'Расписание', 'icon' => 'calendar', 'href' => $to('cabinet.teacher.schedule', '/tutor/schedule-calendar')],
-            ['key' => 'messages', 'label' => 'Сообщения', 'icon' => 'chat', 'href' => url('/tutor/messenger')],
+            ['key' => 'messages', 'label' => 'Сообщения', 'icon' => 'chat', 'href' => $to('cabinet.teacher.messages', '/tutor/messenger'), 'count' => $unreadMessages],
             ['key' => 'students', 'label' => 'Ученики', 'icon' => 'users', 'href' => $to('cabinet.teacher.students', '/tutor/students')],
-            ['key' => 'tasks', 'label' => 'Задания', 'icon' => 'tasks', 'href' => $to('cabinet.teacher.tasks', '/tutor/homework')],
+            ['key' => 'tasks', 'label' => 'Задания', 'icon' => 'tasks', 'href' => $to('cabinet.teacher.tasks', '/tutor/homework'), 'count' => $user ? \App\Services\HomeworkSubmissionService::toReview($user->id)->reorder()->count() : 0],
             ['key' => 'materials', 'label' => 'Материалы', 'icon' => 'folder', 'href' => $to('cabinet.teacher.materials', '/tutor/materials')],
             ['key' => 'recordings', 'label' => 'Записи', 'icon' => 'video', 'href' => $to('cabinet.teacher.recordings', '/tutor/recordings')],
             ['key' => 'reviews', 'label' => 'Отзывы', 'icon' => 'star', 'href' => $to('cabinet.teacher.reviews', '/tutor/reviews'), 'count' => app(\App\Services\TeacherReviewsService::class)->unreadCount($user)],
         ];
     $mobileTabs = array_values(array_filter($nav, fn ($i) => in_array($i['key'], ['home', 'today', 'schedule', 'tasks', 'messages'])));
     $profileHref = $isStudent ? $to('cabinet.student.profile', '/student/profile') : $to('cabinet.teacher.profile', '/tutor/edit-profile');
-    $supportHref = $isStudent ? url('/student/messenger?support=1') : url('/tutor/messenger?support=1');
+    $supportHref = $user ? \App\Services\MessengerService::url($user, support: true) : '#';
 @endphp
 <!DOCTYPE html>
 <html lang="ru">
@@ -53,10 +55,11 @@
     <aside class="sticky top-0 hidden h-screen w-sidebar shrink-0 flex-col gap-8 border-r border-line px-4 pb-4 pt-8 lg:flex">
         <div class="flex items-center justify-between gap-2 pl-3">
             <a href="{{ $nav[0]['href'] }}"><img src="{{ asset('images/Logo.svg') }}" alt="Serdal" class="h-6 w-auto"></a>
-            <a href="{{ $isStudent ? url('/student') : url('/tutor') }}" class="relative flex size-9 items-center justify-center rounded text-muted hover:bg-soft-hover hover:text-ink" aria-label="Уведомления{{ $unread ? ', есть новые' : '' }}">
+            <button type="button" x-data="{ n: {{ $unread }} }" x-on:notifications-count.window="n = $event.detail.count" x-on:click="$dispatch('notifications-open')"
+                class="relative flex size-9 items-center justify-center rounded text-muted hover:bg-soft-hover hover:text-ink" x-bind:aria-label="n ? 'Уведомления, есть новые' : 'Уведомления'" aria-label="Уведомления">
                 <x-ui.icon name="bell" />
-                @if ($unread)<span class="absolute right-2 top-2 size-2 rounded-full bg-danger shadow-dot-ring"></span>@endif
-            </a>
+                <span x-show="n > 0" class="absolute right-2 top-2 size-2 rounded-full bg-danger shadow-dot-ring" @unless ($unread) x-cloak @endunless></span>
+            </button>
         </div>
 
         <nav class="flex flex-col gap-1" aria-label="Разделы">
@@ -85,17 +88,18 @@
         </div>
     </aside>
 
-    <div class="flex min-w-0 flex-1 flex-col">
+    <div @class(['flex min-w-0 flex-1 flex-col', 'lg:h-screen' => $bare])>
         {{-- Верхняя панель (телефон) --}}
         <div class="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-line bg-white px-4 lg:hidden">
             <img src="{{ asset('images/Logo.svg') }}" alt="Serdal" class="h-6 w-auto">
-            <a href="{{ $isStudent ? url('/student') : url('/tutor') }}" class="relative flex size-11 items-center justify-center rounded shadow-outline" aria-label="Уведомления{{ $unread ? ', есть новые' : '' }}">
+            <button type="button" x-data="{ n: {{ $unread }} }" x-on:notifications-count.window="n = $event.detail.count" x-on:click="$dispatch('notifications-open')"
+                class="relative flex size-11 items-center justify-center rounded shadow-outline" x-bind:aria-label="n ? 'Уведомления, есть новые' : 'Уведомления'" aria-label="Уведомления">
                 <x-ui.icon name="bell" />
-                @if ($unread)<span class="absolute right-3 top-3 size-2 rounded-full bg-danger shadow-dot-ring"></span>@endif
-            </a>
+                <span x-show="n > 0" class="absolute right-3 top-3 size-2 rounded-full bg-danger shadow-dot-ring" @unless ($unread) x-cloak @endunless></span>
+            </button>
         </div>
 
-        <main class="flex flex-1 flex-col gap-6 px-4 pb-tabbar pt-6 lg:gap-8 lg:p-12">
+        <main @class(['flex flex-1 flex-col', 'gap-6 px-4 pb-tabbar pt-6 lg:gap-8 lg:p-12' => ! $bare, 'min-h-0' => $bare])>
             {{ $slot }}
         </main>
 
@@ -103,7 +107,7 @@
         <nav class="fixed inset-x-0 bottom-0 z-10 flex border-t border-line bg-white pb-4 pt-2 lg:hidden" aria-label="Разделы">
             @foreach ($mobileTabs as $item)
                 <a href="{{ $item['href'] }}" class="flex flex-1 flex-col items-center gap-1 text-tab font-medium {{ $active === $item['key'] ? 'text-ink' : 'text-muted' }}">
-                    <span class="flex h-8 w-12 items-center justify-center rounded-full {{ $active === $item['key'] ? 'bg-mint' : '' }}"><x-ui.icon :name="$item['icon']" /></span>
+                    <span class="relative flex h-8 w-12 items-center justify-center rounded-full {{ $active === $item['key'] ? 'bg-mint' : '' }}"><x-ui.icon :name="$item['icon']" />@if (! empty($item['count']))<span class="absolute right-3 top-1 size-2 rounded-full bg-danger shadow-dot-ring"></span>@endif</span>
                     {{ $item['label'] }}
                 </a>
             @endforeach
@@ -113,6 +117,7 @@
         </nav>
     </div>
 </div>
+<livewire:cabinet.notifications />
 <x-ui.toast />
 </body>
 </html>

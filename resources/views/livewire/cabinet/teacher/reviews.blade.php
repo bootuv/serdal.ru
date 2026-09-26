@@ -13,7 +13,7 @@
         <x-ui.card focus>
             <x-ui.empty icon="star" title="Пока нет отзывов" text="Ученики оставляют отзыв после первого занятия. Он появится здесь и на вашей странице.">
                 <x-slot:action>
-                    <x-ui.btn variant="primary" :href="url('/tutor/messenger')">Попросить учеников об отзыве</x-ui.btn>
+                    <x-ui.btn variant="primary" :href="\App\Services\MessengerService::url(auth()->user())">Попросить учеников об отзыве</x-ui.btn>
                 </x-slot:action>
             </x-ui.empty>
         </x-ui.card>

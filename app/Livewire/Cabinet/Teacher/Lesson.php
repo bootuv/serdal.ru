@@ -107,7 +107,7 @@ class Lesson extends Component
     /** Занятие учителя (в том числе архивное). Владение проверяется на каждом запросе. */
     private function room(): Room
     {
-        $room = Room::withTrashed()->with(['participants:id,name,avatar', 'schedules'])->find($this->roomId);
+        $room = Room::withTrashed()->with(['participants:id,name,username,avatar', 'schedules'])->find($this->roomId);
         abort_unless($room && (int) $room->user_id === auth()->id(), 404);
 
         return $room;
@@ -384,7 +384,7 @@ class Lesson extends Component
             'next' => $next,
             'startBlock' => $startBlock,
             'backUrl' => Route::has('cabinet.teacher.schedule') ? route('cabinet.teacher.schedule') : url('/tutor/schedule-calendar'),
-            'chatUrl' => url('/tutor/messenger?room=' . $room->id),
+            'chatUrl' => \App\Services\MessengerService::url(auth()->user(), $room->id),
             'taskUrl' => Route::has('cabinet.teacher.task-new') ? route('cabinet.teacher.task-new', ['room' => $room->id]) : url('/tutor/homework/create'),
             'recordingsUrl' => Route::has('cabinet.teacher.recordings') ? route('cabinet.teacher.recordings') : url('/tutor/recordings'),
             'editUrl' => url('/tutor/rooms/' . $room->id . '/edit'),
@@ -500,7 +500,7 @@ class Lesson extends Component
                 'id' => $u->id,
                 'name' => $u->name,
                 'since' => $since ? 'Занимается с ' . HumanDate::month($since, true) : null,
-                'url' => Route::has('cabinet.teacher.student') ? route('cabinet.teacher.student', $u->id) : url('/tutor/students/' . $u->id),
+                'url' => $u->username && Route::has('cabinet.teacher.student') ? route('cabinet.teacher.student', $u) : url('/tutor/students/' . $u->id),
                 'price' => $room->getEffectivePrice($u->id),
                 'unpaid' => $own->count(),
                 'overdue' => $own->contains(fn (PaymentRecord $r) => $r->isOverdue()),

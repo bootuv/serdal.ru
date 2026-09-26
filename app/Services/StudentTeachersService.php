@@ -102,8 +102,7 @@ class StudentTeachersService
     }
 
     /**
-     * Ссылка «Написать учителю»: чат общего занятия (последнего по времени) в старом кабинете,
-     * пока экран сообщений не перенесён.
+     * Ссылка «Написать учителю»: чат общего занятия (последнего по времени).
      */
     public function chatUrl(int $studentId, int $teacherId): string
     {
@@ -113,7 +112,7 @@ class StudentTeachersService
             ->latest('updated_at')
             ->value('id');
 
-        return url('/student/messenger' . ($roomId ? '?room=' . $roomId : ''));
+        return MessengerService::url(User::findOrFail($studentId), $roomId);
     }
 
     /** Отзыв ученика об учителе (один на пару ученик–учитель). */

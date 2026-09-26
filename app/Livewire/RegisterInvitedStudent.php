@@ -50,20 +50,14 @@ class RegisterInvitedStudent extends Component
                         // Notify student about new teacher
                         $user->notify(new \App\Notifications\NewTeacher($teacher));
 
-                        Notification::make()
-                            ->title('Вы добавлены в список учеников')
-                            ->success()
-                            ->send();
+                        session()->flash('toast', 'Вы добавлены в список учеников');
                     } else {
-                        Notification::make()
-                            ->title('Вы уже находитесь в списке учеников')
-                            ->info()
-                            ->send();
+                        session()->flash('toast', 'Вы уже в списке учеников');
                     }
                 }
             }
 
-            return redirect()->to('/student');
+            return redirect()->route('cabinet.student.home');
         }
     }
 
@@ -150,7 +144,7 @@ class RegisterInvitedStudent extends Component
         session()->forget('registration_data');
         session()->regenerate();
 
-        return redirect()->to('/student');
+        return redirect()->route('cabinet.student.home');
     }
 
     public function resendCode()

@@ -1,5 +1,7 @@
-{{-- Тост: слушает событие Livewire 'toast' (message). Размещён один раз в раскладке. Вызов: $this->dispatch('toast', message: 'Готово'). --}}
+{{-- Тост: слушает событие Livewire 'toast' (message). Размещён один раз в раскладке. Вызов: $this->dispatch('toast', message: 'Готово').
+     После перехода на другую страницу — session()->flash('toast', 'Готово'). --}}
 <div x-data="{ show: false, message: '', t: null }"
+     @if (session('toast')) x-init="$nextTick(() => $dispatch('toast', { message: @js(session('toast')) }))" @endif
      x-on:toast.window="message = $event.detail.message; show = true; clearTimeout(t); t = setTimeout(() => show = false, 4000)"
      x-show="show" x-cloak x-transition.opacity
      class="fixed inset-x-0 bottom-tabbar z-30 flex justify-center px-4 lg:bottom-8" role="status" aria-live="polite">

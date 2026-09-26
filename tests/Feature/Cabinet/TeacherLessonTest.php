@@ -65,6 +65,7 @@ class TeacherLessonTest extends TestCase
             ->assertSee(route('rooms.start', $room), false)
             ->assertSee('Домашнее задание')
             ->assertSee('Алина Смирнова')
+            ->assertSee(route('cabinet.teacher.student', $student), false) // карточка ученика открывается по username
             ->assertSee('Обзор')
             ->assertSee('Записи и история');
     }

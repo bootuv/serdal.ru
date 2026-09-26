@@ -32,11 +32,11 @@ class PaymentReminder extends Notification implements ShouldBroadcast
 
     public function toDatabase(object $notifiable): array
     {
-        $teacherName = $this->teacher?->name ?? 'преподавателя';
+        $teacherName = $this->teacher?->name ?? 'учителя';
 
         return FilamentNotification::make()
             ->title('Напоминание об оплате')
-            ->body("У вас есть неоплаченные занятия у {$teacherName}. Пожалуйста, не забудьте про оплату, иначе доступ к занятиям этого преподавателя будет ограничен.")
+            ->body("У вас есть неоплаченные занятия у {$teacherName}. Пожалуйста, не забудьте про оплату, иначе доступ к занятиям этого учителя будет ограничен.")
             ->icon('heroicon-o-banknotes')
             ->iconColor('warning')
             ->actions([

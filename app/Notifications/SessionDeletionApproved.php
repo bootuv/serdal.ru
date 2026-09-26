@@ -32,8 +32,8 @@ class SessionDeletionApproved extends Notification implements ShouldBroadcast
     public function toDatabase(object $notifiable): array
     {
         return FilamentNotification::make()
-            ->title('Сессия удалена')
-            ->body("Ваш запрос на удаление сессии \"{$this->roomName}\" от {$this->startedAt} одобрен")
+            ->title('Занятие удалено')
+            ->body("Ваш запрос на удаление занятия \"{$this->roomName}\" от {$this->startedAt} одобрен")
             ->icon('heroicon-o-check-circle')
             ->iconColor('success')
             ->success()

@@ -42,18 +42,13 @@ class NewMessage extends Notification implements ShouldBroadcast
         // Determine the correct URL based on user role
         $url = null;
         try {
-            $user = $notifiable;
-            if ($user->role === 'tutor' || $user->role === 'admin') {
-                $url = \App\Filament\App\Pages\Messenger::getUrl(['room' => $roomId]);
-            } elseif ($user->role === 'student') {
-                $url = \App\Filament\Student\Pages\Messenger::getUrl(['room' => $roomId]);
-            }
+            $url = \App\Services\MessengerService::url($notifiable, $roomId);
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::warning("Failed to generate messenger URL for notification: " . $e->getMessage());
         }
 
         $notification = FilamentNotification::make()
-            ->title("Новое сообщение в \"{$roomName}\"")
+            ->title("Новое сообщение в «{$roomName}»")
             ->body("{$senderName}: " . \Illuminate\Support\Str::limit($this->message->content, 50))
             ->icon('heroicon-o-chat-bubble-left-ellipsis')
             ->iconColor('info');

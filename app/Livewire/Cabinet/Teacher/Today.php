@@ -234,9 +234,9 @@ class Today extends Component
                 'time' => $m->created_at->isToday() ? $m->created_at->format('H:i') : HumanDate::day($m->created_at),
                 'text' => $m->content ? Str::limit(trim(strip_tags($m->content)), 80) : 'Файл',
                 'unread' => ($unread[$m->room_id] ?? 0) > 0,
-                'url' => url('/tutor/messenger?room=' . $m->room_id),
+                'url' => \App\Services\MessengerService::url($teacher, $m->room_id),
             ])->values(),
-            'messagesUrl' => url('/tutor/messenger'),
+            'messagesUrl' => \App\Services\MessengerService::url($teacher),
         ];
     }
 
