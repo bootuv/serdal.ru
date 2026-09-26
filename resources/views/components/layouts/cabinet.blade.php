@@ -20,17 +20,17 @@
             ['key' => 'payments', 'label' => 'Оплата', 'icon' => 'wallet', 'href' => $to('cabinet.student.payments', '/student/payment-debts')],
         ]
         : [
-            ['key' => 'today', 'label' => 'Сегодня', 'icon' => 'home', 'href' => url('/tutor')],
-            ['key' => 'schedule', 'label' => 'Расписание', 'icon' => 'calendar', 'href' => url('/tutor')],
+            ['key' => 'today', 'label' => 'Сегодня', 'icon' => 'home', 'href' => $to('cabinet.teacher.today', '/tutor')],
+            ['key' => 'schedule', 'label' => 'Расписание', 'icon' => 'calendar', 'href' => $to('cabinet.teacher.schedule', '/tutor/schedule-calendar')],
             ['key' => 'messages', 'label' => 'Сообщения', 'icon' => 'chat', 'href' => url('/tutor/messenger')],
-            ['key' => 'students', 'label' => 'Ученики', 'icon' => 'users', 'href' => url('/tutor')],
-            ['key' => 'tasks', 'label' => 'Задания', 'icon' => 'tasks', 'href' => url('/tutor')],
-            ['key' => 'materials', 'label' => 'Материалы', 'icon' => 'folder', 'href' => url('/tutor')],
-            ['key' => 'recordings', 'label' => 'Записи', 'icon' => 'video', 'href' => url('/tutor')],
-            ['key' => 'reviews', 'label' => 'Отзывы', 'icon' => 'star', 'href' => url('/tutor')],
+            ['key' => 'students', 'label' => 'Ученики', 'icon' => 'users', 'href' => $to('cabinet.teacher.students', '/tutor/students')],
+            ['key' => 'tasks', 'label' => 'Задания', 'icon' => 'tasks', 'href' => $to('cabinet.teacher.tasks', '/tutor/homework')],
+            ['key' => 'materials', 'label' => 'Материалы', 'icon' => 'folder', 'href' => $to('cabinet.teacher.materials', '/tutor/materials')],
+            ['key' => 'recordings', 'label' => 'Записи', 'icon' => 'video', 'href' => $to('cabinet.teacher.recordings', '/tutor/recordings')],
+            ['key' => 'reviews', 'label' => 'Отзывы', 'icon' => 'star', 'href' => $to('cabinet.teacher.reviews', '/tutor/reviews')],
         ];
     $mobileTabs = array_values(array_filter($nav, fn ($i) => in_array($i['key'], ['home', 'today', 'schedule', 'tasks', 'messages'])));
-    $profileHref = $isStudent ? $to('cabinet.student.profile', '/student/profile') : url('/tutor');
+    $profileHref = $isStudent ? $to('cabinet.student.profile', '/student/profile') : $to('cabinet.teacher.profile', '/tutor/edit-profile');
     $supportHref = $isStudent ? url('/student/messenger?support=1') : url('/tutor/messenger?support=1');
 @endphp
 <!DOCTYPE html>
@@ -73,6 +73,7 @@
         </nav>
 
         <div class="mt-auto flex flex-col gap-2">
+            @unless ($isStudent)<livewire:cabinet.referral-promo />@endunless
             <a href="{{ $supportHref }}" class="flex h-11 items-center gap-3 rounded px-3 text-t1-s font-medium text-muted hover:bg-soft-hover hover:text-ink"><x-ui.icon name="help" />Поддержка</a>
             <a href="{{ $profileHref }}" class="flex items-center gap-3 border-t border-line px-3 pt-4">
                 <x-ui.avatar :user="$user" />
