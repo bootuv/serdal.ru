@@ -4,7 +4,6 @@ namespace App\Filament\Student\Resources;
 
 use App\Filament\Student\Resources\RecordingResource\Pages;
 use App\Models\Recording;
-use App\Models\Room;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -118,22 +117,9 @@ class RecordingResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        // Get all teachers of the current student
-        $teacherIds = auth()->user()->teachers()->pluck('users.id');
-
-        // Get meeting_ids of all rooms owned by student's teachers
-        $teacherRoomMeetingIds = Room::whereIn('user_id', $teacherIds)
-            ->pluck('meeting_id')
-            ->filter();
-
+        // Записи занятий учителей ученика; устаревшие без видео и ссылки скрываем (общие скоупы с новым кабинетом)
         return parent::getEloquentQuery()
-            ->whereIn('meeting_id', $teacherRoomMeetingIds)
-            // Show recordings with VK video, BBB URL, or fresh recordings (< 2 hours)
-            // This hides stale/deleted recordings that haven't been cleaned up
-            ->where(function (Builder $query) {
-                $query->whereNotNull('s3_url')
-                    ->orWhereNotNull('url')
-                    ->orWhere('start_time', '>', now()->subHours(2));
-            });
+            ->forStudent(auth()->user())
+            ->listed();
     }
 }

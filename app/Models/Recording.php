@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -36,6 +37,45 @@ class Recording extends Model
     public function room()
     {
         return $this->belongsTo(Room::class, 'meeting_id', 'meeting_id');
+    }
+
+    /**
+     * Записи, доступные ученику: занятия его учителей (как в старом кабинете ученика
+     * и в RecordingDownloadController).
+     */
+    public function scopeForStudent(Builder $query, User $student): Builder
+    {
+        $meetingIds = Room::whereIn('user_id', $student->teachers()->pluck('users.id'))
+            ->pluck('meeting_id')
+            ->filter();
+
+        return $query->whereIn('meeting_id', $meetingIds);
+    }
+
+    /**
+     * Записи, которые показываем в списке: с видео, со ссылкой на просмотр или свежие (< 2 часов, ещё обрабатываются).
+     * Скрывает устаревшие записи, которые ещё не убрала синхронизация.
+     */
+    public function scopeListed(Builder $query): Builder
+    {
+        return $query->where(fn (Builder $q) => $q->whereNotNull('s3_url')
+            ->orWhereNotNull('url')
+            ->orWhere('start_time', '>', now()->subHours(2)));
+    }
+
+    /** Относится ли запись к занятию: по внутреннему id встречи или по времени. */
+    public function belongsToSession(MeetingSession $session): bool
+    {
+        if ($this->meeting_id !== $session->meeting_id) {
+            return false;
+        }
+
+        if ($session->internal_meeting_id && str_starts_with((string) $this->record_id, $session->internal_meeting_id)) {
+            return true;
+        }
+
+        return $this->start_time && $session->started_at
+            && $this->start_time->between($session->started_at->copy()->subMinutes(10), ($session->ended_at ?? $session->started_at->copy()->addHours(4)));
     }
 
     protected static function booted()

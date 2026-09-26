@@ -44,6 +44,16 @@ class HumanDate
         return $date->year === now()->year ? $s : $s . ' ' . $date->year;
     }
 
+    /** Месяц: «сентябрь» (genitive — «сентября», для «с марта»; + год, если не текущий). */
+    public static function month(CarbonInterface $date, bool $genitive = false): string
+    {
+        $nominative = [1 => 'январь', 'февраль', 'март', 'апрель', 'май', 'июнь',
+            'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'];
+        $s = $genitive ? self::MONTHS_GENITIVE[$date->month] : $nominative[$date->month];
+
+        return $date->year === now()->year ? $s : $s . ' ' . $date->year;
+    }
+
     /** «Четверг, 26 сентября» — для строки под приветствием. */
     public static function todayLong(): string
     {

@@ -300,6 +300,18 @@ class User extends Authenticatable implements FilamentUser
         return \App\Services\PaymentRecordService::isBlockedForTeacher($this->id, $teacherId);
     }
 
+    /**
+     * Контакты для связи (Telegram, WhatsApp, телефон): [['label' => 'Telegram', 'href' => 'https://t.me/…', 'external' => true], …].
+     */
+    public function contactLinks(): array
+    {
+        return array_values(array_filter([
+            $this->telegram ? ['label' => 'Telegram', 'href' => 'https://t.me/' . $this->telegram, 'external' => true] : null,
+            $this->whatsup ? ['label' => 'WhatsApp', 'href' => 'https://wa.me/' . preg_replace('/[^0-9]/', '', $this->whatsup), 'external' => true] : null,
+            $this->phone ? ['label' => $this->phone, 'href' => 'tel:' . $this->phone, 'external' => false] : null,
+        ]));
+    }
+
     public function messages()
     {
         return $this->hasMany(Message::class);

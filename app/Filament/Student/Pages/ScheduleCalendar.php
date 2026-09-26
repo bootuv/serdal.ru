@@ -3,8 +3,6 @@
 namespace App\Filament\Student\Pages;
 
 use Filament\Pages\Page;
-use App\Models\RoomSchedule;
-use Illuminate\Support\Carbon;
 
 class ScheduleCalendar extends Page
 {
@@ -63,107 +61,16 @@ class ScheduleCalendar extends Page
     public function getViewData(): array
     {
         $user = auth()->user();
+        $service = app(\App\Services\StudentScheduleService::class);
 
-        // Fetch schedules for rooms the student is assigned to
-        $schedules = RoomSchedule::with(['room.user'])
-            ->whereHas('room', function ($query) use ($user) {
-                $query->whereHas('participants', function ($q) use ($user) {
-                    $q->where('users.id', $user->id);
-                });
-            })
-            ->where('is_active', true)
-            ->get();
+        // Расписания занятий, в которых ученик — участник; вхождения — общий расчёт с новым кабинетом
+        $schedules = $service->schedules($user->id);
 
         return [
             'schedules' => $schedules,
-            'events' => $this->generateCalendarEvents($schedules),
+            'events' => $service->events($user->id, now()->subMonth()->startOfMonth(), now()->addMonths(2)->endOfMonth(), $schedules),
             // Преподаватели, к чьим занятиям ученик сейчас не допускается из-за просроченной оплаты
             'blockedTeacherIds' => \App\Services\PaymentRecordService::blockedTeacherIds($user->id),
         ];
-    }
-
-    protected function generateCalendarEvents($schedules)
-    {
-        $events = [];
-        $start = now()->subMonth()->startOfMonth();
-        $end = now()->addMonths(2)->endOfMonth();
-        $user = auth()->user();
-        $now = now();
-
-        foreach ($schedules as $schedule) {
-            if ($schedule->type === 'once') {
-                if ($schedule->scheduled_at && $schedule->scheduled_at->between($start, $end)) {
-                    $events[] = [
-                        'id' => $schedule->id,
-                        'room_id' => $schedule->room_id,
-                        'teacher_id' => $schedule->room->user_id,
-                        'title' => $schedule->room->name,
-                        'start' => $schedule->scheduled_at,
-                        'end' => $schedule->scheduled_at->copy()->addMinutes($schedule->duration_minutes),
-                        'owner' => $schedule->room->user->name,
-                        'type' => 'once',
-                        'room_type' => $schedule->room->type,
-                        'duration' => $schedule->duration_minutes,
-                        'is_running' => $schedule->room->is_running,
-                    ];
-                }
-            } else {
-                $current = $start->copy();
-                while ($current->lte($end)) {
-                    if ($schedule->isActiveAt($current->copy()->setTimeFromTimeString($schedule->recurrence_time ?? '00:00'))) {
-                        $dt = $current->copy()->setTimeFromTimeString($schedule->recurrence_time);
-                        $events[] = [
-                            'id' => $schedule->id,
-                            'room_id' => $schedule->room_id,
-                            'teacher_id' => $schedule->room->user_id,
-                            'title' => $schedule->room->name,
-                            'start' => $dt,
-                            'end' => $dt->copy()->addMinutes($schedule->duration_minutes),
-                            'owner' => $schedule->room->user->name,
-                            'type' => $schedule->recurrence_type,
-                            'room_type' => $schedule->room->type,
-                            'duration' => $schedule->duration_minutes,
-                            'is_running' => $schedule->room->is_running,
-                        ];
-                    }
-                    $current->addDay();
-                }
-            }
-        }
-
-        // Add running rooms that the student is assigned to but might not have a schedule for today
-        $runningRooms = \App\Models\Room::where('is_running', true)
-            ->whereHas('participants', function ($q) use ($user) {
-                $q->where('users.id', $user->id);
-            })
-            ->with('user')
-            ->get();
-
-        foreach ($runningRooms as $room) {
-            // Check if this room is already in events for today
-            $alreadyInEvents = collect($events)->contains(function ($event) use ($room, $now) {
-                return $event['room_id'] === $room->id &&
-                    $event['start']->isSameDay($now);
-            });
-
-            if (!$alreadyInEvents) {
-                // Add as a running event for today
-                $events[] = [
-                    'id' => 'running-' . $room->id,
-                    'room_id' => $room->id,
-                    'teacher_id' => $room->user_id,
-                    'title' => $room->name,
-                    'start' => $now->copy()->startOfHour(),
-                    'end' => $now->copy()->addHour(),
-                    'owner' => $room->user->name,
-                    'type' => 'running',
-                    'room_type' => $room->type,
-                    'duration' => 60,
-                    'is_running' => true,
-                ];
-            }
-        }
-
-        return collect($events)->sortBy('start');
     }
 }

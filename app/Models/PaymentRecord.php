@@ -89,6 +89,45 @@ class PaymentRecord extends Model
     }
 
     /**
+     * За что начисление, по-человечески (новые кабинеты): «Математика · чт, 12 сентября» или «Оплата за сентябрь».
+     */
+    public function getHumanLabelAttribute(): string
+    {
+        if ($this->type === self::TYPE_MONTHLY && $this->period) {
+            return 'Оплата за ' . \App\Support\HumanDate::month($this->billingMonth());
+        }
+
+        $session = $this->meetingSession;
+        $parts = array_filter([
+            $session?->room?->name ?: 'Занятие',
+            $session?->ended_at ? \App\Support\HumanDate::day($session->ended_at) : null,
+        ]);
+
+        return implode(' · ', $parts);
+    }
+
+    /**
+     * Месяц, к которому относится начисление: период помесячной оплаты или дата занятия.
+     */
+    public function billingMonth(): \Illuminate\Support\Carbon
+    {
+        if ($this->type === self::TYPE_MONTHLY && $this->period) {
+            return \Illuminate\Support\Carbon::createFromFormat('Y-m', $this->period)->startOfMonth();
+        }
+
+        return ($this->meetingSession?->ended_at ?? $this->created_at ?? now())->copy()->startOfMonth();
+    }
+
+    /**
+     * Оплачено позже срока.
+     */
+    public function isPaidLate(): bool
+    {
+        return $this->status === self::STATUS_PAID && $this->paid_at && $this->due_date
+            && $this->paid_at->copy()->startOfDay()->gt($this->due_date);
+    }
+
+    /**
      * Отметить оплату/отмену. Блокировка занятий вычисляется из статуса записи,
      * поэтому снимается сама.
      */

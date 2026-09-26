@@ -4,10 +4,8 @@ namespace App\Filament\Student\Resources\RecordingResource\Pages;
 
 use App\Filament\Student\Resources\RecordingResource;
 use App\Models\Recording;
-use App\Models\Room;
 use Filament\Resources\Pages\Page;
 use Illuminate\Contracts\Support\Htmlable;
-use Illuminate\Database\Eloquent\Builder;
 
 class ViewRecording extends Page
 {
@@ -21,15 +19,8 @@ class ViewRecording extends Page
     {
         $this->record = $record;
 
-        // Check if student has access to this recording (via teacher relationship)
-        $teacherIds = auth()->user()->teachers()->pluck('users.id');
-
-        $teacherRoomMeetingIds = Room::whereIn('user_id', $teacherIds)
-            ->pluck('meeting_id')
-            ->filter()
-            ->toArray();
-
-        if (!in_array($record->meeting_id, $teacherRoomMeetingIds)) {
+        // Ученик видит записи только занятий своих учителей
+        if (!Recording::forStudent(auth()->user())->whereKey($record->id)->exists()) {
             abort(403);
         }
     }

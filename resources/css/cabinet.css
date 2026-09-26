@@ -10,6 +10,7 @@
     body { @apply bg-white font-sans text-t1 text-ink; }
     :focus-visible { outline: 2px solid theme('colors.ink.DEFAULT'); outline-offset: 2px; }
     [x-cloak] { display: none !important; }
+    summary::-webkit-details-marker { display: none; }
 }
 
 @layer components {
@@ -19,6 +20,14 @@
 
     /* Ссылка — подчёркнутый текст */
     .link { @apply font-medium text-ink underline underline-offset-4 decoration-line-strong hover:decoration-ink; }
+
+    /* Текст из редактора (условие задания, описание): абзацы, списки, ссылки */
+    .rich { @apply flex flex-col gap-3 text-t1 text-ink; }
+    .rich ul { @apply flex list-disc flex-col gap-1 pl-6; }
+    .rich ol { @apply flex list-decimal flex-col gap-1 pl-6; }
+    .rich a { @apply font-medium underline underline-offset-4 decoration-line-strong hover:decoration-ink; }
+    .rich strong, .rich b { @apply font-semibold; }
+    .rich h2, .rich h3 { @apply text-h2 font-medium; }
 
     /* Поле ввода */
     .field { @apply h-11 w-full rounded bg-white px-4 text-t1 text-ink shadow-outline outline-none placeholder:text-faint focus:shadow-outline-ink; }

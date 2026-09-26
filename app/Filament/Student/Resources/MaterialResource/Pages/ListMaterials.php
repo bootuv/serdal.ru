@@ -6,6 +6,7 @@ use App\Filament\Student\Resources\MaterialResource;
 use App\Models\MaterialFolder;
 use App\Models\TeacherMaterial;
 use App\Models\User;
+use App\Services\StudentMaterialsService;
 use Filament\Resources\Pages\Page;
 use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Support\Collection;
@@ -63,10 +64,7 @@ class ListMaterials extends Page
      */
     protected function availableTeacherIds(): Collection
     {
-        return TeacherMaterial::query()
-            ->visibleToStudent(auth()->user())
-            ->distinct()
-            ->pluck('teacher_id');
+        return app(StudentMaterialsService::class)->availableTeacherIds(auth()->user());
     }
 
     /**
@@ -74,10 +72,7 @@ class ListMaterials extends Page
      */
     protected function materialQuery()
     {
-        return TeacherMaterial::query()
-            ->with(['folder', 'teacher'])
-            ->visibleToStudent(auth()->user())
-            ->when($this->teacher, fn ($q) => $q->where('teacher_id', $this->teacher));
+        return app(StudentMaterialsService::class)->materials(auth()->user(), $this->teacher);
     }
 
     /**
@@ -86,32 +81,7 @@ class ListMaterials extends Page
      */
     protected function visibleFolderIds(): Collection
     {
-        $withMaterials = TeacherMaterial::query()
-            ->visibleToStudent(auth()->user())
-            ->when($this->teacher, fn ($q) => $q->where('teacher_id', $this->teacher))
-            ->whereNotNull('folder_id')
-            ->distinct()
-            ->pluck('folder_id');
-
-        if ($withMaterials->isEmpty()) {
-            return collect();
-        }
-
-        // Дерево папок одним запросом, предков добавляем в памяти
-        $parents = MaterialFolder::query()
-            ->when($this->teacher, fn ($q) => $q->where('teacher_id', $this->teacher))
-            ->pluck('parent_id', 'id');
-
-        $ids = collect();
-
-        foreach ($withMaterials as $id) {
-            while ($id !== null && ! $ids->contains($id)) {
-                $ids->push($id);
-                $id = $parents[$id] ?? null;
-            }
-        }
-
-        return $ids;
+        return app(StudentMaterialsService::class)->visibleFolderIds(auth()->user(), $this->teacher);
     }
 
     /**
@@ -119,9 +89,7 @@ class ListMaterials extends Page
      */
     protected function visibleFolders()
     {
-        return MaterialFolder::query()
-            ->with('teacher')
-            ->whereIn('id', $this->visibleFolderIds());
+        return app(StudentMaterialsService::class)->visibleFolders(auth()->user(), $this->teacher);
     }
 
     /**
@@ -199,11 +167,7 @@ class ListMaterials extends Page
         $query = $this->materialQuery()->orderBy('sort_order')->orderByDesc('created_at');
 
         if (filled(trim($this->search))) {
-            $term = '%' . trim($this->search) . '%';
-            $query->where(fn ($q) => $q
-                ->where('title', 'like', $term)
-                ->orWhere('description', 'like', $term)
-                ->orWhere('original_name', 'like', $term));
+            app(StudentMaterialsService::class)->search($query, $this->search);
         } elseif ($this->folder !== null) {
             $query->where('folder_id', $this->folder);
         } else {

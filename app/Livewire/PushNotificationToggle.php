@@ -8,6 +8,9 @@ class PushNotificationToggle extends Component
 {
     public bool $isSubscribed = false;
 
+    /** Вид: icon — кнопка-иконка (Filament), cabinet — переключатель для профиля в новых кабинетах. */
+    public string $variant = 'icon';
+
     public function mount(): void
     {
         $user = auth()->user();
@@ -23,6 +26,6 @@ class PushNotificationToggle extends Component
 
     public function render()
     {
-        return view('livewire.push-notification-toggle');
+        return view($this->variant === 'cabinet' ? 'livewire.cabinet.push-switch' : 'livewire.push-notification-toggle');
     }
 }

@@ -34,7 +34,7 @@
             <div class="flex shrink-0 flex-col gap-3 lg:items-end">
                 @if ($next['blocked'])
                     <x-ui.btn variant="outline" size="l" icon="lock" disabled>Войти в класс</x-ui.btn>
-                    <p class="text-t2 text-muted">Вход закрыт до оплаты · <a href="{{ url('/student/payment-debts') }}" class="link">оплатить</a></p>
+                    <p class="text-t2 text-muted">Вход закрыт до оплаты · <a href="{{ $payment['url'] ?? url('/student/payment-debts') }}" class="link">оплатить</a></p>
                 @else
                     <x-ui.btn variant="primary" size="l" icon="video" :href="$next['joinUrl']" target="_blank" rel="noopener">Войти в класс</x-ui.btn>
                 @endif
@@ -50,7 +50,7 @@
         {{-- Задания --}}
         <x-ui.card class="lg:col-span-2" aria-labelledby="hw">
             <x-ui.card-head id="hw" title="Задания">
-                <x-slot:action><a href="{{ url('/student/homework') }}" class="link text-t2">Все задания</a></x-slot:action>
+                <x-slot:action><a href="{{ route('cabinet.student.tasks') }}" class="link text-t2">Все задания</a></x-slot:action>
             </x-ui.card-head>
             @if ($homework->isEmpty())
                 <p class="text-t2 text-muted">Пока пусто — новые задания от учителя появятся здесь.</p>
@@ -95,7 +95,7 @@
             @if ($week->isNotEmpty())
                 <x-ui.card aria-labelledby="week">
                     <x-ui.card-head id="week" title="Дальше">
-                        <x-slot:action><a href="{{ url('/student/schedule-calendar') }}" class="link text-t2">Расписание</a></x-slot:action>
+                        <x-slot:action><a href="{{ route('cabinet.student.schedule') }}" class="link text-t2">Расписание</a></x-slot:action>
                     </x-ui.card-head>
                     <x-ui.list>
                         @foreach ($week as $lesson)

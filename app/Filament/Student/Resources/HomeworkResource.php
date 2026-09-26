@@ -4,6 +4,7 @@ namespace App\Filament\Student\Resources;
 
 use App\Filament\Student\Resources\HomeworkResource\Pages;
 use App\Models\Homework;
+use App\Services\HomeworkSubmissionService;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -105,46 +106,9 @@ class HomeworkResource extends Resource
                         'revision_requested' => 'На доработке',
                         'graded' => 'Оценено',
                     ])
-                    ->query(function (Builder $query, array $data) {
-                        if (!$data['value']) {
-                            return $query;
-                        }
-
-                        $studentId = auth()->id();
-
-                        return match ($data['value']) {
-                            'pending' => $query->whereDoesntHave('submissions', function ($q) use ($studentId) {
-                                    $q->where('student_id', $studentId)->whereNotNull('submitted_at');
-                                }),
-                            'submitted' => $query->whereHas('submissions', function ($q) use ($studentId) {
-                                    $q->where('student_id', $studentId)
-                                    ->where('status', \App\Models\HomeworkSubmission::STATUS_SUBMITTED);
-                                }),
-                            'revision_requested' => $query->whereHas('submissions', function ($q) use ($studentId) {
-                                    $q->where('student_id', $studentId)
-                                    ->where('status', \App\Models\HomeworkSubmission::STATUS_REVISION_REQUESTED);
-                                }),
-                            'graded' => $query->whereHas('submissions', function ($q) use ($studentId) {
-                                    $q->where('student_id', $studentId)->whereNotNull('grade');
-                                }),
-                            default => $query,
-                        };
-                    }),
+                    ->query(fn (Builder $query, array $data) => HomeworkSubmissionService::filterByStatus($query, auth()->id(), $data['value'] ?? null)),
             ])
-            ->modifyQueryUsing(
-                fn($query) => $query
-                    ->leftJoin('homework_submissions as hs', function ($join) {
-                        $join->on('hs.homework_id', '=', 'homeworks.id')
-                            ->where('hs.student_id', '=', auth()->id());
-                    })
-                    ->orderByRaw("CASE 
-                    WHEN hs.status = 'submitted' AND hs.grade IS NULL THEN 0
-                    WHEN hs.status = 'revision_requested' THEN 1
-                    ELSE 2 
-                END")
-                    ->orderByDesc('homeworks.created_at')
-                    ->select('homeworks.*')
-            )
+            ->modifyQueryUsing(fn ($query) => HomeworkSubmissionService::orderForStudent($query, auth()->id()))
             ->actions([
                 //
             ])
@@ -173,10 +137,6 @@ class HomeworkResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()
-            ->where('is_visible', true)
-            ->whereHas('students', function ($query) {
-                $query->where('users.id', auth()->id());
-            });
+        return HomeworkSubmissionService::scopeVisible(parent::getEloquentQuery(), auth()->id());
     }
 }

@@ -1,5 +1,5 @@
-{{-- Плитка файла 40: тип (PDF, DOC, MP3, IMG…) по расширению или иконка. --}}
-@props(['name' => null, 'icon' => null])
+{{-- Плитка файла 40: тип (PDF, DOC, MP3, IMG…) по расширению или иконка. onMint — белая плитка внутри фокус-блока. --}}
+@props(['name' => null, 'icon' => null, 'onMint' => false])
 @php
     $ext = $name ? mb_strtolower(pathinfo($name, PATHINFO_EXTENSION)) : '';
     $label = match (true) {
@@ -13,6 +13,6 @@
         default => '',
     };
 @endphp
-<span {{ $attributes->class('flex size-10 shrink-0 items-center justify-center rounded bg-soft text-count font-semibold text-muted') }}>
+<span {{ $attributes->class(['flex size-10 shrink-0 items-center justify-center rounded text-count font-semibold text-muted', 'bg-white' => $onMint, 'bg-soft' => ! $onMint]) }}>
     @if ($icon)<x-ui.icon :name="$icon" size="s" class="text-ink" />@else{{ $label }}@endif
 </span>

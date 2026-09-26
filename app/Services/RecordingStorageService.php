@@ -259,6 +259,28 @@ class RecordingStorageService
     }
 
     /**
+     * Сколько дней хранятся записи учителя: по тарифу активной подписки.
+     * null — записи не удаляются (нет активной подписки или срок не ограничен),
+     * как в команде recordings:cleanup.
+     */
+    public function retentionDays(\App\Models\User $teacher): ?int
+    {
+        return $teacher->activeSubscription()?->tariff?->recording_retention_days;
+    }
+
+    /**
+     * Когда запись удалит recordings:cleanup: окончание занятия (или создание записи) + срок хранения.
+     */
+    public function expiresAt(\App\Models\Recording $recording, ?int $retentionDays): ?\Illuminate\Support\Carbon
+    {
+        if ($retentionDays === null) {
+            return null;
+        }
+
+        return ($recording->end_time ?? $recording->created_at)?->copy()->addDays($retentionDays);
+    }
+
+    /**
      * Check if S3 disk is configured
      */
     public function isConfigured(): bool

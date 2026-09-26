@@ -5,6 +5,7 @@ namespace App\Filament\Student\Resources\HomeworkResource\Pages;
 use App\Filament\Student\Resources\HomeworkResource;
 use App\Models\Homework;
 use App\Models\HomeworkSubmission;
+use App\Services\HomeworkSubmissionService;
 use Filament\Actions;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -35,7 +36,7 @@ class ViewHomework extends ViewRecord
                 ->label(fn() => $submission?->status === HomeworkSubmission::STATUS_REVISION_REQUESTED ? 'Пересдать работу' : 'Сдать работу')
                 ->icon('heroicon-o-paper-airplane')
                 ->color('primary')
-                ->visible(fn() => !$submission || !$submission->submitted_at || $submission->status === HomeworkSubmission::STATUS_REVISION_REQUESTED)
+                ->visible(fn() => HomeworkSubmissionService::canSubmit($submission))
                 ->form([
                     Forms\Components\RichEditor::make('content')
                         ->label('Ответ')
@@ -53,20 +54,13 @@ class ViewHomework extends ViewRecord
                         ->label('Прикрепить файлы')
                         ->multiple()
                         ->disk('s3')
-                        ->directory(fn() => 'homework-submissions/' . auth()->id())
+                        ->directory(fn() => HomeworkSubmissionService::DIRECTORY . '/' . auth()->id())
                         ->visibility('public')
                         // Optimization: Do not check file existence/metadata on S3 during load
                         ->fetchFileInformation(false)
-                        ->acceptedFileTypes([
-                            'application/pdf',
-                            'application/msword',
-                            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                            'image/jpeg',
-                            'image/png',
-                            'image/gif',
-                        ])
-                        ->maxSize(51200)
-                        ->afterStateUpdated(\App\Helpers\FileUploadHelper::filamentCallback('attachments', 'homework-submissions', 1920, 1080, 85, true))
+                        ->acceptedFileTypes(HomeworkSubmissionService::ACCEPTED_MIMES)
+                        ->maxSize(HomeworkSubmissionService::MAX_FILE_KB)
+                        ->afterStateUpdated(\App\Helpers\FileUploadHelper::filamentCallback('attachments', HomeworkSubmissionService::DIRECTORY, 1920, 1080, 85, true))
                         ->deleteUploadedFileUsing(\App\Helpers\FileUploadHelper::filamentDeleteCallback())
                         ->columnSpanFull(),
                 ])
@@ -80,17 +74,11 @@ class ViewHomework extends ViewRecord
                     return [];
                 })
                 ->action(function (array $data) {
-                    $submission = HomeworkSubmission::updateOrCreate(
-                        [
-                            'homework_id' => $this->record->id,
-                            'student_id' => auth()->id(),
-                        ],
-                        [
-                            'content' => $data['content'],
-                            'attachments' => $data['attachments'],
-                            'submitted_at' => now(),
-                            'status' => HomeworkSubmission::STATUS_SUBMITTED,
-                        ]
+                    app(HomeworkSubmissionService::class)->submit(
+                        $this->record,
+                        auth()->user(),
+                        $data['content'] ?? null,
+                        (array) ($data['attachments'] ?? []),
                     );
 
                     Notification::make()
@@ -98,9 +86,6 @@ class ViewHomework extends ViewRecord
                         ->body('Ваш ответ отправлен на проверку')
                         ->success()
                         ->send();
-
-                    // Notify teacher
-                    $this->record->teacher->notify(new \App\Notifications\HomeworkSubmitted($this->record, auth()->user()));
 
                     $this->redirect($this->getResource()::getUrl('view', ['record' => $this->record]));
                 })

@@ -28,16 +28,7 @@
     @foreach($files as $path)
         @if(is_string($path))
             @php
-                $url = $path;
-                try {
-                    if (config('filesystems.default') === 's3' || \Illuminate\Support\Str::startsWith($path, ['homework-submissions/', 'homework-feedback/'])) {
-                        $url = \Illuminate\Support\Facades\Storage::disk('s3')->temporaryUrl($path, now()->addMinutes(30));
-                    } else {
-                        $url = \Illuminate\Support\Facades\Storage::url($path);
-                    }
-                } catch (\Exception $e) {
-                    $url = \Illuminate\Support\Facades\Storage::url($path);
-                }
+                $url = \App\Services\HomeworkSubmissionService::fileUrl($path);
                 
                 $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
                 $isImage = in_array($extension, $imageExtensions);

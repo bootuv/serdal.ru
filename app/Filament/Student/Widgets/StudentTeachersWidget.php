@@ -2,6 +2,7 @@
 
 namespace App\Filament\Student\Widgets;
 
+use App\Services\StudentTeachersService;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Filament\Widgets\TableWidget as BaseWidget;
@@ -18,10 +19,7 @@ class StudentTeachersWidget extends BaseWidget
     {
         return $table
             ->query(
-                \App\Models\User::query()
-                    ->whereHas('students', function ($query) {
-                        $query->where('student_id', auth()->id());
-                    })
+                app(StudentTeachersService::class)->currentTeachers((int) auth()->id())
             )
             ->columns([
                 Tables\Columns\ImageColumn::make('avatar_url')
@@ -43,31 +41,8 @@ class StudentTeachersWidget extends BaseWidget
                     ->label('Занятий')
                     ->badge()
                     ->color('success')
-                    ->state(function (\App\Models\User $record) {
-                        $studentId = (string) auth()->id();
-                        $teacherIds = \App\Models\User::where('email', $record->email)->pluck('id')->map(fn($id) => (string) $id)->toArray();
-                        $teacherIds[] = (string) $record->id;
-                        $teacherIds = array_unique($teacherIds);
-
-                        $sessions = \App\Models\MeetingSession::query()
-                            ->where(function ($q) use ($studentId) {
-                                $q->whereJsonContains('analytics_data->participants', ['user_id' => $studentId])
-                                    ->orWhereJsonContains('analytics_data->participants', ['user_id' => (int) $studentId]);
-                            })
-                            ->get();
-
-                        return $sessions->filter(function ($session) use ($teacherIds) {
-                            $participants = $session->analytics_data['participants'] ?? [];
-                            if (!is_array($participants))
-                                return false;
-                            foreach ($participants as $p) {
-                                if (isset($p['user_id']) && in_array((string) $p['user_id'], $teacherIds))
-                                    return true;
-                            }
-                            return false;
-                        })->count();
-                    }),
-
+                    ->state(fn (\App\Models\User $record) => app(StudentTeachersService::class)
+                        ->lessonsWithCurrentTeacher((int) auth()->id(), $record)->count()),
 
             ])
             ->emptyStateHeading('У вас нет учителей')
@@ -77,34 +52,10 @@ class StudentTeachersWidget extends BaseWidget
             ->actions([
                 Tables\Actions\Action::make('leave_review')
                     ->visible(function (\App\Models\User $record) {
-                        $studentId = (string) auth()->id();
-                        $teacherIds = \App\Models\User::where('email', $record->email)->pluck('id')->map(fn($id) => (string) $id)->toArray();
-                        $teacherIds[] = (string) $record->id;
-                        $teacherIds = array_unique($teacherIds);
+                        $service = app(StudentTeachersService::class);
+                        $count = $service->lessonsWithCurrentTeacher((int) auth()->id(), $record)->count();
 
-                        $sessions = \App\Models\MeetingSession::query()
-                            ->where(function ($q) use ($studentId) {
-                                $q->whereJsonContains('analytics_data->participants', ['user_id' => $studentId])
-                                    ->orWhereJsonContains('analytics_data->participants', ['user_id' => (int) $studentId]);
-                            })
-                            ->get();
-
-                        $count = $sessions->filter(function ($session) use ($teacherIds) {
-                            $participants = $session->analytics_data['participants'] ?? [];
-                            if (!is_array($participants))
-                                return false;
-                            foreach ($participants as $p) {
-                                if (isset($p['user_id']) && in_array((string) $p['user_id'], $teacherIds))
-                                    return true;
-                            }
-                            return false;
-                        })->count();
-
-                        $hasRejected = \App\Models\Review::where('user_id', auth()->id())
-                            ->where('teacher_id', $record->id)
-                            ->where('is_rejected', true)
-                            ->exists();
-                        return $count > 0 && !$hasRejected;
+                        return $service->canReview((int) auth()->id(), $record->id, $count);
                     })
                     ->label(function (\App\Models\User $record) {
                         $review = \App\Models\Review::where('user_id', auth()->id())->where('teacher_id', $record->id)->first();
@@ -151,30 +102,7 @@ class StudentTeachersWidget extends BaseWidget
                         $form->fill($data);
                     })
                     ->action(function (array $data, \App\Models\User $record) {
-                        $existingReview = \App\Models\Review::where('user_id', auth()->id())
-                            ->where('teacher_id', $record->id)
-                            ->first();
-
-                        $isNew = !$existingReview;
-
-                        $review = \App\Models\Review::updateOrCreate(
-                            ['user_id' => auth()->id(), 'teacher_id' => $record->id],
-                            ['rating' => $data['rating'], 'text' => $data['text']]
-                        );
-
-                        // Send notifications only for new reviews
-                        if ($isNew) {
-                            $student = auth()->user();
-
-                            // Notify teacher
-                            $record->notify(new \App\Notifications\StudentLeftReview($review, $student));
-
-                            // Notify all admins
-                            $admins = \App\Models\User::where('role', \App\Models\User::ROLE_ADMIN)->get();
-                            foreach ($admins as $admin) {
-                                $admin->notify(new \App\Notifications\StudentLeftReviewAdmin($review, $student, $record));
-                            }
-                        }
+                        app(StudentTeachersService::class)->saveReview(auth()->user(), $record, (int) $data['rating'], (string) $data['text']);
                     })
                     ->successNotificationTitle('Отзыв сохранен'),
             ]);

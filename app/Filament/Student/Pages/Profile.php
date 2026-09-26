@@ -2,6 +2,7 @@
 
 namespace App\Filament\Student\Pages;
 
+use App\Services\StudentProfileService;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Pages\Page;
@@ -73,38 +74,9 @@ class Profile extends Page
                 Forms\Components\Select::make('grade')
                     ->label('Класс')
                     ->searchable(false)
-                    ->options([
-                        'preschool' => 'Дошкольник',
-                        '1' => '1 класс',
-                        '2' => '2 класс',
-                        '3' => '3 класс',
-                        '4' => '4 класс',
-                        '5' => '5 класс',
-                        '6' => '6 класс',
-                        '7' => '7 класс',
-                        '8' => '8 класс',
-                        '9' => '9 класс',
-                        '10' => '10 класс',
-                        '11' => '11 класс',
-                        'adults' => 'Взрослый',
-                    ])
-                    ->dehydrateStateUsing(function ($state) {
-                        // Convert single value to array for database storage
-                        if (empty($state)) {
-                            return [];
-                        }
-                        $value = is_numeric($state) ? (int) $state : $state;
-                        return [$value];
-                    })
-                    ->afterStateHydrated(function ($component, $state) {
-                        // Convert array to single value for form display
-                        if (!is_array($state) || empty($state)) {
-                            $component->state(null);
-                            return;
-                        }
-                        $firstValue = $state[0];
-                        $component->state(is_int($firstValue) ? (string) $firstValue : $firstValue);
-                    }),
+                    ->options(StudentProfileService::GRADES)
+                    ->dehydrateStateUsing(fn ($state) => StudentProfileService::gradeForStorage($state))
+                    ->afterStateHydrated(fn ($component, $state) => $component->state(StudentProfileService::gradeForForm($state))),
             ])
             ->statePath('data');
     }
@@ -113,30 +85,7 @@ class Profile extends Page
     {
         $data = $this->form->getState();
 
-        // Process Avatar
-        if (isset($data['avatar'])) {
-            $processed = \App\Helpers\FileUploadHelper::processFiles(
-                $data['avatar'],
-                'avatars',
-                640,
-                640
-            );
-            $data['avatar'] = $processed[0] ?? null;
-        }
-
-        $user = auth()->user();
-
-        // Remove password if empty
-        if (empty($data['password'])) {
-            unset($data['password']);
-        }
-
-        $user->update($data);
-
-        // If password was updated, we must re-login to keep session
-        if (isset($data['password'])) {
-            \Illuminate\Support\Facades\Auth::login($user);
-        }
+        app(StudentProfileService::class)->update(auth()->user(), $data);
 
         Notification::make()
             ->success()

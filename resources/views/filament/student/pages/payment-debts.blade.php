@@ -58,27 +58,20 @@
                 @endforeach
             </div>
 
-            @if($teacher && ($teacher->telegram || $teacher->whatsup || $teacher->phone))
+            @if($teacher && ($contacts = $teacher->contactLinks()))
                 <div class="mt-4 flex flex-wrap items-center gap-2">
                     <span class="text-sm text-gray-500 dark:text-gray-400">Связаться с преподавателем:</span>
-                    @if($teacher->telegram)
-                        <a href="https://t.me/{{ $teacher->telegram }}" target="_blank"
-                            class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400 rounded-md ring-1 ring-inset ring-blue-600/20 dark:ring-blue-400/30">
-                            Telegram
+                    @foreach($contacts as $contact)
+                        <a href="{{ $contact['href'] }}" @if($contact['external']) target="_blank" @endif
+                            @class([
+                                'inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-md',
+                                'bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400 ring-1 ring-inset ring-blue-600/20 dark:ring-blue-400/30' => $contact['label'] === 'Telegram',
+                                'bg-green-50 text-green-700 dark:bg-green-500/10 dark:text-green-400 ring-1 ring-inset ring-green-600/20 dark:ring-green-400/30' => $contact['label'] === 'WhatsApp',
+                                'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200' => ! $contact['external'],
+                            ])>
+                            {{ $contact['label'] }}
                         </a>
-                    @endif
-                    @if($teacher->whatsup)
-                        <a href="https://wa.me/{{ preg_replace('/[^0-9]/', '', $teacher->whatsup) }}" target="_blank"
-                            class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium bg-green-50 text-green-700 dark:bg-green-500/10 dark:text-green-400 rounded-md ring-1 ring-inset ring-green-600/20 dark:ring-green-400/30">
-                            WhatsApp
-                        </a>
-                    @endif
-                    @if($teacher->phone)
-                        <a href="tel:{{ $teacher->phone }}"
-                            class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200 rounded-md">
-                            {{ $teacher->phone }}
-                        </a>
-                    @endif
+                    @endforeach
                 </div>
             @endif
         </x-filament::section>

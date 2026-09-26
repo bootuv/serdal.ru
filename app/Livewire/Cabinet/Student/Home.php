@@ -115,7 +115,7 @@ class Home extends Component
                     'teacher' => $h->teacher?->name,
                     'state' => $state,
                     'deadline' => $h->deadline ? HumanDate::at($h->deadline) : null,
-                    'url' => route('filament.student.resources.homework.view', $h),
+                    'url' => route('cabinet.student.task', $h),
                 ];
             });
     }
@@ -135,7 +135,7 @@ class Home extends Component
             'count' => $unpaid->count(),
             'overdue' => $first->isOverdue(),
             'due' => $first->due_date ? HumanDate::date($first->due_date) : null,
-            'url' => url('/student/payment-debts'),
+            'url' => \Illuminate\Support\Facades\Route::has('cabinet.student.payments') ? route('cabinet.student.payments') : url('/student/payment-debts'),
         ];
     }
 }
