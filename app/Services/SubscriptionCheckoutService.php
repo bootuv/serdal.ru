@@ -38,6 +38,34 @@ class SubscriptionCheckoutService
         return $only === null ? $methods : array_intersect_key($methods, array_flip($only));
     }
 
+    /** Логотип способа оплаты (тип ЮKassa: sbp, bank_card…) — адрес картинки или null. */
+    public static function paymentLogo(?string $type): ?string
+    {
+        $icon = self::PAYMENT_METHODS[$type]['icon'] ?? null;
+
+        return $icon ? asset('images/payment/' . $icon) : null;
+    }
+
+    /**
+     * Тип сохранённого способа оплаты учителя (у пользователя хранится только id и название):
+     * берём из платежа, в ответе на который ЮKassa прислала этот способ.
+     */
+    public static function savedMethodType(User $user): ?string
+    {
+        if (! $user->yookassa_payment_method_id) {
+            return null;
+        }
+
+        $payment = $user->subscriptionPayments()
+            ->where('status', \App\Models\SubscriptionPayment::STATUS_PAID)
+            ->latest('id')
+            ->limit(50)
+            ->get()
+            ->first(fn ($p) => ($p->meta['status_response']['payment_method']['id'] ?? null) === $user->yookassa_payment_method_id);
+
+        return $payment?->meta['status_response']['payment_method']['type'] ?? null;
+    }
+
     /** Тариф нельзя оформить: удалён (мягко) или снят с продажи. */
     public static function tariffUnavailable(int|string|null $tariffId): bool
     {

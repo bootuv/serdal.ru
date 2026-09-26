@@ -177,6 +177,8 @@
                                 @else
                                     <span class="text-muted">Нет номера — платёж создан вручную</span>
                                 @endif
+                            @elseif ($label === 'Способ оплаты')
+                                <span class="flex min-w-0 items-center gap-2"><x-ui.pay-logo :type="$cur['methodType']" /><span class="truncate">{{ $value }}</span></span>
                             @else
                                 <span>{{ $value }}</span>
                             @endif

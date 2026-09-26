@@ -308,6 +308,7 @@ class Payments extends Component
             'userUrl' => self::userUrl($p->user_id),
             'gives' => $service->gives($p),
             'method' => $method ?? ($p->status === SubscriptionPayment::STATUS_PENDING ? 'Ещё не выбран' : 'Не известен'),
+            'methodType' => $p->meta['status_response']['payment_method']['type'] ?? null,
             'yk' => $p->gateway_order_id,
             'note' => $p->status === SubscriptionPayment::STATUS_REFUNDED ? $this->refundNote($p) : null,
             'receiptUrl' => $p->status === SubscriptionPayment::STATUS_PAID && Route::has('subscription.payment.receipt') ? route('subscription.payment.receipt', $p) : null,

@@ -200,7 +200,7 @@
                 </div>
             @else
                 <div class="flex flex-col gap-4">
-                    <x-ui.field label="Имя или почта ученика" name="findQuery" type="search" placeholder="Например, Ольга Белова" wire:model.live.debounce.300ms="findQuery" autofocus />
+                    <x-ui.field label="Имя или почта ученика" name="findQuery" type="search" placeholder="Например, Артём Белов" wire:model.live.debounce.300ms="findQuery" autofocus />
                     @if ($invite['query'] === '')
                         <p class="text-t2 text-muted">Начните вводить имя или почту</p>
                     @elseif ($invite['results']->isEmpty())

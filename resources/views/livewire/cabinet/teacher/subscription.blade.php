@@ -110,7 +110,7 @@
             <x-ui.card-head id="s-card" title="Способ оплаты" />
             @if ($user->yookassa_payment_method_id)
                 <div class="flex items-center gap-3">
-                    <x-ui.file-tile icon="wallet" />
+                    <x-ui.pay-logo tile :type="$savedMethodType" />
                     <span class="min-w-0 flex-1 truncate text-t1 font-medium">{{ $user->payment_method_title ?? 'Сохранённый способ оплаты' }}</span>
                     <button type="button" class="link text-t2" wire:click="$set('removeOpen', true)">Отвязать</button>
                 </div>

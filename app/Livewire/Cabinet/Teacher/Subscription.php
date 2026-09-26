@@ -319,6 +319,7 @@ class Subscription extends Component
             'canSave' => $this->canSaveMethod(),
             'methods' => SubscriptionCheckoutService::paymentMethods(),
             'savableMethods' => SubscriptionCheckoutService::paymentMethods(YooKassaService::savableMethods()),
+            'savedMethodType' => SubscriptionCheckoutService::savedMethodType($user),
             'recurring' => YooKassaService::recurringEnabled(),
             'extraPrice' => $price,
             'extraMax' => SubscriptionService::extraLessonsMax(),

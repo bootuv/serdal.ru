@@ -105,6 +105,28 @@ class TeacherSubscriptionTest extends TestCase
             ->assertDontSee('Продлить');
     }
 
+    /** Способы оплаты — с логотипами платёжных систем; сохранённый способ — с логотипом своего типа. */
+    public function test_payment_methods_show_logos(): void
+    {
+        $this->yookassa(['id' => 'yk-0', 'status' => 'pending']);
+        $tutor = $this->tutor(['yookassa_payment_method_id' => 'pm-sbp', 'payment_method_title' => 'СБП']);
+        SubscriptionPayment::create([
+            'user_id' => $tutor->id, 'tariff_id' => $this->tariff('basic')->id, 'amount' => 990,
+            'status' => SubscriptionPayment::STATUS_PAID, 'gateway' => 'yookassa', 'gateway_order_id' => 'yk-saved', 'paid_at' => now(),
+            'meta' => ['status_response' => ['payment_method' => ['id' => 'pm-sbp', 'type' => 'sbp', 'saved' => true]]],
+        ]);
+
+        $page = Livewire::actingAs($tutor)->test(Subscription::class);
+        // Сохранённый способ — логотип СБП вместо значка кошелька
+        $page->assertSeeHtml(asset('images/payment/sbp.svg'));
+
+        // Выбор способа при оплате (без сохранённого способа)
+        $page = Livewire::actingAs($this->tutor())->test(Subscription::class)->call('openSelect', $this->tariff('basic')->id);
+        foreach (['sbp.svg', 'sberpay.svg', 'tpay.svg', 'card.svg', 'yoomoney.png'] as $logo) {
+            $page->assertSeeHtml(asset('images/payment/' . $logo));
+        }
+    }
+
     public function test_paid_tariff_redirects_to_payment_page_with_chosen_method(): void
     {
         $this->yookassa(['id' => 'yk-1', 'status' => 'pending', 'confirmation' => ['confirmation_url' => 'https://pay.test/go']]);
