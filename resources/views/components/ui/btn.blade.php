@@ -1,5 +1,7 @@
 {{-- Кнопка: три стиля (primary — жёлтая, одна на экран; dark — ≤ 1 на экран; outline — остальное).
-     size: s (36) | m (44) | l (52). Если передан href — рендерится ссылкой. --}}
+     size: s (36) | m (44) | l (52). Если передан href — рендерится ссылкой.
+     Телефон: одиночная кнопка под текстом (class self-start) — на всю ширину; в ряду кнопок с flex-wrap кнопки
+     растягиваются и заполняют строку (cabinet.css, [data-btn]). Квадратные кнопки-иконки не растягиваются. --}}
 @props(['variant' => 'outline', 'size' => 'm', 'href' => null, 'icon' => null, 'square' => false, 'type' => 'button'])
 @php
     $base = 'inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors disabled:cursor-default disabled:opacity-50';
@@ -13,11 +15,13 @@
         'dark' => 'bg-ink text-white hover:bg-ink-hover',
         'outline' => 'bg-transparent text-ink shadow-outline hover:shadow-outline-ink',
     ];
-    $classes = $base . ' ' . $sizes[$size] . ' ' . $variants[$variant];
+    $classes = $base . ' ' . $sizes[$size] . ' ' . $variants[$variant]
+        . (! $square && str_contains((string) $attributes->get('class'), 'self-start') ? ' w-full sm:w-auto' : '');
+    $marks = $square ? 'data-btn data-square' : 'data-btn';
     $iconSize = $size === 's' ? 's' : 'm';
 @endphp
 @if ($href)
-    <a href="{{ $href }}" {{ $attributes->class($classes) }}>@if ($icon)<x-ui.icon :name="$icon" :size="$iconSize" />@endif{{ $slot }}</a>
+    <a href="{{ $href }}" {!! $marks !!} {{ $attributes->class($classes) }}>@if ($icon)<x-ui.icon :name="$icon" :size="$iconSize" />@endif{{ $slot }}</a>
 @else
-    <button type="{{ $type }}" {{ $attributes->class($classes) }}>@if ($icon)<x-ui.icon :name="$icon" :size="$iconSize" />@endif{{ $slot }}</button>
+    <button type="{{ $type }}" {!! $marks !!} {{ $attributes->class($classes) }}>@if ($icon)<x-ui.icon :name="$icon" :size="$iconSize" />@endif{{ $slot }}</button>
 @endif

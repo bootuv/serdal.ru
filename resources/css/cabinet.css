@@ -21,6 +21,11 @@
     /* Ссылка — подчёркнутый текст */
     .link { @apply font-medium text-ink underline underline-offset-4 decoration-line-strong hover:decoration-ink; }
 
+    /* Кнопки на телефоне: в ряду кнопок (flex-wrap) растягиваются и заполняют строку; квадратные — нет (x-ui.btn) */
+    @media (max-width: 639.98px) {
+        .flex-wrap > [data-btn]:not([data-square]) { flex-grow: 1; }
+    }
+
     /* Плеер записей (x-ui.video-player): дорожка — просмотрено жёлтым поверх загруженного, прозрачный бегунок сверху */
     .vp-track { @apply relative flex h-4 items-center; }
     .vp-track::before { content: ''; @apply absolute inset-x-0 h-1 rounded-full bg-white/25; }

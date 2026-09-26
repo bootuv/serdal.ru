@@ -21,9 +21,10 @@
         </div>
         <div class="flex flex-col gap-4 overflow-y-auto p-6">{{ $slot }}</div>
         @isset($footer)
-            <div class="flex items-center justify-between gap-4 border-t border-line px-6 py-4">
-                <div class="min-w-0 text-t2 text-muted">{{ $note ?? '' }}</div>
-                <div class="flex shrink-0 items-center gap-2">{{ $footer }}</div>
+            {{-- Телефон: пояснение сверху, кнопки под ним на всю ширину; с sm — пояснение слева, кнопки справа --}}
+            <div class="flex flex-col gap-3 border-t border-line px-6 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+                <div class="min-w-0 text-t2 text-muted empty:hidden sm:empty:block">{{ $note ?? '' }}</div>
+                <div class="flex flex-wrap items-center gap-2 sm:shrink-0 sm:flex-nowrap">{{ $footer }}</div>
             </div>
         @endisset
     </div>
