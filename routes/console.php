@@ -11,6 +11,9 @@ Artisan::command('inspire', function () {
 // Update next_start date for expired lessons
 Schedule::command('room:update-next-start')->everyMinute();
 
+// Напоминание учителю и ученикам за 15 минут до занятия (кабинет, реалтайм, пуш)
+Schedule::command('lessons:remind')->everyMinute()->withoutOverlapping();
+
 // Monthly payment records for students with monthly billing
 Schedule::command('payments:generate-monthly')->monthlyOn(1, '06:00');
 
