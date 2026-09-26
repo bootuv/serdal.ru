@@ -292,7 +292,7 @@ class Today extends Component
                 'title' => $lessonType ? 'Цены указаны' : 'Укажите цены',
                 'facts' => $lessonType ? \App\Support\Money::format((int) $lessonType->price) . ($lessonType->isMonthly() ? ' в месяц' : ($lessonType->duration ? ' за ' . $lessonType->duration . ' минут' : ' за занятие')) : null,
                 'text' => 'По ним начисляется оплата занятий',
-                'url' => Route::has('cabinet.teacher.profile') ? route('cabinet.teacher.profile') : url('/tutor/lesson-types'),
+                'url' => Route::has('cabinet.teacher.profile') ? route('cabinet.teacher.profile', ['tab' => 'prices']) : url('/tutor/lesson-types'),
                 'action' => 'Указать цены',
             ],
             [

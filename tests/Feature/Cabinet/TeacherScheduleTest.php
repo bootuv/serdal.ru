@@ -274,6 +274,8 @@ class TeacherScheduleTest extends TestCase
         Livewire::actingAs($teacher)
             ->test(Schedule::class)
             ->call('openPlan')
+            // «Указать цены» / «Изменить цены» — сразу во вкладку цен профиля
+            ->assertSee(route('cabinet.teacher.profile', ['tab' => 'prices']), false)
             ->set('planKind', 'group')
             ->set('planAdd', (string) $a->id)
             ->set('planAdd', (string) $b->id)

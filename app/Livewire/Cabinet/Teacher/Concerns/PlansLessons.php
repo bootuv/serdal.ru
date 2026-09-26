@@ -213,7 +213,7 @@ trait PlansLessons
                 ? plural_ru($count, 'ученик', 'ученика', 'учеников') . ($tariff?->max_participants ? ' · на «' . $tariff->name . '» до ' . $tariff->max_participants . ' в занятии' : '')
                 : 'Нового ученика сначала пригласите в разделе «Ученики»',
             'planPrice' => self::priceNote($lessonType),
-            'planPricesUrl' => Route::has('cabinet.teacher.profile') ? route('cabinet.teacher.profile') : url('/tutor/lesson-types'),
+            'planPricesUrl' => Route::has('cabinet.teacher.profile') ? route('cabinet.teacher.profile', ['tab' => 'prices']) : url('/tutor/lesson-types'),
             'planFirst' => $first ? ($this->planRepeat === 'weekly' ? 'Первое занятие — ' : 'Разовое занятие — ') . HumanDate::at($first) : null,
             'planDurations' => TeacherLessonService::durationOptions($this->planDuration),
         ];
