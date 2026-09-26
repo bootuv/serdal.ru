@@ -39,7 +39,7 @@ class RecordingDownloadTest extends TestCase
         ]);
     }
 
-    protected function makeRecording(User $teacher, ?string $s3Url = 'https://s3.example.com/serdal/recordings/1/lesson.m4v'): Recording
+    protected function makeRecording(User $teacher, ?string $s3Url = 'https://s3.example.com/serdal/recordings/1/lesson.m4v', ?User $participant = null): Recording
     {
         $room = Room::create([
             'user_id' => $teacher->id,
@@ -49,6 +49,10 @@ class RecordingDownloadTest extends TestCase
             'attendee_pw' => 'ap',
             'is_running' => false,
         ]);
+
+        if ($participant) {
+            $room->participants()->attach($participant->id);
+        }
 
         return Recording::create([
             'meeting_id' => $room->meeting_id,
@@ -66,7 +70,7 @@ class RecordingDownloadTest extends TestCase
         $student = $this->makeUser(User::ROLE_STUDENT);
         $teacher->students()->attach($student->id);
         $admin = $this->makeUser(User::ROLE_ADMIN);
-        $recording = $this->makeRecording($teacher);
+        $recording = $this->makeRecording($teacher, participant: $student);
 
         foreach ([$teacher, $student, $admin] as $user) {
             $location = $this->actingAs($user)
@@ -92,6 +96,19 @@ class RecordingDownloadTest extends TestCase
         foreach ([$otherTeacher, $otherStudent] as $user) {
             $this->actingAs($user)->get(route('recordings.download', $recording))->assertForbidden();
         }
+    }
+
+    public function test_teachers_student_not_assigned_to_lesson_cannot_download(): void
+    {
+        $teacher = $this->makeUser(User::ROLE_TUTOR);
+        $classmate = $this->makeUser(User::ROLE_STUDENT);
+        $outsider = $this->makeUser(User::ROLE_STUDENT);
+        $teacher->students()->attach([$classmate->id, $outsider->id]);
+        $recording = $this->makeRecording($teacher, participant: $classmate);
+
+        $this->actingAs($outsider)->get(route('recordings.download', $recording))->assertForbidden();
+        $this->assertFalse(Recording::forStudent($outsider)->whereKey($recording->id)->exists());
+        $this->assertTrue(Recording::forStudent($classmate)->whereKey($recording->id)->exists());
     }
 
     public function test_recording_not_in_storage_yet_returns_404(): void

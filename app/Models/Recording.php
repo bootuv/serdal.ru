@@ -45,7 +45,8 @@ class Recording extends Model
      */
     public function scopeForStudent(Builder $query, User $student): Builder
     {
-        $meetingIds = Room::whereIn('user_id', $student->teachers()->pluck('users.id'))
+        // Только записи занятий, к которым ученик назначен участником
+        $meetingIds = Room::whereHas('participants', fn ($q) => $q->where('users.id', $student->id))
             ->pluck('meeting_id')
             ->filter();
 

@@ -377,6 +377,16 @@ class User extends Authenticatable implements FilamentUser
     protected static function booted()
     {
         static::saving(function ($user) {
+            // Правили полное имя, а не его части (профиль ученика) — раскладываем его на «Фамилия Имя Отчество»,
+            // иначе ниже оно перезапишется старыми частями и правка потеряется
+            $nameEdited = $user->exists && $user->isDirty('name') && ! $user->isDirty(['last_name', 'first_name', 'middle_name']);
+            if ($nameEdited && ($user->getOriginal('last_name') || $user->getOriginal('first_name'))) {
+                $words = preg_split('/\s+/u', trim((string) $user->name), -1, PREG_SPLIT_NO_EMPTY);
+                $user->last_name = $words[0] ?? null;
+                $user->first_name = $words[1] ?? null;
+                $user->middle_name = count($words) > 2 ? implode(' ', array_slice($words, 2)) : null;
+            }
+
             // Формируем полное имя для совместимости
             $parts = array_filter([$user->last_name, $user->first_name, $user->middle_name]);
             if (!empty($parts)) {

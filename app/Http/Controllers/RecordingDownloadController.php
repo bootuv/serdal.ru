@@ -19,11 +19,11 @@ class RecordingDownloadController extends Controller
     {
         $user = auth()->user();
 
-        // Доступ — как на странице просмотра: админ, владелец комнаты или ученик владельца
+        // Доступ — как на странице просмотра: админ, владелец занятия или ученик, назначенный на это занятие
         if (!$user->isAdmin()) {
-            $ownerId = Room::where('meeting_id', $recording->meeting_id)->value('user_id');
-            $isOwner = $ownerId === $user->id;
-            $isStudent = $ownerId && $user->teachers()->where('users.id', $ownerId)->exists();
+            $room = Room::where('meeting_id', $recording->meeting_id)->first();
+            $isOwner = $room && $room->user_id === $user->id;
+            $isStudent = $room && $room->participants()->where('users.id', $user->id)->exists();
 
             if (!$isOwner && !$isStudent) {
                 abort(403);
