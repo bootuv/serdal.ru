@@ -618,7 +618,7 @@
                         @endif
 
                         {{-- Для учителей: предметы, классы, о себе --}}
-                        @if(in_array($supportChat->user->role, ['mentor', 'tutor']))
+                        @if(in_array($supportChat->user->role, ['tutor']))
                             {{-- Предметы --}}
                             @if($supportChat->user->subjects->isNotEmpty())
                                 <div>

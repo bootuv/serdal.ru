@@ -13,7 +13,7 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class EnsureCabinetRole
 {
-    public const TEACHER_ROLES = [User::ROLE_TUTOR, User::ROLE_MENTOR, User::ROLE_ADMIN];
+    public const TEACHER_ROLES = [User::ROLE_TUTOR, User::ROLE_ADMIN];
 
     public function handle(Request $request, Closure $next, string $cabinet): Response
     {
@@ -28,7 +28,7 @@ class EnsureCabinetRole
     {
         return match ($user?->role) {
             User::ROLE_STUDENT => route('cabinet.student.home'),
-            User::ROLE_TUTOR, User::ROLE_MENTOR => \Illuminate\Support\Facades\Route::has('cabinet.teacher.today') ? route('cabinet.teacher.today') : url('/tutor'),
+            User::ROLE_TUTOR => \Illuminate\Support\Facades\Route::has('cabinet.teacher.today') ? route('cabinet.teacher.today') : url('/tutor'),
             default => url('/admin'),
         };
     }

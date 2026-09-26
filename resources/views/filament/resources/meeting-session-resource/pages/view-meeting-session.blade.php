@@ -12,7 +12,7 @@
         // Fetch users to check roles AND get avatars
         $users = \App\Models\User::whereIn('id', $userIds)->get()->keyBy('id');
 
-        $teacherIds = $users->filter(fn($u) => in_array($u->role, [\App\Models\User::ROLE_TUTOR, \App\Models\User::ROLE_MENTOR]))
+        $teacherIds = $users->filter(fn($u) => in_array($u->role, [\App\Models\User::ROLE_TUTOR]))
             ->pluck('id')
             ->map(fn($id) => (string) $id)
             ->toArray();

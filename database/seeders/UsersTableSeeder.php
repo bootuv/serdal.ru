@@ -36,7 +36,7 @@ class UsersTableSeeder extends Seeder
         ]);
 
         for ($i = 0; $i < self::COUNT_TEACHERS; $i++) {
-            $this->createUser(rand(0, 3) === 0 ? User::ROLE_MENTOR : User::ROLE_TUTOR);
+            $this->createUser(User::ROLE_TUTOR);
         }
 
         for ($i = 0; $i < self::COUNT_STUDENTS; $i++) {

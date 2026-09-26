@@ -37,7 +37,7 @@ class SubscriptionResource extends Resource
                     ->label('Преподаватель')
                     ->options(
                         User::query()
-                            ->whereIn('role', [User::ROLE_TUTOR, User::ROLE_MENTOR])
+                            ->whereIn('role', [User::ROLE_TUTOR])
                             ->orderBy('name')
                             ->pluck('name', 'id')
                     )

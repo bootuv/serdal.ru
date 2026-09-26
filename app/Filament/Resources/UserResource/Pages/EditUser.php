@@ -17,7 +17,7 @@ class EditUser extends EditRecord
                 ->label(fn() => $this->record->activeSubscription()?->tariff->name ?? 'Назначить подписку')
                 ->icon('heroicon-o-credit-card')
                 ->color(fn() => $this->record->activeSubscription() ? 'gray' : 'primary')
-                ->visible(fn() => in_array($this->record->role, [\App\Models\User::ROLE_TUTOR, \App\Models\User::ROLE_MENTOR]))
+                ->visible(fn() => in_array($this->record->role, [\App\Models\User::ROLE_TUTOR]))
                 ->modalHeading(fn() => ($this->record->activeSubscription() ? 'Изменить подписку: ' : 'Назначить подписку: ') . $this->record->name)
                 ->modalDescription(function () {
                     $current = $this->record->activeSubscription();

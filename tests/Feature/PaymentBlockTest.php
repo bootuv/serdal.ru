@@ -433,7 +433,7 @@ class PaymentBlockTest extends TestCase
             ->assertDontSee(route('rooms.connect', $room));
     }
 
-    public function test_admin_sees_who_is_blocked_and_why(): void
+    public function test_admin_does_not_see_lesson_payments(): void
     {
         $admin = User::factory()->create([
             'role' => User::ROLE_ADMIN,
@@ -453,26 +453,16 @@ class PaymentBlockTest extends TestCase
         \Filament\Facades\Filament::setCurrentPanel(\Filament\Facades\Filament::getPanel('admin'));
         $this->actingAs($admin);
 
-        // Колонка «Блокировка занятий» показывает преподавателя, фильтр оставляет только заблокированных
+        // Оплата занятий ученик → учитель — дело учителя и ученика: в админке нет ни колонки, ни фильтра, ни начислений
         \Livewire\Livewire::test(\App\Filament\Resources\UserResource\Pages\ListUsers::class)
             ->assertCanSeeTableRecords([$blocked, $clean])
-            ->assertTableColumnStateSet('payment_block', [$teacher->name], $blocked)
-            ->assertTableColumnStateSet('payment_block', null, $clean)
-            ->filterTable('payment_blocked')
-            ->assertCanSeeTableRecords([$blocked])
-            ->assertCanNotSeeTableRecords([$clean]);
+            ->assertTableColumnDoesNotExist('payment_block')
+            ->assertDontSee('Заблокированы занятия за неоплату');
 
-        $this->assertStringContainsString($teacher->name, \App\Filament\Resources\UserResource::paymentBlockTooltip($blocked));
-        $this->assertNull(\App\Filament\Resources\UserResource::paymentBlockTooltip($clean));
-
-        // На странице ученика — таблица начислений с причиной блокировки
-        \Livewire\Livewire::test(\App\Filament\Resources\UserResource\RelationManagers\PaymentRecordsRelationManager::class, [
-            'ownerRecord' => $blocked,
-            'pageClass' => \App\Filament\Resources\UserResource\Pages\EditUser::class,
-        ])
-            ->assertCanSeeTableRecords($blocked->paymentRecords)
-            ->assertTableColumnStateSet('status', 'Блокирует занятия', $blocked->paymentRecords->first())
-            ->assertSee($teacher->name);
+        $this->assertNotContains(
+            'App\\Filament\\Resources\\UserResource\\RelationManagers\\PaymentRecordsRelationManager',
+            \App\Filament\Resources\UserResource::getRelations()
+        );
     }
 
     public function test_completed_session_creates_record_without_any_block_flag(): void

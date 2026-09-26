@@ -67,7 +67,7 @@ class RegisterInvitedStudent extends Component
             }
 
             if ($this->teacher_id) {
-                $teacher = User::whereKey($this->teacher_id)->whereIn('role', [User::ROLE_TUTOR, User::ROLE_MENTOR])->first();
+                $teacher = User::whereKey($this->teacher_id)->whereIn('role', [User::ROLE_TUTOR])->first();
                 if ($teacher) {
                     // Привязываем ученика к учителю
                     $changes = $teacher->students()->syncWithoutDetaching([$user->id]);

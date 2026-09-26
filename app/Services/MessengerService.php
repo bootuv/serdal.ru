@@ -27,7 +27,7 @@ use Illuminate\Support\Facades\Storage;
  */
 class MessengerService
 {
-    public const TEACHER_ROLES = [User::ROLE_TUTOR, User::ROLE_MENTOR, User::ROLE_ADMIN];
+    public const TEACHER_ROLES = [User::ROLE_TUTOR, User::ROLE_ADMIN];
 
     /** Задержка уведомления о непрочитанном сообщении (если прочитали раньше — не шлём). */
     private const NOTIFY_DELAY_SECONDS = 30;

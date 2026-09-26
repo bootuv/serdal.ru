@@ -19,7 +19,6 @@ use NotificationChannels\WebPush\HasPushSubscriptions;
 
 class User extends Authenticatable implements FilamentUser
 {
-    const ROLE_MENTOR = 'mentor';
 
     const ROLE_TUTOR = 'tutor';
 
@@ -176,7 +175,6 @@ class User extends Authenticatable implements FilamentUser
         return Attribute::make(
             get: function () {
                 return match ($this->role) {
-                    User::ROLE_MENTOR => 'Ментор',
                     User::ROLE_TUTOR => 'Преподаватель',
                     User::ROLE_STUDENT => 'Ученик',
                     User::ROLE_ADMIN => 'Администратор',
@@ -199,7 +197,7 @@ class User extends Authenticatable implements FilamentUser
 
     public function scopeIsSpecialist(Builder $query): Builder
     {
-        return $query->whereIn('role', [User::ROLE_MENTOR, User::ROLE_TUTOR]);
+        return $query->whereIn('role', [User::ROLE_TUTOR]);
     }
 
     public function canAccessPanel(Panel $panel): bool
@@ -214,7 +212,7 @@ class User extends Authenticatable implements FilamentUser
         }
 
         if ($panel->getId() === 'app') {
-            return in_array($this->role, [self::ROLE_ADMIN, self::ROLE_MENTOR, self::ROLE_TUTOR]);
+            return in_array($this->role, [self::ROLE_ADMIN, self::ROLE_TUTOR]);
         }
 
         if ($panel->getId() === 'student') {

@@ -24,7 +24,6 @@ class LoginRedirectTest extends TestCase
     {
         $this->assertSame(route('cabinet.student.home'), $this->landing(User::ROLE_STUDENT));
         $this->assertSame(route('cabinet.teacher.today'), $this->landing(User::ROLE_TUTOR));
-        $this->assertSame(route('cabinet.teacher.today'), $this->landing(User::ROLE_MENTOR));
         $this->assertSame(url('/admin'), $this->landing(User::ROLE_ADMIN));
     }
 

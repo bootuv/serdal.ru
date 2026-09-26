@@ -14,7 +14,7 @@ trait TeacherScreen
     protected function authorizeTeacher(bool $requireProfile = true): User
     {
         $user = auth()->user();
-        abort_unless($user && in_array($user->role, [User::ROLE_TUTOR, User::ROLE_MENTOR, User::ROLE_ADMIN], true), 403);
+        abort_unless($user && in_array($user->role, [User::ROLE_TUTOR, User::ROLE_ADMIN], true), 403);
 
         if ($requireProfile && $user->role === User::ROLE_TUTOR && ! $user->is_profile_completed) {
             $this->redirect(\Illuminate\Support\Facades\Route::has('cabinet.teacher.onboarding')

@@ -129,7 +129,7 @@ class ReferralService
         }
 
         return User::where('referral_code', strtolower($code))
-            ->whereIn('role', [User::ROLE_TUTOR, User::ROLE_MENTOR])
+            ->whereIn('role', [User::ROLE_TUTOR])
             ->first();
     }
 

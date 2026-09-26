@@ -93,7 +93,7 @@ class IndexController extends Controller
             ->withAvg(['receivedReviews as rating_avg' => $publishedReviews], 'rating');
 
         if ($request->has('user_type')) {
-            $types = array_intersect((array) $request->input('user_type'), [User::ROLE_MENTOR, User::ROLE_TUTOR]);
+            $types = array_intersect((array) $request->input('user_type'), [User::ROLE_TUTOR]);
             if ($types) {
                 $queryBuilder->whereIn('role', $types);
             }

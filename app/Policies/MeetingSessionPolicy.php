@@ -14,8 +14,7 @@ class MeetingSessionPolicy
     public function viewAny(User $user): bool
     {
         return $user->isAdmin()
-            || $user->role === User::ROLE_TUTOR
-            || $user->role === User::ROLE_MENTOR;
+            || $user->role === User::ROLE_TUTOR;
     }
 
     /**

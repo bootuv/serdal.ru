@@ -2,7 +2,7 @@
     $user = auth()->user();
 
     // Бейдж показываем только преподавателям
-    if (!$user || !in_array($user->role, [\App\Models\User::ROLE_TUTOR, \App\Models\User::ROLE_MENTOR])) {
+    if (!$user || !in_array($user->role, [\App\Models\User::ROLE_TUTOR])) {
         return;
     }
 

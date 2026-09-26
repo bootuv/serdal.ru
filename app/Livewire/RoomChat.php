@@ -137,7 +137,7 @@ class RoomChat extends Component implements HasActions, HasForms
                 'attachments' => $msg->attachments ?? [],
                 'created_at' => $msg->created_at->format('H:i'),
                 'is_own' => $msg->user_id === auth()->id(),
-                'can_delete' => $msg->user_id === auth()->id() || in_array(auth()->user()->role, [\App\Models\User::ROLE_ADMIN, \App\Models\User::ROLE_TUTOR, \App\Models\User::ROLE_MENTOR]),
+                'can_delete' => $msg->user_id === auth()->id() || in_array(auth()->user()->role, [\App\Models\User::ROLE_ADMIN, \App\Models\User::ROLE_TUTOR]),
                 'can_edit' => $msg->user_id === auth()->id(),
                 'read_at' => $msg->read_at,
                 'user_color' => $msg->user->avatar_text_color,
@@ -338,7 +338,7 @@ class RoomChat extends Component implements HasActions, HasForms
             'attachments' => $event['attachments'] ?? [],
             'created_at' => \Carbon\Carbon::parse($event['created_at'])->format('H:i'),
             'is_own' => false,
-            'can_delete' => in_array(auth()->user()->role, [\App\Models\User::ROLE_ADMIN, \App\Models\User::ROLE_TUTOR, \App\Models\User::ROLE_MENTOR]),
+            'can_delete' => in_array(auth()->user()->role, [\App\Models\User::ROLE_ADMIN, \App\Models\User::ROLE_TUTOR]),
             'can_edit' => false,
             'read_at' => now(), // Marked as read because we just read it by being here
             'user_color' => $event['user_color'] ?? '#000000',

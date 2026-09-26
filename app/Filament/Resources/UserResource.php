@@ -93,8 +93,7 @@ class UserResource extends Resource
                     ->label('Роль')
                     ->options([
                         User::ROLE_ADMIN => 'Администратор',
-                        User::ROLE_MENTOR => 'Ментор',
-                        User::ROLE_TUTOR => 'Репетитор',
+                            User::ROLE_TUTOR => 'Репетитор',
                         User::ROLE_STUDENT => 'Ученик',
                     ])
                     ->required(),
@@ -185,21 +184,10 @@ class UserResource extends Resource
                     ->trueColor('danger')
                     ->falseColor('success')
                     ->toggleable(),
-                // Ученики с просроченной оплатой: к чьим занятиям сейчас нет доступа и за что
-                TextColumn::make('payment_block')
-                    ->label('Блокировка занятий')
-                    ->state(fn(User $record) => $record->role === User::ROLE_STUDENT
-                        ? \App\Services\PaymentRecordService::blockedTeachers($record->id)->pluck('name')->all()
-                        : [])
-                    ->badge()
-                    ->color('danger')
-                    ->icon('heroicon-m-lock-closed')
-                    ->placeholder('—')
-                    ->tooltip(fn(User $record) => static::paymentBlockTooltip($record))
-                    ->toggleable(),
+                // Оплата занятий ученик → учитель админу не показывается (решение владельца)
                 Tables\Columns\IconColumn::make('is_profile_completed')
                     ->label('Онбординг')
-                    ->getStateUsing(fn($record) => in_array($record->role, [User::ROLE_TUTOR, User::ROLE_MENTOR]) ? $record->is_profile_completed : null)
+                    ->getStateUsing(fn($record) => in_array($record->role, [User::ROLE_TUTOR]) ? $record->is_profile_completed : null)
                     ->boolean()
                     ->trueIcon('heroicon-o-check-circle')
                     ->falseIcon('heroicon-o-x-circle')
@@ -213,17 +201,12 @@ class UserResource extends Resource
                     ->toggleable(),
             ])
             ->filters([
-                Tables\Filters\Filter::make('payment_blocked')
-                    ->label('Заблокированы занятия за неоплату')
-                    ->toggle()
-                    ->query(fn(Builder $query) => $query->whereIn('id', \App\Services\PaymentRecordService::allBlockedStudentIds())),
                 SelectFilter::make('role')
                     ->label('Роль')
                     ->multiple()
                     ->options([
                         User::ROLE_ADMIN => 'Администратор',
-                        User::ROLE_MENTOR => 'Ментор',
-                        User::ROLE_TUTOR => 'Репетитор',
+                            User::ROLE_TUTOR => 'Репетитор',
                         User::ROLE_STUDENT => 'Ученик',
                     ]),
                 SelectFilter::make('direct')
@@ -265,7 +248,7 @@ class UserResource extends Resource
                     ->icon('heroicon-o-credit-card')
                     ->button()
                     ->color(fn(User $record) => $record->activeSubscription() ? 'gray' : 'primary')
-                    ->visible(fn(User $record) => in_array($record->role, [User::ROLE_TUTOR, User::ROLE_MENTOR]))
+                    ->visible(fn(User $record) => in_array($record->role, [User::ROLE_TUTOR]))
                     ->modalHeading(fn(User $record) => ($record->activeSubscription() ? 'Изменить подписку: ' : 'Назначить подписку: ') . $record->name)
                     ->modalDescription(function (User $record) {
                         $current = $record->activeSubscription();
@@ -381,41 +364,7 @@ class UserResource extends Resource
     {
         return [
             LessonTypesRelationManager::class,
-            \App\Filament\Resources\UserResource\RelationManagers\PaymentRecordsRelationManager::class,
         ];
-    }
-
-    /**
-     * Подсказка к колонке «Блокировка занятий»: какие записи закрывают доступ, к какому
-     * преподавателю и с какого срока.
-     */
-    public static function paymentBlockTooltip(User $record): ?string
-    {
-        if ($record->role !== User::ROLE_STUDENT) {
-            return null;
-        }
-
-        $blocked = \App\Services\PaymentRecordService::debtStatuses($record->id)
-            ->filter(fn($item) => $item['status']['blocked']);
-
-        if ($blocked->isEmpty()) {
-            return null;
-        }
-
-        return $blocked->map(function ($item) use ($record) {
-            $status = $item['status'];
-            $debts = \App\Models\PaymentRecord::overdue()
-                ->where('student_id', $record->id)
-                ->where('teacher_id', $item['teacher']->id)
-                ->with('meetingSession.room')
-                ->orderBy('due_date')
-                ->get()
-                ->map(fn(\App\Models\PaymentRecord $r) => $r->label . ' (до ' . $r->due_date->format('d.m.Y') . ')')
-                ->join(', ');
-
-            return $item['teacher']->name . ': посетил ' . trans_choice('{1} :count занятие|[2,4] :count занятия|[5,*] :count занятий', $status['lessons_with_debt'])
-                . ' с долгом с ' . $status['debt_since']->format('d.m.Y') . '. Не оплачено: ' . $debts;
-        })->join('; ');
     }
 
     public static function getPages(): array
