@@ -917,12 +917,12 @@ class SubscriptionTariffsTest extends TestCase
         $this->assertEquals(1, SubscriptionService::lessonsUsedThisPeriod($tutor->fresh()));
     }
 
-    /** Строка под именем учителя в сайдбаре нового кабинета (вместо бейджа тарифа в шапке Filament). */
-    protected function assertSidebarProfileSub(\Illuminate\Testing\TestResponse $response, User $tutor, string $sub): void
+    /** Плашка тарифа в сайдбаре нового кабинета (вместо бейджа тарифа в шапке Filament): название и срок. */
+    protected function assertSidebarTariff(\Illuminate\Testing\TestResponse $response, string $name, string $until): void
     {
         $this->assertMatchesRegularExpression(
-            '#<span class="truncate text-t2 font-medium">' . preg_quote(e($tutor->name), '#') . '</span>\s*'
-            . '<span class="truncate text-t3 text-muted">' . preg_quote(e($sub), '#') . '</span>#u',
+            '#<span class="truncate text-t2 font-medium">Тариф «' . preg_quote(e($name), '#') . '»</span>\s*'
+            . '<span class="shrink-0 text-t3 text-muted">' . preg_quote(e($until), '#') . '</span>#u',
             $response->getContent()
         );
     }
@@ -938,12 +938,12 @@ class SubscriptionTariffsTest extends TestCase
 
         // Тариф и срок — под именем учителя в сайдбаре на любом экране
         $response = $this->actingAs($tutor)->get(route('cabinet.teacher.students'))->assertOk();
-        $this->assertSidebarProfileSub($response, $tutor, 'Базовый · до ' . \App\Support\HumanDate::date($endsAt));
+        $this->assertSidebarTariff($response, 'Базовый', 'до ' . \App\Support\HumanDate::date($endsAt));
 
         // Бесплатный тариф — без срока
         SubscriptionService::activate($tutor, Tariff::where('slug', 'start')->first());
         $response = $this->actingAs($tutor)->get(route('cabinet.teacher.students'))->assertOk();
-        $this->assertSidebarProfileSub($response, $tutor, 'Старт · бесплатный');
+        $this->assertSidebarTariff($response, 'Старт', 'бесплатный');
     }
 
     public function test_header_badge_prompts_to_choose_tariff_when_none(): void
@@ -953,15 +953,16 @@ class SubscriptionTariffsTest extends TestCase
         $this->actingAs($tutor)->get('/tutor/students')
             ->assertRedirect(route('cabinet.teacher.students'));
 
-        // Без тарифа под именем — ссылка «Профиль и тариф»
-        $response = $this->actingAs($tutor)->get(route('cabinet.teacher.students'))->assertOk();
-        $this->assertSidebarProfileSub($response, $tutor, 'Профиль и тариф');
+        // Без тарифа — плашка в сайдбаре просит выбрать тариф
+        $this->actingAs($tutor)->get(route('cabinet.teacher.students'))->assertOk()
+            ->assertSee('Тариф не выбран')
+            ->assertSee('Выберите тариф, чтобы проводить занятия');
 
         // На «Сегодня» — карточка с предложением выбрать тариф и ссылкой на тарифы
         $this->actingAs($tutor)->get(route('cabinet.teacher.today'))
             ->assertOk()
             ->assertSee('Тариф не выбран')
-            ->assertSee('Выберите тариф, чтобы проводить занятия.')
+            ->assertSee('Выберите тариф, чтобы проводить занятия')
             ->assertSee('Подключите тариф')
             ->assertSee(route('cabinet.teacher.subscription'));
     }
