@@ -106,7 +106,7 @@ trait ReviewsPaymentClaims
     {
         return $this->claims()->pendingForTeacher($teacher, $studentId)
             ->groupBy('student_id')
-            ->map(function (Collection $group) {
+            ->map(function (Collection $group) use ($teacher) {
                 /** @var PaymentClaim $claim */
                 $claim = $group->first();
                 $records = $group->flatMap->records->where('status', PaymentRecord::STATUS_UNPAID)->unique('id');
@@ -120,6 +120,9 @@ trait ReviewsPaymentClaims
                         $sum ? Money::format($sum) : null,
                         $claim->files ? 'чек приложен' : null,
                     ])),
+                    // Чеки-картинки — превью рядом с заявкой (открываются в лайтбоксе)
+                    'receipts' => collect($claim->files ? $this->claims()->files($claim, $teacher) : [])
+                        ->filter(fn (array $f) => $f['image'] && $f['url'])->values()->all(),
                 ];
             });
     }
@@ -143,7 +146,7 @@ trait ReviewsPaymentClaims
         return ['claimView' => [
             'student' => $claim->student?->name ?? 'Ученик',
             'firstName' => $claim->student?->first_name ?: \Illuminate\Support\Str::before(trim((string) $claim->student?->name), ' '),
-            'when' => 'сообщил(а) ' . HumanDate::at($claim->created_at),
+            'when' => 'отправлено ' . HumanDate::at($claim->created_at),
             'rows' => $records->map(fn (PaymentRecord $r) => [
                 'id' => $r->id,
                 'title' => $r->human_label,

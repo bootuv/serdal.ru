@@ -16,16 +16,24 @@
             {{ $isFree ? $firstName . ' занимается бесплатно — оплата не отслеживается.' : 'Пока пусто — все занятия оплачены. Новая запись появится после следующего занятия.' }}
         </p>
     @else
-        <x-ui.list>
-            @if ($claim && $dues->isNotEmpty())
-                <x-ui.row wire:key="claim-{{ $id }}-{{ $claim['id'] }}">
+        {{-- Ученик сообщил об оплате — главное на карточке: жирный заголовок, чек, жёлтая кнопка --}}
+        @if ($claim && $dues->isNotEmpty())
+            <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-4" wire:key="claim-{{ $id }}-{{ $claim['id'] }}" data-lightbox-group>
+                <div class="flex min-w-0 flex-1 items-center gap-3">
+                    @foreach (array_slice($claim['receipts'] ?? [], 0, 2) as $r)
+                        <a href="{{ $r['url'] }}" data-lightbox data-name="{{ $r['name'] }}" class="shrink-0" aria-label="Чек: {{ $r['name'] }}"><x-ui.file-tile :name="$r['name']" :thumb="$r['url']" :on-mint="$focus" /></a>
+                    @endforeach
                     <div class="flex min-w-0 flex-1 flex-col gap-1">
                         <span class="text-t1 font-semibold">Ученик сообщил об оплате</span>
                         <span class="text-t2 text-muted">{{ \Illuminate\Support\Str::ucfirst($claim['when']) }}@if ($claim['facts']) · {{ $claim['facts'] }}@endif</span>
                     </div>
-                    <x-ui.btn size="s" wire:click="openClaim({{ $claim['id'] }})">Проверить</x-ui.btn>
-                </x-ui.row>
-            @endif
+                </div>
+                {{-- Жёлтая — на вкладке «Оплата»; в «Обзоре» жёлтая уже у «Начать занятие» --}}
+                <x-ui.btn :variant="$focus ? 'primary' : 'outline'" wire:click="openClaim({{ $claim['id'] }})" class="self-start lg:self-center">Проверить оплату</x-ui.btn>
+            </div>
+        @endif
+
+        <x-ui.list>
             @foreach ($dues as $d)
                 <x-ui.row wire:key="due-{{ $id }}-{{ $d['id'] }}">
                     <div class="flex min-w-0 flex-1 flex-col gap-1">
