@@ -3,7 +3,7 @@
      После перехода на другую страницу — session()->flash('toast', 'Готово') или session()->flash('error', 'Не получилось…'). --}}
 @php $flash = session('error') ? ['message' => session('error'), 'tone' => 'danger'] : (session('toast') ? ['message' => session('toast'), 'tone' => 'ok'] : null); @endphp
 <div x-data="{ show: false, message: '', tone: 'ok', t: null }"
-     @if ($flash) x-init="$nextTick(() => $dispatch('toast', @js($flash)))" @endif
+     x-init="const flash = @js($flash); if (flash) $nextTick(() => $dispatch('toast', flash))"
      x-on:toast.window="message = $event.detail.message; tone = $event.detail.tone || 'ok'; show = true; clearTimeout(t); t = setTimeout(() => show = false, tone === 'danger' ? 8000 : 4000)"
      x-show="show" x-cloak x-transition.opacity
      class="fixed inset-x-0 bottom-tabbar z-30 flex justify-center px-4 lg:bottom-8" x-bind:role="tone === 'danger' ? 'alert' : 'status'" aria-live="polite">

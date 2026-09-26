@@ -123,7 +123,7 @@
                                 </div>
                                 <div class="flex flex-wrap gap-x-3 gap-y-1 text-t2">
                                     @foreach ($t['contacts'] as $c)
-                                        <a href="{{ $c['href'] }}" class="link" @if ($c['external']) target="_blank" rel="noopener" @endif>{{ $c['label'] }}</a>
+                                        <a href="{{ $c['href'] }}" class="link" {!! $c['external'] ? 'target="_blank" rel="noopener"' : '' !!}>{{ $c['label'] }}</a>
                                     @endforeach
                                     <a href="{{ $t['chat'] }}" class="link">Написать учителю</a>
                                 </div>

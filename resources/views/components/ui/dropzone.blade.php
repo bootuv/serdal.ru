@@ -6,5 +6,5 @@
     <x-ui.icon name="upload" class="text-muted" />
     <span class="text-t1-s font-medium">{{ $title ?? 'Перетащите файлы или выберите' }}</span>
     @if ($hint)<span class="text-t3 text-muted">{{ $hint }}</span>@endif
-    <input type="file" class="absolute inset-0 size-full cursor-pointer opacity-0" @if($multiple) multiple @endif @if($accept) accept="{{ $accept }}" @endif {{ $attributes }}>
+    <input type="file" class="absolute inset-0 size-full cursor-pointer opacity-0" {!! $multiple ? 'multiple' : '' !!} {!! $accept ? 'accept="' . e($accept) . '"' : '' !!} {{ $attributes }}>
 </div>

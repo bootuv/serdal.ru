@@ -29,7 +29,7 @@
 
             {{-- Согласие с условиями: галочка как у x-ui.option, но без рамки строки — по макету --}}
             <label class="flex cursor-pointer items-start gap-3 text-t2">
-                <input type="checkbox" wire:model="agree" class="peer sr-only" @error('agree') aria-invalid="true" @enderror>
+                <input type="checkbox" wire:model="agree" class="peer sr-only" aria-invalid="{{ $errors->has('agree') ? 'true' : 'false' }}">
                 <span @class([
                     'flex size-6 shrink-0 items-center justify-center rounded-sm text-transparent peer-checked:bg-ink peer-checked:text-white peer-checked:shadow-none peer-focus-visible:ring-2 peer-focus-visible:ring-ink peer-focus-visible:ring-offset-2',
                     'shadow-outline' => ! $errors->has('agree'),

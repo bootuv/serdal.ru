@@ -1,5 +1,5 @@
 {{-- Строка диалога в списке «Сообщений». --}}
-<button type="button" wire:click="open('{{ $d['key'] }}')" wire:key="dialog-{{ $d['key'] }}" @class($classes) @if ($current && $current['key'] === $d['key']) aria-current="true" @endif>
+<button type="button" wire:click="open('{{ $d['key'] }}')" wire:key="dialog-{{ $d['key'] }}" @class($classes) aria-current="{{ $current && $current['key'] === $d['key'] ? 'true' : 'false' }}">
     @include('livewire.cabinet.messages.avatar', ['d' => $d])
     <span class="flex min-w-0 flex-1 flex-col">
         <span class="flex min-w-0 items-center gap-2">

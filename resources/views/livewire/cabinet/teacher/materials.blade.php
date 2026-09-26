@@ -121,7 +121,7 @@
                     @foreach ($files as $f)
                         @php $on = in_array($f['id'], $picked, true); @endphp
                         <button type="button" wire:key="file-{{ $f['id'] }}"
-                                @if ($selecting) wire:click="toggle({{ $f['id'] }})" aria-pressed="{{ $on ? 'true' : 'false' }}" @else wire:click="editFile({{ $f['id'] }})" @endif
+                                wire:click="{{ $selecting ? 'toggle(' . $f['id'] . ')' : 'editFile(' . $f['id'] . ')' }}" {!! $selecting ? 'aria-pressed="' . ($on ? 'true' : 'false') . '"' : '' !!}
                                 draggable="{{ $selecting ? 'false' : 'true' }}"
                                 x-data="{ side: null }"
                                 x-on:dragstart="drag = { type: 'file', id: {{ $f['id'] }} }"

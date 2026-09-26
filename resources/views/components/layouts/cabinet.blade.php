@@ -79,7 +79,7 @@
             <button type="button" x-data="{ n: {{ $unread }} }" x-on:notifications-count.window="n = $event.detail.count" x-on:click="$dispatch('notifications-open')"
                 class="relative flex size-9 items-center justify-center rounded text-muted hover:bg-soft-hover hover:text-ink" x-bind:aria-label="n ? 'Уведомления, есть новые' : 'Уведомления'" aria-label="Уведомления">
                 <x-ui.icon name="bell" />
-                <span x-show="n > 0" class="absolute right-2 top-2 size-2 rounded-full bg-danger shadow-dot-ring" @unless ($unread) x-cloak @endunless></span>
+                <span x-show="n > 0" class="absolute right-2 top-2 size-2 rounded-full bg-danger shadow-dot-ring" {!! $unread ? '' : 'x-cloak' !!}></span>
             </button>
         </div>
 
@@ -93,7 +93,7 @@
                     <x-ui.icon :name="$item['icon']" />{{ $item['label'] }}
                     @if (array_key_exists('count', $item))
                         {{-- Живой счётчик: обновляется событием cabinet-counts (панель уведомлений) --}}
-                        <span x-data="{ c: {{ (int) $item['count'] }} }" x-on:cabinet-counts.window="c = $event.detail.counts[@js($item['key'])] ?? c" x-show="c > 0" @if (! $item['count']) x-cloak @endif
+                        <span x-data="{ c: {{ (int) $item['count'] }} }" x-on:cabinet-counts.window="c = $event.detail.counts[@js($item['key'])] ?? c" x-show="c > 0" {!! $item['count'] ? '' : 'x-cloak' !!}
                               class="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-danger px-1 text-count font-semibold text-white" x-text="c > 99 ? '99+' : c">{{ $item['count'] > 99 ? '99+' : $item['count'] }}</span>
                     @endif
                 </a>
@@ -126,7 +126,7 @@
             <button type="button" x-data="{ n: {{ $unread }} }" x-on:notifications-count.window="n = $event.detail.count" x-on:click="$dispatch('notifications-open')"
                 class="relative flex size-11 items-center justify-center rounded shadow-outline" x-bind:aria-label="n ? 'Уведомления, есть новые' : 'Уведомления'" aria-label="Уведомления">
                 <x-ui.icon name="bell" />
-                <span x-show="n > 0" class="absolute right-3 top-3 size-2 rounded-full bg-danger shadow-dot-ring" @unless ($unread) x-cloak @endunless></span>
+                <span x-show="n > 0" class="absolute right-3 top-3 size-2 rounded-full bg-danger shadow-dot-ring" {!! $unread ? '' : 'x-cloak' !!}></span>
             </button>
         </div>
 

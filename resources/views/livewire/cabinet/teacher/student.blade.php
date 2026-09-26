@@ -196,7 +196,7 @@
             @if ($contacts)
                 <div class="flex flex-col gap-2">
                     @foreach ($contacts as $c)
-                        <a href="{{ $c['href'] }}" class="truncate text-t1-s font-medium hover:underline" @if ($c['external']) target="_blank" rel="noopener" @endif>{{ $c['label'] }}</a>
+                        <a href="{{ $c['href'] }}" class="truncate text-t1-s font-medium hover:underline" {!! $c['external'] ? 'target="_blank" rel="noopener"' : '' !!}>{{ $c['label'] }}</a>
                     @endforeach
                 </div>
             @else

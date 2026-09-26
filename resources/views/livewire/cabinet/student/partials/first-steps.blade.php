@@ -32,8 +32,8 @@
     </x-ui.card-head>
     <x-ui.list>
         <x-ui.row :href="$steps['profileUrl']" x-on:click.prevent="enable()" x-bind:aria-busy="busy">
-            <span class="flex size-6 shrink-0 items-center justify-center rounded-full bg-ok-bg text-ok-fg" x-show="push" @unless ($steps['push']) x-cloak @endunless><x-ui.icon name="check" size="s" /></span>
-            <span class="size-6 shrink-0 rounded-full shadow-outline" x-show="! push" @if ($steps['push']) x-cloak @endif></span>
+            <span class="flex size-6 shrink-0 items-center justify-center rounded-full bg-ok-bg text-ok-fg" x-show="push" {!! $steps['push'] ? '' : 'x-cloak' !!}><x-ui.icon name="check" size="s" /></span>
+            <span class="size-6 shrink-0 rounded-full shadow-outline" x-show="! push" {!! $steps['push'] ? 'x-cloak' : '' !!}></span>
             <x-ui.text title="Включите уведомления" sub="Чтобы не пропустить начало занятия" />
         </x-ui.row>
         <x-ui.row :href="$steps['profileUrl']">

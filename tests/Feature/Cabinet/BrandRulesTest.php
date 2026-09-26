@@ -125,4 +125,24 @@ class BrandRulesTest extends TestCase
         }
         $this->assertSame([], array_values(array_unique($violations)), "Английский текст в интерфейсе запрещён — только русский (названия сервисов — исключение):\n" . implode("\n", array_unique($violations)));
     }
+
+    /**
+     * Условия Blade (@if, @unless, @error…) внутри атрибутов тега запрещены: Livewire окружает такие блоки
+     * служебными комментариями, и они ломают тег — атрибуты выводятся на страницу текстом.
+     * Вместо них — выражение: {!! $cond ? 'x-cloak' : '' !!} или attr="{{ $cond ? 'a' : 'b' }}".
+     */
+    public function test_no_blade_conditionals_inside_tags(): void
+    {
+        $violations = [];
+        foreach ($this->templates() as $path => $content) {
+            $text = preg_replace('/\{\{--.*?--\}\}/s', ' ', $content);
+            preg_match_all('/<(?!--)([a-zA-Z][\w.:-]*)\b((?:[^<>"\']|"[^"]*"|\'[^\']*\')*?)>/s', $text, $tags, PREG_SET_ORDER);
+            foreach ($tags as $tag) {
+                if (preg_match('/@(if|unless|isset|empty|foreach|auth|guest|error|else|endif)\b/', $tag[2], $m)) {
+                    $violations[] = basename($path) . ': <' . $tag[1] . '> содержит @' . $m[1];
+                }
+            }
+        }
+        $this->assertSame([], $violations, "Условия Blade внутри тега ломают разметку в Livewire:\n" . implode("\n", $violations));
+    }
 }

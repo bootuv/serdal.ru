@@ -75,7 +75,7 @@
             <x-ui.card focus aria-labelledby="grade-title">
                 @if ($mode === 'form')
                     <div class="flex flex-col gap-6">
-                        <div class="flex flex-col gap-3" @if ($scale) role="radiogroup" aria-labelledby="grade-title" @endif>
+                        <div class="flex flex-col gap-3" {!! $scale ? 'role="radiogroup" aria-labelledby="grade-title"' : '' !!}>
                             <div class="flex flex-col gap-1">
                                 <h2 id="grade-title" class="text-h2 font-medium">Оценка</h2>
                                 <span class="text-t2 text-muted">{{ $grade ? $grade . ' из ' . $max : 'от 1 до ' . $max . ' ' . plural_ru($max, 'балла', 'баллов', 'баллов', false) }}</span>
