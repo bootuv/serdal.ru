@@ -39,7 +39,7 @@ class StudentHomeTest extends TestCase
     {
         $this->actingAs($this->user(User::ROLE_TUTOR))
             ->get(route('cabinet.student.home'))
-            ->assertForbidden();
+            ->assertRedirect(route('cabinet.teacher.today'));
     }
 
     public function test_student_without_lessons_sees_empty_state(): void

@@ -59,7 +59,7 @@ class TeacherOnboardingTest extends TestCase
         $this->get(route('cabinet.teacher.onboarding'))->assertRedirect();
 
         $student = User::factory()->create(['role' => User::ROLE_STUDENT, 'username' => 's' . uniqid(), 'is_active' => true]);
-        $this->actingAs($student)->get(route('cabinet.teacher.onboarding'))->assertForbidden();
+        $this->actingAs($student)->get(route('cabinet.teacher.onboarding'))->assertRedirect(route('cabinet.student.home'));
     }
 
     public function test_completed_profile_goes_to_cabinet(): void

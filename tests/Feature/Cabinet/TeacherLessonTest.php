@@ -41,7 +41,7 @@ class TeacherLessonTest extends TestCase
         $room = $this->room($teacher, []);
 
         $this->get(route('cabinet.teacher.lesson', $room))->assertRedirect();
-        $this->actingAs($this->user(User::ROLE_STUDENT))->get(route('cabinet.teacher.lesson', $room))->assertForbidden();
+        $this->actingAs($this->user(User::ROLE_STUDENT))->get(route('cabinet.teacher.lesson', $room))->assertRedirect(route('cabinet.student.home'));
         $this->actingAs($this->teacher())->get(route('cabinet.teacher.lesson', $room))->assertNotFound();
         $this->actingAs($teacher)->get(route('cabinet.teacher.lesson', 999999))->assertNotFound();
     }

@@ -86,7 +86,7 @@ class StudentRecordingsTest extends TestCase
     {
         $this->actingAs($this->user(User::ROLE_TUTOR))
             ->get(route('cabinet.student.recordings'))
-            ->assertForbidden();
+            ->assertRedirect(route('cabinet.teacher.today'));
     }
 
     public function test_student_without_recordings_sees_empty_state(): void

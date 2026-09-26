@@ -69,7 +69,7 @@ class TeacherTaskNewTest extends TestCase
     {
         $this->get(route('cabinet.teacher.task-new'))->assertRedirect();
 
-        $this->actingAs($this->alina)->get(route('cabinet.teacher.task-new'))->assertForbidden();
+        $this->actingAs($this->alina)->get(route('cabinet.teacher.task-new'))->assertRedirect(route('cabinet.student.home'));
 
         $foreign = Homework::create(['teacher_id' => $this->user(User::ROLE_TUTOR)->id, 'title' => 'Чужое', 'is_visible' => true]);
         $this->actingAs($this->teacher)->get(route('cabinet.teacher.task-new', ['edit' => $foreign->id]))->assertNotFound();

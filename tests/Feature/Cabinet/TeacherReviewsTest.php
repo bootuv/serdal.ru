@@ -51,7 +51,7 @@ class TeacherReviewsTest extends TestCase
 
         $this->actingAs($this->user(User::ROLE_STUDENT))
             ->get(route('cabinet.teacher.reviews'))
-            ->assertForbidden();
+            ->assertRedirect(route('cabinet.student.home'));
     }
 
     public function test_empty_state(): void

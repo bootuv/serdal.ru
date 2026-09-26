@@ -92,7 +92,7 @@ class StudentScheduleTest extends TestCase
     {
         $this->actingAs($this->user(User::ROLE_TUTOR))
             ->get(route('cabinet.student.schedule'))
-            ->assertForbidden();
+            ->assertRedirect(route('cabinet.teacher.today'));
     }
 
     public function test_student_without_lessons_sees_empty_state(): void

@@ -45,7 +45,7 @@ class TeacherProfileTest extends TestCase
 
         $this->actingAs($this->user(User::ROLE_STUDENT))
             ->get(route('cabinet.teacher.profile'))
-            ->assertForbidden();
+            ->assertRedirect(route('cabinet.student.home'));
     }
 
     public function test_incomplete_profile_goes_to_onboarding(): void

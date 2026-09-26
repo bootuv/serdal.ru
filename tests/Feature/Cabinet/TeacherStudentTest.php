@@ -83,7 +83,7 @@ class TeacherStudentTest extends TestCase
         $url = route('cabinet.teacher.student', $student);
 
         $this->get($url)->assertRedirect();
-        $this->actingAs($student)->get($url)->assertForbidden();
+        $this->actingAs($student)->get($url)->assertRedirect(route('cabinet.student.home'));
         $this->actingAs($this->user(User::ROLE_TUTOR))->get($url)->assertNotFound();
         $this->actingAs($teacher)->get($url)->assertOk();
     }

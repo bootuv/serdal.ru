@@ -68,7 +68,7 @@ class StudentPaymentsTest extends TestCase
 
         $this->actingAs($this->user(User::ROLE_TUTOR))
             ->get(route('cabinet.student.payments'))
-            ->assertForbidden();
+            ->assertRedirect(route('cabinet.teacher.today'));
     }
 
     public function test_student_without_records_sees_empty_state(): void

@@ -70,7 +70,7 @@ class TeacherTasksTest extends TestCase
 
         $this->actingAs($this->user(User::ROLE_STUDENT))
             ->get(route('cabinet.teacher.tasks'))
-            ->assertForbidden();
+            ->assertRedirect(route('cabinet.student.home'));
     }
 
     public function test_review_queue_oldest_first_with_one_check_button(): void

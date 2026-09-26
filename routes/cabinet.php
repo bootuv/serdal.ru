@@ -11,7 +11,10 @@ Route::middleware(['auth', \App\Http\Middleware\CheckUserActive::class])
     ->prefix('cabinet')
     ->name('cabinet.')
     ->group(function () {
-        Route::get('/student', \App\Livewire\Cabinet\Student\Home::class)->name('student.home');
+        // /cabinet — открывает кабинет своей роли
+        Route::get('/', fn () => redirect(\App\Http\Middleware\EnsureCabinetRole::homeFor(auth()->user())))->name('home');
+
+        Route::get('/student', \App\Livewire\Cabinet\Student\Home::class)->name('student.home')->middleware(\App\Http\Middleware\EnsureCabinetRole::class . ':student');
 
         // Экраны ученика: маршрут подключается, когда готов класс экрана (до этого меню ведёт в старый кабинет)
         $student = [
@@ -26,7 +29,7 @@ Route::middleware(['auth', \App\Http\Middleware\CheckUserActive::class])
         foreach ($student as $name => [$uri, $class]) {
             $fqcn = 'App\\Livewire\\Cabinet\\Student\\' . $class;
             if (class_exists($fqcn)) {
-                Route::get($uri, $fqcn)->name('student.' . $name);
+                Route::get($uri, $fqcn)->name('student.' . $name)->middleware(\App\Http\Middleware\EnsureCabinetRole::class . ':student');
             }
         }
 
@@ -51,7 +54,7 @@ Route::middleware(['auth', \App\Http\Middleware\CheckUserActive::class])
         foreach ($teacher as $name => [$uri, $class]) {
             $fqcn = 'App\\Livewire\\Cabinet\\Teacher\\' . $class;
             if (class_exists($fqcn)) {
-                Route::get($uri, $fqcn)->name('teacher.' . $name);
+                Route::get($uri, $fqcn)->name('teacher.' . $name)->middleware(\App\Http\Middleware\EnsureCabinetRole::class . ':teacher');
             }
         }
     });

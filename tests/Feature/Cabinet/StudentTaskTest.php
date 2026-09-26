@@ -70,7 +70,7 @@ class StudentTaskTest extends TestCase
     {
         $this->actingAs($this->teacher)
             ->get(route('cabinet.student.task', $this->homework()))
-            ->assertForbidden();
+            ->assertRedirect(route('cabinet.teacher.today'));
     }
 
     public function test_student_cannot_open_foreign_or_hidden_task(): void

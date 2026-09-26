@@ -75,7 +75,7 @@ class TeacherMaterialsTest extends TestCase
 
         $this->actingAs($this->user(User::ROLE_STUDENT))
             ->get(route('cabinet.teacher.materials'))
-            ->assertForbidden();
+            ->assertRedirect(route('cabinet.student.home'));
 
         // Чужая папка — 404
         $stranger = $this->user(User::ROLE_TUTOR);

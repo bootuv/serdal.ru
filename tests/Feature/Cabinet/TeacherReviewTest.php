@@ -78,7 +78,7 @@ class TeacherReviewTest extends TestCase
         $s = $this->submission();
 
         $this->get(route('cabinet.teacher.review', $s))->assertRedirect();
-        $this->actingAs($this->student)->get(route('cabinet.teacher.review', $s))->assertForbidden();
+        $this->actingAs($this->student)->get(route('cabinet.teacher.review', $s))->assertRedirect(route('cabinet.student.home'));
         $this->actingAs($this->user(User::ROLE_TUTOR))->get(route('cabinet.teacher.review', $s))->assertNotFound();
 
         $draft = $this->submission(['submitted_at' => null, 'status' => HomeworkSubmission::STATUS_PENDING], null, $this->user(User::ROLE_STUDENT));

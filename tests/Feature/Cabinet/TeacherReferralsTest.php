@@ -43,7 +43,7 @@ class TeacherReferralsTest extends TestCase
         $this->get(route('cabinet.teacher.referrals'))->assertRedirect();
 
         $student = User::factory()->create(['role' => User::ROLE_STUDENT, 'username' => 's' . uniqid(), 'is_active' => true]);
-        $this->actingAs($student)->get(route('cabinet.teacher.referrals'))->assertForbidden();
+        $this->actingAs($student)->get(route('cabinet.teacher.referrals'))->assertRedirect(route('cabinet.student.home'));
     }
 
     public function test_disabled_program_is_closed(): void

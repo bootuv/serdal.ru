@@ -38,7 +38,7 @@ class TeacherScheduleTest extends TestCase
 
         $this->actingAs($this->user(User::ROLE_STUDENT))
             ->get(route('cabinet.teacher.schedule'))
-            ->assertForbidden();
+            ->assertRedirect(route('cabinet.student.home'));
     }
 
     public function test_service_expands_once_and_weekly_schedules_of_own_rooms_only(): void

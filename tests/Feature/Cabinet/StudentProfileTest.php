@@ -86,7 +86,7 @@ class StudentProfileTest extends TestCase
 
         $this->actingAs($this->user(User::ROLE_TUTOR))
             ->get(route('cabinet.student.profile'))
-            ->assertForbidden();
+            ->assertRedirect(route('cabinet.teacher.today'));
     }
 
     public function test_profile_page_renders_form_and_logout(): void

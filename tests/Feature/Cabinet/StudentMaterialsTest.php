@@ -55,7 +55,7 @@ class StudentMaterialsTest extends TestCase
 
         $this->actingAs($this->user(User::ROLE_TUTOR))
             ->get(route('cabinet.student.materials'))
-            ->assertForbidden();
+            ->assertRedirect(route('cabinet.teacher.today'));
     }
 
     public function test_student_without_materials_sees_empty_state(): void

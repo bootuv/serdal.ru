@@ -56,7 +56,7 @@ class TeacherSubscriptionTest extends TestCase
         $this->get(route('cabinet.teacher.subscription'))->assertRedirect();
 
         $student = User::factory()->create(['role' => User::ROLE_STUDENT, 'username' => 's' . uniqid(), 'is_active' => true]);
-        $this->actingAs($student)->get(route('cabinet.teacher.subscription'))->assertForbidden();
+        $this->actingAs($student)->get(route('cabinet.teacher.subscription'))->assertRedirect(route('cabinet.student.home'));
     }
 
     public function test_without_subscription_offers_free_tariff(): void

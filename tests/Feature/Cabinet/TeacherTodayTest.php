@@ -41,7 +41,7 @@ class TeacherTodayTest extends TestCase
 
         $this->actingAs($this->user(User::ROLE_STUDENT))
             ->get(route('cabinet.teacher.today'))
-            ->assertForbidden();
+            ->assertRedirect(route('cabinet.student.home'));
     }
 
     public function test_new_teacher_sees_first_steps_with_invitation_link(): void

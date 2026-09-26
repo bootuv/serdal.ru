@@ -87,7 +87,7 @@ class TeacherRecordingsTest extends TestCase
 
         $this->actingAs($this->user(User::ROLE_STUDENT))
             ->get(route('cabinet.teacher.recordings'))
-            ->assertForbidden();
+            ->assertRedirect(route('cabinet.student.home'));
 
         // Чужую запись не открыть в плеере
         $stranger = $this->user(User::ROLE_TUTOR);
