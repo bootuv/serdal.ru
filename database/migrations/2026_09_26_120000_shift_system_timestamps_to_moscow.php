@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Schema;
  * homeworks.deadline, rooms.next_start (считается из расписания), payment_records.due_date (дата).
  *
  * Выполняется только если приложение уже работает в Europe/Moscow — сдвиг имеет смысл только вместе с переключением.
+ * Если база уже пишет московское время (свежие записи «в будущем» по UTC), сдвиг пропускается.
  */
 return new class extends Migration
 {
@@ -64,7 +65,31 @@ return new class extends Migration
             return;
         }
 
+        if ($this->alreadyMoscow()) {
+            // Сдвиг второй раз испортил бы время: база уже пишет московское
+            echo "  Системное время в базе уже московское — сдвиг пропущен\n";
+
+            return;
+        }
+
         $this->shift(self::HOURS);
+    }
+
+    /**
+     * В UTC-данных отметка создания не бывает позже текущего времени UTC. Если свежие записи оказываются
+     * «в будущем» больше чем на час — приложение уже работало в Europe/Moscow, и сдвигать нельзя.
+     */
+    private function alreadyMoscow(): bool
+    {
+        $limit = now('UTC')->addHour()->format('Y-m-d H:i:s');
+
+        foreach (['notifications', 'messages', 'meeting_sessions', 'homework_activities', 'users'] as $table) {
+            if (Schema::hasTable($table) && DB::table($table)->where('created_at', '>', $limit)->exists()) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function down(): void

@@ -105,6 +105,9 @@ fi
 
 # --- Laravel ----------------------------------------------------------------
 echo "==> Миграции"
+# Миграции читают настоящий .env, а не закешированный конфиг прошлого деплоя
+# (например, APP_TIMEZONE для сдвига времени в 2026_09_26_120000_shift_system_timestamps_to_moscow).
+"$PHP_BIN" artisan config:clear
 "$PHP_BIN" artisan migrate --force
 
 echo "==> Кэши"
