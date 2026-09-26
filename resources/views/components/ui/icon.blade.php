@@ -19,7 +19,7 @@
         'chevron-down' => '<path d="m6 9 6 6 6-6"/>',
         'arrow-left' => '<path d="M19 12H5m6-6-6 6 6 6"/>',
         'plus' => '<path d="M12 5v14M5 12h14"/>',
-        'play' => '<path d="M8 5.5v13l11-6.5z"/>',
+        'play' => '<path d="M8 5.5v13l11-6.5z" fill="currentColor"/>', // заливная — так её читают как «воспроизвести»
         'pause' => '<path d="M9 5v14M15 5v14"/>',
         'volume' => '<path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/>',
         'volume-off' => '<path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="m16 10 5 5m0-5-5 5"/>',

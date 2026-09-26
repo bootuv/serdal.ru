@@ -2,7 +2,9 @@
     <x-ui.page-head title="Записи" :sub="$sub" />
 
     <div class="flex flex-col gap-6">
-        @if ($teacherFilter || $hasAny)
+        @if ($current)
+            <button type="button" wire:click="close" class="inline-flex items-center gap-2 self-start text-t1-s font-medium text-muted hover:text-ink"><x-ui.icon name="arrow-left" size="s" />Все записи</button>
+        @elseif ($teacherFilter || $hasAny)
             <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 @if ($teacherFilter)
                     <x-ui.seg :items="$teacherFilter" model="teacher" :active="$teacher" aria-label="Учитель" fit />

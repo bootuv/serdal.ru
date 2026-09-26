@@ -3,7 +3,9 @@
     <x-ui.page-head title="Записи" :sub="$sub" />
 
     <div class="flex flex-col gap-6">
-        @if ($studentOptions || $hasAny)
+        @if ($current)
+            <button type="button" wire:click="close" class="inline-flex items-center gap-2 self-start text-t1-s font-medium text-muted hover:text-ink"><x-ui.icon name="arrow-left" size="s" />Все записи</button>
+        @elseif ($studentOptions || $hasAny)
             <div class="flex flex-col gap-4 lg:flex-row lg:items-center">
                 @if ($studentOptions)
                     <div class="w-full lg:w-sidebar">

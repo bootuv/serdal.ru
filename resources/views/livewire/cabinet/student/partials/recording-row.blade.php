@@ -15,7 +15,7 @@
         <span @class(['flex size-10 shrink-0 items-center justify-center rounded',
                       'bg-ink text-white' => $playing,
                       'bg-white' => ! $playing && $focus,
-                      'bg-soft' => ! $playing && ! $focus])><x-ui.icon :name="$r['video'] || $r['externalUrl'] ? 'play' : 'clock'" size="s" /></span>
+                      'bg-soft' => ! $playing && ! $focus])><x-ui.icon :name="$playing ? 'play' : ($r['video'] || $r['externalUrl'] ? 'video' : 'clock')" size="s" /></span>
         <span class="flex min-w-0 flex-1 flex-col gap-1">
             <span class="truncate text-t1 font-medium">{{ $r['title'] }}</span>
             <span class="text-t2 text-muted">{{ $r['meta'] }}@if ($r['soon'])<span class="lg:hidden"> · <x-ui.em>удалится {{ $r['expires'] }}</x-ui.em></span>@endif</span>

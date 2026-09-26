@@ -1,33 +1,37 @@
-{{-- Плеер записей занятий: своё управление поверх <video> (resources/js/video-player.js).
-     Жёлтая кнопка «Смотреть» до начала, панель внизу: пауза, время, громкость, скорость 0,5–2× (запоминается), полный экран.
-     Панель прячется во время просмотра, если не двигать мышью. Клавиши: пробел, ←/→ — 10 с, ↑/↓ — громкость, M, F.
-     Меню скорости может выходить за верх плеера (на телефоне плеер ниже меню), поэтому корпус не обрезает содержимое.
-     src — адрес видео, title — название (для экранного диктора). --}}
+{{-- Плеер записей занятий: своё управление под <video> (resources/js/video-player.js).
+     Тёмная рамка вокруг видео и панель под ним: записи — чаще белая доска, плеер не должен сливаться со страницей.
+     Жёлтая кнопка «Смотреть» до начала; панель: пауза, перемотка, время, громкость, скорость 0,5–2× (запоминается), полный экран.
+     Клавиши: пробел, ←/→ — 10 с, ↑/↓ — громкость, M, F. src — адрес видео, title — название (для экранного диктора). --}}
 @props(['src', 'title' => null])
 <div x-data="videoPlayer" tabindex="0" role="region" aria-label="{{ $title ? 'Запись: ' . $title : 'Запись занятия' }}"
-     x-on:keydown="key($event)" x-on:mousemove="wake()" x-on:touchstart.passive="wake()" x-on:mouseleave="if (playing && ! speedOpen) idle = true"
-     x-bind:class="idle ? 'cursor-none' : ''"
-     {{ $attributes->class('group relative w-full rounded-lg bg-ink text-white') }}>
-    <video x-ref="video" src="{{ $src }}" preload="metadata" playsinline class="block aspect-video w-full rounded-lg"
-           x-on:click="toggle()" x-on:dblclick="toggleFull()">Ваш браузер не поддерживает воспроизведение видео.</video>
+     x-on:keydown="key($event)"
+     x-bind:class="full ? 'justify-center' : ''"
+     {{ $attributes->class('group relative flex w-full flex-col gap-1 rounded-lg bg-ink p-1 text-white shadow-card') }}>
+    <div class="relative min-h-0" x-bind:class="full ? 'flex flex-1 items-center justify-center' : ''">
+        <video x-ref="video" src="{{ $src }}" preload="metadata" playsinline
+               class="block w-full rounded bg-ink" x-bind:class="full ? 'h-full object-contain' : 'aspect-video'"
+               x-on:click="toggle()" x-on:dblclick="toggleFull()">Ваш браузер не поддерживает воспроизведение видео.</video>
 
-    {{-- Жёлтая кнопка до первого запуска --}}
-    <button type="button" x-show="! started" x-on:click="toggle()" aria-label="Смотреть запись"
-            class="absolute left-1/2 top-1/2 flex size-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-brand text-ink shadow-modal hover:bg-brand-hover">
-        <x-ui.icon name="play" />
-    </button>
+        {{-- Жёлтая кнопка до первого запуска --}}
+        <button type="button" x-show="! started" x-on:click="toggle()" aria-label="Смотреть запись"
+                class="absolute left-1/2 top-1/2 flex size-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-brand text-ink shadow-modal hover:bg-brand-hover">
+            <x-ui.icon name="play" />
+        </button>
 
-    {{-- Загрузка --}}
-    <span x-show="waiting && playing" x-cloak class="pointer-events-none absolute left-1/2 top-1/2 size-8 -translate-x-1/2 -translate-y-1/2 animate-spin rounded-full border-2 border-white border-t-transparent" aria-hidden="true"></span>
+        {{-- Загрузка: жёлтое кольцо на тёмном кружке — видно и на белой доске, и на тёмном видео --}}
+        <span x-show="waiting && playing" x-cloak class="pointer-events-none absolute left-1/2 top-1/2 flex size-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-scrim" aria-hidden="true">
+            <span class="size-6 animate-spin rounded-full border-2 border-brand border-t-transparent"></span>
+        </span>
+    </div>
 
-    {{-- Панель управления --}}
-    <div x-show="started && (! idle || ! playing)" x-cloak x-transition.opacity
-         class="absolute inset-x-0 bottom-0 flex flex-col gap-1 rounded-b-lg bg-scrim px-3 pb-2 pt-1 lg:px-4">
+    {{-- Панель управления — под видео, всегда на виду --}}
+    <div class="flex flex-col gap-1 px-2 pb-1">
         <div class="vp-track">
             <progress class="vp-buffer" max="1" x-bind:value="duration ? buffered / duration : 0" aria-hidden="true"></progress>
-            <progress class="vp-played" max="1" x-bind:value="duration ? current / duration : 0" aria-hidden="true"></progress>
-            <input type="range" class="vp-seek" min="0" step="0.1" x-bind:max="duration || 0" x-bind:value="current"
-                   x-on:input="seek($event.target.value)" aria-label="Перемотка" x-bind:aria-valuetext="time(current) + ' из ' + time(duration)">
+            <progress class="vp-played" max="1" x-bind:value="duration ? shown() / duration : 0" aria-hidden="true"></progress>
+            <input type="range" class="vp-seek" min="0" step="0.1" x-bind:max="duration || 0" x-bind:value="shown()"
+                   x-on:pointerdown="scrubStart()" x-on:input="scrub($event.target.value)" x-on:change="scrubEnd($event.target.value)"
+                   aria-label="Перемотка" x-bind:aria-valuetext="time(shown()) + ' из ' + time(duration)">
         </div>
 
         <div class="flex items-center gap-1">
@@ -36,7 +40,7 @@
                 <span x-show="! playing"><x-ui.icon name="play" /></span>
                 <span x-show="playing" x-cloak><x-ui.icon name="pause" /></span>
             </button>
-            <span class="px-1 text-t2 tabular-nums" x-text="time(current) + ' / ' + time(duration)"></span>
+            <span class="px-1 text-t2 tabular-nums" x-text="time(shown()) + ' / ' + time(duration)"></span>
 
             <span class="flex-1"></span>
 

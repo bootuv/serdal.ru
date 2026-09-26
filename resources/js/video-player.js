@@ -1,5 +1,7 @@
 /**
- * Плеер записей занятий (resources/views/components/ui/video-player.blade.php): своё управление поверх <video>.
+ * Плеер записей занятий (resources/views/components/ui/video-player.blade.php): своё управление под <video>.
+ * Перемотка: пока бегунок тянут, меняется только показанное время; видео перематывается один раз — при отпускании
+ * (иначе каждое движение — новый запрос к хранилищу, а обновления времени дёргают бегунок назад).
  * Воспроизведение, перемотка с буфером, время, громкость, скорость (запоминается), полный экран.
  * Клавиши, когда плеер в фокусе: пробел/K — пауза, ←/→ — 10 секунд, ↑/↓ — громкость, M — звук, F — полный экран.
  */
@@ -39,8 +41,8 @@ function registerVideoPlayer(Alpine) {
         speed: storedSpeed(),
         speedOpen: false,
         full: false,
-        idle: false,
-        idleTimer: null,
+        scrubbing: false,
+        scrubTime: 0,
 
         init() {
             const v = this.$refs.video;
@@ -49,15 +51,37 @@ function registerVideoPlayer(Alpine) {
             v.addEventListener('durationchange', () => { this.duration = v.duration || 0; });
             v.addEventListener('timeupdate', () => { this.current = v.currentTime; this.updateBuffered(); });
             v.addEventListener('progress', () => this.updateBuffered());
-            v.addEventListener('play', () => { this.playing = true; this.started = true; this.wake(); });
-            v.addEventListener('pause', () => { this.playing = false; this.idle = false; });
-            v.addEventListener('ended', () => { this.playing = false; this.idle = false; });
+            v.addEventListener('play', () => { this.playing = true; this.started = true; });
+            v.addEventListener('pause', () => { this.playing = false; });
+            v.addEventListener('ended', () => { this.playing = false; });
+            v.addEventListener('seeked', () => { this.current = v.currentTime; this.waiting = false; });
             v.addEventListener('waiting', () => { this.waiting = true; });
             v.addEventListener('playing', () => { this.waiting = false; });
             v.addEventListener('canplay', () => { this.waiting = false; });
             v.addEventListener('volumechange', () => { this.volume = v.volume; this.muted = v.muted || v.volume === 0; });
             v.addEventListener('ratechange', () => { this.speed = v.playbackRate; });
             document.addEventListener('fullscreenchange', () => { this.full = document.fullscreenElement === this.$root; });
+            // Отпустили бегунок за его пределами — всё равно перематываем
+            window.addEventListener('pointerup', () => { if (this.scrubbing) this.scrubEnd(this.scrubTime); });
+        },
+
+        shown() {
+            return this.scrubbing ? this.scrubTime : this.current;
+        },
+
+        scrubStart() {
+            this.scrubbing = true;
+            this.scrubTime = this.current;
+        },
+
+        scrub(value) {
+            if (!this.scrubbing) this.scrubStart();
+            this.scrubTime = Number(value);
+        },
+
+        scrubEnd(value) {
+            this.scrubbing = false;
+            this.seek(value);
         },
 
         updateBuffered() {
@@ -79,7 +103,6 @@ function registerVideoPlayer(Alpine) {
 
         skip(seconds) {
             this.seek(this.$refs.video.currentTime + seconds);
-            this.wake();
         },
 
         setVolume(value) {
@@ -121,15 +144,6 @@ function registerVideoPlayer(Alpine) {
             }
         },
 
-        // Панель прячется через 2,5 с без движения, пока идёт видео
-        wake() {
-            this.idle = false;
-            clearTimeout(this.idleTimer);
-            if (this.playing) {
-                this.idleTimer = setTimeout(() => { if (this.playing && !this.speedOpen) this.idle = true; }, 2500);
-            }
-        },
-
         key(e) {
             if (e.target.closest('input[type="range"]') && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) return;
             const actions = {
@@ -143,7 +157,6 @@ function registerVideoPlayer(Alpine) {
             if (action && !e.metaKey && !e.ctrlKey && !e.altKey) {
                 e.preventDefault();
                 action();
-                this.wake();
             }
         },
 
