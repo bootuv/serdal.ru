@@ -2,8 +2,6 @@
 
 namespace App\Filament\Student\Widgets;
 
-use App\Models\Homework;
-use App\Models\MeetingSession;
 use App\Models\User;
 use Filament\Widgets\ChartWidget;
 use Illuminate\Support\Collection;
@@ -129,102 +127,12 @@ class MyPerformanceWidget extends ChartWidget
 
     protected function calculateStats(User $student, int $teacherId): array
     {
-        // 1. Attendance
-        $sessions = MeetingSession::whereHas('room', function ($q) use ($teacherId) {
-            $q->where('user_id', $teacherId);
-        })
-            ->where('status', 'completed')
-            ->get();
-
-        $totalSessions = 0;
-        $attendedSessions = 0;
-
-        foreach ($sessions as $session) {
-            $room = $session->room;
-            if (!$room || !$room->participants->contains($student->id)) {
-                continue;
-            }
-
-            $totalSessions++;
-
-            $attended = false;
-            $studentIdStr = (string) $student->id;
-
-            if (isset($session->pricing_snapshot['participants'])) {
-                foreach ($session->pricing_snapshot['participants'] as $p) {
-                    if (($p['user_id'] ?? '') == $studentIdStr && ($p['attended'] ?? false)) {
-                        $attended = true;
-                        break;
-                    }
-                }
-            } else {
-                $analytics = $session->analytics_data ?? [];
-                $participants = $analytics['participants'] ?? [];
-                foreach ($participants as $p) {
-                    if (($p['user_id'] ?? '') == $studentIdStr) {
-                        $attended = true;
-                        break;
-                    }
-                }
-            }
-
-            if ($attended) {
-                $attendedSessions++;
-            }
-        }
-
-        $attendanceRate = $totalSessions > 0 ? ($attendedSessions / $totalSessions) * 100 : 0;
-
-        // 2. Discipline (Homework Submission Rate)
-        $homeworks = Homework::where('teacher_id', $teacherId)
-            ->whereHas('students', function ($q) use ($student) {
-                $q->where('users.id', $student->id);
-            })
-            ->with([
-                'submissions' => function ($q) use ($student) {
-                    $q->where('student_id', $student->id);
-                }
-            ])
-            ->get();
-
-        $totalHomeworks = $homeworks->count();
-        $missingHomeworks = 0;
-        $gradesSum = 0;
-        $gradesCount = 0;
-
-        foreach ($homeworks as $homework) {
-            $submission = $homework->submissions->first();
-            $isSubmitted = $submission && $submission->submitted_at;
-
-            // If submission exists but status is 'revision_requested' AND it is overdue, it counts as missing
-            if ($isSubmitted && $submission->status === 'revision_requested' && $homework->is_overdue) {
-                $missingHomeworks++;
-                continue;
-            }
-
-            if ($isSubmitted) {
-                if ($submission->grade !== null) {
-                    $max = $homework->effective_max_score;
-                    if ($max > 0) {
-                        $gradesSum += ($submission->grade / $max) * 100;
-                        $gradesCount++;
-                    }
-                }
-            } elseif ($homework->is_overdue) {
-                // If not submitted AND overdue -> missing
-                $missingHomeworks++;
-            }
-        }
-
-        $disciplineRate = $totalHomeworks > 0 ? (($totalHomeworks - $missingHomeworks) / $totalHomeworks) * 100 : 0;
-
-        // 3. Knowledge Quality (Average Grade)
-        $knowledgeRate = $gradesCount > 0 ? ($gradesSum / $gradesCount) : 0;
+        $s = app(\App\Services\StudentPerformanceService::class)->stats($student, $teacherId);
 
         return [
-            'attendance' => round($attendanceRate),
-            'discipline' => round($disciplineRate),
-            'knowledge' => round($knowledgeRate),
+            'attendance' => $s['attendance'],
+            'discipline' => $s['discipline'],
+            'knowledge' => $s['knowledge'],
         ];
     }
 }

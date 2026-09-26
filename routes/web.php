@@ -84,3 +84,4 @@ Route::get('/{username}', [PageController::class, 'tutorPage'])->name('tutors.sh
 Route::get('/rooms/{room}/join', \App\Livewire\GuestJoinRoom::class)->name('rooms.join');
 Route::get('/rooms/{room}/connect', [RoomController::class, 'connect'])->name('rooms.connect');
 Route::post('/rooms/{room}/join/guest', [RoomController::class, 'joinAsGuest'])->name('rooms.join.guest');
+require __DIR__ . '/cabinet.php';

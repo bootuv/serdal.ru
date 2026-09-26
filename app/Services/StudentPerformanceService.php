@@ -1,0 +1,102 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\Homework;
+use App\Models\MeetingSession;
+use App\Models\User;
+
+/**
+ * Успеваемость ученика у конкретного учителя: посещаемость, задания в срок, качество знаний.
+ * Единый расчёт для старого виджета (Filament) и новых кабинетов.
+ */
+class StudentPerformanceService
+{
+    /**
+     * @return array{
+     *   attendance:int, discipline:int, knowledge:int,
+     *   lessons_total:int, lessons_attended:int,
+     *   homework_total:int, homework_on_time:int, graded_count:int
+     * }
+     */
+    public function stats(User $student, int $teacherId): array
+    {
+        // 1. Посещаемость: завершённые занятия учителя, где ученик — участник
+        $sessions = MeetingSession::query()
+            ->where('status', 'completed')
+            ->whereHas('room', fn ($q) => $q->where('user_id', $teacherId)
+                ->whereHas('participants', fn ($p) => $p->where('users.id', $student->id)))
+            ->get();
+
+        $lessonsTotal = $sessions->count();
+        $lessonsAttended = $sessions->filter(fn (MeetingSession $s) => $s->attendedBy($student->id))->count();
+
+        // 2. Задания в срок и 3. качество знаний — по видимым ученику заданиям
+        $homeworks = Homework::query()
+            ->where('teacher_id', $teacherId)
+            ->where('is_visible', true)
+            ->whereHas('students', fn ($q) => $q->where('users.id', $student->id))
+            ->with(['submissions' => fn ($q) => $q->where('student_id', $student->id)])
+            ->get();
+
+        $missing = 0;
+        $gradesSum = 0.0;
+        $gradedCount = 0;
+
+        foreach ($homeworks as $homework) {
+            $submission = $homework->submissions->first();
+            $isSubmitted = $submission && $submission->submitted_at;
+
+            // Вернули на доработку и срок прошёл — считается несданным
+            if ($isSubmitted && $submission->status === 'revision_requested' && $homework->is_overdue) {
+                $missing++;
+                continue;
+            }
+
+            if ($isSubmitted) {
+                $max = $homework->effective_max_score;
+                if ($submission->grade !== null && $max > 0) {
+                    $gradesSum += ($submission->grade / $max) * 100;
+                    $gradedCount++;
+                }
+            } elseif ($homework->is_overdue) {
+                $missing++;
+            }
+        }
+
+        $homeworkTotal = $homeworks->count();
+
+        return [
+            'attendance' => $lessonsTotal > 0 ? (int) round($lessonsAttended / $lessonsTotal * 100) : 0,
+            'discipline' => $homeworkTotal > 0 ? (int) round(($homeworkTotal - $missing) / $homeworkTotal * 100) : 0,
+            'knowledge' => $gradedCount > 0 ? (int) round($gradesSum / $gradedCount) : 0,
+            'lessons_total' => $lessonsTotal,
+            'lessons_attended' => $lessonsAttended,
+            'homework_total' => $homeworkTotal,
+            'homework_on_time' => $homeworkTotal - $missing,
+            'graded_count' => $gradedCount,
+        ];
+    }
+
+    /**
+     * Метрики для компонента <x-ui.rings>.
+     *
+     * @return array<int, array{value:int, label:string, sub:string}>
+     */
+    public function metrics(User $student, int $teacherId): array
+    {
+        $s = $this->stats($student, $teacherId);
+
+        return [
+            ['value' => $s['attendance'], 'label' => 'Посещаемость', 'sub' => $s['lessons_total']
+                ? $s['lessons_attended'] . ' из ' . plural_ru($s['lessons_total'], 'занятия', 'занятий', 'занятий')
+                : 'занятий ещё не было'],
+            ['value' => $s['discipline'], 'label' => 'Задания в срок', 'sub' => $s['homework_total']
+                ? $s['homework_on_time'] . ' из ' . plural_ru($s['homework_total'], 'задания', 'заданий', 'заданий')
+                : 'заданий ещё не было'],
+            ['value' => $s['knowledge'], 'label' => 'Качество знаний', 'sub' => $s['graded_count']
+                ? 'средний балл за ' . plural_ru($s['graded_count'], 'работу', 'работы', 'работ')
+                : 'оценок пока нет'],
+        ];
+    }
+}

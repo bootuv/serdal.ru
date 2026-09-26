@@ -1,0 +1,25 @@
+/* Стили кабинетов учителя и ученика. Токены и шкалы — tailwind.cabinet.config.js, правила — docs/design/BRAND.md */
+@config "../../tailwind.cabinet.config.js";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    html { -webkit-font-smoothing: antialiased; }
+    body { @apply bg-white font-sans text-t1 text-ink; }
+    :focus-visible { outline: 2px solid theme('colors.ink.DEFAULT'); outline-offset: 2px; }
+    [x-cloak] { display: none !important; }
+}
+
+@layer components {
+    /* Иконки: stroke 1.8, скруглённые концы */
+    .ic { @apply size-5 shrink-0; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+    .ic-s { @apply size-4; }
+
+    /* Ссылка — подчёркнутый текст */
+    .link { @apply font-medium text-ink underline underline-offset-4 decoration-line-strong hover:decoration-ink; }
+
+    /* Поле ввода */
+    .field { @apply h-11 w-full rounded bg-white px-4 text-t1 text-ink shadow-outline outline-none placeholder:text-faint focus:shadow-outline-ink; }
+}
