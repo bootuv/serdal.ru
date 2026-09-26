@@ -1,7 +1,7 @@
 @extends('layout')
 
-@section('title', 'Отзывы учеников о репетиторах — Serdal')
-@section('description', 'Отзывы учеников и родителей о занятиях с репетиторами и менторами на платформе Serdal. Реальный опыт онлайн-обучения: подготовка к экзаменам, школьные предметы, языки.')
+@section('title', 'Отзывы учеников и учителей — Serdal')
+@section('description', 'Отзывы учеников о занятиях с учителями и отзывы учителей о работе на платформе Serdal. Реальный опыт онлайн-обучения: подготовка к экзаменам, школьные предметы, языки.')
 
 @push('jsonld')
     {!! \App\Support\Seo::jsonLd(\App\Support\Seo::breadcrumbs([['name' => 'Отзывы', 'url' => \App\Support\Seo::canonical()]])) !!}
@@ -17,21 +17,19 @@
   <div class="content reviews-content">
     <div class="tabs-wrapper">
       <div class="tabs">
-        <a href="#" class="tab active w-inline-block" data-filter="all">
-          <div class="p24">Все отзывы</div>
-        </a>
-        <a href="#" class="tab w-inline-block" data-filter="student">
-          <div class="p24">Ученики</div>
-        </a>
-        <a href="#" class="tab w-inline-block" data-filter="tutor">
-          <div class="p24">Преподаватели</div>
-        </a>
+        @foreach ([null => 'Все отзывы', 'student' => 'Ученики', 'tutor' => 'Учителя'] as $key => $label)
+          <a href="{{ route('reviews', $key ? ['role' => $key] : []) }}" class="tab w-inline-block {{ ($role ?? null) === ($key ?: null) ? 'active' : '' }}">
+            <div class="p24">{{ $label }}</div>
+          </a>
+        @endforeach
       </div>
     </div>
     <div class="reviews" id="reviews-container">
-      @foreach($reviews as $review)
+      @forelse($reviews as $review)
         @include('partials.review-item', ['review' => $review])
-      @endforeach
+      @empty
+        <p class="p24">{{ ($role ?? null) === 'tutor' ? 'Отзывы учителей появятся здесь совсем скоро.' : 'Отзывов пока нет.' }}</p>
+      @endforelse
     </div>
 
     @if($hasMore)
@@ -41,36 +39,11 @@
 
   <script>
     document.addEventListener('DOMContentLoaded', function () {
-      const tabs = document.querySelectorAll('.tab[data-filter]');
       const container = document.getElementById('reviews-container');
       const loadTrigger = document.getElementById('load-trigger');
-      let currentFilter = 'all';
+      const role = @json($role ?? null);
 
-      // Функция применения фильтра
-      const applyFilter = () => {
-        const reviewItems = container.querySelectorAll('.review-item[data-role]');
-        reviewItems.forEach(item => {
-          const role = item.getAttribute('data-role');
-          if (currentFilter === 'all' || currentFilter === 'student') {
-            item.style.display = role === 'student' ? '' : 'none';
-          } else {
-            item.style.display = 'none';
-          }
-        });
-      };
-
-      // Tab filtering
-      tabs.forEach(tab => {
-        tab.addEventListener('click', function (e) {
-          e.preventDefault();
-          tabs.forEach(t => t.classList.remove('active'));
-          this.classList.add('active');
-          currentFilter = this.getAttribute('data-filter');
-          applyFilter();
-        });
-      });
-
-      // Infinite scroll
+      // Подгрузка при прокрутке — с той же вкладкой (фильтр — на сервере)
       if (loadTrigger) {
         let isLoading = false;
 
@@ -79,12 +52,13 @@
           isLoading = true;
 
           const offset = parseInt(loadTrigger.getAttribute('data-offset'));
+          const params = new URLSearchParams({ offset });
+          if (role) params.set('role', role);
 
-          fetch(`/reviews/load-more?offset=${offset}`)
+          fetch(`{{ route('reviews.load-more') }}?${params}`)
             .then(response => response.json())
             .then(data => {
               container.insertAdjacentHTML('beforeend', data.html);
-              applyFilter(); // Применяем фильтр к новым элементам
 
               if (data.hasMore) {
                 loadTrigger.setAttribute('data-offset', offset + 20);

@@ -31,6 +31,12 @@ class AdminInboxService
         return Review::where('is_reported', true)->where('is_rejected', false)->count();
     }
 
+    /** Отзывы учителей о платформе, ждущие проверки (автор разрешил показать на сайте). */
+    public function platformReviewsPending(): int
+    {
+        return Review::platform()->whereNull('approved_at')->where('is_rejected', false)->where('show_on_site', true)->count();
+    }
+
     /** Запросы учителей на удаление проведённого занятия. */
     public function deletionRequests(): int
     {
@@ -43,7 +49,7 @@ class AdminInboxService
         return [
             'support' => $this->supportUnread(),
             'applications' => $this->applicationsPending(),
-            'reviews' => $this->reviewComplaints(),
+            'reviews' => $this->reviewComplaints() + $this->platformReviewsPending(),
             'lessons' => $this->deletionRequests(),
         ];
     }

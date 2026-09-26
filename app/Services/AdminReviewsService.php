@@ -20,12 +20,23 @@ class AdminReviewsService
 
     public const TAB_HIDDEN = 'hidden';
 
-    /** Отзывы вкладки: жалобы без решения · все видимые · скрытые. */
+    public const TAB_PLATFORM = 'platform';
+
+    /** Отзывы вкладки: жалобы без решения · все видимые · скрытые (об учителях) · о платформе (сначала ждущие проверки). */
     public function query(string $tab, string $search = ''): Builder
     {
         $query = Review::query()->with(['user:id,name', 'teacher:id,name']);
 
+        if ($tab === self::TAB_PLATFORM) {
+            $query->platform()
+                ->orderByRaw('CASE WHEN approved_at IS NULL AND is_rejected = 0 AND show_on_site = 1 THEN 0 ELSE 1 END')
+                ->latest('updated_at')->orderByDesc('id');
+        } else {
+            $query->aboutTeachers();
+        }
+
         match ($tab) {
+            self::TAB_PLATFORM => null,
             self::TAB_REPORTS => $query->where('is_reported', true)->where('is_rejected', false)->orderBy('reported_at')->orderBy('id'),
             self::TAB_HIDDEN => $query->where('is_rejected', true)->orderByDesc('hidden_at')->orderByDesc('id'),
             default => $query->where('is_rejected', false)->latest()->orderByDesc('id'),
@@ -45,6 +56,19 @@ class AdminReviewsService
     public function reportsCount(): int
     {
         return Review::where('is_reported', true)->where('is_rejected', false)->count();
+    }
+
+    /** Отзывы о платформе, ждущие проверки, — счётчик вкладки. */
+    public function platformPendingCount(): int
+    {
+        return app(AdminInboxService::class)->platformReviewsPending();
+    }
+
+    /** «Опубликовать» отзыв о платформе: появится на /reviews. */
+    public function approve(Review $review): void
+    {
+        abort_unless($review->isPlatform(), 404);
+        $review->update(['approved_at' => now(), 'is_rejected' => false, 'hidden_at' => null]);
     }
 
     /** «Оставить отзыв»: жалоба снята, отзыв остаётся. Причина жалобы стирается. */

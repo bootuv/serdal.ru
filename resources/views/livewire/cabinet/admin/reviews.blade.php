@@ -1,11 +1,11 @@
-{{-- Жалобы на отзывы. Макет: AdminReviews. Вкладки «Жалобы / Все отзывы / Скрытые», поиск, окно отзыва с решением. --}}
+{{-- Жалобы на отзывы. Макет: AdminReviews. Вкладки «Жалобы / Все отзывы / Скрытые / О платформе», поиск, окно отзыва с решением. --}}
 <div class="flex flex-col gap-6 lg:gap-8">
     <x-ui.page-head title="Жалобы на отзывы" />
 
     <div class="flex flex-col gap-6">
         {{-- Вкладки и поиск в одной строке с общей линией снизу --}}
         <div class="flex flex-col lg:flex-row lg:items-end">
-            <x-ui.tabs model="tab" :active="$tab" :items="$tabs" :counts="['reports' => $reportsCount]" class="flex-1" aria-label="Отзывы" />
+            <x-ui.tabs model="tab" :active="$tab" :items="$tabs" :counts="['reports' => $reportsCount, 'platform' => $platformCount]" class="flex-1" aria-label="Отзывы" />
             <div class="pt-4 lg:border-b lg:border-line lg:pb-2 lg:pl-6 lg:pt-0">
                 <x-ui.search wire:model.live.debounce.300ms="q" placeholder="Ученик или учитель" />
             </div>
@@ -32,7 +32,10 @@
                                     @if ($x['reportedAt'])<span class="text-t2 text-muted">жалоба {{ $x['reportedAt'] }}</span>@endif
                                 </span>
                             @endif
-                            @if ($x['hidden'])<span class="text-t2 text-muted">{{ $x['hiddenNote'] }}</span>@endif
+                            @if ($x['platform'])
+                                {{-- Исключение — ждёт проверки: жирным; остальное — тихо --}}
+                                <span @class(['text-t2', 'font-semibold' => $x['platformStatus'] === 'Ждёт проверки', 'text-muted' => $x['platformStatus'] !== 'Ждёт проверки'])>{{ $x['platformStatus'] }}</span>
+                            @elseif ($x['hidden'])<span class="text-t2 text-muted">{{ $x['hiddenNote'] }}</span>@endif
                         </span>
                         <x-ui.icon name="chevron-right" class="self-center text-faint group-hover:text-ink" />
                     </button>
@@ -64,7 +67,9 @@
                 </section>
             @endif
 
-            @if ($r['status'] === 'hidden')
+            @if ($r['platform'])
+                <p class="text-t2 text-muted">{{ $r['platformText'] }}</p>
+            @elseif ($r['status'] === 'hidden')
                 <p class="text-t2 text-muted">{{ $r['hiddenText'] }}</p>
             @endif
 
@@ -73,7 +78,14 @@
             @endif
 
             <x-slot:footer>
-                @if ($r['status'] === 'reported')
+                @if ($r['status'] === 'pending')
+                    <x-ui.btn wire:click="toHide">Не публиковать</x-ui.btn>
+                    <x-ui.btn variant="primary" wire:click="approve" wire:loading.attr="disabled" wire:target="approve">Опубликовать</x-ui.btn>
+                @elseif ($r['status'] === 'published')
+                    <x-ui.btn wire:click="toHide">Снять с сайта</x-ui.btn>
+                @elseif ($r['status'] === 'private')
+                    <x-ui.btn wire:click="close">Закрыть</x-ui.btn>
+                @elseif ($r['status'] === 'reported')
                     <x-ui.btn variant="dark" wire:click="toHide">Скрыть отзыв</x-ui.btn>
                     <x-ui.btn variant="primary" wire:click="toKeep">Оставить отзыв</x-ui.btn>
                 @elseif ($r['status'] === 'visible')
@@ -88,14 +100,14 @@
 
     {{-- Скрыть --}}
     @if ($r && $step === 'hide')
-        <x-ui.modal title="Скрыть отзыв?" :sub="$r['pair']" close="back" width="s">
+        <x-ui.modal :title="$r['platform'] ? 'Не показывать на сайте?' : 'Скрыть отзыв?'" :sub="$r['pair']" close="back" width="s">
             <p class="text-t1">{{ $r['hideText'] }}</p>
             @if ($r['status'] === 'reported')
                 <p class="text-t2 text-muted">{{ $r['teacherShort'] }} {{ $notify ? 'получит' : 'не получит' }} письмо о решении.</p>
             @endif
             <x-slot:footer>
                 <x-ui.btn wire:click="back">Отмена</x-ui.btn>
-                <x-ui.btn variant="dark" wire:click="hide" wire:loading.attr="disabled" wire:target="hide">Скрыть отзыв</x-ui.btn>
+                <x-ui.btn variant="dark" wire:click="hide" wire:loading.attr="disabled" wire:target="hide">{{ $r['platform'] ? 'Не показывать' : 'Скрыть отзыв' }}</x-ui.btn>
             </x-slot:footer>
         </x-ui.modal>
     @endif

@@ -114,6 +114,9 @@
                 {{-- Тариф на виду: остаток занятий и лимиты --}}
                 <x-ui.tariff :summary="$tariff" />
 
+                {{-- Отзыв о платформе: приглашение после нескольких проведённых занятий --}}
+                <livewire:cabinet.teacher.platform-review prompt />
+
                 {{-- Ждут оплаты --}}
                 @if ($payments->isNotEmpty())
                     <x-ui.card aria-labelledby="t-pay">

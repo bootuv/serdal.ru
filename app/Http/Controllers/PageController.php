@@ -9,36 +9,42 @@ use App\Models\Review;
 use App\Support\OfferSettings;
 class PageController extends Controller
 {
-    public function reviewsPage()
+    /** Вкладки /reviews: все · ученики (об учителях) · учителя (о платформе, после проверки). */
+    private const REVIEW_ROLES = ['student', 'tutor'];
+
+    /** Отзывы для /reviews по вкладке; teacher — отзывы об одном учителе (страница учителя). */
+    private function publicReviews(?string $role, ?int $teacherId = null)
     {
-        $reviews = Review::with(['user', 'teacher'])
-            ->where('is_rejected', false)
-            ->whereHas('user', fn($q) => $q->where('role', User::ROLE_STUDENT))
-            ->latest()
-            ->orderByDesc('id')
-            ->take(20)
-            ->get();
+        $query = Review::with(['user', 'teacher'])->public();
 
-        $totalCount = Review::where('is_rejected', false)
-            ->whereHas('user', fn($q) => $q->where('role', User::ROLE_STUDENT))
-            ->count();
+        return match (true) {
+            (bool) $teacherId => $query->where('teacher_id', $teacherId),
+            $role === 'student' => $query->aboutTeachers(),
+            $role === 'tutor' => $query->platform(),
+            default => $query,
+        };
+    }
 
+    public function reviewsPage(Request $request)
+    {
+        $role = in_array($request->query('role'), self::REVIEW_ROLES, true) ? $request->query('role') : null;
+        $query = $this->publicReviews($role);
+
+        $totalCount = (clone $query)->count();
+        $reviews = $query->latest()->orderByDesc('id')->take(20)->get();
         $hasMore = $totalCount > 20;
 
-        return view('reviews', compact('reviews', 'hasMore', 'totalCount'));
+        return view('reviews', compact('reviews', 'hasMore', 'totalCount', 'role'));
     }
 
     public function loadMoreReviews(Request $request)
     {
-        $offset = $request->input('offset', 0);
+        $offset = max(0, (int) $request->input('offset', 0));
         $limit = 20;
-        $teacherId = $request->input('teacher');
+        $teacherId = $request->integer('teacher') ?: null;
+        $role = in_array($request->input('role'), self::REVIEW_ROLES, true) ? $request->input('role') : null;
 
-        $query = Review::with(['user', 'teacher'])
-            ->where('is_rejected', false)
-            ->whereHas('user', fn($q) => $q->where('role', User::ROLE_STUDENT))
-            ->when($teacherId, fn($q) => $q->where('teacher_id', $teacherId));
-
+        $query = $this->publicReviews($role, $teacherId);
         $totalCount = (clone $query)->count();
 
         $reviews = $query

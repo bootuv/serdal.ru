@@ -96,6 +96,7 @@ class User extends Authenticatable
             'extra_lessons_balance' => 'integer',
             'referral_banner_hidden_until' => 'datetime',
             'last_login_at' => 'datetime',
+            'platform_review_dismissed_at' => 'datetime',
         ];
     }
 
@@ -174,7 +175,7 @@ class User extends Authenticatable
         return Attribute::make(
             get: function () {
                 return match ($this->role) {
-                    User::ROLE_TUTOR => 'Преподаватель',
+                    User::ROLE_TUTOR => 'Учитель',
                     User::ROLE_STUDENT => 'Ученик',
                     User::ROLE_ADMIN => 'Администратор',
                 };

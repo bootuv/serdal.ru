@@ -149,6 +149,9 @@
                             <button type="submit" class="link inline-flex items-center gap-2 text-t2"><x-ui.icon name="logout" size="s" />Выйти из кабинета</button>
                         </form>
                     </x-ui.card>
+
+                    {{-- Отзыв о платформе: оставить, посмотреть статус, изменить (PlatformReview) --}}
+                    <livewire:cabinet.teacher.platform-review />
                 </div>
             </div>
         @elseif ($tab === 'prices')
