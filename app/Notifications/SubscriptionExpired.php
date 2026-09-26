@@ -39,7 +39,7 @@ class SubscriptionExpired extends Notification implements ShouldBroadcast
                 \Filament\Notifications\Actions\Action::make('renew')
                     ->label('Выбрать тариф')
                     ->button()
-                    ->url(route('filament.app.pages.subscription')),
+                    ->url(route('cabinet.teacher.subscription')),
             ])
             ->getDatabaseMessage();
     }

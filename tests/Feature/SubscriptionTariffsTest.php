@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Filament\App\Pages\ManageSubscription;
+use App\Livewire\Cabinet\Teacher\Onboarding;
 use App\Models\Subscription;
 use App\Models\Tariff;
 use App\Models\User;
@@ -154,8 +154,9 @@ class SubscriptionTariffsTest extends TestCase
         $freeTariff = Tariff::where('slug', 'start')->first();
 
         Livewire::actingAs($tutor)
-            ->test(ManageSubscription::class)
-            ->call('selectTariff', $freeTariff->id);
+            ->test(\App\Livewire\Cabinet\Teacher\Subscription::class)
+            ->call('openSelect', $freeTariff->id)
+            ->call('confirmSelect');
 
         $subscription = $tutor->fresh()->activeSubscription();
         $this->assertNotNull($subscription);
@@ -343,8 +344,9 @@ class SubscriptionTariffsTest extends TestCase
         $basic = Tariff::where('slug', 'basic')->first();
 
         Livewire::actingAs($tutor)
-            ->test(ManageSubscription::class)
-            ->call('selectTariff', $basic->id);
+            ->test(\App\Livewire\Cabinet\Teacher\Subscription::class)
+            ->call('openSelect', $basic->id)
+            ->call('confirmSelect');
 
         // Подписка активирована сразу, без ухода на платёжную страницу
         $this->assertEquals($basic->id, $tutor->fresh()->activeSubscription()->tariff_id);
@@ -705,8 +707,9 @@ class SubscriptionTariffsTest extends TestCase
         $paidEndsAt = $tutor->activeSubscription()->ends_at;
 
         Livewire::actingAs($tutor)
-            ->test(ManageSubscription::class)
-            ->call('selectTariff', $free->id);
+            ->test(\App\Livewire\Cabinet\Teacher\Subscription::class)
+            ->call('openSelect', $free->id)
+            ->call('confirmSelect');
 
         // Платный тариф продолжает действовать, бесплатный — запланирован на дату окончания
         $tutor = $tutor->fresh();
@@ -730,8 +733,9 @@ class SubscriptionTariffsTest extends TestCase
         $free = Tariff::where('slug', 'start')->first();
 
         Livewire::actingAs($tutor)
-            ->test(ManageSubscription::class)
-            ->call('selectTariff', $free->id);
+            ->test(\App\Livewire\Cabinet\Teacher\Subscription::class)
+            ->call('openSelect', $free->id)
+            ->call('confirmSelect');
 
         // Бессрочная подписка не имеет оплаченного периода — переключение сразу
         $this->assertEquals($free->id, $tutor->fresh()->activeSubscription()->tariff_id);
@@ -992,8 +996,8 @@ class SubscriptionTariffsTest extends TestCase
         $this->assertNull($tutor->activeSubscription());
 
         Livewire::actingAs($tutor)
-            ->test(\App\Filament\App\Pages\Onboarding::class)
-            ->call('submit');
+            ->test(Onboarding::class)
+            ->call('finish');
 
         $subscription = $tutor->fresh()->activeSubscription();
         $this->assertNotNull($subscription);
@@ -1035,8 +1039,8 @@ class SubscriptionTariffsTest extends TestCase
         // Выбранный при заявке тариф предвыбран в шаге «Тариф»; после
         // завершения — редирект на платёжную страницу ЮKassa
         Livewire::actingAs($tutor)
-            ->test(\App\Filament\App\Pages\Onboarding::class)
-            ->call('submit')
+            ->test(Onboarding::class)
+            ->call('finish')
             ->assertRedirect('https://pay.test/redirect');
 
         $payment = \App\Models\SubscriptionPayment::where('user_id', $tutor->id)->first();
@@ -1081,9 +1085,9 @@ class SubscriptionTariffsTest extends TestCase
         ]);
 
         Livewire::actingAs($tutor)
-            ->test(\App\Filament\App\Pages\Onboarding::class)
-            ->set('data.billing_period', 'year')
-            ->call('submit')
+            ->test(Onboarding::class)
+            ->set('billingPeriod', 'year')
+            ->call('finish')
             ->assertRedirect('https://pay.test/redirect-year');
 
         $payment = \App\Models\SubscriptionPayment::where('user_id', $tutor->id)->first();
@@ -1091,7 +1095,7 @@ class SubscriptionTariffsTest extends TestCase
         $this->assertEquals(365, $payment->period_days);
     }
 
-    public function test_onboarding_with_desired_tariff_without_yookassa_goes_to_dashboard(): void
+    public function test_onboarding_with_desired_tariff_without_yookassa_finishes_on_free(): void
     {
         $basic = Tariff::where('slug', 'basic')->first();
 
@@ -1112,10 +1116,14 @@ class SubscriptionTariffsTest extends TestCase
             'duration' => 60,
         ]);
 
+        // Оплата не настроена: без перехода к оплате — экран «Готово» со ссылкой в кабинет
         Livewire::actingAs($tutor)
-            ->test(\App\Filament\App\Pages\Onboarding::class)
-            ->call('submit')
-            ->assertRedirect(route('filament.app.pages.dashboard'));
+            ->test(Onboarding::class)
+            ->call('finish')
+            ->assertNoRedirect()
+            ->assertSet('done', true)
+            ->assertSee('Онлайн-оплата подключается')
+            ->assertSee(route('cabinet.teacher.today'));
 
         $this->assertEquals(0, $tutor->fresh()->activeSubscription()->tariff->price);
     }
@@ -1143,8 +1151,8 @@ class SubscriptionTariffsTest extends TestCase
         SubscriptionService::activate($tutor, $basic);
 
         Livewire::actingAs($tutor)
-            ->test(\App\Filament\App\Pages\Onboarding::class)
-            ->call('submit');
+            ->test(Onboarding::class)
+            ->call('finish');
 
         $this->assertEquals($basic->id, $tutor->fresh()->activeSubscription()->tariff_id);
     }
@@ -1489,8 +1497,11 @@ class SubscriptionTariffsTest extends TestCase
         SubscriptionService::activate($tutor, Tariff::where('slug', 'start')->first());
 
         Livewire::actingAs($tutor)
-            ->test(ManageSubscription::class)
-            ->call('buyExtraLessons', SubscriptionService::extraLessonsMax() + 1);
+            ->test(\App\Livewire\Cabinet\Teacher\Subscription::class)
+            ->call('openBuy')
+            ->set('quantity', SubscriptionService::extraLessonsMax() + 1)
+            ->call('confirmBuy')
+            ->assertHasErrors(['quantity' => 'max']);
 
         $this->assertEquals(0, \App\Models\SubscriptionPayment::where('user_id', $tutor->id)->count());
         $this->assertEquals(0, $tutor->fresh()->extra_lessons_balance);

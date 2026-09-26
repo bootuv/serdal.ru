@@ -40,7 +40,7 @@ class NewTeacher extends Notification implements ShouldBroadcast
                 \Filament\Notifications\Actions\Action::make('view')
                     ->label('Открыть')
                     ->button()
-                    ->url(route('filament.student.pages.dashboard'))
+                    ->url(route('cabinet.student.home'))
             ])
             ->getDatabaseMessage();
     }

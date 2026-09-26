@@ -45,7 +45,7 @@ class SubscriptionPaid extends Notification implements ShouldBroadcast
                 \Filament\Notifications\Actions\Action::make('view')
                     ->label('Моя подписка')
                     ->button()
-                    ->url(route('filament.app.pages.subscription')),
+                    ->url(route('cabinet.teacher.subscription')),
             ])
             ->getDatabaseMessage();
     }

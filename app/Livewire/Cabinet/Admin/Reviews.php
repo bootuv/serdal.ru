@@ -14,7 +14,7 @@ use Livewire\Component;
 /**
  * Отзывы и жалобы учителей на них: «Жалобы / Все отзывы / Скрытые», окно отзыва,
  * «Оставить отзыв» (снять жалобу), «Скрыть отзыв», «Вернуть отзыв», письмо учителю о решении.
- * Макет: AdminReviews. Логика — AdminReviewsService (общая с Filament).
+ * Макет: AdminReviews. Логика — AdminReviewsService.
  */
 #[Layout('components.layouts.cabinet', ['title' => 'Жалобы на отзывы', 'active' => 'reviews'])]
 class Reviews extends Component

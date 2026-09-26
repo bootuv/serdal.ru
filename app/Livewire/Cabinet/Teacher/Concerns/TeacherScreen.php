@@ -17,9 +17,7 @@ trait TeacherScreen
         abort_unless($user && in_array($user->role, [User::ROLE_TUTOR, User::ROLE_ADMIN], true), 403);
 
         if ($requireProfile && $user->role === User::ROLE_TUTOR && ! $user->is_profile_completed) {
-            $this->redirect(\Illuminate\Support\Facades\Route::has('cabinet.teacher.onboarding')
-                ? route('cabinet.teacher.onboarding')
-                : route('filament.app.pages.onboarding'));
+            $this->redirect(route('cabinet.teacher.onboarding'));
         }
 
         return $user;

@@ -39,7 +39,7 @@ class SubscriptionAutoRenewFailed extends Notification implements ShouldBroadcas
                 \Filament\Notifications\Actions\Action::make('renew')
                     ->label('Оплатить вручную')
                     ->button()
-                    ->url(route('filament.app.pages.subscription')),
+                    ->url(route('cabinet.teacher.subscription')),
             ])
             ->getDatabaseMessage();
     }

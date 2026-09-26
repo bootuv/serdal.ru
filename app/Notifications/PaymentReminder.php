@@ -43,7 +43,7 @@ class PaymentReminder extends Notification implements ShouldBroadcast
                 \Filament\Notifications\Actions\Action::make('view')
                     ->label('Подробнее')
                     ->button()
-                    ->url(route('filament.student.pages.payment-debts'))
+                    ->url(route('cabinet.student.payments'))
             ])
             ->getDatabaseMessage();
     }

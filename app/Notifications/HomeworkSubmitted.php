@@ -58,10 +58,8 @@ class HomeworkSubmitted extends Notification implements ShouldBroadcast
         $submission = $this->submission
             ?? $this->homework->submissions()->where('student_id', $this->student->id)->first();
 
-        return match (true) {
-            $submission !== null && \Illuminate\Support\Facades\Route::has('cabinet.teacher.review') => route('cabinet.teacher.review', $submission),
-            \Illuminate\Support\Facades\Route::has('cabinet.teacher.task') => route('cabinet.teacher.task', $this->homework),
-            default => route('filament.app.resources.homework.view', $this->homework),
-        };
+        return $submission !== null
+            ? route('cabinet.teacher.review', $submission)
+            : route('cabinet.teacher.task', $this->homework);
     }
 }

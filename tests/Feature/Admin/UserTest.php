@@ -342,4 +342,20 @@ class UserTest extends TestCase
         auth()->login($user);
         $this->assertNotNull($user->fresh()->last_login_at);
     }
+
+    /** Выход из админки — в своей карточке; карточка профиля в меню ведёт туда же. */
+    public function test_admin_logs_out_from_own_card(): void
+    {
+        $admin = $this->admin();
+        $other = $this->admin();
+
+        $this->actingAs($admin)->get(route('cabinet.admin.user', ['user' => $admin->id]))
+            ->assertOk()->assertSee('Выйти')
+            ->assertSee('href="' . route('cabinet.admin.user', ['user' => $admin->id]) . '"', false);
+        $this->actingAs($admin)->get(route('cabinet.admin.user', ['user' => $other->id]))
+            ->assertOk()->assertDontSee('Выйти');
+
+        $this->post(route('logout'))->assertRedirect();
+        $this->assertGuest();
+    }
 }

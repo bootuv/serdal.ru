@@ -11,13 +11,11 @@ use App\Models\Direct;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Support\Str;
 use Illuminate\Database\Eloquent\Builder;
-use Filament\Models\Contracts\FilamentUser;
-use Filament\Panel;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Database\Eloquent\Model;
 use NotificationChannels\WebPush\HasPushSubscriptions;
 
-class User extends Authenticatable implements FilamentUser
+class User extends Authenticatable
 {
 
     const ROLE_TUTOR = 'tutor';
@@ -191,36 +189,9 @@ class User extends Authenticatable implements FilamentUser
         );
     }
 
-    public function getFilamentAvatarUrl(): ?string
-    {
-        return $this->avatarUrl;
-    }
-
     public function scopeIsSpecialist(Builder $query): Builder
     {
         return $query->whereIn('role', [User::ROLE_TUTOR]);
-    }
-
-    public function canAccessPanel(Panel $panel): bool
-    {
-        // Заблокированные пользователи не могут получить доступ
-        if ($this->is_blocked) {
-            return false;
-        }
-
-        if ($panel->getId() === 'admin') {
-            return true;
-        }
-
-        if ($panel->getId() === 'app') {
-            return in_array($this->role, [self::ROLE_ADMIN, self::ROLE_TUTOR]);
-        }
-
-        if ($panel->getId() === 'student') {
-            return in_array($this->role, [self::ROLE_ADMIN, self::ROLE_STUDENT]);
-        }
-
-        return false;
     }
 
     public function reviews()

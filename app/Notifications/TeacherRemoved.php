@@ -44,7 +44,7 @@ class TeacherRemoved extends Notification implements ShouldBroadcast
                     \Filament\Notifications\Actions\Action::make('review')
                         ->label('Оставить отзыв')
                         ->button()
-                        ->url(route('filament.student.pages.dashboard'))
+                        ->url(route('cabinet.student.home'))
                 ]);
         } else {
             $notification->body("Учитель {$this->teacher->name} убрал вас из своего списка учеников.");

@@ -265,30 +265,6 @@ class TeacherReviewTest extends TestCase
             ->assertDontSee('когда вы проверите работу');
     }
 
-    public function test_old_cabinet_annotation_event_does_not_break_marks(): void
-    {
-        \Filament\Facades\Filament::setCurrentPanel(\Filament\Facades\Filament::getPanel('app'));
-        $s = $this->submission();
-        Storage::disk('s3')->put('homework-submissions/1/page1.jpg', 'original');
-        $page = \App\Filament\App\Resources\HomeworkSubmissionResource\Pages\ViewHomeworkSubmission::class;
-
-        // Страница старого кабинета открыта до сохранения пометок (устаревшая копия работы)
-        $filament = Livewire::actingAs($this->teacher)->test($page, ['record' => $s->getRouteKey()]);
-
-        Livewire::actingAs($this->teacher)
-            ->test(ImageAnnotator::class)
-            ->call('openAnnotator', 'homework-submissions/1/page1.jpg', $s->id)
-            ->assertSet('showModal', true)
-            ->call('saveAnnotatedImage', 'data:image/png;base64,' . base64_encode('annotated'));
-
-        $filament->call('handleImageAnnotated', 'homework-submissions/1/page1.jpg');
-
-        $s->refresh();
-        $marked = $s->annotations['homework-submissions/1/page1.jpg'];
-        $this->assertSame([$marked], $s->feedback_attachments); // оригинал не попал в файлы комментария
-        $this->assertSame('original', Storage::disk('s3')->get('homework-submissions/1/page1.jpg'));
-    }
-
     public function test_feedback_files_keep_original_names(): void
     {
         $s = $this->submission();
@@ -333,31 +309,6 @@ class TeacherReviewTest extends TestCase
 
         $this->assertSame(20, $this->homework->fresh()->max_score);
         $this->assertSame(18, (int) $s->fresh()->grade);
-        Notification::assertSentTo($this->student, HomeworkGraded::class);
-    }
-    public function test_old_cabinet_uses_same_logic(): void
-    {
-        \Filament\Facades\Filament::setCurrentPanel(\Filament\Facades\Filament::getPanel('app'));
-        $s = $this->submission();
-        $page = \App\Filament\App\Resources\HomeworkSubmissionResource\Pages\ViewHomeworkSubmission::class;
-
-        Livewire::actingAs($this->teacher)
-            ->test($page, ['record' => $s->getRouteKey()])
-            ->callAction('request_revision', data: ['feedback' => '<p>Доделайте</p>'])
-            ->assertHasNoActionErrors();
-
-        $this->assertSame(HomeworkSubmission::STATUS_REVISION_REQUESTED, $s->fresh()->status);
-        Notification::assertSentTo($this->student, HomeworkRevisionRequested::class);
-
-        $s->refresh()->update(['status' => HomeworkSubmission::STATUS_SUBMITTED]);
-
-        Livewire::actingAs($this->teacher)
-            ->test($page, ['record' => $s->getRouteKey()])
-            ->callAction('grade', data: ['max_score' => 12, 'grade' => 11, 'feedback' => '<p>Отлично</p>'])
-            ->assertHasNoActionErrors();
-
-        $this->assertSame(11, (int) $s->fresh()->grade);
-        $this->assertSame(12, $this->homework->fresh()->max_score);
         Notification::assertSentTo($this->student, HomeworkGraded::class);
     }
 }

@@ -45,7 +45,7 @@ class ReferralBonusCredited extends Notification implements ShouldBroadcast
                 \Filament\Notifications\Actions\Action::make('view')
                     ->label('Пригласить ещё')
                     ->button()
-                    ->url(route('filament.app.pages.referrals')),
+                    ->url(route('cabinet.teacher.referrals')),
             ])
             ->getDatabaseMessage();
     }

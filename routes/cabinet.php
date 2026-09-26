@@ -2,7 +2,7 @@
 
 /*
  * Кабинеты учителя, ученика и админка (Livewire + Blade, docs/design/BRAND.md).
- * Старые Filament-панели /student и /tutor переадресуют сюда (RedirectOldCabinet), старая админка /admin — маршрут в конце файла.
+ * Адреса старых Filament-панелей (/tutor, /student, /admin) переадресует маршрут в конце файла.
  */
 
 use Illuminate\Support\Facades\Route;
@@ -92,11 +92,19 @@ Route::middleware(['auth', \App\Http\Middleware\CheckUserActive::class])
         }
     });
 
-// Старая Filament-админка удалена: закладки и ссылки /admin/… ведут в новую админку
-Route::get('/admin/{path?}', function (\Illuminate\Http\Request $request, ?string $path = null) {
+// Старые Filament-панели (/tutor, /student, /admin) удалены: закладки и ссылки из старых писем
+// ведут на тот же экран нового кабинета (CabinetUrl), иначе — на главную кабинета своей роли. Гость — на вход.
+Route::get('/{panel}/{path?}', function (\Illuminate\Http\Request $request, string $panel, ?string $path = null) {
     $user = $request->user();
+    if (! $user) {
+        return str_starts_with((string) $path, 'password-reset')
+            ? redirect()->route('password.request')
+            : redirect()->guest(route('login'));
+    }
+    $url = $request->fullUrl();
+    $target = \App\Support\CabinetUrl::fromLegacy($url, $user);
 
-    return redirect($user->isAdmin()
-        ? (\App\Support\CabinetUrl::fromAdmin('admin/' . $path, $request->query()) ?? route('cabinet.admin.today'))
-        : \App\Http\Middleware\EnsureCabinetRole::homeFor($user));
-})->where('path', '.*')->middleware(['auth', \App\Http\Middleware\CheckUserActive::class])->name('admin.legacy');
+    return redirect($target && $target !== $url ? $target : \App\Http\Middleware\EnsureCabinetRole::homeFor($user));
+})->where(['panel' => 'tutor|student|admin', 'path' => '.*'])
+    ->middleware(\App\Http\Middleware\CheckUserActive::class)
+    ->name('legacy.cabinet');

@@ -35,6 +35,12 @@
                 </div>
             </div>
             <div class="flex shrink-0 flex-wrap items-center gap-2">
+                @if ($isSelf)
+                    <form method="POST" action="{{ route('logout') }}">
+                        @csrf
+                        <x-ui.btn type="submit" icon="logout">Выйти</x-ui.btn>
+                    </form>
+                @endif
                 @unless ($isSelf)
                     <div class="relative" x-data="{ open: false }" x-on:click.outside="open = false" x-on:keydown.escape.window="open = false">
                         <x-ui.btn square icon="more" x-on:click="open = ! open" x-bind:aria-expanded="open" aria-haspopup="menu" aria-label="Другие действия" />

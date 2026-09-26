@@ -10,7 +10,7 @@ use App\Services\MessengerService;
 use Illuminate\Support\Facades\Route;
 
 /**
- * Ссылки старого кабинета (Filament: /tutor/…, /student/…, /admin/…) → экраны нового кабинета.
+ * Ссылки удалённых Filament-панелей (/tutor/…, /student/…, /admin/…) → экраны кабинетов.
  * Уведомления хранят ссылку в базе на момент отправки, поэтому переводим их при показе.
  * Если нового экрана нет — возвращаем ссылку как есть.
  */

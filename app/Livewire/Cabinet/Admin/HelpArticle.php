@@ -14,7 +14,7 @@ use Livewire\WithFileUploads;
 
 /**
  * Статья базы знаний: новая (/cabinet/admin/help/articles/new) или существующая.
- * Макет: AdminHelpArticle. Поля и правила — как в Filament HelpArticleResource; слаг не показываем — он генерируется из заголовка.
+ * Макет: AdminHelpArticle. Слаг не показываем — он генерируется из заголовка.
  */
 #[Layout('components.layouts.cabinet', ['title' => 'Статья базы знаний', 'active' => 'help'])]
 class HelpArticle extends Component

@@ -52,7 +52,7 @@ class SubscriptionRefunded extends Notification implements ShouldBroadcast
                 \Filament\Notifications\Actions\Action::make('history')
                     ->label('История платежей')
                     ->button()
-                    ->url(route('filament.app.pages.subscription')),
+                    ->url(route('cabinet.teacher.subscription')),
             ])
             ->getDatabaseMessage();
     }

@@ -2,16 +2,20 @@
 
 namespace Tests\Feature;
 
-use App\Filament\App\Resources\StudentResource\Pages\ListStudents;
+use App\Livewire\Cabinet\Teacher\Student;
 use App\Models\Room;
 use App\Models\User;
 use App\Notifications\TeacherAssignedLesson;
-use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Livewire\Livewire;
 use Tests\TestCase;
 
+/**
+ * Окно «Занятия ученика» в карточке ученика кабинета учителя
+ * (App\Livewire\Cabinet\Teacher\Student, логика — TeacherStudentsService::syncRooms).
+ * Удаление ученика из списка — Tests\Feature\Cabinet\TeacherStudentTest::test_remove_from_list.
+ */
 class StudentAssignRoomTest extends TestCase
 {
     use RefreshDatabase;
@@ -19,7 +23,7 @@ class StudentAssignRoomTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        Filament::setCurrentPanel(Filament::getPanel('app'));
+        $this->withoutVite();
     }
 
     protected function makeTutor(): User
@@ -59,7 +63,7 @@ class StudentAssignRoomTest extends TestCase
         ]);
     }
 
-    public function test_student_without_rooms_sees_assign_link_and_can_be_assigned_to_several_rooms(): void
+    public function test_student_without_rooms_can_be_assigned_to_several_rooms(): void
     {
         Notification::fake();
 
@@ -69,12 +73,14 @@ class StudentAssignRoomTest extends TestCase
         $second = $this->makeRoom($teacher, 'Литература');
 
         Livewire::actingAs($teacher)
-            ->test(ListStudents::class)
-            ->assertSee('Назначить занятие')
-            ->callTableAction('assign_room', $student, data: ['room_ids' => [$first->id, $second->id]])
-            ->assertHasNoTableActionErrors()
-            ->assertSee('ЕГЭ-2027 группа-1')
-            ->assertSee('Литература');
+            ->test(Student::class, ['student' => $student])
+            ->assertSee('Пока ни одного занятия')
+            ->call('openModal', 'assign')
+            ->assertSet('roomIds', [])
+            ->set('roomIds', [(string) $first->id, (string) $second->id])
+            ->call('saveRooms')
+            ->assertDispatched('toast', message: 'Занятия ученика сохранены')
+            ->assertSee('ЕГЭ-2027 группа-1, Литература');
 
         $this->assertTrue($first->participants()->whereKey($student->id)->exists());
         $this->assertTrue($second->participants()->whereKey($student->id)->exists());
@@ -98,13 +104,12 @@ class StudentAssignRoomTest extends TestCase
         $drop->updateQuietly(['type' => 'group']);
 
         Livewire::actingAs($teacher)
-            ->test(ListStudents::class)
+            ->test(Student::class, ['student' => $student])
             ->assertSee('Снимается')
-            ->mountTableAction('assign_room', $student)
-            // setTableActionData сливает массив с предзаполненным поэлементно, поэтому задаём поле напрямую
-            ->set('mountedTableActionsData.0.room_ids', [$keep->id])
-            ->callMountedTableAction()
-            ->assertHasNoTableActionErrors();
+            ->call('openModal', 'assign')
+            ->set('roomIds', [(string) $keep->id])
+            ->call('saveRooms')
+            ->assertDispatched('toast', message: 'Занятия ученика сохранены');
 
         $this->assertTrue($keep->participants()->whereKey($student->id)->exists());
         $this->assertFalse($drop->participants()->whereKey($student->id)->exists());
@@ -125,9 +130,10 @@ class StudentAssignRoomTest extends TestCase
         $room->participants()->attach($first->id);
 
         Livewire::actingAs($teacher)
-            ->test(ListStudents::class)
-            ->callTableAction('assign_room', $second, data: ['room_ids' => [$room->id]])
-            ->assertHasNoTableActionErrors();
+            ->test(Student::class, ['student' => $second])
+            ->call('openModal', 'assign')
+            ->set('roomIds', [(string) $room->id])
+            ->call('saveRooms');
 
         $this->assertSame(2, $room->participants()->count());
         $this->assertSame('group', $room->fresh()->type);
@@ -144,8 +150,13 @@ class StudentAssignRoomTest extends TestCase
         $this->makeRoom($teacher, 'Своё занятие');
 
         Livewire::actingAs($teacher)
-            ->test(ListStudents::class)
-            ->callTableAction('assign_room', $student, data: ['room_ids' => [$foreignRoom->id]]);
+            ->test(Student::class, ['student' => $student])
+            ->call('openModal', 'assign')
+            ->assertSee('Своё занятие')
+            ->assertDontSee('Чужое занятие')
+            ->set('roomIds', [(string) $foreignRoom->id])
+            ->call('saveRooms')
+            ->assertDispatched('toast', message: 'Изменений нет');
 
         $this->assertFalse($foreignRoom->participants()->whereKey($student->id)->exists());
         Notification::assertNothingSent();
@@ -160,34 +171,11 @@ class StudentAssignRoomTest extends TestCase
         $assigned->participants()->attach($student->id);
 
         Livewire::actingAs($teacher)
-            ->test(ListStudents::class)
+            ->test(Student::class, ['student' => $student])
             ->assertSee('Индивидуально')
-            ->assertDontSee('Назначить занятие')
-            // Окно открывает сам тег занятия, а не вся ячейка
-            ->assertSeeHtml("wire:click.stop.prevent=\"mountTableAction('assign_room', '{$student->id}')\"")
-            ->mountTableAction('assign_room', $student)
-            ->assertTableActionDataSet(['room_ids' => [$assigned->id]]);
-    }
-
-    public function test_delete_from_list_action_removes_student_from_teacher_and_rooms(): void
-    {
-        Notification::fake();
-
-        $teacher = $this->makeTutor();
-        $student = $this->makeStudent($teacher);
-        $room = $this->makeRoom($teacher, 'Химия ЕГЭ');
-        $room->participants()->attach($student->id);
-
-        Livewire::actingAs($teacher)
-            ->test(ListStudents::class)
-            ->assertTableActionExists('delete_from_list')
-            ->callTableAction('delete_from_list', $student)
-            ->assertHasNoTableActionErrors()
-            ->assertDontSee($student->name);
-
-        $this->assertFalse($teacher->students()->whereKey($student->id)->exists());
-        $this->assertFalse($room->participants()->whereKey($student->id)->exists());
-
-        Notification::assertSentTo($student, \App\Notifications\TeacherRemoved::class);
+            ->assertDontSee('Пока ни одного занятия')
+            ->call('openModal', 'assign')
+            ->assertSet('roomIds', [$assigned->id])
+            ->assertSee('Другое занятие');
     }
 }

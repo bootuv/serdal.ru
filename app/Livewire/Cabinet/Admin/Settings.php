@@ -15,7 +15,7 @@ use Livewire\WithFileUploads;
 /**
  * Настройки: вкладки «Видеосвязь / Записи / Оплата / Реквизиты и оферта / Сайт и поисковики / Блок для школ / Справочники».
  * Каждая вкладка сохраняется отдельно. Макеты: AdminSettings, AdminDictionaries.
- * Ключи — как в Filament ManageBigBlueButton (App\Services\SiteSettingsService); справочники — App\Services\DictionaryService.
+ * Ключи — App\Services\SiteSettingsService; справочники — App\Services\DictionaryService.
  */
 #[Layout('components.layouts.cabinet', ['title' => 'Настройки', 'active' => 'settings'])]
 class Settings extends Component

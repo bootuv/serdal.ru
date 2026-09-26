@@ -48,7 +48,7 @@ class SubscriptionAutoRenewNotice extends Notification implements ShouldBroadcas
                 \Filament\Notifications\Actions\Action::make('manage')
                     ->label('Управлять подпиской')
                     ->button()
-                    ->url(route('filament.app.pages.subscription')),
+                    ->url(route('cabinet.teacher.subscription')),
             ])
             ->getDatabaseMessage();
     }

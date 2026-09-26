@@ -56,7 +56,7 @@
     }
     $mobileTabs = array_values(array_filter($nav, fn ($i) => in_array($i['key'] ?? null, $isAdmin ? ['today', 'support', 'lessons', 'users'] : ['home', 'today', 'schedule', 'tasks', 'messages'])));
     $profileHref = match (true) {
-        $isAdmin => \Illuminate\Support\Facades\Route::has('cabinet.admin.settings') ? route('cabinet.admin.settings') : '#',
+        $isAdmin => route('cabinet.admin.user', ['user' => $user->id]),
         $isStudent => $to('cabinet.student.profile', '/student/profile'),
         default => $to('cabinet.teacher.profile', '/tutor/edit-profile'),
     };
@@ -71,7 +71,8 @@
         $moreItems[] = ['key' => 'referrals', 'label' => 'Пригласить коллег', 'icon' => 'share', 'href' => route('cabinet.teacher.referrals')];
     }
     if ($isAdmin) {
-        $moreItems[] = ['key' => 'settings', 'label' => 'Настройки', 'icon' => 'settings', 'href' => $profileHref];
+        $moreItems[] = ['key' => 'settings', 'label' => 'Настройки', 'icon' => 'settings', 'href' => route('cabinet.admin.settings')];
+        $moreItems[] = ['key' => 'profile', 'label' => 'Профиль', 'icon' => 'user', 'href' => $profileHref];
     } else {
         $moreItems[] = ['key' => 'support', 'label' => 'Поддержка', 'icon' => 'help', 'href' => $supportHref];
         $moreItems[] = ['key' => 'profile', 'label' => $isStudent ? 'Профиль' : 'Профиль и тариф', 'icon' => 'user', 'href' => $profileHref];
@@ -135,7 +136,7 @@
                 @endif
             @endunless
             @if ($isAdmin)
-                <a href="{{ $profileHref }}" @class(['flex h-11 items-center gap-3 rounded px-3 text-t1-s font-medium', 'bg-mint font-semibold text-ink' => $active === 'settings', 'text-muted hover:bg-soft-hover hover:text-ink' => $active !== 'settings'])><x-ui.icon name="settings" />Настройки</a>
+                <a href="{{ route('cabinet.admin.settings') }}" @class(['flex h-11 items-center gap-3 rounded px-3 text-t1-s font-medium', 'bg-mint font-semibold text-ink' => $active === 'settings', 'text-muted hover:bg-soft-hover hover:text-ink' => $active !== 'settings'])><x-ui.icon name="settings" />Настройки</a>
             @else
                 <a href="{{ $supportHref }}" class="flex h-11 items-center gap-3 rounded px-3 text-t1-s font-medium text-muted hover:bg-soft-hover hover:text-ink"><x-ui.icon name="help" />Поддержка</a>
             @endif
@@ -204,7 +205,7 @@
 <livewire:cabinet.push-prompt />
 <x-ui.toast />
 {{-- Звук важных уведомлений (флаг sound у broadcast-уведомления) — тот же скрипт, что в старом кабинете --}}
-@include('filament.notifications.sound')
+@include('partials.notification-sound')
 
 {{-- Сбой запроса Livewire (resources/js/cabinet.js): 419 — «Страница устарела», 500 — «Что-то пошло не так» (макеты SySession, SyError) --}}
 <div x-data="{ kind: null }" x-on:cabinet-request-failed.window="kind = $event.detail.kind" x-show="kind" x-cloak

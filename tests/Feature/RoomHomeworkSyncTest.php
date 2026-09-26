@@ -2,12 +2,15 @@
 
 namespace Tests\Feature;
 
+use App\Livewire\Cabinet\Student\Tasks;
 use App\Models\Homework;
 use App\Models\Room;
 use App\Models\User;
 use App\Notifications\NewHomework;
+use App\Services\HomeworkSubmissionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
+use Livewire\Livewire;
 use Tests\TestCase;
 
 class RoomHomeworkSyncTest extends TestCase
@@ -85,11 +88,16 @@ class RoomHomeworkSyncTest extends TestCase
         Notification::assertNotSentTo($newcomer, NewHomework::class, fn ($n) => $n->homework->is($overdue));
         Notification::assertNotSentTo($existing, NewHomework::class);
 
-        // Ученик видит задание в своём кабинете
-        $this->actingAs($newcomer);
-        $visibleIds = \App\Filament\Student\Resources\HomeworkResource::getEloquentQuery()->pluck('id')->all();
+        // Ученик видит задание в своём кабинете (скрытое — нет)
+        $visibleIds = HomeworkSubmissionService::visibleTo($newcomer->id)->pluck('homeworks.id')->all();
         $this->assertContains($homework->id, $visibleIds);
         $this->assertNotContains($hidden->id, $visibleIds);
+
+        Livewire::actingAs($newcomer)
+            ->test(Tasks::class)
+            ->set('tab', 'all')
+            ->assertSee('ДЗ №1')
+            ->assertDontSee('Скрытое');
     }
 
     /** @test */

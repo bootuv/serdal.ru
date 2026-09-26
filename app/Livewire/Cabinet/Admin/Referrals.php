@@ -15,7 +15,7 @@ use Livewire\Component;
 
 /**
  * Партнёрская программа (макет AdminReferrals): журнал начислений с фильтром и поиском, сводка за месяц,
- * «Чаще всех приглашают», окно «Настройки программы» (те же настройки, что в Filament «Партнёрская программа»).
+ * «Чаще всех приглашают», окно «Настройки программы».
  */
 #[Layout('components.layouts.cabinet', ['title' => 'Партнёрская программа', 'active' => 'referrals'])]
 class Referrals extends Component

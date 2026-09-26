@@ -1,1 +1,0 @@
-@include('filament.resources.meeting-session-resource.pages.view-meeting-session')

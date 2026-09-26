@@ -46,9 +46,7 @@ class TeacherUpdatedSchedule extends Notification implements ShouldBroadcast
                 \Filament\Notifications\Actions\Action::make('view')
                     ->label('Расписание')
                     ->button()
-                    ->url(\Illuminate\Support\Facades\Route::has('cabinet.student.schedule')
-                        ? route('cabinet.student.schedule')
-                        : route('filament.student.pages.schedule-calendar'))
+                    ->url(route('cabinet.student.schedule'))
             ])
             ->getDatabaseMessage();
     }

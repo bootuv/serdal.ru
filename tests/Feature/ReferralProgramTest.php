@@ -233,10 +233,12 @@ class ReferralProgramTest extends TestCase
         $tutor = $this->makeTutor(['created_at' => now()->subDays(10)]);
         $this->assertTrue(ReferralService::shouldShowBanner($tutor));
 
+        // Плашка в сайдбаре кабинета учителя: крестик скрывает её
         $this->actingAs($tutor);
-        Livewire::test(\App\Filament\App\Widgets\ReferralBannerWidget::class)
+        Livewire::test(\App\Livewire\Cabinet\ReferralPromo::class)
             ->assertSee('Приглашайте коллег')
-            ->call('dismiss')
+            ->call('hide')
+            ->assertSet('visible', false)
             ->assertDontSee('Приглашайте коллег');
 
         $this->assertFalse(ReferralService::shouldShowBanner($tutor->fresh()));
@@ -310,8 +312,10 @@ class ReferralProgramTest extends TestCase
         }
         SubscriptionService::flushCanStartCache();
 
+        // Экран «Тариф и платежи»: лимит исчерпан — подсказка про приглашение коллеги
         $this->actingAs($tutor);
-        Livewire::test(\App\Filament\App\Widgets\TariffLimitsWidget::class)
-            ->assertSee('пригласите коллегу');
+        Livewire::test(\App\Livewire\Cabinet\Teacher\Subscription::class)
+            ->assertSee('пригласите коллегу')
+            ->assertSee(route('cabinet.teacher.referrals'));
     }
 }

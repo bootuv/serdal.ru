@@ -21,7 +21,7 @@ use Livewire\Component;
 
 /**
  * Заявки учителей: вкладки по статусу, поиск, окно заявки, «Одобрить» и «Отклонить» с причиной.
- * Макет: AdminApplications. Логика решения — TeacherApplicationService (общая с Filament).
+ * Макет: AdminApplications. Логика решения — TeacherApplicationService.
  */
 #[Layout('components.layouts.cabinet', ['title' => 'Заявки учителей', 'active' => 'applications'])]
 class Applications extends Component

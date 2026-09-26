@@ -38,7 +38,7 @@ use Livewire\WithFileUploads;
  * Карточка пользователя в админке: учитель (обзор с тарифом, профиль, цены, ученики и занятия),
  * ученик (учителя и занятия, активность, контакты, профиль), администратор (профиль, последний вход).
  * Макеты AdminUserTeacher, AdminUserTeacherTariff, AdminUserStudent. Действия — AdminUserService,
- * тариф — SubscriptionService::assignByAdmin (общий с Filament UserResource).
+ * тариф — SubscriptionService::assignByAdmin.
  * Оплату занятий ученик → учитель здесь не показываем (решение владельца).
  */
 #[Layout('components.layouts.cabinet', ['title' => 'Пользователь', 'active' => 'users'])]

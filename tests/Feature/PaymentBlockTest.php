@@ -246,8 +246,7 @@ class PaymentBlockTest extends TestCase
         $this->makeBlocked($teacher, $student);
         $this->assertTrue($student->isPaymentBlockedFor($teacher->id));
 
-        $this->actingAs($teacher);
-        \App\Filament\App\Resources\StudentResource::applyPaymentSettings($student, ['is_free' => true]);
+        app(\App\Services\TeacherStudentsService::class)->applyPaymentSettings($teacher, $student, true, null);
 
         $this->assertFalse($student->isPaymentBlockedFor($teacher->id));
     }
@@ -329,10 +328,10 @@ class PaymentBlockTest extends TestCase
 
         // Старые адреса ведут в новый кабинет
         $this->actingAs($student)
-            ->get(route('filament.student.pages.dashboard'))
+            ->get('/student')
             ->assertRedirect(route('cabinet.student.home'));
         $this->actingAs($student)
-            ->get(route('filament.student.resources.rooms.index'))
+            ->get('/student/rooms')
             ->assertRedirect(route('cabinet.student.schedule'));
 
         // Главная: предупреждение о просрочке — у кого и сколько занятий осталось до закрытия входа
@@ -371,10 +370,10 @@ class PaymentBlockTest extends TestCase
         $this->withoutVite();
 
         $this->actingAs($student)
-            ->get(route('filament.student.pages.dashboard'))
+            ->get('/student')
             ->assertRedirect(route('cabinet.student.home'));
         $this->actingAs($student)
-            ->get(route('filament.student.pages.payment-debts'))
+            ->get('/student/payment-debts')
             ->assertRedirect(route('cabinet.student.payments'));
 
         $this->actingAs($student)
@@ -402,13 +401,13 @@ class PaymentBlockTest extends TestCase
 
         // Старые адреса ведут в новый кабинет
         $this->actingAs($student)
-            ->get(route('filament.student.resources.rooms.index'))
+            ->get('/student/rooms')
             ->assertRedirect(route('cabinet.student.schedule'));
         $this->actingAs($student)
-            ->get(route('filament.student.resources.rooms.view', $room))
+            ->get('/student/rooms/' . $room->id)
             ->assertRedirect(route('cabinet.student.lesson', $room));
         $this->actingAs($student)
-            ->get(route('filament.student.pages.schedule-calendar'))
+            ->get('/student/schedule-calendar')
             ->assertRedirect(route('cabinet.student.schedule'));
 
         // Главная: «Войти в класс» заблокирована, ссылки на вход нет

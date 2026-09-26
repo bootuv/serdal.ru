@@ -40,7 +40,7 @@ class StudentAcceptedInvite extends Notification implements ShouldBroadcast
                 \Filament\Notifications\Actions\Action::make('view')
                     ->label('Открыть')
                     ->button()
-                    ->url(route('filament.app.resources.students.index'))
+                    ->url(route('cabinet.teacher.students'))
             ])
             ->getDatabaseMessage();
     }

@@ -9,7 +9,7 @@ use Illuminate\Http\UploadedFile;
 
 /**
  * Настройки сайта по группам (вкладки «Настройки» новой админки). Ключи и значения по умолчанию —
- * как в Filament App\Filament\Pages\ManageBigBlueButton; каждая группа читается и сохраняется отдельно.
+ * каждая группа читается и сохраняется отдельно.
  * Партнёрская программа — в App\Services\ReferralService.
  */
 class SiteSettingsService
