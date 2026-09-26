@@ -443,6 +443,54 @@ class SubscriptionService
     }
 
     /**
+     * Сводка тарифа для кабинета учителя: какой тариф, до какого числа, сколько занятий осталось и лимиты.
+     * warning — исключение, которое нужно подсветить (занятия на исходе, подписка скоро закончится); null — всё спокойно.
+     */
+    public static function teacherSummary(User $user): array
+    {
+        $url = \Illuminate\Support\Facades\Route::has('cabinet.teacher.subscription') ? route('cabinet.teacher.subscription') : url('/tutor/subscription');
+        $subscription = $user->activeSubscription();
+        if (! $subscription?->tariff) {
+            return ['name' => null, 'url' => $url, 'warning' => 'Выберите тариф, чтобы проводить занятия'];
+        }
+
+        $tariff = $subscription->tariff;
+        $limit = $tariff->lessons_per_month;
+        $used = $limit !== null ? self::lessonsUsedThisPeriod($user) : null;
+        $left = $limit !== null ? max(0, $limit - $used) : null;
+        $extra = (int) $user->extra_lessons_balance;
+        $daysLeft = $subscription->ends_at ? (int) max(0, ceil(now()->diffInHours($subscription->ends_at, false) / 24)) : null;
+
+        $warning = match (true) {
+            $left !== null && $left === 0 && $extra <= 0 => 'Занятия по тарифу закончились',
+            $left !== null && $left <= max(2, (int) ceil($limit * 0.25)) => 'Осталось ' . plural_ru($left + $extra, 'занятие', 'занятия', 'занятий'),
+            $daysLeft !== null && $daysLeft <= 5 && ! $tariff->isFree() => $daysLeft === 0 ? 'Тариф закончится сегодня' : 'Тариф закончится через ' . plural_ru($daysLeft, 'день', 'дня', 'дней'),
+            default => null,
+        };
+
+        return [
+            'name' => $tariff->name,
+            'url' => $url,
+            'until' => match (true) {
+                $tariff->isFree() => 'бесплатный',
+                (bool) $subscription->ends_at => 'до ' . \App\Support\HumanDate::date($subscription->ends_at),
+                default => 'бессрочно',
+            },
+            'limit' => $limit,
+            'used' => $used,
+            'left' => $left,
+            'extra' => $extra,
+            'resets' => $limit !== null && ($resets = self::periodResetsAt($user)) ? \App\Support\HumanDate::date($resets) : null,
+            'limits' => collect([
+                $tariff->max_participants ? 'до ' . plural_ru($tariff->max_participants, 'участника', 'участников', 'участников') . ' в занятии' : null,
+                $tariff->max_duration_minutes ? 'занятие до ' . plural_ru($tariff->max_duration_minutes, 'минуты', 'минут', 'минут') : null,
+                $tariff->recording_retention_days ? 'записи хранятся ' . plural_ru($tariff->recording_retention_days, 'день', 'дня', 'дней') : 'без записей',
+            ])->filter()->values()->all(),
+            'warning' => $warning,
+        ];
+    }
+
+    /**
      * Начало текущего периода, за который считается лимит занятий.
      * Для оплаченных подписок (в том числе годовых) — 30-дневные циклы от даты
      * начала подписки; для бесплатного тарифа / без подписки — календарный месяц.

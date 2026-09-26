@@ -35,17 +35,9 @@
     $profileHref = $isStudent ? $to('cabinet.student.profile', '/student/profile') : $to('cabinet.teacher.profile', '/tutor/edit-profile');
     $supportHref = $user ? \App\Services\MessengerService::url($user, support: true) : '#';
 
-    // Под именем учителя — тариф и срок («Профи · до 12 октября»), как в макете
-    $profileSub = 'Профиль';
-    if (! $isStudent && $user) {
-        $sub = $user->activeSubscription();
-        $profileSub = match (true) {
-            ! $sub?->tariff => 'Профиль и тариф',
-            $sub->tariff->isFree() => $sub->tariff->name . ' · бесплатный',
-            (bool) $sub->ends_at => $sub->tariff->name . ' · до ' . \App\Support\HumanDate::date($sub->ends_at),
-            default => $sub->tariff->name,
-        };
-    }
+    // Тариф учителя на виду: плашка в сайдбаре и в «Ещё» (название, срок, остаток занятий)
+    $tariffSummary = ! $isStudent && $user ? \App\Services\SubscriptionService::teacherSummary($user) : null;
+    $profileSub = $isStudent ? 'Профиль' : 'Профиль и цены';
 
     // «Ещё» на телефоне: разделы, которых нет на нижней панели, + поддержка, партнёрка, профиль
     $moreItems = array_values(array_filter($nav, fn ($i) => ! in_array($i, $mobileTabs, true)));
@@ -108,6 +100,7 @@
                     <a href="{{ route('cabinet.teacher.referrals') }}" class="flex h-11 items-center gap-3 rounded px-3 text-t1-s font-medium text-muted hover:bg-soft-hover hover:text-ink"><x-ui.icon name="share" />Пригласить коллег</a>
                 @endif
             @endunless
+            @if ($tariffSummary)<x-ui.tariff :summary="$tariffSummary" />@endif
             <a href="{{ $supportHref }}" class="flex h-11 items-center gap-3 rounded px-3 text-t1-s font-medium text-muted hover:bg-soft-hover hover:text-ink"><x-ui.icon name="help" />Поддержка</a>
             <a href="{{ $profileHref }}" class="flex items-center gap-3 border-t border-line px-3 pt-4">
                 <x-ui.avatar :user="$user" />
@@ -155,6 +148,7 @@
                     <span class="text-h2 font-medium">Ещё</span>
                     <x-ui.btn square icon="x" x-on:click="open = false" aria-label="Закрыть" />
                 </div>
+                @if ($tariffSummary)<x-ui.tariff :summary="$tariffSummary" class="mb-2" />@endif
                 @foreach ($moreItems as $item)
                     <a href="{{ $item['href'] }}" @class([
                         'flex h-11 items-center gap-3 rounded px-3 text-t1-s font-medium',

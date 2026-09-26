@@ -57,12 +57,13 @@ class Today extends Component
             return view('livewire.cabinet.teacher.today', $common + [
                 'empty' => true,
                 'steps' => $this->firstSteps($teacher),
-                'tariff' => $this->tariffCard($teacher),
+                'tariff' => SubscriptionService::teacherSummary($teacher),
             ]);
         }
 
         return view('livewire.cabinet.teacher.today', $common + [
             'empty' => false,
+            'tariff' => SubscriptionService::teacherSummary($teacher),
             'limitBanner' => $startBlock ? $this->limitBanner($teacher, $startBlock) : null,
             'inviteUrl' => Route::has('cabinet.teacher.students') ? route('cabinet.teacher.students', ['invite' => 1]) : url('/tutor/students'),
             'scheduleUrl' => Route::has('cabinet.teacher.schedule') ? route('cabinet.teacher.schedule') : url('/tutor/schedule-calendar'),
@@ -333,32 +334,6 @@ class Today extends Component
                 ? app(TeacherStudentsService::class)->invitationLink($teacher)
                 : null,
             'emailUrl' => Route::has('cabinet.teacher.students') ? route('cabinet.teacher.students', ['invite' => 1]) : url('/tutor/students'),
-        ];
-    }
-
-    /** Карточка тарифа нового учителя: сколько занятий осталось и ограничения. */
-    private function tariffCard(User $teacher): ?array
-    {
-        $subscription = $teacher->activeSubscription();
-        $url = Route::has('cabinet.teacher.subscription') ? route('cabinet.teacher.subscription') : url('/tutor/subscription');
-
-        if (! $subscription) {
-            return ['name' => null, 'url' => $url];
-        }
-
-        $tariff = $subscription->tariff;
-        $limit = $tariff->lessons_per_month;
-        $resets = SubscriptionService::periodResetsAt($teacher);
-
-        return [
-            'name' => $tariff->name,
-            'url' => $url,
-            'left' => $limit !== null ? max(0, $limit - SubscriptionService::lessonsUsedThisPeriod($teacher)) . ' из ' . $limit : null,
-            'leftSub' => $limit !== null ? 'занятий осталось' . ($resets ? ' · обновится ' . HumanDate::date($resets) : '') : null,
-            'limits' => collect([
-                $tariff->max_participants ? 'до ' . plural_ru($tariff->max_participants, 'участника', 'участников', 'участников') : null,
-                $tariff->max_duration_minutes ? 'до ' . plural_ru($tariff->max_duration_minutes, 'минуты', 'минут', 'минут') . ' в занятии' : null,
-            ])->filter()->implode(' и '),
         ];
     }
 }

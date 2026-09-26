@@ -45,26 +45,7 @@
                 </x-ui.list>
             </x-ui.card>
 
-            @if ($tariff)
-                <x-ui.card aria-labelledby="t-tar">
-                    <x-ui.card-head id="t-tar" :title="$tariff['name'] ? 'Тариф «' . $tariff['name'] . '»' : 'Тариф не выбран'">
-                        <x-slot:action><a href="{{ $tariff['url'] }}" class="link text-t2">Все тарифы</a></x-slot:action>
-                    </x-ui.card-head>
-                    @if (! $tariff['name'])
-                        <p class="text-t2 text-muted">Выберите тариф, чтобы проводить занятия.</p>
-                    @else
-                        @if ($tariff['left'])
-                            <div class="flex flex-col gap-1">
-                                <span class="text-num font-medium">{{ $tariff['left'] }}</span>
-                                <span class="text-t2 text-muted">{{ $tariff['leftSub'] }}</span>
-                            </div>
-                        @else
-                            <span class="text-t1 font-medium">Без лимита занятий</span>
-                        @endif
-                        @if ($tariff['limits'])<span class="text-t2 text-muted">{{ \Illuminate\Support\Str::ucfirst($tariff['limits']) }}</span>@endif
-                    @endif
-                </x-ui.card>
-            @endif
+            @if ($tariff)<x-ui.tariff :summary="$tariff" variant="card" />@endif
         </div>
     @else
         <x-ui.page-head title="Сегодня" :sub="$today">
@@ -130,6 +111,9 @@
             </div>
 
             <div class="flex min-w-0 flex-col gap-6">
+                {{-- Тариф на виду: остаток занятий и лимиты --}}
+                <x-ui.tariff :summary="$tariff" variant="card" />
+
                 {{-- Ждут оплаты --}}
                 @if ($payments->isNotEmpty())
                     <x-ui.card aria-labelledby="t-pay">
