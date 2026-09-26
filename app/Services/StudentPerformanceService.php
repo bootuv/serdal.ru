@@ -83,18 +83,26 @@ class StudentPerformanceService
      *
      * @return array<int, array{value:int, label:string, sub:string}>
      */
+    /** Общая успеваемость — среднее по показателям, где уже есть данные; null — данных нет совсем. */
+    public static function overall(array $metrics): ?int
+    {
+        $values = collect($metrics)->reject(fn (array $m) => $m['empty'] ?? false)->pluck('value');
+
+        return $values->isEmpty() ? null : (int) round($values->avg());
+    }
+
     public function metrics(User $student, int $teacherId): array
     {
         $s = $this->stats($student, $teacherId);
 
         return [
-            ['value' => $s['attendance'], 'label' => 'Посещаемость', 'sub' => $s['lessons_total']
+            ['value' => $s['attendance'], 'label' => 'Посещаемость', 'empty' => ! $s['lessons_total'], 'sub' => $s['lessons_total']
                 ? $s['lessons_attended'] . ' из ' . plural_ru($s['lessons_total'], 'занятия', 'занятий', 'занятий')
                 : 'занятий ещё не было'],
-            ['value' => $s['discipline'], 'label' => 'Задания в срок', 'sub' => $s['homework_total']
+            ['value' => $s['discipline'], 'label' => 'Задания в срок', 'empty' => ! $s['homework_total'], 'sub' => $s['homework_total']
                 ? $s['homework_on_time'] . ' из ' . plural_ru($s['homework_total'], 'задания', 'заданий', 'заданий')
                 : 'заданий ещё не было'],
-            ['value' => $s['knowledge'], 'label' => 'Качество знаний', 'sub' => $s['graded_count']
+            ['value' => $s['knowledge'], 'label' => 'Качество знаний', 'empty' => ! $s['graded_count'], 'sub' => $s['graded_count']
                 ? 'средний балл за ' . plural_ru($s['graded_count'], 'работу', 'работы', 'работ')
                 : 'оценок пока нет'],
         ];
