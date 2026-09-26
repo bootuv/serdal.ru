@@ -1,5 +1,7 @@
-{{-- Карточка: радиус 24, отступ 24. focus — мятный фокус-блок (один на экран). --}}
+{{-- Карточка: радиус 24, отступ 24. focus — мятный фокус-блок (один на экран).
+     Между блоками gap-4; свой отступ — классом gap-* (gap-0 для списков с шапкой таблицы). --}}
 @props(['focus' => false, 'as' => 'section'])
-<{{ $as }} {{ $attributes->class(['flex flex-col gap-4 rounded-xl p-6', 'bg-mint' => $focus, 'shadow-outline' => ! $focus]) }}>
+@php $ownGap = (bool) preg_match('/(^|\s)gap-/', (string) $attributes->get('class')); @endphp
+<{{ $as }} {{ $attributes->class(['flex flex-col rounded-xl p-6', 'gap-4' => ! $ownGap, 'bg-mint' => $focus, 'shadow-outline' => ! $focus]) }}>
     {{ $slot }}
 </{{ $as }}>

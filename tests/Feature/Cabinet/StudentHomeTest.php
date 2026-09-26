@@ -171,6 +171,7 @@ class StudentHomeTest extends TestCase
 
     public function test_debt_card_warns_and_week_list_marks_closed_entry(): void
     {
+        $this->travelTo(now()->setTime(12, 0)); // занятие «через 2 часа» должно остаться сегодняшним
         $teacher = $this->user(User::ROLE_TUTOR);
         $teacher->update(['name' => 'Мария Соколова']);
         $student = $this->user(User::ROLE_STUDENT);

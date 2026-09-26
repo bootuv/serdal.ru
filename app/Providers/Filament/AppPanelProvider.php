@@ -23,6 +23,7 @@ class AppPanelProvider extends PanelProvider
     public function panel(Panel $panel): Panel
     {
         return $panel
+            ->default()
             ->id('app')
             ->defaultThemeMode(\Filament\Enums\ThemeMode::Light)
             ->path('tutor')

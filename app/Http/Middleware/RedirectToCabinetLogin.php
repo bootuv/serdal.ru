@@ -6,7 +6,7 @@ use Closure;
 use Illuminate\Http\Request;
 
 /**
- * Страницы входа и «Забыли пароль?» панелей Filament (/admin/login, /tutor/login, /student/login, /login/login)
+ * Страницы входа и «Забыли пароль?» панелей Filament (/tutor/login, /student/login)
  * ведут на общий вход /login. Ссылки сброса пароля из уже отправленных писем Filament продолжают работать.
  */
 class RedirectToCabinetLogin

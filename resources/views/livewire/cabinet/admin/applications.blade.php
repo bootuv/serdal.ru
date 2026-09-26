@@ -25,6 +25,9 @@
                 </div>
             @endif
 
+            @if ($rows->isEmpty())
+                <p class="text-t2 text-muted">{{ $emptyText }}</p>
+            @endif
             <x-ui.list>
                 @foreach ($rows as $r)
                     <button type="button" wire:click="open({{ $r['id'] }})" wire:key="app-{{ $r['id'] }}"
@@ -50,10 +53,6 @@
                     </button>
                 @endforeach
             </x-ui.list>
-
-            @if ($rows->isEmpty())
-                <p class="text-t2 text-muted">{{ $emptyText }}</p>
-            @endif
         </x-ui.card>
     </div>
 

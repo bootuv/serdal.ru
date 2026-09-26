@@ -202,11 +202,10 @@ class SeoTest extends TestCase
             'is_profile_completed' => true,
         ]);
 
-        $this->actingAs($admin)->get('/admin/settings')
+        $this->actingAs($admin)->get(route('cabinet.admin.settings', ['tab' => 'seo']))
             ->assertOk()
             ->assertSee('Заголовки и описания')
-            ->assertSee('Картинка для соцсетей (og:image)')
-            ->assertSee('Разрешить ИИ-краулеры');
+            ->assertSee('Разрешить ИИ-помощникам читать сайт');
     }
 
     public function test_help_article_has_article_structured_data(): void

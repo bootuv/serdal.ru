@@ -173,7 +173,7 @@ class TeacherReviewsTest extends TestCase
             fn (TeacherReportedReview $n) => str_contains($n->toDatabase($admin)['body'], 'Причина: Это не мой ученик'));
 
         // Админ видит причину в списке отзывов
-        $this->actingAs($admin)->get(route('filament.admin.resources.reviews.index'))
+        $this->actingAs($admin)->get(route('cabinet.admin.reviews'))
             ->assertOk()
             ->assertSee('Это не мой ученик');
     }

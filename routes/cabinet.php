@@ -1,8 +1,8 @@
 <?php
 
 /*
- * Новые кабинеты учителя и ученика (Livewire + Blade, docs/design/BRAND.md).
- * Работают параллельно со старыми Filament-панелями /student и /tutor; экраны переключаем по одному.
+ * Кабинеты учителя, ученика и админка (Livewire + Blade, docs/design/BRAND.md).
+ * Старые Filament-панели /student и /tutor переадресуют сюда (RedirectOldCabinet), старая админка /admin — маршрут в конце файла.
  */
 
 use Illuminate\Support\Facades\Route;
@@ -91,3 +91,12 @@ Route::middleware(['auth', \App\Http\Middleware\CheckUserActive::class])
             }
         }
     });
+
+// Старая Filament-админка удалена: закладки и ссылки /admin/… ведут в новую админку
+Route::get('/admin/{path?}', function (\Illuminate\Http\Request $request, ?string $path = null) {
+    $user = $request->user();
+
+    return redirect($user->isAdmin()
+        ? (\App\Support\CabinetUrl::fromAdmin('admin/' . $path, $request->query()) ?? route('cabinet.admin.today'))
+        : \App\Http\Middleware\EnsureCabinetRole::homeFor($user));
+})->where('path', '.*')->middleware(['auth', \App\Http\Middleware\CheckUserActive::class])->name('admin.legacy');

@@ -217,12 +217,12 @@ class ReferralProgramTest extends TestCase
             'is_profile_completed' => true,
         ]);
 
-        $this->actingAs($admin)
-            ->get('/admin/settings?tab=-партнёрская-программа-tab')
-            ->assertOk()
-            ->assertSee('Бонус пригласившему, занятий');
+        $this->actingAs($admin)->get(route('cabinet.admin.referrals'))->assertOk();
+        Livewire::test(\App\Livewire\Cabinet\Admin\Referrals::class)
+            ->call('openSettings')
+            ->assertSee('Бонус пригласившему');
 
-        $this->actingAs($admin)->get('/admin/referral-rewards')->assertOk();
+        $this->actingAs($admin)->get('/admin/referral-rewards')->assertRedirect(route('cabinet.admin.referrals'));
     }
 
     public function test_dashboard_banner_waits_for_delay_and_hides_on_dismiss(): void

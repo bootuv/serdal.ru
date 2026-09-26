@@ -14,7 +14,7 @@
 
     <div class="flex flex-col gap-6">
         <x-ui.tabs :items="['schedule' => 'Расписание', 'sessions' => 'Проведённые', 'deletions' => 'Запросы на удаление', 'recordings' => 'Записи']"
-                   model="tab" :active="$tab" :counts="['deletions' => $pending]" class="overflow-x-auto whitespace-nowrap" aria-label="Занятия" />
+                   model="tab" :active="$tab" :counts="['deletions' => $pending]" aria-label="Занятия" />
 
         @if ($tab === 'schedule')
             @include('livewire.cabinet.admin.partials.lessons-schedule')

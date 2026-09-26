@@ -449,20 +449,17 @@ class PaymentBlockTest extends TestCase
         $this->makeRecord($teacher, $clean, 5);
         $this->attendLesson($teacher, $clean, 2);
 
-        $this->withoutVite();
-        \Filament\Facades\Filament::setCurrentPanel(\Filament\Facades\Filament::getPanel('admin'));
         $this->actingAs($admin);
 
-        // Оплата занятий ученик → учитель — дело учителя и ученика: в админке нет ни колонки, ни фильтра, ни начислений
-        \Livewire\Livewire::test(\App\Filament\Resources\UserResource\Pages\ListUsers::class)
-            ->assertCanSeeTableRecords([$blocked, $clean])
-            ->assertTableColumnDoesNotExist('payment_block')
-            ->assertDontSee('Заблокированы занятия за неоплату');
-
-        $this->assertNotContains(
-            'App\\Filament\\Resources\\UserResource\\RelationManagers\\PaymentRecordsRelationManager',
-            \App\Filament\Resources\UserResource::getRelations()
-        );
+        // Оплата занятий ученик → учитель — дело учителя и ученика: в админке нет ни отметок, ни начислений
+        $this->get(route('cabinet.admin.users', ['tab' => 'students']))
+            ->assertOk()
+            ->assertSee($blocked->name)
+            ->assertDontSee('за неоплату');
+        $this->get(route('cabinet.admin.user', ['user' => $blocked->id]))
+            ->assertOk()
+            ->assertDontSee('за неоплату')
+            ->assertDontSee('Долг');
     }
 
     public function test_completed_session_creates_record_without_any_block_flag(): void

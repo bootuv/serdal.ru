@@ -122,10 +122,14 @@ class SubscriptionTariffsTest extends TestCase
     {
         $admin = $this->makeAdmin();
 
-        $this->actingAs($admin)->get('/admin/tariffs')->assertOk();
-        $this->actingAs($admin)->get('/admin/subscriptions')->assertOk();
-        $this->actingAs($admin)->get('/admin/subscription-payments')->assertOk();
-        $this->actingAs($admin)->get('/admin/users')->assertOk();
+        $this->actingAs($admin)->get(route('cabinet.admin.tariffs'))->assertOk();
+        $this->actingAs($admin)->get(route('cabinet.admin.payments', ['tab' => 'subscriptions']))->assertOk();
+        $this->actingAs($admin)->get(route('cabinet.admin.payments'))->assertOk();
+        $this->actingAs($admin)->get(route('cabinet.admin.users'))->assertOk();
+
+        // Старые адреса Filament-админки ведут в новую
+        $this->actingAs($admin)->get('/admin/tariffs')->assertRedirect(route('cabinet.admin.tariffs'));
+        $this->actingAs($admin)->get('/admin/subscriptions')->assertRedirect(route('cabinet.admin.payments', ['tab' => 'subscriptions']));
     }
 
     public function test_tutor_subscription_page_renders(): void
@@ -528,8 +532,10 @@ class SubscriptionTariffsTest extends TestCase
         ]);
 
         Livewire::actingAs($admin)
-            ->test(\App\Filament\Resources\SubscriptionPaymentResource\Pages\ListSubscriptionPayments::class)
-            ->callTableAction('refund', $payment);
+            ->test(\App\Livewire\Cabinet\Admin\Payments::class)
+            ->call('openPayment', $payment->id)
+            ->call('openRefund')
+            ->call('refundPayment');
 
         $payment = $payment->fresh();
         $this->assertEquals(\App\Models\SubscriptionPayment::STATUS_REFUNDED, $payment->status);
@@ -590,8 +596,10 @@ class SubscriptionTariffsTest extends TestCase
 
         // Возврат второго платежа: минус 30 дней, подписка остаётся активной
         Livewire::actingAs($admin)
-            ->test(\App\Filament\Resources\SubscriptionPaymentResource\Pages\ListSubscriptionPayments::class)
-            ->callTableAction('refund', $second);
+            ->test(\App\Livewire\Cabinet\Admin\Payments::class)
+            ->call('openPayment', $second->id)
+            ->call('openRefund')
+            ->call('refundPayment');
 
         $subscription = $tutor->fresh()->activeSubscription();
         $this->assertNotNull($subscription);
@@ -599,8 +607,10 @@ class SubscriptionTariffsTest extends TestCase
 
         // Возврат первого платежа: срока не остаётся — подписка завершается
         Livewire::actingAs($admin)
-            ->test(\App\Filament\Resources\SubscriptionPaymentResource\Pages\ListSubscriptionPayments::class)
-            ->callTableAction('refund', $first->fresh());
+            ->test(\App\Livewire\Cabinet\Admin\Payments::class)
+            ->call('openPayment', $first->fresh()->id)
+            ->call('openRefund')
+            ->call('refundPayment');
 
         $this->assertNull($tutor->fresh()->activeSubscription());
     }
@@ -1147,12 +1157,12 @@ class SubscriptionTariffsTest extends TestCase
         $master = Tariff::where('slug', 'master')->first();
 
         $this->actingAs($admin);
-        \App\Filament\Resources\UserResource::assignSubscription($tutor, [
-            'tariff_id' => $master->id,
-            'unlimited' => true,
-            'days' => null,
-            'comment' => null,
-        ]);
+        Livewire::test(\App\Livewire\Cabinet\Admin\User::class, ['user' => (string) $tutor->id])
+            ->call('openTariff')
+            ->set('tariffId', $master->id)
+            ->set('term', 'forever')
+            ->call('assignTariff')
+            ->assertHasNoErrors();
 
         $subscription = $tutor->fresh()->activeSubscription();
         $this->assertEquals($master->id, $subscription->tariff_id);
@@ -1610,7 +1620,7 @@ class SubscriptionTariffsTest extends TestCase
     {
         $admin = $this->makeAdmin();
 
-        $this->actingAs($admin)->get('/admin/settings')
+        $this->actingAs($admin)->get(route('cabinet.admin.settings', ['tab' => 'payments']))
             ->assertOk()
             ->assertSee('Дополнительные занятия');
     }
@@ -1655,9 +1665,10 @@ class SubscriptionTariffsTest extends TestCase
         $admin = $this->makeAdmin();
         \App\Models\Setting::updateOrCreate(['key' => 'yookassa_test_mode'], ['value' => '1']);
 
-        $this->actingAs($admin)->get('/admin/settings')
+        $this->actingAs($admin)->get(route('cabinet.admin.settings', ['tab' => 'payments']))
             ->assertOk()
             ->assertSee('Тестовый магазин')
-            ->assertSee('ЮKassa: тестовый режим');
+            ->assertSee('Режим ЮKassa')
+            ->assertSee('Деньги не списываются');
     }
 }

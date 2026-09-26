@@ -12,6 +12,9 @@
         </div>
 
         <x-ui.card class="gap-0" aria-label="{{ $tabs[$tab] }}">
+            @if ($rows->isEmpty())
+                <p class="text-t2 text-muted">{{ $emptyText }}</p>
+            @else
             <x-ui.list>
                 @foreach ($rows as $x)
                     <button type="button" wire:click="open({{ $x['id'] }})" wire:key="rv-{{ $x['id'] }}"
@@ -35,9 +38,6 @@
                     </button>
                 @endforeach
             </x-ui.list>
-
-            @if ($rows->isEmpty())
-                <p class="text-t2 text-muted">{{ $emptyText }}</p>
             @endif
             @if ($more > 0)
                 <button type="button" wire:click="more" class="link mt-6 self-start text-t1-s">Показать ещё {{ min($more, 20) }}</button>

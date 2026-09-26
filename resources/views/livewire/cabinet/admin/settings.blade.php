@@ -9,7 +9,7 @@
 
     <div class="flex flex-col gap-6">
         <div class="overflow-x-auto">
-            <x-ui.tabs :items="$tabs" model="tab" :active="$tab" class="whitespace-nowrap" />
+            <x-ui.tabs :items="$tabs" model="tab" :active="$tab" />
         </div>
 
         @if ($tab === 'video')
