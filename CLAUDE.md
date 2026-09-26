@@ -27,6 +27,7 @@ Laravel 11 + Livewire 3 + Tailwind 3. Занятия идут в BigBlueButton, 
 - Вход для всех ролей — `/login` (`App\Livewire\Auth\Login`), восстановление пароля — `/forgot-password`, `/reset-password/{token}`.
 - После входа каждая роль попадает в свой кабинет (`EnsureCabinetRole::homeFor`): ученик — `/cabinet/student`, учитель — `/cabinet/teacher`, админ — `/cabinet/admin`.
 - Ссылки в экранах, контроллерах и уведомлениях строятся через `route('cabinet.…')`. Старые ссылки из базы (уведомления, пуши) переводит `App\Support\CabinetUrl::fromLegacy` (`/admin/…` — `fromAdmin`).
+- Уведомления — наследники `App\Notifications\CabinetNotification`: уходят очередью после коммита; каналы — кабинет, реалтайм, пуш (если включён), письмо при `$mail = true` (деньги и решения, которые нельзя пропустить). Содержимое — `toDatabase()` через `CabinetMessage` (заголовок, текст, иконка, ссылка). Тексты без «(а)» и дат «24.09.2026»: даты — `TeacherLessonService::when` / `HumanDate`. Напоминания по времени — команды `lessons:remind` (за 15 минут) и `homework:remind-deadlines` (за сутки).
 - Общие для обеих ролей экраны: «Сообщения» (`App\Livewire\Cabinet\Messages`, логика — `MessengerService`) и панель уведомлений (`App\Livewire\Cabinet\Notifications`). Уведомления хранят ссылки старого кабинета — при показе их переводит `App\Support\CabinetUrl`.
 - Бизнес-логика — в `app/Services/*`, экраны только собирают данные для вида.
 - Админ не видит оплату занятий между учеником и учителем (начисления, долги, чеки, блокировки за долг) — только платежи учителей за тариф.

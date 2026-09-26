@@ -4,33 +4,16 @@ namespace App\Notifications;
 
 use App\Notifications\Messages\CabinetMessage;
 use App\Models\PaymentClaim;
-use App\Notifications\Traits\BroadcastsNotification;
 use App\Services\TeacherStudentsService;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
-use Illuminate\Notifications\Notification;
 
 /** Учителю: ученик сообщил об оплате занятий (с чеком). Ссылка — карточка ученика, вкладка «Оплата». */
-class PaymentClaimSubmitted extends Notification implements ShouldBroadcast
+class PaymentClaimSubmitted extends CabinetNotification
 {
-    use Queueable, BroadcastsNotification;
-
     // Важное уведомление: играть звук в кабинете при получении
     public bool $broadcastSound = true;
 
     public function __construct(public PaymentClaim $claim)
     {
-    }
-
-    public function via(object $notifiable): array
-    {
-        $channels = ['database', 'broadcast'];
-
-        if ($notifiable->pushSubscriptions()->exists()) {
-            $channels[] = \NotificationChannels\WebPush\WebPushChannel::class;
-        }
-
-        return $channels;
     }
 
     public function toDatabase(object $notifiable): array
@@ -39,7 +22,7 @@ class PaymentClaimSubmitted extends Notification implements ShouldBroadcast
         $student = $claim->student;
         $count = $claim->records()->count();
 
-        $body = ($student?->name ?? 'Ученик') . ' сообщил(а) об оплате: '
+        $body = ($student?->name ?? 'Ученик') . ': оплачено '
             . plural_ru($count, 'занятие', 'занятия', 'занятий')
             . ($claim->amount ? ' · ' . \App\Support\Money::format($claim->amount) : '')
             . '. Проверьте чек и подтвердите оплату.';
@@ -47,7 +30,7 @@ class PaymentClaimSubmitted extends Notification implements ShouldBroadcast
         return CabinetMessage::make('Ученик сообщил об оплате')
             ->body($body)
             ->icon('wallet')
-            ->action('Проверить', $student ? TeacherStudentsService::studentUrl($student, ['tab' => 'pay']) : url('/tutor/students'))
+            ->action('Проверить оплату', $student ? TeacherStudentsService::studentUrl($student, ['tab' => 'pay']) : route('cabinet.teacher.students'))
             ->toArray();
     }
 }

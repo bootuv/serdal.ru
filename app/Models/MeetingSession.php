@@ -53,6 +53,13 @@ class MeetingSession extends Model
                 } catch (\Throwable $e) {
                     \Illuminate\Support\Facades\Log::error("[Subscription] consumeExtraLessonIfNeeded failed for session {$session->id}: " . $e->getMessage());
                 }
+
+                // Занятия по тарифу заканчиваются или закончились — предупреждаем учителя
+                try {
+                    \App\Services\SubscriptionService::notifyLessonsRunningOut($session->user);
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::error("[Subscription] notifyLessonsRunningOut failed for session {$session->id}: " . $e->getMessage());
+                }
             }
         });
     }

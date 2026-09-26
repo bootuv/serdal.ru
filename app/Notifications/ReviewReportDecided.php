@@ -4,17 +4,11 @@ namespace App\Notifications;
 
 use App\Notifications\Messages\CabinetMessage;
 use App\Models\Review;
-use App\Notifications\Traits\BroadcastsNotification;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
-use Illuminate\Notifications\Messages\MailMessage;
-use Illuminate\Notifications\Notification;
-use Illuminate\Support\Facades\Route;
 
 /** Учителю: администратор рассмотрел его жалобу на отзыв — отзыв скрыт или остаётся. Приходит и письмом. */
-class ReviewReportDecided extends Notification implements ShouldBroadcast
+class ReviewReportDecided extends CabinetNotification
 {
-    use Queueable, BroadcastsNotification;
+    protected bool $mail = true;
 
     public const HIDDEN = 'hidden';
 
@@ -22,17 +16,6 @@ class ReviewReportDecided extends Notification implements ShouldBroadcast
 
     public function __construct(public Review $review, public string $decision)
     {
-    }
-
-    public function via(object $notifiable): array
-    {
-        $channels = ['database', 'broadcast', 'mail'];
-
-        if ($notifiable->pushSubscriptions()->exists()) {
-            $channels[] = \NotificationChannels\WebPush\WebPushChannel::class;
-        }
-
-        return $channels;
     }
 
     private function title(): string
@@ -51,7 +34,7 @@ class ReviewReportDecided extends Notification implements ShouldBroadcast
 
     private function url(): string
     {
-        return Route::has('cabinet.teacher.reviews') ? route('cabinet.teacher.reviews') : url('/tutor/reviews');
+        return route('cabinet.teacher.reviews');
     }
 
     public function toDatabase(object $notifiable): array
@@ -61,14 +44,5 @@ class ReviewReportDecided extends Notification implements ShouldBroadcast
             ->icon('star')
             ->action('Открыть отзывы', $this->url())
             ->toArray();
-    }
-
-    public function toMail(object $notifiable): MailMessage
-    {
-        return (new MailMessage)
-            ->subject($this->title() . ' — ' . \App\Support\Seo::SITE_NAME)
-            ->greeting('Здравствуйте!')
-            ->line($this->body())
-            ->action('Открыть отзывы', $this->url());
     }
 }

@@ -4,14 +4,10 @@ namespace App\Notifications;
 
 use App\Notifications\Messages\CabinetMessage;
 use App\Models\User;
-use App\Notifications\Traits\BroadcastsNotification;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
-use Illuminate\Notifications\Notification;
 
-class PaymentReminder extends Notification implements ShouldBroadcast
+class PaymentReminder extends CabinetNotification
 {
-    use Queueable, BroadcastsNotification;
+    protected bool $mail = true;
 
     public function __construct(
         public ?User $teacher,
@@ -19,25 +15,14 @@ class PaymentReminder extends Notification implements ShouldBroadcast
     ) {
     }
 
-    public function via(object $notifiable): array
-    {
-        $channels = ['database', 'broadcast'];
-
-        if ($notifiable->pushSubscriptions()->exists()) {
-            $channels[] = \NotificationChannels\WebPush\WebPushChannel::class;
-        }
-
-        return $channels;
-    }
-
     public function toDatabase(object $notifiable): array
     {
         $teacherName = $this->teacher?->name ?? 'учителя';
 
         return CabinetMessage::make('Напоминание об оплате')
-            ->body("У вас есть неоплаченные занятия у {$teacherName}. Пожалуйста, не забудьте про оплату, иначе доступ к занятиям этого учителя будет ограничен.")
+            ->body('Есть неоплаченные занятия у ' . $teacherName . ($this->count > 1 ? ' — ' . plural_ru($this->count, 'занятие', 'занятия', 'занятий') : '') . '. Оплатите их, чтобы занятия этого учителя оставались открыты')
             ->icon('wallet')
-            ->action('Подробнее', route('cabinet.student.payments'))
+            ->action('Открыть оплату', route('cabinet.student.payments'))
             ->toArray();
     }
 }

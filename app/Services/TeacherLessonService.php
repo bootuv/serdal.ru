@@ -259,7 +259,7 @@ class TeacherLessonService
         $schedule->delete();
 
         foreach ($participants as $student) {
-            $student->notify(new TeacherUpdatedSchedule($teacher));
+            $student->notify(new TeacherUpdatedSchedule($teacher, roomName: $room?->name, roomId: $room?->id));
         }
     }
 
@@ -272,7 +272,7 @@ class TeacherLessonService
 
         if ($notify) {
             foreach ($participants as $student) {
-                $student->notify(new TeacherUpdatedSchedule($teacher));
+                $student->notify(new TeacherUpdatedSchedule($teacher, 'Занятие больше не проводится', $teacher->name . ': занятие «' . $room->name . '» убрано из расписания'));
             }
         }
     }
@@ -457,7 +457,7 @@ class TeacherLessonService
     private function notifyStudents(?Room $room, User $teacher, string $title, string $body): void
     {
         foreach ($room?->participants ?? [] as $student) {
-            $student->notify(new TeacherUpdatedSchedule($teacher, $title, $teacher->name . ': ' . $body));
+            $student->notify(new TeacherUpdatedSchedule($teacher, $title, $teacher->name . ': ' . $body, $room->name, $room->id));
         }
     }
 
@@ -482,7 +482,7 @@ class TeacherLessonService
     public function notifyScheduleChanged(?Room $room, User $teacher): void
     {
         foreach ($room?->participants ?? [] as $student) {
-            $student->notify(new TeacherUpdatedSchedule($teacher));
+            $student->notify(new TeacherUpdatedSchedule($teacher, roomName: $room->name, roomId: $room->id));
         }
     }
 

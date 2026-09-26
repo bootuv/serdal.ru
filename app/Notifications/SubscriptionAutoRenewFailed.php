@@ -3,37 +3,22 @@
 namespace App\Notifications;
 
 use App\Notifications\Messages\CabinetMessage;
-use App\Notifications\Traits\BroadcastsNotification;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
-use Illuminate\Notifications\Notification;
 
-class SubscriptionAutoRenewFailed extends Notification implements ShouldBroadcast
+class SubscriptionAutoRenewFailed extends CabinetNotification
 {
-    use Queueable, BroadcastsNotification;
+    protected bool $mail = true;
 
     public function __construct(
         public string $tariffName,
     ) {
     }
 
-    public function via(object $notifiable): array
-    {
-        $channels = ['database', 'broadcast'];
-
-        if ($notifiable->pushSubscriptions()->exists()) {
-            $channels[] = \NotificationChannels\WebPush\WebPushChannel::class;
-        }
-
-        return $channels;
-    }
-
     public function toDatabase(object $notifiable): array
     {
-        return CabinetMessage::make('Не удалось продлить подписку')
-            ->body("Автосписание за тариф «{$this->tariffName}» не прошло — возможно, на карте недостаточно средств или она заблокирована. Продлите подписку вручную, чтобы не потерять доступ.")
+        return CabinetMessage::make('Не получилось продлить тариф')
+            ->body('Автоматическое списание за тариф «' . $this->tariffName . '» не прошло — возможно, на карте не хватает денег или она заблокирована. Оплатите тариф вручную, чтобы занятия не остановились')
             ->icon('bell')
-            ->action('Оплатить вручную', route('cabinet.teacher.subscription'))
+            ->action('Оплатить тариф', route('cabinet.teacher.subscription'))
             ->toArray();
     }
 }

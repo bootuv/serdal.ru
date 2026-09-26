@@ -5,32 +5,14 @@ namespace App\Notifications;
 use App\Notifications\Messages\CabinetMessage;
 use App\Models\MeetingSession;
 use App\Models\Room;
-use App\Notifications\Traits\BroadcastsNotification;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
-use Illuminate\Notifications\Notification;
-use Illuminate\Support\Facades\Route;
 
 /** Учителю: администратор завершил его идущее занятие (админка, «Завершить занятие»). */
-class LessonStoppedByAdmin extends Notification implements ShouldBroadcast
+class LessonStoppedByAdmin extends CabinetNotification
 {
-    use Queueable, BroadcastsNotification;
-
     public bool $broadcastSound = true;
 
     public function __construct(public Room $room, public ?MeetingSession $session = null)
     {
-    }
-
-    public function via(object $notifiable): array
-    {
-        $channels = ['database', 'broadcast'];
-
-        if ($notifiable->pushSubscriptions()->exists()) {
-            $channels[] = \NotificationChannels\WebPush\WebPushChannel::class;
-        }
-
-        return $channels;
     }
 
     public function toDatabase(object $notifiable): array
@@ -40,9 +22,7 @@ class LessonStoppedByAdmin extends Notification implements ShouldBroadcast
         return CabinetMessage::make('Занятие завершено администратором')
             ->body("Администратор завершил занятие «{$this->room->name}»{$started}. Отчёт и запись — на странице занятия.")
             ->icon('clock')
-            ->action('Открыть', Route::has('cabinet.teacher.lesson')
-                        ? route('cabinet.teacher.lesson', ['room' => $this->room->id] + ($this->session ? ['session' => $this->session->id] : []))
-                        : url('/tutor/rooms/' . $this->room->id . '/edit'))
+            ->action('Открыть занятие', route('cabinet.teacher.lesson', ['room' => $this->room->id] + ($this->session ? ['session' => $this->session->id] : [])))
             ->toArray();
     }
 }

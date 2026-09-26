@@ -3,14 +3,10 @@
 namespace App\Notifications;
 
 use App\Notifications\Messages\CabinetMessage;
-use App\Notifications\Traits\BroadcastsNotification;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
-use Illuminate\Notifications\Notification;
 
-class SubscriptionRefunded extends Notification implements ShouldBroadcast
+class SubscriptionRefunded extends CabinetNotification
 {
-    use Queueable, BroadcastsNotification;
+    protected bool $mail = true;
 
     public function __construct(
         public string $title, // «Тариф «Базовый»» или «Дополнительные занятия (4 занятия)»
@@ -21,32 +17,18 @@ class SubscriptionRefunded extends Notification implements ShouldBroadcast
     ) {
     }
 
-    public function via(object $notifiable): array
-    {
-        $channels = ['database', 'broadcast'];
-
-        if ($notifiable->pushSubscriptions()->exists()) {
-            $channels[] = \NotificationChannels\WebPush\WebPushChannel::class;
-        }
-
-        return $channels;
-    }
-
     public function toDatabase(object $notifiable): array
     {
-        $amountText = number_format($this->amount, 0, ',', ' ');
-
-        $subscriptionNote = '';
-        if ($this->subscriptionEnded) {
-            $subscriptionNote = ' Действие подписки завершено.';
-        } elseif ($this->newEndsAt) {
-            $subscriptionNote = ' Срок подписки скорректирован — тариф действует до ' . $this->newEndsAt->format('d.m.Y') . '.';
-        }
+        $note = match (true) {
+            $this->subscriptionEnded => ' Тариф больше не действует.',
+            $this->newEndsAt !== null => ' Тариф теперь действует до ' . \App\Support\HumanDate::date($this->newEndsAt) . '.',
+            default => '',
+        };
 
         return CabinetMessage::make('Возврат оформлен')
-            ->body("Возврат {$amountText} ₽ оформлен ({$this->title}). Средства вернутся на карту, с которой была оплата, в течение {$this->processingDays} рабочих дней.{$subscriptionNote}")
+            ->body('Возврат ' . \App\Support\Money::format($this->amount) . ' — ' . $this->title . '. Деньги вернутся тем же способом, которым вы платили, в течение ' . plural_ru($this->processingDays, 'рабочего дня', 'рабочих дней', 'рабочих дней') . '.' . $note)
             ->icon('undo')
-            ->action('История платежей', route('cabinet.teacher.subscription'))
+            ->action('Тариф и платежи', route('cabinet.teacher.subscription'))
             ->toArray();
     }
 }

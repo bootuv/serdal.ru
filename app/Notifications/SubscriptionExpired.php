@@ -3,35 +3,20 @@
 namespace App\Notifications;
 
 use App\Notifications\Messages\CabinetMessage;
-use App\Notifications\Traits\BroadcastsNotification;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
-use Illuminate\Notifications\Notification;
 
-class SubscriptionExpired extends Notification implements ShouldBroadcast
+class SubscriptionExpired extends CabinetNotification
 {
-    use Queueable, BroadcastsNotification;
+    protected bool $mail = true;
 
     public function __construct(
         public string $tariffName,
     ) {
     }
 
-    public function via(object $notifiable): array
-    {
-        $channels = ['database', 'broadcast'];
-
-        if ($notifiable->pushSubscriptions()->exists()) {
-            $channels[] = \NotificationChannels\WebPush\WebPushChannel::class;
-        }
-
-        return $channels;
-    }
-
     public function toDatabase(object $notifiable): array
     {
-        return CabinetMessage::make('Подписка закончилась')
-            ->body("Срок действия тарифа «{$this->tariffName}» истёк. Продлите подписку или выберите другой тариф.")
+        return CabinetMessage::make('Тариф закончился')
+            ->body('Срок тарифа «' . $this->tariffName . '» истёк — новые занятия начать нельзя. Продлите тариф или выберите другой')
             ->icon('bell')
             ->action('Выбрать тариф', route('cabinet.teacher.subscription'))
             ->toArray();

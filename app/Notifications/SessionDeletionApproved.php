@@ -3,36 +3,19 @@
 namespace App\Notifications;
 
 use App\Notifications\Messages\CabinetMessage;
-use App\Notifications\Traits\BroadcastsNotification;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
-use Illuminate\Notifications\Notification;
 
-class SessionDeletionApproved extends Notification implements ShouldBroadcast
+class SessionDeletionApproved extends CabinetNotification
 {
-    use Queueable, BroadcastsNotification;
-
     public function __construct(
         public string $roomName,
         public string $startedAt
     ) {
     }
 
-    public function via(object $notifiable): array
-    {
-        $channels = ['database', 'broadcast'];
-
-        if ($notifiable->pushSubscriptions()->exists()) {
-            $channels[] = \NotificationChannels\WebPush\WebPushChannel::class;
-        }
-
-        return $channels;
-    }
-
     public function toDatabase(object $notifiable): array
     {
-        return CabinetMessage::make('Занятие удалено')
-            ->body("Ваш запрос на удаление занятия \"{$this->roomName}\" от {$this->startedAt} одобрен")
+        return CabinetMessage::make('Запрос на удаление одобрен')
+            ->body("Занятие «{$this->roomName}» ({$this->startedAt}) удалено по вашему запросу — оно не учитывается в истории, статистике и лимите тарифа")
             ->icon('check')
             ->toArray();
     }

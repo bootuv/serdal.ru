@@ -3,15 +3,11 @@
 namespace App\Notifications;
 
 use App\Notifications\Messages\CabinetMessage;
-use App\Notifications\Traits\BroadcastsNotification;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
-use Illuminate\Notifications\Notification;
 use Illuminate\Support\Carbon;
 
-class SubscriptionPaid extends Notification implements ShouldBroadcast
+class SubscriptionPaid extends CabinetNotification
 {
-    use Queueable, BroadcastsNotification;
+    protected bool $mail = true;
 
     public function __construct(
         public string $tariffName,
@@ -20,26 +16,12 @@ class SubscriptionPaid extends Notification implements ShouldBroadcast
     ) {
     }
 
-    public function via(object $notifiable): array
-    {
-        $channels = ['database', 'broadcast'];
-
-        if ($notifiable->pushSubscriptions()->exists()) {
-            $channels[] = \NotificationChannels\WebPush\WebPushChannel::class;
-        }
-
-        return $channels;
-    }
-
     public function toDatabase(object $notifiable): array
     {
-        $amountText = number_format($this->amount, 0, ',', ' ');
-        $untilText = $this->endsAt ? ' Подписка действует до ' . $this->endsAt->format('d.m.Y') . '.' : '';
-
-        return CabinetMessage::make('Подписка оплачена')
-            ->body("Оплата {$amountText} ₽ за тариф «{$this->tariffName}» прошла успешно.{$untilText}")
+        return CabinetMessage::make('Тариф оплачен')
+            ->body('Оплата ' . \App\Support\Money::format($this->amount) . ' за тариф «' . $this->tariffName . '» прошла' . ($this->endsAt ? '. Тариф действует до ' . \App\Support\HumanDate::date($this->endsAt) : ''))
             ->icon('check')
-            ->action('Моя подписка', route('cabinet.teacher.subscription'))
+            ->action('Тариф и платежи', route('cabinet.teacher.subscription'))
             ->toArray();
     }
 }

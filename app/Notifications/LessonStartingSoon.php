@@ -4,21 +4,15 @@ namespace App\Notifications;
 
 use App\Models\Room;
 use App\Notifications\Messages\CabinetMessage;
-use App\Notifications\Traits\BroadcastsNotification;
 use App\Support\HumanDate;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
-use Illuminate\Notifications\Notification;
 use Illuminate\Support\Carbon;
 
 /**
  * Напоминание учителю и ученикам занятия: скоро начало по расписанию (команда lessons:remind, за 15 минут).
  * Учителю — «Начать занятие» (страница занятия), ученику — страница занятия, где появится «Войти в класс».
  */
-class LessonStartingSoon extends Notification implements ShouldBroadcast
+class LessonStartingSoon extends CabinetNotification
 {
-    use Queueable, BroadcastsNotification;
-
     // Важное уведомление: играть звук в кабинете при получении
     public bool $broadcastSound = true;
 
@@ -26,17 +20,6 @@ class LessonStartingSoon extends Notification implements ShouldBroadcast
         public Room $room,
         public Carbon $start,
     ) {
-    }
-
-    public function via(object $notifiable): array
-    {
-        $channels = ['database', 'broadcast'];
-
-        if ($notifiable->pushSubscriptions()->exists()) {
-            $channels[] = \NotificationChannels\WebPush\WebPushChannel::class;
-        }
-
-        return $channels;
     }
 
     public function toDatabase(object $notifiable): array

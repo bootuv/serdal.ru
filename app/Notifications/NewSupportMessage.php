@@ -5,32 +5,15 @@ namespace App\Notifications;
 use App\Notifications\Messages\CabinetMessage;
 use App\Models\SupportMessage;
 use App\Models\User;
-use App\Notifications\Traits\BroadcastsNotification;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
-use Illuminate\Notifications\Notification;
 
-class NewSupportMessage extends Notification implements ShouldBroadcast
+class NewSupportMessage extends CabinetNotification
 {
-    use Queueable, BroadcastsNotification;
-
     // Важное уведомление: играть звук в кабинете при получении
     public bool $broadcastSound = true;
 
     public function __construct(
         public SupportMessage $message
     ) {
-    }
-
-    public function via(object $notifiable): array
-    {
-        $channels = ['database', 'broadcast'];
-
-        if ($notifiable->pushSubscriptions()->exists()) {
-            $channels[] = \NotificationChannels\WebPush\WebPushChannel::class;
-        }
-
-        return $channels;
     }
 
     public function toDatabase(object $notifiable): array
@@ -52,8 +35,8 @@ class NewSupportMessage extends Notification implements ShouldBroadcast
             $url = null;
         }
 
-        $notification = CabinetMessage::make("Новое сообщение от поддержки")
-            ->body("{$senderName}: " . \Illuminate\Support\Str::limit($this->message->content, 50))
+        $notification = CabinetMessage::make($role === User::ROLE_ADMIN ? 'Сообщение в поддержку' : 'Ответ поддержки')
+            ->body($senderName . ': ' . CabinetMessage::messagePreview($this->message->content, $this->message->attachments))
             ->icon('help');
 
         if ($url) {

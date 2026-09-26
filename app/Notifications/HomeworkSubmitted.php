@@ -6,15 +6,9 @@ use App\Notifications\Messages\CabinetMessage;
 use App\Models\Homework;
 use App\Models\HomeworkSubmission;
 use App\Models\User;
-use App\Notifications\Traits\BroadcastsNotification;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
-use Illuminate\Notifications\Notification;
 
-class HomeworkSubmitted extends Notification implements ShouldBroadcast
+class HomeworkSubmitted extends CabinetNotification
 {
-    use Queueable, BroadcastsNotification;
-
     // Важное уведомление: играть звук в кабинете при получении
     public bool $broadcastSound = true;
 
@@ -25,21 +19,10 @@ class HomeworkSubmitted extends Notification implements ShouldBroadcast
     ) {
     }
 
-    public function via(object $notifiable): array
-    {
-        $channels = ['database', 'broadcast'];
-
-        if ($notifiable->pushSubscriptions()->exists()) {
-            $channels[] = \NotificationChannels\WebPush\WebPushChannel::class;
-        }
-
-        return $channels;
-    }
-
     public function toDatabase(object $notifiable): array
     {
         return CabinetMessage::make('Новая работа')
-            ->body($this->student->name . ' сдал(а) работу: ' . $this->homework->title)
+            ->body($this->student->name . ' · «' . $this->homework->title . '»')
             ->icon('tasks')
             ->action('Проверить', $this->url())
             ->toArray();

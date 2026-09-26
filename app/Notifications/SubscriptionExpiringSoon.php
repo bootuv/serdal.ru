@@ -3,15 +3,11 @@
 namespace App\Notifications;
 
 use App\Notifications\Messages\CabinetMessage;
-use App\Notifications\Traits\BroadcastsNotification;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
-use Illuminate\Notifications\Notification;
 use Illuminate\Support\Carbon;
 
-class SubscriptionExpiringSoon extends Notification implements ShouldBroadcast
+class SubscriptionExpiringSoon extends CabinetNotification
 {
-    use Queueable, BroadcastsNotification;
+    protected bool $mail = true;
 
     public function __construct(
         public string $tariffName,
@@ -19,26 +15,15 @@ class SubscriptionExpiringSoon extends Notification implements ShouldBroadcast
     ) {
     }
 
-    public function via(object $notifiable): array
-    {
-        $channels = ['database', 'broadcast'];
-
-        if ($notifiable->pushSubscriptions()->exists()) {
-            $channels[] = \NotificationChannels\WebPush\WebPushChannel::class;
-        }
-
-        return $channels;
-    }
-
     public function toDatabase(object $notifiable): array
     {
-        $daysLeft = max(0, (int) now()->diffInDays($this->endsAt, false));
-        $daysText = $daysLeft <= 0 ? 'сегодня' : 'через ' . $daysLeft . ' дн. (' . $this->endsAt->format('d.m.Y') . ')';
+        $days = max(0, (int) ceil(now()->diffInHours($this->endsAt, false) / 24));
+        $when = $days <= 0 ? 'сегодня' : 'через ' . plural_ru($days, 'день', 'дня', 'дней') . ', ' . \App\Support\HumanDate::date($this->endsAt);
 
-        return CabinetMessage::make('Подписка скоро закончится')
-            ->body("Тариф «{$this->tariffName}» закончится {$daysText}. Продлите подписку, чтобы не потерять доступ к возможностям тарифа.")
+        return CabinetMessage::make('Тариф скоро закончится')
+            ->body('Тариф «' . $this->tariffName . '» закончится ' . $when . '. Продлите его, чтобы занятия не остановились')
             ->icon('clock')
-            ->action('Продлить', route('cabinet.teacher.subscription'))
+            ->action('Продлить тариф', route('cabinet.teacher.subscription'))
             ->toArray();
     }
 }

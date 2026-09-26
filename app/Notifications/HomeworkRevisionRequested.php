@@ -4,15 +4,9 @@ namespace App\Notifications;
 
 use App\Notifications\Messages\CabinetMessage;
 use App\Models\Homework;
-use App\Notifications\Traits\BroadcastsNotification;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
-use Illuminate\Notifications\Notification;
 
-class HomeworkRevisionRequested extends Notification implements ShouldBroadcast
+class HomeworkRevisionRequested extends CabinetNotification
 {
-    use Queueable, BroadcastsNotification;
-
     // Важное уведомление: играть звук в кабинете при получении
     public bool $broadcastSound = true;
 
@@ -22,23 +16,12 @@ class HomeworkRevisionRequested extends Notification implements ShouldBroadcast
     ) {
     }
 
-    public function via(object $notifiable): array
-    {
-        $channels = ['database', 'broadcast'];
-
-        if ($notifiable->pushSubscriptions()->exists()) {
-            $channels[] = \NotificationChannels\WebPush\WebPushChannel::class;
-        }
-
-        return $channels;
-    }
-
     public function toDatabase(object $notifiable): array
     {
-        return CabinetMessage::make('Требуется доработка')
-            ->body('Ваша работа "' . $this->homework->title . '" отправлена на доработку')
+        return CabinetMessage::make('Работу нужно доработать')
+            ->body('«' . $this->homework->title . '» вернули на доработку — посмотрите комментарий учителя и сдайте ещё раз')
             ->icon('repeat')
-            ->action('Посмотреть', route('cabinet.student.task', $this->homework))
+            ->action('Открыть задание', route('cabinet.student.task', $this->homework))
             ->toArray();
     }
 }

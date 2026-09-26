@@ -5,36 +5,19 @@ namespace App\Notifications;
 use App\Notifications\Messages\CabinetMessage;
 use App\Models\Review;
 use App\Models\User;
-use App\Notifications\Traits\BroadcastsNotification;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
-use Illuminate\Notifications\Notification;
 
-class TeacherReportedReview extends Notification implements ShouldBroadcast
+class TeacherReportedReview extends CabinetNotification
 {
-    use Queueable, BroadcastsNotification;
-
     public function __construct(
         public Review $review,
         public User $teacher
     ) {
     }
 
-    public function via(object $notifiable): array
-    {
-        $channels = ['database', 'broadcast'];
-
-        if ($notifiable->pushSubscriptions()->exists()) {
-            $channels[] = \NotificationChannels\WebPush\WebPushChannel::class;
-        }
-
-        return $channels;
-    }
-
     public function toDatabase(object $notifiable): array
     {
         $studentName = $this->review->user?->name ?? 'Ученик';
-        $body = "Учитель {$this->teacher->name} пожаловался на отзыв ученика {$studentName}";
+        $body = "{$this->teacher->name} · отзыв ученика {$studentName}";
 
         // Причина и пояснение из окна жалобы (старый кабинет жалуется без причины)
         if ($reason = $this->review->report_reason_label) {

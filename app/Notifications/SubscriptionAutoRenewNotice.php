@@ -3,19 +3,15 @@
 namespace App\Notifications;
 
 use App\Notifications\Messages\CabinetMessage;
-use App\Notifications\Traits\BroadcastsNotification;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
-use Illuminate\Notifications\Notification;
 use Illuminate\Support\Carbon;
 
 /**
  * Предупреждение о предстоящем автосписании (требование ЮKassa —
  * информировать пользователя перед списанием).
  */
-class SubscriptionAutoRenewNotice extends Notification implements ShouldBroadcast
+class SubscriptionAutoRenewNotice extends CabinetNotification
 {
-    use Queueable, BroadcastsNotification;
+    protected bool $mail = true;
 
     public function __construct(
         public string $tariffName,
@@ -24,25 +20,12 @@ class SubscriptionAutoRenewNotice extends Notification implements ShouldBroadcas
     ) {
     }
 
-    public function via(object $notifiable): array
-    {
-        $channels = ['database', 'broadcast'];
-
-        if ($notifiable->pushSubscriptions()->exists()) {
-            $channels[] = \NotificationChannels\WebPush\WebPushChannel::class;
-        }
-
-        return $channels;
-    }
-
     public function toDatabase(object $notifiable): array
     {
-        $amountText = number_format($this->amount, 0, ',', ' ');
-
-        return CabinetMessage::make('Автопродление подписки')
-            ->body("{$this->chargeDate->format('d.m.Y')} тариф «{$this->tariffName}» продлится автоматически — с вашей карты спишется {$amountText} ₽. Отключить автопродление можно на странице «Подписка».")
+        return CabinetMessage::make('Скоро автопродление')
+            ->body(\App\Support\HumanDate::date($this->chargeDate) . ' тариф «' . $this->tariffName . '» продлится автоматически — спишем ' . \App\Support\Money::format((int) $this->amount) . ' с сохранённого способа оплаты. Отключить автопродление можно на странице тарифа')
             ->icon('repeat')
-            ->action('Управлять подпиской', route('cabinet.teacher.subscription'))
+            ->action('Тариф и платежи', route('cabinet.teacher.subscription'))
             ->toArray();
     }
 }

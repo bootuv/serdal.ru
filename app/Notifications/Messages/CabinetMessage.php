@@ -64,6 +64,23 @@ class CabinetMessage
         ];
     }
 
+    /** Текст сообщения для уведомления: начало текста, а если текста нет — «Файл «имя»» / «Файлы: 3». */
+    public static function messagePreview(?string $content, ?array $attachments): string
+    {
+        $text = trim(strip_tags((string) $content));
+        if ($text !== '') {
+            return \Illuminate\Support\Str::limit($text, 80);
+        }
+
+        $files = array_values($attachments ?? []);
+
+        return match (count($files)) {
+            0 => 'Сообщение',
+            1 => 'Файл «' . ($files[0]['name'] ?? 'без названия') . '»',
+            default => 'Файлы: ' . count($files),
+        };
+    }
+
     /** Ссылка уведомления: новый формат (url) или старый (actions[0].url). */
     public static function urlOf(array $data): ?string
     {

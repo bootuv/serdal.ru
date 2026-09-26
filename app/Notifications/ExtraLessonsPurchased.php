@@ -3,15 +3,11 @@
 namespace App\Notifications;
 
 use App\Notifications\Messages\CabinetMessage;
-use App\Notifications\Traits\BroadcastsNotification;
 use App\Services\SubscriptionService;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
-use Illuminate\Notifications\Notification;
 
-class ExtraLessonsPurchased extends Notification implements ShouldBroadcast
+class ExtraLessonsPurchased extends CabinetNotification
 {
-    use Queueable, BroadcastsNotification;
+    protected bool $mail = true;
 
     public function __construct(
         public int $quantity,
@@ -20,27 +16,12 @@ class ExtraLessonsPurchased extends Notification implements ShouldBroadcast
     ) {
     }
 
-    public function via(object $notifiable): array
-    {
-        $channels = ['database', 'broadcast'];
-
-        if ($notifiable->pushSubscriptions()->exists()) {
-            $channels[] = \NotificationChannels\WebPush\WebPushChannel::class;
-        }
-
-        return $channels;
-    }
-
     public function toDatabase(object $notifiable): array
     {
-        $amountText = number_format($this->amount, 0, ',', ' ');
-        $quantityText = $this->quantity . ' ' . SubscriptionService::lessonsWord($this->quantity);
-        $balanceText = $this->balance . ' ' . SubscriptionService::lessonsWord($this->balance);
-
-        return CabinetMessage::make('Дополнительные занятия зачислены')
-            ->body("Оплата {$amountText} ₽ прошла успешно, зачислено {$quantityText}. Докупленных занятий на балансе: {$balanceText}. Они не сгорают и расходуются после лимита тарифа.")
+        return CabinetMessage::make('Занятия зачислены')
+            ->body('Оплата ' . \App\Support\Money::format($this->amount) . ' прошла: +' . plural_ru($this->quantity, 'занятие', 'занятия', 'занятий') . '. Докупленных на балансе — ' . $this->balance . ', они не сгорают и расходуются после лимита тарифа')
             ->icon('check')
-            ->action('Моя подписка', route('cabinet.teacher.subscription'))
+            ->action('Тариф и платежи', route('cabinet.teacher.subscription'))
             ->toArray();
     }
 }

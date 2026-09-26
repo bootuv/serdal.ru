@@ -14,6 +14,9 @@ Schedule::command('room:update-next-start')->everyMinute();
 // Напоминание учителю и ученикам за 15 минут до занятия (кабинет, реалтайм, пуш)
 Schedule::command('lessons:remind')->everyMinute()->withoutOverlapping();
 
+// Ученикам: срок сдачи задания через сутки, работа не сдана
+Schedule::command('homework:remind-deadlines')->hourly()->withoutOverlapping();
+
 // Monthly payment records for students with monthly billing
 Schedule::command('payments:generate-monthly')->monthlyOn(1, '06:00');
 

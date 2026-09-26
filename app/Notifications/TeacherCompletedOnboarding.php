@@ -4,37 +4,20 @@ namespace App\Notifications;
 
 use App\Notifications\Messages\CabinetMessage;
 use App\Models\User;
-use App\Notifications\Traits\BroadcastsNotification;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
-use Illuminate\Notifications\Notification;
 
-class TeacherCompletedOnboarding extends Notification implements ShouldBroadcast
+class TeacherCompletedOnboarding extends CabinetNotification
 {
-    use Queueable, BroadcastsNotification;
-
     public function __construct(
         public User $teacher
     ) {
     }
 
-    public function via(object $notifiable): array
-    {
-        $channels = ['database', 'broadcast'];
-
-        if ($notifiable->pushSubscriptions()->exists()) {
-            $channels[] = \NotificationChannels\WebPush\WebPushChannel::class;
-        }
-
-        return $channels;
-    }
-
     public function toDatabase(object $notifiable): array
     {
-        return CabinetMessage::make('Онбординг пройден')
-            ->body("Учитель {$this->teacher->name} прошёл онбординг")
+        return CabinetMessage::make('Учитель прошёл первые шаги')
+            ->body("{$this->teacher->name}: профиль, цены и тариф готовы")
             ->icon('check')
-            ->action('Открыть', route('cabinet.admin.users'))
+            ->action('Открыть карточку', route('cabinet.admin.user', ['user' => $this->teacher->id]))
             ->toArray();
     }
 }

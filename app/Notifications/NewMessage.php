@@ -4,32 +4,15 @@ namespace App\Notifications;
 
 use App\Notifications\Messages\CabinetMessage;
 use App\Models\Message;
-use App\Notifications\Traits\BroadcastsNotification;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
-use Illuminate\Notifications\Notification;
 
-class NewMessage extends Notification implements ShouldBroadcast
+class NewMessage extends CabinetNotification
 {
-    use Queueable, BroadcastsNotification;
-
     // Важное уведомление: играть звук в кабинете при получении
     public bool $broadcastSound = true;
 
     public function __construct(
         public Message $message
     ) {
-    }
-
-    public function via(object $notifiable): array
-    {
-        $channels = ['database', 'broadcast'];
-
-        if ($notifiable->pushSubscriptions()->exists()) {
-            $channels[] = \NotificationChannels\WebPush\WebPushChannel::class;
-        }
-
-        return $channels;
     }
 
     public function toDatabase(object $notifiable): array
@@ -47,7 +30,7 @@ class NewMessage extends Notification implements ShouldBroadcast
         }
 
         $notification = CabinetMessage::make("Новое сообщение в «{$roomName}»")
-            ->body("{$senderName}: " . \Illuminate\Support\Str::limit($this->message->content, 50))
+            ->body($senderName . ': ' . CabinetMessage::messagePreview($this->message->content, $this->message->attachments))
             ->icon('chat');
 
         if ($url) {

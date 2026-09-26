@@ -465,6 +465,37 @@ class SubscriptionService
     }
 
     /**
+     * После проведённого занятия: предупредить учителя, что занятия по тарифу заканчиваются (осталось 2 и меньше,
+     * с учётом докупленных) или закончились. Каждый порог — один раз за период тарифа.
+     */
+    public static function notifyLessonsRunningOut(?User $user): void
+    {
+        if (! $user || $user->role !== User::ROLE_TUTOR) {
+            return;
+        }
+
+        $summary = self::teacherSummary($user);
+        if (($summary['limit'] ?? null) === null) {
+            return;
+        }
+
+        $left = (int) $summary['left'] + (int) $summary['extra'];
+        $threshold = match (true) {
+            $left === 0 => 'out',
+            $left <= 2 => 'low',
+            default => null,
+        };
+        if ($threshold === null) {
+            return;
+        }
+
+        $key = 'lessons-running-out:' . $user->id . ':' . self::periodStart($user)->timestamp . ':' . $threshold;
+        if (\Illuminate\Support\Facades\Cache::add($key, true, now()->addDays(40))) {
+            $user->notify(new \App\Notifications\LessonsRunningOut($left, (string) $summary['name'], $summary['resets'] ?? null));
+        }
+    }
+
+    /**
      * Сводка тарифа для кабинета учителя: какой тариф, до какого числа, сколько занятий осталось и лимиты.
      * warning — исключение, которое нужно подсветить (занятия на исходе, подписка скоро закончится); null — всё спокойно.
      */
