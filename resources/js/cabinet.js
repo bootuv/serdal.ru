@@ -32,3 +32,4 @@ window.serdalShareReviewCard = async function (url) {
     window.location.href = url; // компьютер и запасной вариант: скачать файл
     return 'download';
 };
+import './rich-editor';

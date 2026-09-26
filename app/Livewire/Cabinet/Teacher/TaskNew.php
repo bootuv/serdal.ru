@@ -35,12 +35,8 @@ class TaskNew extends Component
 
     public string $title = '';
 
-    /** Условие простым текстом (в базе — HTML-абзацы). */
+    /** Условие — HTML из редактора (x-ui.editor), при сохранении чистится RichText::clean(). */
     public string $description = '';
-
-    /** Условие, как оно было при открытии: если не меняли — сохраняем исходный HTML с оформлением. */
-    #[Locked]
-    public string $descriptionOriginal = '';
 
     public string $roomId = '';
 
@@ -78,7 +74,7 @@ class TaskNew extends Component
 
             $this->editId = $homework->id;
             $this->title = $homework->title;
-            $this->description = $this->descriptionOriginal = RichText::toPlain($homework->description);
+            $this->description = (string) $homework->description;
             $this->roomId = (string) ($homework->room_id ?? '');
             $this->studentIds = $homework->students()->pluck('users.id')->map(fn ($v) => (int) $v)->all();
             $this->maxScore = $homework->max_score;
@@ -215,9 +211,7 @@ class TaskNew extends Component
 
         $homework = $this->editId ? $this->homework() : null;
 
-        $description = $homework && $this->description === $this->descriptionOriginal
-            ? $homework->description
-            : RichText::fromPlain($this->description);
+        $description = RichText::clean($this->description);
 
         $data = [
             'title' => trim($this->title),

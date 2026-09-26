@@ -29,6 +29,10 @@
     .rich strong, .rich b { @apply font-semibold; }
     .rich h2, .rich h3 { @apply text-h2 font-medium; }
 
+    /* Редактор (x-ui.editor): без собственной обводки фокуса, плейсхолдер пустого документа */
+    .ProseMirror { outline: none; }
+    .ProseMirror p.is-editor-empty:first-child::before { @apply pointer-events-none float-left h-0 text-faint; content: attr(data-placeholder); }
+
     /* Поле ввода */
     .field { @apply h-11 w-full rounded bg-white px-4 text-t1 text-ink shadow-outline outline-none placeholder:text-faint focus:shadow-outline-ink; }
 }

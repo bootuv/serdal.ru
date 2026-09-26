@@ -7,7 +7,7 @@ use Illuminate\Support\Str;
 
 /**
  * Текст заданий, ответов и комментариев в кабинетах.
- * В базе — HTML (старый кабинет пишет его редактором), в новом кабинете вводим простым текстом.
+ * В базе — HTML. Условия заданий и тексты профиля вводятся редактором (x-ui.editor), ответы и комментарии — простым текстом.
  */
 class RichText
 {
@@ -20,6 +20,16 @@ class RichText
 
         // Ссылки из условия открываются в новой вкладке, чтобы не терять кабинет
         return new HtmlString(preg_replace('/<a(?=\s)/i', '<a target="_blank" rel="noopener"', Str::sanitizeHtml($html)));
+    }
+
+    /** HTML из редактора → очищенный HTML для хранения (та же очистка, что при показе). Пустой — null. */
+    public static function clean(?string $html): ?string
+    {
+        if ($html === null || trim(strip_tags($html)) === '') {
+            return null;
+        }
+
+        return Str::sanitizeHtml($html);
     }
 
     /** Простой текст → HTML для хранения: абзацы по пустой строке, переносы строк — <br>. */

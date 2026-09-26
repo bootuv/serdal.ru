@@ -12,6 +12,10 @@
         "build": "vite build"
     },
     "dependencies": {
+        "@tiptap/core": "^3.31.3",
+        "@tiptap/extension-link": "^3.31.3",
+        "@tiptap/extension-placeholder": "^3.31.3",
+        "@tiptap/starter-kit": "^3.31.3",
         "axios": "^1.7.4",
         "concurrently": "^9.2.1",
         "fabric": "^7.1.0"

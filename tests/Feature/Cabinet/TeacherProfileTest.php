@@ -71,8 +71,8 @@ class TeacherProfileTest extends TestCase
             ->assertSee('5-7 классы, взрослые')
             ->assertSee(route('tutors.show', ['username' => $teacher->username]));
 
-        // Текст из редактора старого кабинета — в поле простым текстом
-        Livewire::actingAs($teacher)->test(Profile::class)->assertSet('about', 'Преподаю английский восемь лет');
+        // Текст из редактора старого кабинета открывается в редакторе с оформлением
+        Livewire::actingAs($teacher)->test(Profile::class)->assertSet('about', '<p>Преподаю <b>английский</b> восемь лет</p>');
     }
 
     public function test_saves_profile_like_old_cabinet(): void
@@ -87,7 +87,7 @@ class TeacherProfileTest extends TestCase
             ->set('addDirect', (string) $ege->id)
             ->call('toggleGrade', '10')
             ->call('toggleGrade', 'adults')
-            ->set('extra_info', "МПГУ, 2016\n\nCELTA")
+            ->set('extra_info', '<p>МПГУ, 2016</p><p>CELTA<script>alert(1)</script></p>')
             ->set('whatsup', '+7 916 245-18-73')
             ->set('telegram', '@sokolova')
             ->set('password', 'new-secret-1')
@@ -103,8 +103,9 @@ class TeacherProfileTest extends TestCase
         $this->assertSame([$math->id], $teacher->subjects()->pluck('subjects.id')->all());
         $this->assertSame([$ege->id], $teacher->directs()->pluck('directs.id')->all());
         $this->assertSame(['10', 'adults'], $teacher->grade);
+        // HTML из редактора сохраняется очищенным: скрипты вырезаются
         $this->assertSame('<p>МПГУ, 2016</p><p>CELTA</p>', $teacher->extra_info);
-        // Текст из старого редактора не меняли — HTML сохранён как был
+        // «Обо мне» не меняли — оформление сохранено
         $this->assertSame('<ul><li>списки</li></ul>', $teacher->about);
         $this->assertSame('sokolova', $teacher->telegram);
         $this->assertTrue(Hash::check('new-secret-1', $teacher->password));

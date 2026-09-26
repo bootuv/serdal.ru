@@ -75,8 +75,8 @@ class Profile extends Component
         $this->subjects = $user->subjects()->pluck('subjects.id')->map(fn ($id) => (int) $id)->all();
         $this->directs = $user->directs()->pluck('directs.id')->map(fn ($id) => (int) $id)->all();
         $this->grades = TeacherProfileService::gradesForForm($user->grade);
-        $this->about = RichText::toPlain($user->about);
-        $this->extra_info = RichText::toPlain($user->extra_info);
+        $this->about = (string) $user->about;
+        $this->extra_info = (string) $user->extra_info;
         $this->phone = (string) $user->phone;
         $this->whatsup = (string) $user->whatsup;
         $this->telegram = (string) $user->telegram;
@@ -208,12 +208,9 @@ class Profile extends Component
             'telegram' => ltrim(trim($this->telegram), '@') !== '' ? ltrim(trim($this->telegram), '@') : null,
         ];
 
-        // Текст из редактора старого кабинета не трогаем, если его не меняли (сохраняем списки и выделение)
-        foreach (['about', 'extra_info'] as $field) {
-            if ($this->{$field} !== RichText::toPlain($user->{$field})) {
-                $data[$field] = RichText::fromPlain($this->{$field});
-            }
-        }
+        // «Обо мне» и «Образование и опыт» — HTML из редактора
+        $data['about'] = RichText::clean($this->about);
+        $data['extra_info'] = RichText::clean($this->extra_info);
 
         if ($this->photo) {
             $data['avatar'] = $this->photo;

@@ -29,6 +29,7 @@ Laravel 11 + Livewire 3 + Tailwind 3. Занятия идут в BigBlueButton, 
 ## Эксплуатация
 
 - **Пуш в `main` сразу деплоит на прод.** Работай в ветках, в `main` — только по явной просьбе.
+- Часовой пояс приложения — `Europe/Moscow`. Перед первым деплоем миграции `2026_09_26_120000_shift_system_timestamps_to_moscow` на проде в `.env` должно стоять `APP_TIMEZONE=Europe/Moscow` (иначе миграция ничего не сдвинет).
 - Локально: `npm run dev` (vite, serve, queue, schedule, reverb).
 - `APP_NAME` локально — «Laravel»; в SEO и текстах используй `Seo::SITE_NAME`.
 - Язык интерфейса и общения — русский.

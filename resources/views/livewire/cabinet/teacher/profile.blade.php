@@ -122,8 +122,8 @@
                     {{-- О себе и контакты --}}
                     <x-ui.card aria-labelledby="p-about">
                         <x-ui.card-head id="p-about" title="О себе и контакты" />
-                        <x-ui.field label="Обо мне" name="about" rows="4" wire:model="about" />
-                        <x-ui.field label="Образование и опыт" name="extra_info" rows="3" wire:model="extra_info" />
+                        <x-ui.editor label="Обо мне" name="about" wire:model="about" />
+                        <x-ui.editor label="Образование и опыт" name="extra_info" wire:model="extra_info" />
                         <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
                             <x-ui.field label="Телефон" name="phone" type="tel" wire:model="phone" autocomplete="tel" />
                             <x-ui.field label="WhatsApp" name="whatsup" type="tel" wire:model="whatsup" />

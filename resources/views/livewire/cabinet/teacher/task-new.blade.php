@@ -8,8 +8,8 @@
     <form wire:submit="publish" class="flex w-full max-w-form flex-col gap-6">
         <x-ui.field label="Название" name="title" wire:model="title" placeholder="Например, эссе «My last holiday»" maxlength="255" />
 
-        <x-ui.field label="Что нужно сделать" name="description" rows="6" wire:model="description"
-                    placeholder="Опишите задание: что сделать, объём, на что обратить внимание" />
+        <x-ui.editor label="Что нужно сделать" name="description" wire:model="description"
+                     placeholder="Опишите задание: что сделать, объём, на что обратить внимание" />
 
         {{-- Кому --}}
         <fieldset class="flex flex-col gap-3">
