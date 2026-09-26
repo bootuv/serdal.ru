@@ -15,7 +15,7 @@ trait BroadcastsNotification
         $data = $this->toDatabase($notifiable);
 
         // Звук в кабинете играет только для уведомлений с этим флагом
-        // (см. resources/views/filament/notifications/sound.blade.php).
+        // (см. resources/views/partials/notification-sound.blade.php).
         // Включается свойством `public bool $broadcastSound = true;` в классе уведомления.
         $data['sound'] = $this->broadcastSound ?? false;
 
@@ -32,15 +32,8 @@ trait BroadcastsNotification
         $title = $data['title'] ?? 'Serdal';
         $body = $data['body'] ?? '';
 
-        // Try to get URL from actions, or from getWebPushUrl method
-        $url = null;
-        if (isset($data['actions'][0]['url'])) {
-            $url = $data['actions'][0]['url'];
-        } elseif (method_exists($this, 'getWebPushUrl')) {
-            $url = $this->getWebPushUrl($notifiable);
-        }
-        // Ссылки старого кабинета (Filament) ведут в новый
-        $url = \App\Support\CabinetUrl::fromLegacy($url, $notifiable);
+        $url = \App\Notifications\Messages\CabinetMessage::urlOf($data)
+            ?? (method_exists($this, 'getWebPushUrl') ? $this->getWebPushUrl($notifiable) : null);
 
         $message = (new WebPushMessage)
             ->title($title)

@@ -9,7 +9,7 @@ use Livewire\Component;
 
 /**
  * Партнёрская программа: ссылка-приглашение, условия и приглашённые коллеги.
- * Макета нет — собрано по BRAND.md; данные и условия как в старом кабинете (Filament App\Pages\Referrals).
+ * Макета нет — собрано по BRAND.md, логика — ReferralService.
  */
 #[Layout('components.layouts.cabinet', ['title' => 'Пригласить коллегу', 'active' => null])]
 class Referrals extends Component

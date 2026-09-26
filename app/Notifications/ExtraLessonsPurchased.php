@@ -2,9 +2,9 @@
 
 namespace App\Notifications;
 
+use App\Notifications\Messages\CabinetMessage;
 use App\Notifications\Traits\BroadcastsNotification;
 use App\Services\SubscriptionService;
-use Filament\Notifications\Notification as FilamentNotification;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Notifications\Notification;
@@ -37,17 +37,10 @@ class ExtraLessonsPurchased extends Notification implements ShouldBroadcast
         $quantityText = $this->quantity . ' ' . SubscriptionService::lessonsWord($this->quantity);
         $balanceText = $this->balance . ' ' . SubscriptionService::lessonsWord($this->balance);
 
-        return FilamentNotification::make()
-            ->title('Дополнительные занятия зачислены')
+        return CabinetMessage::make('Дополнительные занятия зачислены')
             ->body("Оплата {$amountText} ₽ прошла успешно, зачислено {$quantityText}. Докупленных занятий на балансе: {$balanceText}. Они не сгорают и расходуются после лимита тарифа.")
-            ->icon('heroicon-o-check-circle')
-            ->iconColor('success')
-            ->actions([
-                \Filament\Notifications\Actions\Action::make('view')
-                    ->label('Моя подписка')
-                    ->button()
-                    ->url(route('cabinet.teacher.subscription')),
-            ])
-            ->getDatabaseMessage();
+            ->icon('check')
+            ->action('Моя подписка', route('cabinet.teacher.subscription'))
+            ->toArray();
     }
 }

@@ -2,8 +2,8 @@
 
 namespace App\Notifications;
 
+use App\Notifications\Messages\CabinetMessage;
 use App\Notifications\Traits\BroadcastsNotification;
-use Filament\Notifications\Notification as FilamentNotification;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Notifications\Notification;
@@ -39,17 +39,10 @@ class SubscriptionAutoRenewNotice extends Notification implements ShouldBroadcas
     {
         $amountText = number_format($this->amount, 0, ',', ' ');
 
-        return FilamentNotification::make()
-            ->title('Автопродление подписки')
+        return CabinetMessage::make('Автопродление подписки')
             ->body("{$this->chargeDate->format('d.m.Y')} тариф «{$this->tariffName}» продлится автоматически — с вашей карты спишется {$amountText} ₽. Отключить автопродление можно на странице «Подписка».")
-            ->icon('heroicon-o-arrow-path')
-            ->iconColor('info')
-            ->actions([
-                \Filament\Notifications\Actions\Action::make('manage')
-                    ->label('Управлять подпиской')
-                    ->button()
-                    ->url(route('cabinet.teacher.subscription')),
-            ])
-            ->getDatabaseMessage();
+            ->icon('repeat')
+            ->action('Управлять подпиской', route('cabinet.teacher.subscription'))
+            ->toArray();
     }
 }

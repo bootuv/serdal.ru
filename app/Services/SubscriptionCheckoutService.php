@@ -10,8 +10,8 @@ use Illuminate\Support\Collection;
 
 /**
  * Оформление подписки учителем: выбор и продление тарифа, докупка занятий,
- * привязка/отвязка способа оплаты, автопродление. Используется старым кабинетом
- * (Filament App\Pages\ManageSubscription, Onboarding) и новым (Cabinet\Teacher\Subscription, Onboarding).
+ * привязка/отвязка способа оплаты, автопродление.
+ * Используется в Cabinet\Teacher\Subscription и Onboarding.
  *
  * Методы действий не показывают уведомлений — возвращают результат ['status' => …, …],
  * а тексты подбирает экран.

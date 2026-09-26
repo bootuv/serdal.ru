@@ -71,7 +71,7 @@ class SendSupportMessageTelegramNotification implements ShouldQueue
 
             if (!$response->successful()) {
                 Log::warning('Telegram support notification failed', [
-                    'status' => $response->status(),
+                    'status' => $response,
                     'body' => $response->body(),
                     'support_message_id' => $this->message->id,
                 ]);

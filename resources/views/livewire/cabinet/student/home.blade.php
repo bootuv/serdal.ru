@@ -128,6 +128,49 @@
                 @endif
             </x-ui.card>
             @endif
+
+            {{-- Учителя (текущие, затем бывшие) и отзывы о них --}}
+            @if ($teacherRows->isNotEmpty())
+            <x-ui.card aria-labelledby="teachers">
+                <x-ui.card-head id="teachers" title="Учителя" />
+                <x-ui.list>
+                    @foreach ($teacherRows as $t)
+                        <x-ui.row :chevron="false" class="flex-wrap" wire:key="teacher-{{ $t['id'] }}">
+                            {{-- Аватар и имя — ссылка на публичную страницу учителя (новая вкладка) --}}
+                            <{{ $t['publicUrl'] ? 'a' : 'div' }} @if ($t['publicUrl']) href="{{ $t['publicUrl'] }}" target="_blank" rel="noopener" @endif
+                                class="group/teacher flex min-w-0 flex-1 items-center gap-4">
+                                <x-ui.avatar :name="$t['name']" :id="$t['id']" />
+                                <div class="flex min-w-0 flex-1 flex-col gap-1">
+                                    <span class="flex min-w-0 items-center gap-2">
+                                        <span class="truncate text-t1 font-medium underline-offset-4 group-hover/teacher:underline">{{ $t['name'] }}</span>
+                                        @if ($t['publicUrl'])<x-ui.icon name="external" size="s" class="text-faint group-hover/teacher:text-ink" />@endif
+                                    </span>
+                                    @if ($t['sub'])<span class="text-t2 text-muted">{{ $t['sub'] }}</span>@endif
+                                    @if ($t['rejected'])<span class="text-t2 text-muted">Новый отзыв этому учителю оставить нельзя</span>@endif
+                                </div>
+                            </{{ $t['publicUrl'] ? 'a' : 'div' }}>
+                            <div class="flex w-full flex-wrap items-center gap-4 lg:w-auto">
+                                @if ($t['rejected'])
+                                    <x-ui.badge>Отзыв скрыт модератором</x-ui.badge>
+                                @else
+                                    @if ($t['review'])
+                                        <x-ui.stars :value="$t['review']->rating" role="img" />
+                                    @endif
+                                    @if ($t['canReview'])
+                                        <button type="button" class="link text-t2" wire:click="openReview({{ $t['id'] }})">{{ $t['review'] ? 'Изменить отзыв' : 'Оставить отзыв' }}</button>
+                                    @elseif ($t['lessons'] === 0 && ! $t['review'])
+                                        <span class="text-t2 text-muted">Отзыв — после первого занятия</span>
+                                    @endif
+                                @endif
+                                @if ($t['chat'])
+                                    <x-ui.btn size="s" :href="$t['chat']">Написать</x-ui.btn>
+                                @endif
+                            </div>
+                        </x-ui.row>
+                    @endforeach
+                </x-ui.list>
+            </x-ui.card>
+            @endif
         </div>
 
         <div class="flex flex-col gap-6">
@@ -185,4 +228,36 @@
             @endif
         </div>
     </div>
+
+    {{-- Окно отзыва --}}
+    @if ($reviewing)
+        @php
+            $hasReview = (bool) $reviewing['review'];
+            $sub = $hasReview
+                ? $reviewing['name'] . ' · опубликован ' . \App\Support\HumanDate::at($reviewing['review']->updated_at ?? $reviewing['review']->created_at)
+                : implode(' · ', array_filter([$reviewing['name'], $reviewing['teacher']->subjects->pluck('name')->join(', ')]));
+        @endphp
+        <x-ui.modal :title="$hasReview ? 'Ваш отзыв' : 'Отзыв об учителе'" :sub="$sub" close="closeReview">
+            <div class="flex flex-col gap-2">
+                <span class="text-t2 font-medium">Оценка</span>
+                <div class="flex flex-wrap items-center gap-4">
+                    <x-ui.stars :value="$rating" model="rating" />
+                    <span class="text-t1 font-semibold">{{ $stars[$rating] ?? '' }}</span>
+                </div>
+                @error('rating')<span class="text-t2 font-medium text-danger-fg">{{ $message }}</span>@enderror
+            </div>
+            <x-ui.field label="Расскажите о занятиях" name="reviewText" rows="6" wire:model="reviewText"
+                        placeholder="Например: что получилось благодаря занятиям" hint="Без телефонов и ссылок" maxlength="{{ \App\Models\Review::MAX_TEXT }}" />
+
+            <x-slot:note>
+                @if ($reviewing['publicUrl'])
+                    {{ $hasReview ? 'Обновится' : 'Появится' }} на <a href="{{ $reviewing['publicUrl'] }}" class="link" target="_blank" rel="noopener">{{ preg_replace('#^https?://#', '', $reviewing['publicUrl']) }}</a>
+                @endif
+            </x-slot:note>
+            <x-slot:footer>
+                <x-ui.btn wire:click="closeReview">Отмена</x-ui.btn>
+                <x-ui.btn variant="primary" wire:click="saveReview" wire:loading.attr="disabled" wire:target="saveReview">{{ $hasReview ? 'Сохранить изменения' : 'Отправить отзыв' }}</x-ui.btn>
+            </x-slot:footer>
+        </x-ui.modal>
+    @endif
 </div>

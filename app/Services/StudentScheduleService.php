@@ -10,7 +10,6 @@ use Illuminate\Support\Collection;
 
 /**
  * Расписание ученика: вхождения разовых и повторяющихся занятий в заданном интервале.
- * Единый расчёт для старого календаря (Filament) и нового кабинета.
  */
 class StudentScheduleService
 {

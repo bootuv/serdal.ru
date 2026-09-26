@@ -2,8 +2,8 @@
 
 namespace App\Notifications;
 
+use App\Notifications\Messages\CabinetMessage;
 use App\Notifications\Traits\BroadcastsNotification;
-use Filament\Notifications\Notification as FilamentNotification;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Notifications\Notification;
@@ -31,12 +31,9 @@ class SessionDeletionApproved extends Notification implements ShouldBroadcast
 
     public function toDatabase(object $notifiable): array
     {
-        return FilamentNotification::make()
-            ->title('Занятие удалено')
+        return CabinetMessage::make('Занятие удалено')
             ->body("Ваш запрос на удаление занятия \"{$this->roomName}\" от {$this->startedAt} одобрен")
-            ->icon('heroicon-o-check-circle')
-            ->iconColor('success')
-            ->success()
-            ->getDatabaseMessage();
+            ->icon('check')
+            ->toArray();
     }
 }

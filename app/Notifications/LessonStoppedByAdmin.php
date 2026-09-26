@@ -2,10 +2,10 @@
 
 namespace App\Notifications;
 
+use App\Notifications\Messages\CabinetMessage;
 use App\Models\MeetingSession;
 use App\Models\Room;
 use App\Notifications\Traits\BroadcastsNotification;
-use Filament\Notifications\Notification as FilamentNotification;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Notifications\Notification;
@@ -37,19 +37,12 @@ class LessonStoppedByAdmin extends Notification implements ShouldBroadcast
     {
         $started = $this->session?->started_at ? ', начатое в ' . $this->session->started_at->format('H:i') : '';
 
-        return FilamentNotification::make()
-            ->title('Занятие завершено администратором')
+        return CabinetMessage::make('Занятие завершено администратором')
             ->body("Администратор завершил занятие «{$this->room->name}»{$started}. Отчёт и запись — на странице занятия.")
-            ->icon('heroicon-o-clock')
-            ->iconColor('gray')
-            ->actions([
-                \Filament\Notifications\Actions\Action::make('view')
-                    ->label('Открыть')
-                    ->button()
-                    ->url(Route::has('cabinet.teacher.lesson')
+            ->icon('clock')
+            ->action('Открыть', Route::has('cabinet.teacher.lesson')
                         ? route('cabinet.teacher.lesson', ['room' => $this->room->id] + ($this->session ? ['session' => $this->session->id] : []))
-                        : url('/tutor/rooms/' . $this->room->id . '/edit')),
-            ])
-            ->getDatabaseMessage();
+                        : url('/tutor/rooms/' . $this->room->id . '/edit'))
+            ->toArray();
     }
 }

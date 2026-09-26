@@ -2,9 +2,9 @@
 
 namespace App\Notifications;
 
+use App\Notifications\Messages\CabinetMessage;
 use App\Models\User;
 use App\Notifications\Traits\BroadcastsNotification;
-use Filament\Notifications\Notification as FilamentNotification;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Notifications\Notification;
@@ -31,17 +31,10 @@ class StudentAcceptedInvite extends Notification implements ShouldBroadcast
 
     public function toDatabase(object $notifiable): array
     {
-        return FilamentNotification::make()
-            ->title('Приглашение принято')
+        return CabinetMessage::make('Приглашение принято')
             ->body("Ученик {$this->student->name} принял ваше приглашение")
-            ->icon('heroicon-o-check-circle')
-            ->iconColor('success')
-            ->actions([
-                \Filament\Notifications\Actions\Action::make('view')
-                    ->label('Открыть')
-                    ->button()
-                    ->url(route('cabinet.teacher.students'))
-            ])
-            ->getDatabaseMessage();
+            ->icon('check')
+            ->action('Открыть', route('cabinet.teacher.students'))
+            ->toArray();
     }
 }

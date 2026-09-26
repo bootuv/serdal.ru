@@ -13,7 +13,6 @@ use Illuminate\Support\Facades\DB;
 /**
  * Удаление проведённых занятий администратором: одобрить или отклонить запрос учителя, удалить без запроса.
  * Решения по запросам сохраняются (SessionDeletionDecision) — «Решено раньше» в админке.
- * Используют новая админка и старая (Filament, ViewMeetingSession).
  */
 class SessionDeletionService
 {

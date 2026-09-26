@@ -14,7 +14,6 @@ use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 
 /**
  * Материалы учителя: папки, загрузка, доступ, перемещение и удаление.
- * Используется старым (Filament, MaterialResource) и новым кабинетом учителя.
  * Что из этого видит ученик — TeacherMaterial::scopeVisibleToStudent (StudentMaterialsService).
  */
 class TeacherMaterialsService
@@ -187,7 +186,7 @@ class TeacherMaterialsService
     /**
      * Ручной порядок перетаскиванием (поле sort_order, новые файлы с 0 — первыми):
      * вставить $draggedId до или после $targetId в списке $ids (порядок, как его видит учитель).
-     * Общий для файлов и папок, старого (Filament, ListMaterials) и нового кабинета.
+     * Общий для файлов и папок.
      */
     public function reorder(Builder $query, iterable $ids, int $draggedId, int $targetId, bool $before): bool
     {

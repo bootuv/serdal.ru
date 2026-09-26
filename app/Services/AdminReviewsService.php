@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Builder;
 
 /**
  * Модерация отзывов администратором: жалобы учителей, скрытие и возврат отзыва.
- * Используется новой админкой (Cabinet\Admin\Reviews) и старой (Filament ReviewResource).
+ * Используется админкой (Cabinet\Admin\Reviews).
  * Скрытый отзыв (is_rejected) не виден на странице учителя, не входит в оценку, и ученик не может оставить новый.
  */
 class AdminReviewsService

@@ -52,26 +52,6 @@ class TeacherMaterial extends Model
         return self::getVisibilityOptions()[$this->visibility] ?? $this->visibility;
     }
 
-    public function getVisibilityColorAttribute(): string
-    {
-        return match ($this->visibility) {
-            self::VISIBILITY_PRIVATE => 'gray',
-            self::VISIBILITY_ROOMS => 'warning',
-            self::VISIBILITY_ALL => 'success',
-            default => 'gray',
-        };
-    }
-
-    public function getVisibilityIconAttribute(): string
-    {
-        return match ($this->visibility) {
-            self::VISIBILITY_PRIVATE => 'heroicon-m-lock-closed',
-            self::VISIBILITY_ROOMS => 'heroicon-m-user-group',
-            self::VISIBILITY_ALL => 'heroicon-m-globe-alt',
-            default => 'heroicon-m-lock-closed',
-        };
-    }
-
     /**
      * Учитель — владелец материала
      */
@@ -130,21 +110,6 @@ class TeacherMaterial extends Model
             in_array($extension, ['ppt', 'pptx', 'odp']) => 'presentation',
             in_array($extension, ['zip', 'rar', '7z', 'tar', 'gz']) => 'archive',
             default => 'other',
-        };
-    }
-
-    public function getFileKindIconAttribute(): string
-    {
-        return match ($this->file_kind) {
-            'image' => 'heroicon-o-photo',
-            'video' => 'heroicon-o-film',
-            'audio' => 'heroicon-o-musical-note',
-            'pdf' => 'heroicon-o-document-text',
-            'document' => 'heroicon-o-document',
-            'spreadsheet' => 'heroicon-o-table-cells',
-            'presentation' => 'heroicon-o-presentation-chart-bar',
-            'archive' => 'heroicon-o-archive-box',
-            default => 'heroicon-o-paper-clip',
         };
     }
 

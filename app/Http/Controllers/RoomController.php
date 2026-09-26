@@ -27,15 +27,6 @@ class RoomController extends Controller
         // Лимиты подписки: блокируем создание нового занятия (повторный вход
         // в уже запущенную комнату не ограничиваем)
         if (!$room->is_running && ($limitError = \App\Services\SubscriptionService::canStartLesson(auth()->user()))) {
-            if ($this->fromOldCabinet()) {
-                \Filament\Notifications\Notification::make()
-                    ->title('Занятие не запущено')
-                    ->body($limitError)
-                    ->danger()
-                    ->persistent()
-                    ->send();
-            }
-
             return back(fallback: route('cabinet.teacher.subscription'))->with('error', $limitError);
         }
 
@@ -372,11 +363,4 @@ class RoomController extends Controller
         return back()->with('success', 'Meeting stopped successfully.');
     }
 
-    /** Запрос пришёл из старого кабинета Filament — там ошибки показывают его уведомления. */
-    private function fromOldCabinet(): bool
-    {
-        $path = (string) parse_url((string) url()->previous(), PHP_URL_PATH);
-
-        return str_starts_with($path, '/tutor') || str_starts_with($path, '/student');
-    }
 }

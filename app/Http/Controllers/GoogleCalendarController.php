@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use Google\Client;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Filament\Notifications\Notification;
 
 class GoogleCalendarController extends Controller
 {
@@ -229,16 +228,9 @@ class GoogleCalendarController extends Controller
             : redirect()->route('cabinet.teacher.schedule');
     }
 
-    /** Сообщение о результате: в старом кабинете — уведомление Filament, в новом — тост. */
+    /** Сообщение о результате — тост кабинета после перехода. */
     private function notify(string $title, string $body, string $type): void
     {
-        $path = (string) parse_url((string) (session('google_calendar_return') ?? url()->previous()), PHP_URL_PATH);
-        if (str_starts_with($path, '/tutor') || str_starts_with($path, '/student')) {
-            Notification::make()->title($title)->body($body)->{$type}()->send();
-
-            return;
-        }
-
         session()->flash($type === 'danger' ? 'error' : 'toast', $type === 'danger' ? $title . '. ' . $body : $title);
     }
 }

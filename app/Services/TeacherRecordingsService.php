@@ -13,7 +13,6 @@ use JoisarJignesh\Bigbluebutton\Facades\Bigbluebutton;
 
 /**
  * Записи занятий учителя: синхронизация с сервером занятий и удаление.
- * Используется старым (Filament, RecordingResource) и новым кабинетом учителя.
  */
 class TeacherRecordingsService
 {

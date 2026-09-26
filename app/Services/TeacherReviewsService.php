@@ -9,7 +9,6 @@ use Illuminate\Database\Eloquent\Builder;
 
 /**
  * Отзывы учеников об учителе: список, прочтение, жалоба, сводка оценок.
- * Используется старым (Filament, ReviewResource) и новым кабинетом учителя.
  */
 class TeacherReviewsService
 {

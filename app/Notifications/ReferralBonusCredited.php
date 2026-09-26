@@ -2,9 +2,9 @@
 
 namespace App\Notifications;
 
+use App\Notifications\Messages\CabinetMessage;
 use App\Notifications\Traits\BroadcastsNotification;
 use App\Services\SubscriptionService;
-use Filament\Notifications\Notification as FilamentNotification;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Notifications\Notification;
@@ -36,17 +36,10 @@ class ReferralBonusCredited extends Notification implements ShouldBroadcast
         $lessonsText = $this->lessons . ' ' . SubscriptionService::lessonsWord($this->lessons);
         $balanceText = $this->balance . ' ' . SubscriptionService::lessonsWord($this->balance);
 
-        return FilamentNotification::make()
-            ->title("Вам начислено +{$lessonsText}")
+        return CabinetMessage::make("Вам начислено +{$lessonsText}")
             ->body("{$this->reason} Дополнительных занятий на балансе: {$balanceText}. Они не сгорают и расходуются после лимита тарифа.")
-            ->icon('heroicon-o-gift')
-            ->iconColor('success')
-            ->actions([
-                \Filament\Notifications\Actions\Action::make('view')
-                    ->label('Пригласить ещё')
-                    ->button()
-                    ->url(route('cabinet.teacher.referrals')),
-            ])
-            ->getDatabaseMessage();
+            ->icon('wallet')
+            ->action('Пригласить ещё', route('cabinet.teacher.referrals'))
+            ->toArray();
     }
 }

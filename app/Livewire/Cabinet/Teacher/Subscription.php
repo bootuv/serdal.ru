@@ -15,7 +15,7 @@ use Livewire\Component;
 
 /**
  * Тариф и платежи учителя. Макет: «Учитель · Тариф и платежи» (docs/design/BRAND.md).
- * Условия и действия — как в старом кабинете (Filament App\Pages\ManageSubscription), логика — SubscriptionCheckoutService.
+ * Логика — SubscriptionCheckoutService.
  */
 #[Layout('components.layouts.cabinet', ['title' => 'Тариф и платежи', 'active' => null])]
 class Subscription extends Component

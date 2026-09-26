@@ -11,8 +11,7 @@ use Livewire\Component;
 /**
  * Пометки учителя на фото из работы ученика. Оригинал фото не трогаем: пометки сохраняются отдельным файлом
  * (HomeworkSubmissionService::saveAnnotation), повторно открытое фото показывается уже с пометками.
- * Старый кабинет (Filament): полноэкранное окно, открывается событием openAnnotator.
- * Новый кабинет: embedded — только холст и инструменты внутри окна родителя (x-ui.modal),
+ * Холст и инструменты — внутри окна родителя (x-ui.modal, экран проверки работы),
  * сохранение — браузерным событием annotator-save; после сохранения — событие imageAnnotated.
  */
 class ImageAnnotator extends Component
@@ -23,15 +22,9 @@ class ImageAnnotator extends Component
     #[Locked]
     public ?int $submissionId = null;
     public bool $showModal = false;
-    #[Locked]
-    public bool $embedded = false;
 
-    protected $listeners = ['openAnnotator'];
-
-    public function mount(bool $embedded = false, ?string $imagePath = null, ?int $submissionId = null): void
+    public function mount(?string $imagePath = null, ?int $submissionId = null): void
     {
-        $this->embedded = $embedded;
-
         if ($imagePath !== null) {
             $this->openAnnotator($imagePath, $submissionId);
         }
@@ -99,6 +92,6 @@ class ImageAnnotator extends Component
 
     public function render()
     {
-        return view($this->embedded ? 'livewire.cabinet.image-annotator' : 'livewire.image-annotator');
+        return view('livewire.cabinet.image-annotator');
     }
 }

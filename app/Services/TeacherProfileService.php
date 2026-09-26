@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Storage;
 
 /**
  * Профиль учителя: классы, сохранение (фото, предметы, направления, пароль).
- * Используется старым кабинетом (Filament App\Pages\EditProfile) и новым (Cabinet\Teacher\Profile, Onboarding).
+ * Используется в Cabinet\Teacher\Profile и Onboarding.
  */
 class TeacherProfileService
 {

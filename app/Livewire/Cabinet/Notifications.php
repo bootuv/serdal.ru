@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Cabinet;
 
+use App\Notifications\Messages\CabinetMessage;
 use App\Support\CabinetUrl;
 use App\Support\HumanDate;
 use Illuminate\Notifications\DatabaseNotification;
@@ -17,7 +18,7 @@ class Notifications extends Component
 {
     private const LIMIT = 50;
 
-    /** Иконки уведомлений старого кабинета (heroicons) → иконки кабинета. */
+    /** Иконки уведомлений, сохранённых до CabinetMessage (heroicons), → иконки кабинета. */
     private const ICONS = [
         'chat' => 'chat', 'lifebuoy' => 'help', 'academic-cap' => 'tasks', 'clipboard' => 'tasks', 'document' => 'tasks',
         'star' => 'star', 'flag' => 'star', 'banknotes' => 'wallet', 'credit-card' => 'wallet', 'gift' => 'wallet',
@@ -57,7 +58,7 @@ class Notifications extends Component
         $n = auth()->user()->notifications()->findOrFail($id);
         $n->markAsRead();
 
-        $url = CabinetUrl::fromLegacy($n->data['actions'][0]['url'] ?? null, auth()->user());
+        $url = CabinetUrl::fromLegacy(CabinetMessage::urlOf($n->data), auth()->user());
         if ($url) {
             $this->redirect($url);
         }
@@ -91,6 +92,9 @@ class Notifications extends Component
 
     private function icon(?string $heroicon): string
     {
+        if ($heroicon && ! str_starts_with($heroicon, 'heroicon')) {
+            return $heroicon;
+        }
         foreach (self::ICONS as $needle => $icon) {
             if ($heroicon && str_contains($heroicon, $needle)) {
                 return $icon;
@@ -125,7 +129,7 @@ class Notifications extends Component
                 'icon' => $this->icon($n->data['icon'] ?? null),
                 'time' => $this->time($n->created_at),
                 'unread' => $n->read_at === null,
-                'link' => ! empty($n->data['actions'][0]['url']),
+                'link' => ! empty(CabinetMessage::urlOf($n->data)),
             ])
             : collect();
 

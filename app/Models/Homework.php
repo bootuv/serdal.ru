@@ -64,32 +64,6 @@ class Homework extends Model
     }
 
     /**
-     * Получить иконку типа
-     */
-    public function getTypeIconAttribute(): string
-    {
-        return match ($this->type) {
-            self::TYPE_HOMEWORK => 'heroicon-o-clipboard-document-list',
-            self::TYPE_EXAM => 'heroicon-o-academic-cap',
-            self::TYPE_PRACTICE => 'heroicon-o-document-text',
-            default => 'heroicon-o-clipboard-document-list',
-        };
-    }
-
-    /**
-     * Получить цвет бейджа типа
-     */
-    public function getTypeColorAttribute(): string
-    {
-        return match ($this->type) {
-            self::TYPE_HOMEWORK => 'gray',
-            self::TYPE_EXAM => 'danger',
-            self::TYPE_PRACTICE => 'warning',
-            default => 'gray',
-        };
-    }
-
-    /**
      * Получить максимальный балл
      */
     public function getEffectiveMaxScoreAttribute(): int

@@ -25,7 +25,7 @@ class StudentLessonService
 
     public function __construct(private StudentScheduleService $schedule) {}
 
-    /** Занятие, в котором ученик — участник (в том числе архивное), иначе null. Как Filament Student/RoomResource. */
+    /** Занятие, в котором ученик — участник (в том числе архивное), иначе null. */
     public function room(User $student, int $roomId): ?Room
     {
         return Room::withTrashed()

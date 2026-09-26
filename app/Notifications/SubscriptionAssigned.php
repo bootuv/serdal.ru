@@ -2,9 +2,9 @@
 
 namespace App\Notifications;
 
+use App\Notifications\Messages\CabinetMessage;
 use App\Notifications\Traits\BroadcastsNotification;
 use App\Support\HumanDate;
-use Filament\Notifications\Notification as FilamentNotification;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Notifications\Notification;
@@ -38,17 +38,10 @@ class SubscriptionAssigned extends Notification implements ShouldBroadcast
         $body = 'Тариф «' . $this->tariffName . '» ' . ($this->endsAt ? 'действует до ' . HumanDate::date($this->endsAt) : 'действует бессрочно')
             . ($this->complimentary ? ', оплачивать его не нужно.' : '.');
 
-        return FilamentNotification::make()
-            ->title('Вам назначен тариф «' . $this->tariffName . '»')
+        return CabinetMessage::make('Вам назначен тариф «' . $this->tariffName . '»')
             ->body($body)
-            ->icon('heroicon-o-credit-card')
-            ->iconColor('success')
-            ->actions([
-                \Filament\Notifications\Actions\Action::make('view')
-                    ->label('Мой тариф')
-                    ->button()
-                    ->url(route('cabinet.teacher.subscription')),
-            ])
-            ->getDatabaseMessage();
+            ->icon('wallet')
+            ->action('Мой тариф', route('cabinet.teacher.subscription'))
+            ->toArray();
     }
 }

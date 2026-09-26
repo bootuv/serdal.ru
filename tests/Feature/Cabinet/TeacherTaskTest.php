@@ -215,7 +215,7 @@ class TeacherTaskTest extends TestCase
         $alina = $this->user(User::ROLE_STUDENT, 'Алина Смирнова');
         $h = $this->homework('Эссе', [$alina]);
         $s = $this->submit($h, $alina);
-        $url = fn ($n, $user) => $n->toDatabase($user)['actions'][0]['url'];
+        $url = fn ($n, $user) => $n->toDatabase($user)['url'];
 
         $this->assertSame(route('cabinet.teacher.review', $s), $url(new HomeworkSubmitted($h, $alina, $s), $this->teacher));
         $this->assertSame(route('cabinet.teacher.review', $s), $url(new HomeworkSubmitted($h, $alina), $this->teacher));

@@ -38,7 +38,7 @@ Route::post('/payments/yookassa/callback', [\App\Http\Controllers\SubscriptionPa
     ->name('subscription.payment.callback');
 
 // Вход для всех ролей и восстановление пароля (docs/design/BRAND.md, экраны без сайдбара).
-// Страницы входа старых панелей Filament переадресуют сюда (RedirectToCabinetLogin).
+// Старые адреса входа (/tutor/login и т. п.) ведут сюда через маршрут legacy.cabinet.
 Route::get('/login', \App\Livewire\Auth\Login::class)->name('login');
 Route::get('/forgot-password', \App\Livewire\Auth\ForgotPassword::class)->name('password.request');
 Route::get('/reset-password/{token}', \App\Livewire\Auth\ResetPassword::class)->name('password.reset');

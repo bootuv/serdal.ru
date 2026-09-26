@@ -9,7 +9,6 @@ use Illuminate\Support\Facades\Storage;
 
 /**
  * Профиль ученика: варианты класса и сохранение (аватар, пароль).
- * Используется старым кабинетом (Filament Student\Pages\Profile) и новым профилем.
  */
 class StudentProfileService
 {

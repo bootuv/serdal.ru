@@ -2,9 +2,9 @@
 
 namespace App\Notifications;
 
+use App\Notifications\Messages\CabinetMessage;
 use App\Models\Room;
 use App\Notifications\Traits\BroadcastsNotification;
-use Filament\Notifications\Notification as FilamentNotification;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Notifications\Notification;
@@ -34,15 +34,11 @@ class LessonStarted extends Notification implements ShouldBroadcast
 
     public function toDatabase(object $notifiable): array
     {
-        return FilamentNotification::make()
-            ->title('Занятие началось')
+        return CabinetMessage::make('Занятие началось')
             ->body("Занятие «{$this->room->name}» началось — можно входить в класс")
-            ->icon('heroicon-o-play-circle')
-            ->actions([
-                \Filament\Notifications\Actions\Action::make('view')->label('Войти в класс')->url($this->getWebPushUrl($notifiable)),
-            ])
-            ->iconColor('success')
-            ->getDatabaseMessage();
+            ->icon('video')
+            ->action('Войти в класс', $this->getWebPushUrl($notifiable))
+            ->toArray();
     }
 
     /**

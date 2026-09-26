@@ -4,12 +4,10 @@ namespace App\Livewire;
 
 use Livewire\Component;
 
+/** Переключатель push-уведомлений в профиле учителя и ученика. Подписку оформляет window.PushNotifications. */
 class PushNotificationToggle extends Component
 {
     public bool $isSubscribed = false;
-
-    /** Вид: icon — кнопка-иконка (Filament), cabinet — переключатель для профиля в новых кабинетах. */
-    public string $variant = 'icon';
 
     public function mount(): void
     {
@@ -26,6 +24,6 @@ class PushNotificationToggle extends Component
 
     public function render()
     {
-        return view($this->variant === 'cabinet' ? 'livewire.cabinet.push-switch' : 'livewire.push-notification-toggle');
+        return view('livewire.cabinet.push-switch');
     }
 }

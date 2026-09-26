@@ -7,8 +7,7 @@ use App\Models\Tariff;
 use App\Models\User;
 
 /**
- * Первые шаги учителя (Профиль → Цены → Тариф). Используется старым кабинетом
- * (Filament App\Pages\Onboarding) и новым (Cabinet\Teacher\Onboarding).
+ * Первые шаги учителя (Профиль → Цены → Тариф). Используется в Cabinet\Teacher\Onboarding.
  */
 class TeacherOnboardingService
 {

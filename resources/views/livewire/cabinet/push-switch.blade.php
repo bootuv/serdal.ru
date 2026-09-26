@@ -1,4 +1,4 @@
-{{-- Переключатель push-уведомлений в профиле (новые кабинеты). Логика — как в push-notification-toggle (window.PushNotifications). --}}
+{{-- Переключатель push-уведомлений в профиле (новые кабинеты). Компонент App\Livewire\PushNotificationToggle, подписка — window.PushNotifications. --}}
 <div class="flex flex-col gap-4" x-data="{
         on: @entangle('isSubscribed'),
         busy: false,

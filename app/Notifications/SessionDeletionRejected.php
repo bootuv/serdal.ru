@@ -2,10 +2,9 @@
 
 namespace App\Notifications;
 
+use App\Notifications\Messages\CabinetMessage;
 use App\Models\MeetingSession;
 use App\Notifications\Traits\BroadcastsNotification;
-use Filament\Notifications\Actions\Action;
-use Filament\Notifications\Notification as FilamentNotification;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Notifications\Notification;
@@ -36,18 +35,9 @@ class SessionDeletionRejected extends Notification implements ShouldBroadcast
         $roomName = $this->session->room?->name ?? 'Занятие';
         $reply = trim((string) $this->reply);
 
-        return FilamentNotification::make()
-            ->title('Запрос отклонён')
+        return CabinetMessage::make('Запрос отклонён')
             ->body("Ваш запрос на удаление занятия \"{$roomName}\" был отклонён" . ($reply !== '' ? ". Ответ администратора: {$reply}" : ''))
-            ->danger()
-            ->actions([
-                Action::make('view')
-                    ->label('Просмотреть')
-                    ->url("/tutor/meeting-sessions/{$this->session->id}")
-                    ->button()
-                    ->color('danger')
-                    ->markAsRead(),
-            ])
-            ->getDatabaseMessage();
+            ->action('Просмотреть', "/tutor/meeting-sessions/{$this->session->id}")
+            ->toArray();
     }
 }

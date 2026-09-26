@@ -2,9 +2,9 @@
 
 namespace App\Notifications;
 
+use App\Notifications\Messages\CabinetMessage;
 use App\Models\User;
 use App\Notifications\Traits\BroadcastsNotification;
-use Filament\Notifications\Notification as FilamentNotification;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Notifications\Notification;
@@ -31,17 +31,10 @@ class TeacherCompletedOnboarding extends Notification implements ShouldBroadcast
 
     public function toDatabase(object $notifiable): array
     {
-        return FilamentNotification::make()
-            ->title('Онбординг пройден')
+        return CabinetMessage::make('Онбординг пройден')
             ->body("Учитель {$this->teacher->name} прошёл онбординг")
-            ->icon('heroicon-o-check-badge')
-            ->iconColor('success')
-            ->actions([
-                \Filament\Notifications\Actions\Action::make('view')
-                    ->label('Открыть')
-                    ->button()
-                    ->url(route('cabinet.admin.users'))
-            ])
-            ->getDatabaseMessage();
+            ->icon('check')
+            ->action('Открыть', route('cabinet.admin.users'))
+            ->toArray();
     }
 }

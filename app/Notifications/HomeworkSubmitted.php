@@ -2,11 +2,11 @@
 
 namespace App\Notifications;
 
+use App\Notifications\Messages\CabinetMessage;
 use App\Models\Homework;
 use App\Models\HomeworkSubmission;
 use App\Models\User;
 use App\Notifications\Traits\BroadcastsNotification;
-use Filament\Notifications\Notification as FilamentNotification;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Notifications\Notification;
@@ -38,18 +38,11 @@ class HomeworkSubmitted extends Notification implements ShouldBroadcast
 
     public function toDatabase(object $notifiable): array
     {
-        return FilamentNotification::make()
-            ->title('Новая работа')
+        return CabinetMessage::make('Новая работа')
             ->body($this->student->name . ' сдал(а) работу: ' . $this->homework->title)
-            ->icon('heroicon-o-clipboard-document-check')
-            ->iconColor('warning')
-            ->actions([
-                \Filament\Notifications\Actions\Action::make('view')
-                    ->label('Проверить')
-                    ->button()
-                    ->url($this->url())
-            ])
-            ->getDatabaseMessage();
+            ->icon('tasks')
+            ->action('Проверить', $this->url())
+            ->toArray();
     }
 
     /** Сразу на проверку работы в новом кабинете; без работы — экран задания. */

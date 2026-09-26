@@ -2,8 +2,8 @@
 
 namespace App\Notifications;
 
+use App\Notifications\Messages\CabinetMessage;
 use App\Notifications\Traits\BroadcastsNotification;
-use Filament\Notifications\Notification as FilamentNotification;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Notifications\Notification;
@@ -36,17 +36,10 @@ class SubscriptionPaid extends Notification implements ShouldBroadcast
         $amountText = number_format($this->amount, 0, ',', ' ');
         $untilText = $this->endsAt ? ' Подписка действует до ' . $this->endsAt->format('d.m.Y') . '.' : '';
 
-        return FilamentNotification::make()
-            ->title('Подписка оплачена')
+        return CabinetMessage::make('Подписка оплачена')
             ->body("Оплата {$amountText} ₽ за тариф «{$this->tariffName}» прошла успешно.{$untilText}")
-            ->icon('heroicon-o-check-circle')
-            ->iconColor('success')
-            ->actions([
-                \Filament\Notifications\Actions\Action::make('view')
-                    ->label('Моя подписка')
-                    ->button()
-                    ->url(route('cabinet.teacher.subscription')),
-            ])
-            ->getDatabaseMessage();
+            ->icon('check')
+            ->action('Моя подписка', route('cabinet.teacher.subscription'))
+            ->toArray();
     }
 }

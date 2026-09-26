@@ -1,7 +1,7 @@
 # Serdal — LMS для репетиторов
 
 Laravel 11 + Livewire 3 + Tailwind 3. Занятия идут в BigBlueButton, реалтайм — Reverb, оплата подписки — ЮKassa.
-Роли: учитель (кабинет), ученик (кабинет), админ (админка `/cabinet/admin`). Публичный сайт — Blade + webflow CSS.
+Роли: учитель (кабинет), ученик (кабинет), админ (админка `/cabinet/admin`). Filament не используется. Публичный сайт — Blade + webflow CSS.
 
 ## Правила фирменного стиля — ОБЯЗАТЕЛЬНЫ
 
@@ -22,7 +22,7 @@ Laravel 11 + Livewire 3 + Tailwind 3. Занятия идут в BigBlueButton, 
 
 ## Кабинеты и админка на Livewire
 
-- Кабинеты учителя, ученика и админка — Livewire + Blade по макетам. Filament-панели (`/tutor`, `/student`, `/admin`) удалены; их адреса переадресует маршрут `legacy.cabinet` в конце `routes/cabinet.php` (через `CabinetUrl`). Пакет Filament остаётся только ради формата уведомлений (`Filament\Notifications\Notification::getDatabaseMessage`).
+- Кабинеты учителя, ученика и админка — Livewire + Blade по макетам. Filament-панели (`/tutor`, `/student`, `/admin`) удалены; их адреса переадресует маршрут `legacy.cabinet` в конце `routes/cabinet.php` (через `CabinetUrl`). Filament из проекта удалён полностью. Содержимое уведомлений (база, реалтайм, пуш) собирает `App\Notifications\Messages\CabinetMessage`.
 - Маршруты `routes/cabinet.php`, Livewire-страницы `app/Livewire/Cabinet/{Student,Teacher,Admin}/*`, раскладка `resources/views/components/layouts/cabinet.blade.php` (меню админки — там же, счётчики — `AdminInboxService`).
 - Вход для всех ролей — `/login` (`App\Livewire\Auth\Login`), восстановление пароля — `/forgot-password`, `/reset-password/{token}`.
 - После входа каждая роль попадает в свой кабинет (`EnsureCabinetRole::homeFor`): ученик — `/cabinet/student`, учитель — `/cabinet/teacher`, админ — `/cabinet/admin`.

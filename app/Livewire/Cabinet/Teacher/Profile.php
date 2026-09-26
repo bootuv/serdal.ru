@@ -20,8 +20,7 @@ use Livewire\WithFileUploads;
 
 /**
  * Профиль и цены учителя. Макет: «Учитель · Профиль и цены» (docs/design/BRAND.md).
- * Профиль — поля и правила как в старом кабинете (Filament App\Pages\EditProfile),
- * цены — как LessonTypeResource, уведомления — PushNotificationToggle.
+ * Профиль — TeacherProfileService, цены — типы занятий (LessonType), уведомления — PushNotificationToggle.
  */
 #[Layout('components.layouts.cabinet', ['title' => 'Профиль и цены', 'active' => null])]
 class Profile extends Component

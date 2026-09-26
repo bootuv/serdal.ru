@@ -2,10 +2,10 @@
 
 namespace App\Notifications;
 
+use App\Notifications\Messages\CabinetMessage;
 use App\Models\Review;
 use App\Models\User;
 use App\Notifications\Traits\BroadcastsNotification;
-use Filament\Notifications\Notification as FilamentNotification;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Notifications\Notification;
@@ -34,17 +34,10 @@ class StudentLeftReviewAdmin extends Notification implements ShouldBroadcast
 
     public function toDatabase(object $notifiable): array
     {
-        return FilamentNotification::make()
-            ->title('Новый отзыв')
+        return CabinetMessage::make('Новый отзыв')
             ->body("Ученик {$this->student->name} оставил отзыв учителю {$this->teacher->name}")
-            ->icon('heroicon-o-star')
-            ->iconColor('warning')
-            ->actions([
-                \Filament\Notifications\Actions\Action::make('view')
-                    ->label('Открыть')
-                    ->button()
-                    ->url(route('cabinet.admin.reviews', ['tab' => 'all']))
-            ])
-            ->getDatabaseMessage();
+            ->icon('star')
+            ->action('Открыть', route('cabinet.admin.reviews', ['tab' => 'all']))
+            ->toArray();
     }
 }

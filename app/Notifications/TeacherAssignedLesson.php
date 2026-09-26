@@ -2,10 +2,10 @@
 
 namespace App\Notifications;
 
+use App\Notifications\Messages\CabinetMessage;
 use App\Models\Room;
 use App\Models\User;
 use App\Notifications\Traits\BroadcastsNotification;
-use Filament\Notifications\Notification as FilamentNotification;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
@@ -36,18 +36,11 @@ class TeacherAssignedLesson extends Notification implements ShouldBroadcast
 
     public function toDatabase(object $notifiable): array
     {
-        return FilamentNotification::make()
-            ->title('Новое занятие')
+        return CabinetMessage::make('Новое занятие')
             ->body("Учитель {$this->teacher->name} назначил вам занятие \"{$this->room->name}\"")
-            ->icon('heroicon-o-calendar')
-            ->iconColor('info')
-            ->actions([
-                \Filament\Notifications\Actions\Action::make('view')
-                    ->label('Открыть')
-                    ->button()
-                    ->url(route('cabinet.student.schedule'))
-            ])
-            ->getDatabaseMessage();
+            ->icon('calendar')
+            ->action('Открыть', route('cabinet.student.schedule'))
+            ->toArray();
     }
 
 }

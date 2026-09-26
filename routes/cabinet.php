@@ -65,7 +65,7 @@ Route::middleware(['auth', \App\Http\Middleware\CheckUserActive::class])
             }
         }
 
-        // Новая админка (заменяет Filament /admin). Маршрут подключается, когда готов класс экрана.
+        // Админка. Маршрут подключается, когда готов класс экрана.
         $admin = [
             'today' => ['/admin', 'Today'],
             'support' => ['/admin/support', 'Support'],

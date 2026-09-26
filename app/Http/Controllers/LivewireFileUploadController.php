@@ -10,7 +10,7 @@ use Livewire\Features\SupportFileUploads\FileUploadConfiguration;
 use Livewire\Features\SupportFileUploads\FileUploadController;
 
 /**
- * Приём временных файлов Livewire (wire:model / FileUpload в Filament).
+ * Приём временных файлов Livewire (wire:model на полях загрузки).
  *
  * Livewire встраивает base64 от исходного имени в имя временного файла.
  * Для длинных русских названий (~90 символов, 2 байта на символ) имя

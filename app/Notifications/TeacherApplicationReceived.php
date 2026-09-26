@@ -2,9 +2,9 @@
 
 namespace App\Notifications;
 
+use App\Notifications\Messages\CabinetMessage;
 use App\Models\TeacherApplication;
 use App\Notifications\Traits\BroadcastsNotification;
-use Filament\Notifications\Notification as FilamentNotification;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Notifications\Notification;
@@ -33,17 +33,10 @@ class TeacherApplicationReceived extends Notification implements ShouldBroadcast
     {
         $name = trim("{$this->application->last_name} {$this->application->first_name}");
 
-        return FilamentNotification::make()
-            ->title('Новая заявка учителя')
+        return CabinetMessage::make('Новая заявка учителя')
             ->body("Получена заявка на регистрацию от {$name}")
-            ->icon('heroicon-o-document-text')
-            ->iconColor('info')
-            ->actions([
-                \Filament\Notifications\Actions\Action::make('view')
-                    ->label('Открыть')
-                    ->button()
-                    ->url(route('cabinet.admin.applications'))
-            ])
-            ->getDatabaseMessage();
+            ->icon('tasks')
+            ->action('Открыть', route('cabinet.admin.applications'))
+            ->toArray();
     }
 }

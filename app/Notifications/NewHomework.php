@@ -2,9 +2,9 @@
 
 namespace App\Notifications;
 
+use App\Notifications\Messages\CabinetMessage;
 use App\Models\Homework;
 use App\Notifications\Traits\BroadcastsNotification;
-use Filament\Notifications\Notification as FilamentNotification;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Notifications\Notification;
@@ -34,17 +34,10 @@ class NewHomework extends Notification implements ShouldBroadcast
 
     public function toDatabase(object $notifiable): array
     {
-        return FilamentNotification::make()
-            ->title('Новое задание')
+        return CabinetMessage::make('Новое задание')
             ->body('Вам назначено: ' . $this->homework->title)
-            ->icon($this->homework->type_icon)
-            ->iconColor($this->homework->type_color)
-            ->actions([
-                \Filament\Notifications\Actions\Action::make('view')
-                    ->label('Открыть')
-                    ->button()
-                    ->url(route('cabinet.student.task', $this->homework))
-            ])
-            ->getDatabaseMessage();
+            ->icon('tasks')
+            ->action('Открыть', route('cabinet.student.task', $this->homework))
+            ->toArray();
     }
 }

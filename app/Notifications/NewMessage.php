@@ -2,10 +2,9 @@
 
 namespace App\Notifications;
 
+use App\Notifications\Messages\CabinetMessage;
 use App\Models\Message;
 use App\Notifications\Traits\BroadcastsNotification;
-use Filament\Notifications\Actions\Action;
-use Filament\Notifications\Notification as FilamentNotification;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Notifications\Notification;
@@ -47,23 +46,14 @@ class NewMessage extends Notification implements ShouldBroadcast
             \Illuminate\Support\Facades\Log::warning("Failed to generate messenger URL for notification: " . $e->getMessage());
         }
 
-        $notification = FilamentNotification::make()
-            ->title("Новое сообщение в «{$roomName}»")
+        $notification = CabinetMessage::make("Новое сообщение в «{$roomName}»")
             ->body("{$senderName}: " . \Illuminate\Support\Str::limit($this->message->content, 50))
-            ->icon('heroicon-o-chat-bubble-left-ellipsis')
-            ->iconColor('info');
+            ->icon('chat');
 
         if ($url) {
-            $notification->actions([
-                Action::make('view')
-                    ->label('Открыть чат')
-                    ->url($url)
-                    ->button()
-                    ->color('primary')
-                    ->markAsRead(),
-            ]);
+            $notification->action('Открыть чат', $url);
         }
 
-        return $notification->getDatabaseMessage();
+        return $notification->toArray();
     }
 }

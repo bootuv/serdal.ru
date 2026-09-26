@@ -20,7 +20,6 @@ use Illuminate\Support\Facades\URL;
 
 /**
  * Ученики учителя: список, приглашение, занятия ученика, оплата (отметка, продление, условия) и удаление из списка.
- * Единая логика для старого кабинета (Filament StudentResource) и нового (Livewire, /cabinet/teacher/students).
  */
 class TeacherStudentsService
 {

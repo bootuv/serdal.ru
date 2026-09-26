@@ -10,7 +10,7 @@ use Illuminate\Support\Collection;
 
 /**
  * Материалы, открытые ученику: какие учителя, папки и файлы он видит.
- * Правила доступа — TeacherMaterial::scopeVisibleToStudent. Используется старым (Filament) и новым кабинетом.
+ * Правила доступа — TeacherMaterial::scopeVisibleToStudent.
  */
 class StudentMaterialsService
 {

@@ -20,7 +20,7 @@ use Livewire\WithFileUploads;
 
 /**
  * Первые шаги учителя: Профиль → Цены → Тариф → «Готово». Макеты: «Онбординг · 1–4».
- * Шаги и сохранение — как в старом кабинете (Filament App\Pages\Onboarding, TeacherOnboardingService);
+ * Шаги и сохранение — TeacherOnboardingService;
  * направления и классы перенесены сюда из заявки.
  */
 #[Layout('components.layouts.cabinet', ['title' => 'Первые шаги', 'active' => null])]

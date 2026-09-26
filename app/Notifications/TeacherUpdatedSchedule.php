@@ -2,9 +2,9 @@
 
 namespace App\Notifications;
 
+use App\Notifications\Messages\CabinetMessage;
 use App\Models\User;
 use App\Notifications\Traits\BroadcastsNotification;
-use Filament\Notifications\Notification as FilamentNotification;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Notifications\Notification;
@@ -37,17 +37,10 @@ class TeacherUpdatedSchedule extends Notification implements ShouldBroadcast
 
     public function toDatabase(object $notifiable): array
     {
-        return FilamentNotification::make()
-            ->title($this->title ?? 'Расписание обновлено')
+        return CabinetMessage::make($this->title ?? 'Расписание обновлено')
             ->body($this->body ?? "Учитель {$this->teacher->name} обновил ваше расписание занятий")
-            ->icon('heroicon-o-calendar-days')
-            ->iconColor('info')
-            ->actions([
-                \Filament\Notifications\Actions\Action::make('view')
-                    ->label('Расписание')
-                    ->button()
-                    ->url(route('cabinet.student.schedule'))
-            ])
-            ->getDatabaseMessage();
+            ->icon('calendar')
+            ->action('Расписание', route('cabinet.student.schedule'))
+            ->toArray();
     }
 }

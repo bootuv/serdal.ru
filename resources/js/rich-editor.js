@@ -5,7 +5,7 @@ import { Editor, Node, mergeAttributes } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import { Placeholder } from '@tiptap/extension-placeholder';
 
-// Картинка отдельным блоком: <img src alt>. Разбирает и картинки из старого редактора Filament (img внутри figure).
+// Картинка отдельным блоком: <img src alt>. Разбирает и картинки из старого редактора (img внутри figure).
 const Image = Node.create({
     name: 'image',
     group: 'block',

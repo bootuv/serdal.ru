@@ -54,34 +54,6 @@ class HomeworkActivity extends Model
     }
 
     /**
-     * Get activity icon
-     */
-    public function getIconAttribute(): string
-    {
-        return match ($this->type) {
-            self::TYPE_SUBMITTED, self::TYPE_RESUBMITTED => 'heroicon-o-paper-airplane',
-            self::TYPE_ANNOTATED => 'heroicon-o-pencil',
-            self::TYPE_GRADED => 'heroicon-o-star',
-            self::TYPE_REVISION_REQUESTED => 'heroicon-o-arrow-path',
-            default => 'heroicon-o-clock',
-        };
-    }
-
-    /**
-     * Get activity color
-     */
-    public function getColorAttribute(): string
-    {
-        return match ($this->type) {
-            self::TYPE_SUBMITTED, self::TYPE_RESUBMITTED => 'primary',
-            self::TYPE_ANNOTATED => 'warning',
-            self::TYPE_GRADED => 'success',
-            self::TYPE_REVISION_REQUESTED => 'danger',
-            default => 'gray',
-        };
-    }
-
-    /**
      * Log an activity
      */
     public static function log(int $submissionId, string $type, ?int $userId = null, ?array $metadata = null): self

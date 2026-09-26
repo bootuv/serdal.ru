@@ -46,7 +46,7 @@
                 document.addEventListener(event, unlockAudio, { once: true, passive: true });
             });
 
-            // Дедупликация: Filament может подписаться на канал дважды
+            // Дедупликация: подписка на канал может сработать дважды
             // (повторные EchoLoaded после Livewire-морфов), а id уведомления
             // стабилен — Laravel кладёт его в payload события.
             const playedIds = new Set();

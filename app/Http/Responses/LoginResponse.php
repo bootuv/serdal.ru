@@ -2,12 +2,12 @@
 
 namespace App\Http\Responses;
 
-use Filament\Http\Responses\Auth\Contracts\LoginResponse as LoginResponseContract;
 use Illuminate\Http\RedirectResponse;
 use Livewire\Features\SupportRedirects\Redirector;
 use App\Models\User;
 
-class LoginResponse implements LoginResponseContract
+/** Куда вести после входа и сброса пароля: заблокированного — обратно на вход, остальных — в свой кабинет. */
+class LoginResponse
 {
     public function toResponse($request): RedirectResponse|Redirector
     {
@@ -20,7 +20,6 @@ class LoginResponse implements LoginResponseContract
             return redirect()->route('login')->with('blocked_email', $user->email);
         }
 
-        // Ученик и учитель — в новый кабинет, админ — в /admin
         return redirect()->intended(\App\Http\Middleware\EnsureCabinetRole::homeFor($user));
     }
 }

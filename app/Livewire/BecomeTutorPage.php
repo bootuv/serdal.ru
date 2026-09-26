@@ -129,7 +129,7 @@ class BecomeTutorPage extends Component
                     }
                 },
             ],
-            // Как у поля tel() в прежней форме Filament
+            // Телефон: цифры, пробелы, скобки, дефисы, «+» в начале
             'data.phone' => ['required', 'string', 'max:255', 'regex:/^[+]*[(]{0,1}[0-9]{1,4}[)]{0,1}[-\s\.\/0-9]*$/'],
             'data.subjects' => ['required', 'array', 'min:1'],
             'data.subjects.*' => ['integer', Rule::exists('subjects', 'id')],

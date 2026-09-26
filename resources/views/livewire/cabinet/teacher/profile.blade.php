@@ -208,7 +208,7 @@
             <div class="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
                 <div class="flex min-w-0 flex-col gap-6 lg:col-span-2">
                     <x-ui.card focus>
-                        <livewire:push-notification-toggle variant="cabinet" key="push-switch" />
+                        <livewire:push-notification-toggle key="push-switch" />
                         <span class="text-t3 text-muted">Не приходят? Разрешите уведомления для сайта в настройках браузера — на телефоне и компьютере отдельно</span>
                     </x-ui.card>
 

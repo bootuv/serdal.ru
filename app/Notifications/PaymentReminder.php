@@ -2,9 +2,9 @@
 
 namespace App\Notifications;
 
+use App\Notifications\Messages\CabinetMessage;
 use App\Models\User;
 use App\Notifications\Traits\BroadcastsNotification;
-use Filament\Notifications\Notification as FilamentNotification;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Notifications\Notification;
@@ -34,17 +34,10 @@ class PaymentReminder extends Notification implements ShouldBroadcast
     {
         $teacherName = $this->teacher?->name ?? 'учителя';
 
-        return FilamentNotification::make()
-            ->title('Напоминание об оплате')
+        return CabinetMessage::make('Напоминание об оплате')
             ->body("У вас есть неоплаченные занятия у {$teacherName}. Пожалуйста, не забудьте про оплату, иначе доступ к занятиям этого учителя будет ограничен.")
-            ->icon('heroicon-o-banknotes')
-            ->iconColor('warning')
-            ->actions([
-                \Filament\Notifications\Actions\Action::make('view')
-                    ->label('Подробнее')
-                    ->button()
-                    ->url(route('cabinet.student.payments'))
-            ])
-            ->getDatabaseMessage();
+            ->icon('wallet')
+            ->action('Подробнее', route('cabinet.student.payments'))
+            ->toArray();
     }
 }

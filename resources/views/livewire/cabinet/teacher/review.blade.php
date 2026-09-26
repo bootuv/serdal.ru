@@ -203,7 +203,7 @@
                         @endforeach
                     </div>
                 @endif
-                <livewire:image-annotator embedded :image-path="$current['path']" :submission-id="$submission->id" :key="'ann-' . md5($current['path'])" />
+                <livewire:image-annotator :image-path="$current['path']" :submission-id="$submission->id" :key="'ann-' . md5($current['path'])" />
             </div>
             <x-slot:note>{{ $marksNote }}</x-slot:note>
             <x-slot:footer>

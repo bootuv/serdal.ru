@@ -2,11 +2,10 @@
 
 namespace App\Notifications;
 
+use App\Notifications\Messages\CabinetMessage;
 use App\Models\SupportMessage;
 use App\Models\User;
 use App\Notifications\Traits\BroadcastsNotification;
-use Filament\Notifications\Actions\Action;
-use Filament\Notifications\Notification as FilamentNotification;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Notifications\Notification;
@@ -53,21 +52,14 @@ class NewSupportMessage extends Notification implements ShouldBroadcast
             $url = null;
         }
 
-        $notification = FilamentNotification::make()
-            ->title("Новое сообщение от поддержки")
+        $notification = CabinetMessage::make("Новое сообщение от поддержки")
             ->body("{$senderName}: " . \Illuminate\Support\Str::limit($this->message->content, 50))
-            ->icon('heroicon-o-lifebuoy')
-            ->iconColor('warning');
+            ->icon('help');
 
         if ($url) {
-            $notification->actions([
-                Action::make('view')
-                    ->label('Открыть чат')
-                    ->button()
-                    ->url($url),
-            ]);
+            $notification->action('Открыть чат', $url);
         }
 
-        return $notification->getDatabaseMessage();
+        return $notification->toArray();
     }
 }

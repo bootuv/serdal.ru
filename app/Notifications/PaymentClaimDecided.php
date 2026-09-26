@@ -2,9 +2,9 @@
 
 namespace App\Notifications;
 
+use App\Notifications\Messages\CabinetMessage;
 use App\Models\PaymentClaim;
 use App\Notifications\Traits\BroadcastsNotification;
-use Filament\Notifications\Notification as FilamentNotification;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Notifications\Notification;
@@ -44,17 +44,10 @@ class PaymentClaimDecided extends Notification implements ShouldBroadcast
                 . ($claim->reject_reason ? ': «' . \Illuminate\Support\Str::limit($claim->reject_reason, 200) . '»' : '')
                 . '. Напишите учителю или сообщите об оплате ещё раз.';
 
-        return FilamentNotification::make()
-            ->title($confirmed ? 'Оплата подтверждена' : 'Оплата не подтверждена')
+        return CabinetMessage::make($confirmed ? 'Оплата подтверждена' : 'Оплата не подтверждена')
             ->body($body)
-            ->icon('heroicon-o-banknotes')
-            ->iconColor($confirmed ? 'success' : 'danger')
-            ->actions([
-                \Filament\Notifications\Actions\Action::make('view')
-                    ->label('Подробнее')
-                    ->button()
-                    ->url(Route::has('cabinet.student.payments') ? route('cabinet.student.payments') : url('/student/payment-debts')),
-            ])
-            ->getDatabaseMessage();
+            ->icon('wallet')
+            ->action('Подробнее', Route::has('cabinet.student.payments') ? route('cabinet.student.payments') : url('/student/payment-debts'))
+            ->toArray();
     }
 }

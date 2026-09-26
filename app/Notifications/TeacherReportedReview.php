@@ -2,10 +2,10 @@
 
 namespace App\Notifications;
 
+use App\Notifications\Messages\CabinetMessage;
 use App\Models\Review;
 use App\Models\User;
 use App\Notifications\Traits\BroadcastsNotification;
-use Filament\Notifications\Notification as FilamentNotification;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Notifications\Notification;
@@ -44,17 +44,10 @@ class TeacherReportedReview extends Notification implements ShouldBroadcast
             $body .= ' — «' . \Illuminate\Support\Str::limit((string) $this->review->report_note, 300) . '»';
         }
 
-        return FilamentNotification::make()
-            ->title('Жалоба на отзыв')
+        return CabinetMessage::make('Жалоба на отзыв')
             ->body($body)
-            ->icon('heroicon-o-flag')
-            ->iconColor('danger')
-            ->actions([
-                \Filament\Notifications\Actions\Action::make('view')
-                    ->label('Открыть')
-                    ->button()
-                    ->url(route('cabinet.admin.reviews'))
-            ])
-            ->getDatabaseMessage();
+            ->icon('star')
+            ->action('Открыть', route('cabinet.admin.reviews'))
+            ->toArray();
     }
 }

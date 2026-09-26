@@ -2,8 +2,8 @@
 
 namespace App\Notifications;
 
+use App\Notifications\Messages\CabinetMessage;
 use App\Notifications\Traits\BroadcastsNotification;
-use Filament\Notifications\Notification as FilamentNotification;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Notifications\Notification;
@@ -31,11 +31,9 @@ class SessionDeletedByAdmin extends Notification implements ShouldBroadcast
 
     public function toDatabase(object $notifiable): array
     {
-        return FilamentNotification::make()
-            ->title('Занятие удалено')
+        return CabinetMessage::make('Занятие удалено')
             ->body("Администратор удалил проведённое занятие «{$this->roomName}» ({$this->when}). Оно больше не учитывается в истории, статистике и лимите тарифа.")
-            ->icon('heroicon-o-calendar')
-            ->iconColor('gray')
-            ->getDatabaseMessage();
+            ->icon('calendar')
+            ->toArray();
     }
 }

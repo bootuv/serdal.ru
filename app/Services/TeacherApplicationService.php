@@ -13,7 +13,6 @@ use Illuminate\Support\Str;
 
 /**
  * Решение по заявке учителя: одобрить (аккаунт учителя + пароль на почту) или отклонить (письмо с причиной).
- * Используется новой админкой (Cabinet\Admin\Applications) и старой (Filament TeacherApplicationResource).
  */
 class TeacherApplicationService
 {

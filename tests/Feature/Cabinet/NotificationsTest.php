@@ -34,7 +34,7 @@ class NotificationsTest extends TestCase
         ]);
     }
 
-    /** Уведомление в формате старого кабинета (Filament). */
+    /** Уведомление в старом формате (сохранено до CabinetMessage): ссылка в actions[0].url, иконка heroicon. */
     private function notify(User $user, string $title, string $body, ?string $url = null, bool $read = false): string
     {
         $id = (string) Str::uuid();

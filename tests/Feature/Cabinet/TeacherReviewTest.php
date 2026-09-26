@@ -216,7 +216,7 @@ class TeacherReviewTest extends TestCase
 
         // Холст ImageAnnotator (встроенный) сохраняет пометки отдельным файлом, оригинал цел
         Livewire::actingAs($this->teacher)
-            ->test(ImageAnnotator::class, ['embedded' => true, 'imagePath' => 'homework-submissions/1/page1.jpg', 'submissionId' => $s->id])
+            ->test(ImageAnnotator::class, ['imagePath' => 'homework-submissions/1/page1.jpg', 'submissionId' => $s->id])
             ->assertSee('Карандаш')
             ->call('saveAnnotatedImage', 'data:image/png;base64,' . base64_encode('annotated'))
             ->assertDispatched('imageAnnotated', path: 'homework-submissions/1/page1.jpg');
@@ -243,7 +243,7 @@ class TeacherReviewTest extends TestCase
             ->assertSee(basename($marked));
 
         Livewire::actingAs($this->teacher)
-            ->test(ImageAnnotator::class, ['embedded' => true, 'imagePath' => 'homework-submissions/1/page1.jpg', 'submissionId' => $s->id])
+            ->test(ImageAnnotator::class, ['imagePath' => 'homework-submissions/1/page1.jpg', 'submissionId' => $s->id])
             ->assertSee(basename($marked))
             ->call('saveAnnotatedImage', 'data:image/png;base64,' . base64_encode('annotated twice'));
 

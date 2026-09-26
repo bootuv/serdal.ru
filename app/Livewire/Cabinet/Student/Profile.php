@@ -2,20 +2,15 @@
 
 namespace App\Livewire\Cabinet\Student;
 
-use App\Models\MeetingSession;
-use App\Models\Review;
 use App\Models\User;
-use App\Rules\NoContacts;
 use App\Services\StudentProfileService;
-use App\Services\StudentTeachersService;
 use App\Support\HumanDate;
-use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 
-/** Профиль ученика. Макеты: «Ученик · Профиль», «Отзыв: оставить / изменить / состояния» (docs/design/BRAND.md). */
+/** Профиль ученика. Макет: «Ученик · Профиль» (docs/design/BRAND.md). Учителя и отзывы — на главной. */
 #[Layout('components.layouts.cabinet', ['title' => 'Профиль', 'active' => null])]
 class Profile extends Component
 {
@@ -33,11 +28,6 @@ class Profile extends Component
 
     /** Показать «Изменения сохранены» у кнопки. */
     public bool $saved = false;
-
-    // Окно отзыва
-    public ?int $reviewTeacherId = null;
-    public int $rating = 5;
-    public string $reviewText = '';
 
     public function mount(): void
     {
@@ -119,119 +109,14 @@ class Profile extends Component
         $this->saved = true;
     }
 
-    public function openReview(int $teacherId): void
-    {
-        [$teacher] = $this->reviewable($teacherId);
-
-        $review = $this->teachersService()->review(auth()->id(), $teacher->id);
-        $this->rating = $review?->rating ?? 5;
-        $this->reviewText = (string) ($review?->text ?? '');
-        $this->reviewTeacherId = $teacher->id;
-        $this->resetValidation(['rating', 'reviewText']);
-    }
-
-    public function closeReview(): void
-    {
-        $this->reviewTeacherId = null;
-        $this->resetValidation(['rating', 'reviewText']);
-    }
-
-    public function saveReview(): void
-    {
-        [$teacher] = $this->reviewable((int) $this->reviewTeacherId);
-
-        $this->validate([
-            'rating' => ['required', 'integer', 'between:1,5'],
-            'reviewText' => ['required', 'string', 'max:' . Review::MAX_TEXT, new NoContacts],
-        ], [
-            'reviewText.required' => 'Напишите хотя бы пару предложений',
-            'reviewText.max' => 'Отзыв длиннее ' . Review::MAX_TEXT . ' символов — сократите его.',
-        ]);
-
-        $isNew = ! $this->teachersService()->review(auth()->id(), $teacher->id);
-        $this->teachersService()->saveReview(auth()->user(), $teacher, $this->rating, trim($this->reviewText));
-
-        $this->reviewTeacherId = null;
-        $this->dispatch('toast', message: $isNew ? 'Спасибо! Отзыв опубликован' : 'Отзыв обновлён');
-    }
-
     public function render()
     {
         $user = auth()->user();
-        $teachers = $this->teacherRows($user->id);
 
         return view('livewire.cabinet.student.profile', [
             'user' => $user,
             'since' => HumanDate::month($user->created_at ?? now(), genitive: true),
             'grades' => StudentProfileService::GRADES,
-            'teachers' => $teachers,
-            'reviewing' => $this->reviewTeacherId ? $teachers->firstWhere('id', $this->reviewTeacherId) : null,
-            'stars' => ['', '1 — очень плохо', '2 — плохо', '3 — нормально', '4 — хорошо', '5 — отлично'],
         ]);
-    }
-
-    /** Текущие, затем бывшие учителя — как в виджетах старого кабинета. */
-    private function teacherRows(int $studentId): Collection
-    {
-        $svc = $this->teachersService();
-
-        $current = $svc->currentTeachers($studentId)->with('subjects:id,name')->orderBy('name')->get()
-            ->map(fn (User $t) => $this->teacherRow($studentId, $t, $svc->lessonsWithCurrentTeacher($studentId, $t), true));
-        $former = $svc->formerTeachers($studentId)->with('subjects:id,name')->orderBy('name')->get()
-            ->map(fn (User $t) => $this->teacherRow($studentId, $t, $svc->lessonsWithFormerTeacher($studentId, $t), false));
-
-        return $current->concat($former)->values();
-    }
-
-    private function teacherRow(int $studentId, User $teacher, Collection $lessons, bool $current): array
-    {
-        $svc = $this->teachersService();
-        $review = $svc->review($studentId, $teacher->id);
-        $count = $lessons->count();
-        $dates = $lessons->map(fn (MeetingSession $s) => $s->started_at ?? $s->ended_at ?? $s->created_at)->filter()->sort();
-
-        $facts = match (true) {
-            ! $current => $dates->isNotEmpty() ? 'занимались до ' . HumanDate::month($dates->last(), genitive: true) : null,
-            $count > 0 => plural_ru($count, 'занятие', 'занятия', 'занятий') . ($dates->isNotEmpty() ? ' с ' . HumanDate::month($dates->first(), genitive: true) : ''),
-            default => 'занятий пока не было',
-        };
-
-        return [
-            'id' => $teacher->id,
-            'name' => $teacher->name,
-            'teacher' => $teacher,
-            'current' => $current,
-            'sub' => implode(' · ', array_filter([$teacher->subjects->pluck('name')->join(', '), $facts])),
-            'review' => $review,
-            'rejected' => $svc->hasRejectedReview($studentId, $teacher->id),
-            'canReview' => $svc->canReview($studentId, $teacher->id, $count),
-            'lessons' => $count,
-            'chat' => $current ? $svc->chatUrl($studentId, $teacher->id) : null,
-            'publicUrl' => $teacher->is_active && $teacher->username ? route('tutors.show', ['username' => $teacher->username]) : null,
-        ];
-    }
-
-    /** Учитель, которому ученик может оставить отзыв; иначе — 403. Возвращает [учитель, занятий]. */
-    private function reviewable(int $teacherId): array
-    {
-        $studentId = (int) auth()->id();
-        $svc = $this->teachersService();
-
-        if ($teacher = $svc->currentTeachers($studentId)->find($teacherId)) {
-            $count = $svc->lessonsWithCurrentTeacher($studentId, $teacher)->count();
-        } elseif ($teacher = $svc->formerTeachers($studentId)->find($teacherId)) {
-            $count = $svc->lessonsWithFormerTeacher($studentId, $teacher)->count();
-        } else {
-            abort(403);
-        }
-
-        abort_unless($svc->canReview($studentId, $teacher->id, $count), 403);
-
-        return [$teacher, $count];
-    }
-
-    private function teachersService(): StudentTeachersService
-    {
-        return app(StudentTeachersService::class);
     }
 }

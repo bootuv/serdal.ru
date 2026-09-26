@@ -2,9 +2,9 @@
 
 namespace App\Notifications;
 
+use App\Notifications\Messages\CabinetMessage;
 use App\Models\User;
 use App\Notifications\Traits\BroadcastsNotification;
-use Filament\Notifications\Notification as FilamentNotification;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Notifications\Notification;
@@ -32,24 +32,17 @@ class TeacherRemoved extends Notification implements ShouldBroadcast
 
     public function toDatabase(object $notifiable): array
     {
-        $notification = FilamentNotification::make()
-            ->title('Прощание с учителем')
-            ->icon('heroicon-o-user-minus')
-            ->iconColor('warning');
+        $notification = CabinetMessage::make('Прощание с учителем')
+            ->icon('users');
 
         if ($this->canLeaveReview) {
             $notification
                 ->body("Учитель {$this->teacher->name} убрал вас из своего списка учеников. Пожалуйста, оставьте отзыв.")
-                ->actions([
-                    \Filament\Notifications\Actions\Action::make('review')
-                        ->label('Оставить отзыв')
-                        ->button()
-                        ->url(route('cabinet.student.home'))
-                ]);
+                ->action('Оставить отзыв', route('cabinet.student.home'));
         } else {
             $notification->body("Учитель {$this->teacher->name} убрал вас из своего списка учеников.");
         }
 
-        return $notification->getDatabaseMessage();
+        return $notification->toArray();
     }
 }

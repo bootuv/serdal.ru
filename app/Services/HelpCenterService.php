@@ -13,8 +13,7 @@ use Illuminate\Support\Facades\Storage;
 
 /**
  * База знаний (Help Center): категории, статьи, порядок, видео и картинки статей.
- * Используется новой админкой (/cabinet/admin/help). Порядок — поле sort_order, как в Filament
- * (HelpCategoryResource / HelpArticleResource ->reorderable('sort_order')); публичная справка сортирует по нему же.
+ * Используется новой админкой (/cabinet/admin/help). Порядок — поле sort_order; публичная справка сортирует по нему же.
  */
 class HelpCenterService
 {

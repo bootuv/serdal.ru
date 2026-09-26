@@ -2,9 +2,9 @@
 
 namespace App\Notifications;
 
+use App\Notifications\Messages\CabinetMessage;
 use App\Models\Room;
 use App\Notifications\Traits\BroadcastsNotification;
-use Filament\Notifications\Notification as FilamentNotification;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Notifications\Notification;
@@ -37,19 +37,12 @@ class LessonCreatedByAdmin extends Notification implements ShouldBroadcast
     {
         $details = $this->details !== '' ? ': ' . $this->details : '';
 
-        return FilamentNotification::make()
-            ->title('Новое занятие')
+        return CabinetMessage::make('Новое занятие')
             ->body("Администратор создал для вас занятие «{$this->room->name}»{$details}.")
-            ->icon('heroicon-o-calendar')
-            ->iconColor('info')
-            ->actions([
-                \Filament\Notifications\Actions\Action::make('view')
-                    ->label('Открыть')
-                    ->button()
-                    ->url(Route::has('cabinet.teacher.lesson')
+            ->icon('calendar')
+            ->action('Открыть', Route::has('cabinet.teacher.lesson')
                         ? route('cabinet.teacher.lesson', ['room' => $this->room->id])
-                        : url('/tutor/rooms/' . $this->room->id . '/edit')),
-            ])
-            ->getDatabaseMessage();
+                        : url('/tutor/rooms/' . $this->room->id . '/edit'))
+            ->toArray();
     }
 }

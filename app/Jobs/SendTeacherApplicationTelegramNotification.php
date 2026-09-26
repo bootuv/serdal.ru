@@ -88,7 +88,7 @@ class SendTeacherApplicationTelegramNotification implements ShouldQueue
 
             if (!$response->successful()) {
                 Log::warning('Telegram teacher application notification failed', [
-                    'status' => $response->status(),
+                    'status' => $response,
                     'body' => $response->body(),
                     'teacher_application_id' => $application->id,
                 ]);

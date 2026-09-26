@@ -24,7 +24,7 @@ use Livewire\Component;
 /**
  * Занятие ученика: ближайшее время (с отменой или переносом), «Войти в класс», задания, материалы, записи,
  * правила расписания и прошедшие занятия. Отдельного макета нет — по духу Lesson, StudentSchedule, StudentTask.
- * Открыть может только участник занятия (как Filament Student/RoomResource), иначе 404.
+ * Открыть может только участник занятия, иначе 404.
  */
 #[Layout('components.layouts.cabinet', ['title' => 'Занятие', 'active' => 'schedule'])]
 class Lesson extends Component

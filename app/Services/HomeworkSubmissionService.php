@@ -13,11 +13,11 @@ use Illuminate\Support\Str;
 /**
  * Задания: глазами ученика (какие видны, в каком состоянии, сдача работы)
  * и учителя (выдача задания, проверка, оценка, возврат на доработку).
- * Единая логика для старых кабинетов (Filament, /student/homework, /tutor/homework) и новых (/cabinet/…/tasks).
+ * Используется в кабинетах учителя и ученика (/cabinet/…/tasks).
  */
 class HomeworkSubmissionService
 {
-    /** Что можно прикрепить к ответу (как в форме сдачи Filament). */
+    /** Что можно прикрепить к ответу. */
     public const ACCEPTED_MIMES = [
         'application/pdf',
         'application/msword',
@@ -217,7 +217,7 @@ class HomeworkSubmissionService
 
     /* ───────────── Учитель: выдача заданий и проверка работ ───────────── */
 
-    /** Что можно прикрепить к заданию (как в форме задания Filament). */
+    /** Что можно прикрепить к заданию. */
     public const TASK_MIMES = [
         'application/pdf',
         'application/msword',
@@ -240,7 +240,7 @@ class HomeworkSubmissionService
     /** Каталог файлов к комментарию учителя: feedback-attachments/{id учителя}/… */
     public const FEEDBACK_DIRECTORY = 'feedback-attachments';
 
-    /** Работы, которые учитель может открыть: сданные ученикам его заданий (как getEloquentQuery в Filament). */
+    /** Работы, которые учитель может открыть: сданные ученикам его заданий. */
     public static function submissionsOf(int $teacherId): Builder
     {
         return HomeworkSubmission::query()
@@ -332,7 +332,7 @@ class HomeworkSubmissionService
     }
 
     /**
-     * Изменить задание. Удалённые из задания файлы стираются с s3 (как при удалении файла в форме Filament).
+     * Изменить задание. Удалённые из задания файлы стираются с s3.
      * Уведомляем тех, кто увидел задание впервые: при публикации черновика — всех, иначе — добавленных учеников.
      *
      * @param  array<int>  $studentIds
@@ -499,7 +499,7 @@ class HomeworkSubmissionService
     /**
      * Старый кабинет после события imageAnnotated: фото с пометками — к файлам комментария.
      * saveAnnotation уже добавил файл; здесь только страховка для записей без annotations.
-     * Работу перечитываем: у страницы Filament может быть устаревшая копия.
+     * Работу перечитываем: у экрана может быть устаревшая копия.
      */
     public function addAnnotation(HomeworkSubmission $submission, string $path): void
     {
@@ -608,7 +608,7 @@ class HomeworkSubmissionService
     public static function fileUrl(string $path): string
     {
         try {
-            // Файлы заданий, работ и комментариев всегда лежат на s3 (FileUploadHelper, FileUpload в Filament)
+            // Файлы заданий, работ и комментариев всегда лежат на s3 (FileUploadHelper)
             if (config('filesystems.default') === 's3' || Str::startsWith($path, ['homework-submissions/', 'homework-feedback/', 'homework-attachments/', 'feedback-attachments/'])) {
                 return Storage::disk('s3')->temporaryUrl($path, now()->addMinutes(30));
             }

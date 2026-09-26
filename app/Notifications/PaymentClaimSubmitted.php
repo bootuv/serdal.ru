@@ -2,10 +2,10 @@
 
 namespace App\Notifications;
 
+use App\Notifications\Messages\CabinetMessage;
 use App\Models\PaymentClaim;
 use App\Notifications\Traits\BroadcastsNotification;
 use App\Services\TeacherStudentsService;
-use Filament\Notifications\Notification as FilamentNotification;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Notifications\Notification;
@@ -44,17 +44,10 @@ class PaymentClaimSubmitted extends Notification implements ShouldBroadcast
             . ($claim->amount ? ' · ' . \App\Support\Money::format($claim->amount) : '')
             . '. Проверьте чек и подтвердите оплату.';
 
-        return FilamentNotification::make()
-            ->title('Ученик сообщил об оплате')
+        return CabinetMessage::make('Ученик сообщил об оплате')
             ->body($body)
-            ->icon('heroicon-o-banknotes')
-            ->iconColor('warning')
-            ->actions([
-                \Filament\Notifications\Actions\Action::make('view')
-                    ->label('Проверить')
-                    ->button()
-                    ->url($student ? TeacherStudentsService::studentUrl($student, ['tab' => 'pay']) : url('/tutor/students')),
-            ])
-            ->getDatabaseMessage();
+            ->icon('wallet')
+            ->action('Проверить', $student ? TeacherStudentsService::studentUrl($student, ['tab' => 'pay']) : url('/tutor/students'))
+            ->toArray();
     }
 }

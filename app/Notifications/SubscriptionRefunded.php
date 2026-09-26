@@ -2,8 +2,8 @@
 
 namespace App\Notifications;
 
+use App\Notifications\Messages\CabinetMessage;
 use App\Notifications\Traits\BroadcastsNotification;
-use Filament\Notifications\Notification as FilamentNotification;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Notifications\Notification;
@@ -43,17 +43,10 @@ class SubscriptionRefunded extends Notification implements ShouldBroadcast
             $subscriptionNote = ' Срок подписки скорректирован — тариф действует до ' . $this->newEndsAt->format('d.m.Y') . '.';
         }
 
-        return FilamentNotification::make()
-            ->title('Возврат оформлен')
+        return CabinetMessage::make('Возврат оформлен')
             ->body("Возврат {$amountText} ₽ оформлен ({$this->title}). Средства вернутся на карту, с которой была оплата, в течение {$this->processingDays} рабочих дней.{$subscriptionNote}")
-            ->icon('heroicon-o-arrow-uturn-left')
-            ->iconColor('info')
-            ->actions([
-                \Filament\Notifications\Actions\Action::make('history')
-                    ->label('История платежей')
-                    ->button()
-                    ->url(route('cabinet.teacher.subscription')),
-            ])
-            ->getDatabaseMessage();
+            ->icon('undo')
+            ->action('История платежей', route('cabinet.teacher.subscription'))
+            ->toArray();
     }
 }

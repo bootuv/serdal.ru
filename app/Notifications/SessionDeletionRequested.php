@@ -2,11 +2,10 @@
 
 namespace App\Notifications;
 
+use App\Notifications\Messages\CabinetMessage;
 use App\Models\MeetingSession;
 use App\Models\User;
 use App\Notifications\Traits\BroadcastsNotification;
-use Filament\Notifications\Actions\Action;
-use Filament\Notifications\Notification as FilamentNotification;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Notifications\Notification;
@@ -37,18 +36,9 @@ class SessionDeletionRequested extends Notification implements ShouldBroadcast
         $roomName = $this->session->room?->name ?? 'Занятие';
         $teacherName = $this->teacher->name ?? 'Учитель';
 
-        return FilamentNotification::make()
-            ->title('Запрос на удаление занятия')
+        return CabinetMessage::make('Запрос на удаление занятия')
             ->body("Учитель {$teacherName} просит удалить проведённое занятие «{$roomName}»")
-            ->warning()
-            ->actions([
-                Action::make('view')
-                    ->label('Просмотреть')
-                    ->url(route('cabinet.admin.session', ['session' => $this->session->id]))
-                    ->button()
-                    ->color('warning')
-                    ->markAsRead(),
-            ])
-            ->getDatabaseMessage();
+            ->action('Просмотреть', route('cabinet.admin.session', ['session' => $this->session->id]))
+            ->toArray();
     }
 }
