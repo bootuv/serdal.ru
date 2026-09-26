@@ -41,11 +41,7 @@ class Recordings extends Component
 
     public int $limit = self::PAGE;
 
-    /** Режим «Выбрать» и выбранные записи. */
-    public bool $selecting = false;
-
-    public array $picked = [];
-
+    /** Окно «Удалить запись?» для открытой записи. */
     public bool $confirmDelete = false;
 
     /** Запись загрузилась в хранилище или появилась новая. */
@@ -67,6 +63,7 @@ class Recordings extends Component
     {
         $this->playable($id);
         $this->open = $id;
+        $this->confirmDelete = false;
     }
 
     public function close(): void
@@ -89,42 +86,20 @@ class Recordings extends Component
         $this->limit += self::PAGE;
     }
 
-    public function startSelect(): void
-    {
-        $this->selecting = true;
-        $this->picked = [];
-        $this->open = null;
-    }
-
-    public function cancelSelect(): void
-    {
-        $this->selecting = false;
-        $this->picked = [];
-        $this->confirmDelete = false;
-    }
-
-    public function toggle(int $id): void
-    {
-        if (! in_array($id, $this->picked, true) && ! Recording::forTeacher(auth()->user())->whereKey($id)->exists()) {
-            return;
-        }
-
-        $this->picked = in_array($id, $this->picked, true)
-            ? array_values(array_diff($this->picked, [$id]))
-            : [...$this->picked, $id];
-    }
-
     public function askDelete(): void
     {
-        $this->confirmDelete = $this->picked !== [];
+        $this->confirmDelete = $this->open !== null;
     }
 
-    public function deleteSelected(): void
+    public function deleteOpen(): void
     {
-        $deleted = app(TeacherRecordingsService::class)->delete(auth()->user(), $this->picked);
+        $deleted = $this->open ? app(TeacherRecordingsService::class)->delete(auth()->user(), [$this->open]) : 0;
 
-        $this->cancelSelect();
-        $this->dispatch('toast', message: 'Удалено: ' . plural_ru($deleted, 'запись', 'записи', 'записей'));
+        $this->confirmDelete = false;
+        $this->open = null;
+        if ($deleted) {
+            $this->dispatch('toast', message: 'Запись удалена');
+        }
     }
 
     /** Запись учителя с видео — её можно открыть в плеере. */
@@ -170,8 +145,8 @@ class Recordings extends Component
         $rest = $recordings->map(fn (Recording $r) => $this->view($r, $storage->expiresAt($r, $retention)));
         $items = $soon->concat($rest);
 
-        $current = $this->open && ! $this->selecting ? $items->firstWhere('id', $this->open) : null;
-        if ($this->open && ! $this->selecting && ! $current) {
+        $current = $this->open ? $items->firstWhere('id', $this->open) : null;
+        if ($this->open && ! $current) {
             // Открыта по ссылке, но не попала в список (фильтр, старая) — показываем всё равно
             $r = $this->playable($this->open)->load('room.participants:id,name');
             $current = $this->view($r, $storage->expiresAt($r, $retention));

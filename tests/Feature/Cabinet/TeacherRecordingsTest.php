@@ -118,7 +118,7 @@ class TeacherRecordingsTest extends TestCase
             ->assertSee('Удалится через')
             ->assertSee('Группа «ЕГЭ-2027»')
             ->assertSee('Эта неделя')
-            ->assertSee('Выбрать')
+            ->assertDontSee('Выбрать')
             ->assertDontSee('Чужое занятие');
 
         Queue::assertPushed(\App\Jobs\SyncUserRecordings::class);
@@ -136,34 +136,43 @@ class TeacherRecordingsTest extends TestCase
             ->assertSee(route('recordings.download', $rec), false);
     }
 
-    public function test_select_and_delete_several(): void
+    public function test_open_recording_is_deleted_from_menu(): void
     {
-        Bigbluebutton::shouldReceive('deleteRecordings')->twice()->andReturn(collect(['returncode' => 'SUCCESS']));
+        Bigbluebutton::shouldReceive('deleteRecordings')->once()->andReturn(collect(['returncode' => 'SUCCESS']));
 
         $teacher = $this->user(User::ROLE_TUTOR);
         $room = $this->room($teacher, [$this->user(User::ROLE_STUDENT)], 'Английский');
-        $a = $this->recording($room, now()->subDay(), ['s3_url' => null, 'url' => 'https://bbb.example/playback/1']);
-        $b = $this->recording($room, now()->subDays(2), ['s3_url' => null, 'url' => 'https://bbb.example/playback/2']);
-        $keep = $this->recording($room, now()->subDays(3), ['s3_url' => null, 'url' => 'https://bbb.example/playback/3']);
-        $foreign = $this->recording($this->room($this->user(User::ROLE_TUTOR), [], 'Чужое'), now()->subDay(), ['s3_url' => null]);
+        $open = $this->recording($room, now()->subDay());
+        $keep = $this->recording($room, now()->subDays(2));
 
         Livewire::actingAs($teacher)->test(Recordings::class)
-            ->call('startSelect')
-            ->assertSee('Выберите записи')
-            ->call('toggle', $a->id)
-            ->call('toggle', $b->id)
-            ->call('toggle', $foreign->id)
+            ->call('play', $open->id)
+            ->assertSee('Удалить запись')
             ->call('askDelete')
             ->assertSet('confirmDelete', true)
-            ->assertSet('picked', [$a->id, $b->id])
-            ->assertSee('Удалить 2 записи?')
-            ->call('deleteSelected')
-            ->assertSet('selecting', false)
-            ->assertDispatched('toast', message: 'Удалено: 2 записи');
+            ->assertSee('Удалить запись?')
+            ->call('deleteOpen')
+            ->assertSet('open', null)
+            ->assertSet('confirmDelete', false)
+            ->assertDispatched('toast', message: 'Запись удалена');
 
-        $this->assertSoftDeleted($a);
-        $this->assertSoftDeleted($b);
+        $this->assertSoftDeleted($open);
         $this->assertNotSoftDeleted($keep);
+    }
+
+    public function test_foreign_recording_cannot_be_opened_or_deleted(): void
+    {
+        Bigbluebutton::shouldReceive('deleteRecordings')->never();
+
+        $teacher = $this->user(User::ROLE_TUTOR);
+        $foreign = $this->recording($this->room($this->user(User::ROLE_TUTOR), [], 'Чужое'), now()->subDay());
+
+        Livewire::actingAs($teacher)->test(Recordings::class)
+            ->call('play', $foreign->id)
+            ->assertNotFound();
+
+        // Подставленный id в обход плеера — сервис удаляет только свои записи
+        $this->assertSame(0, app(\App\Services\TeacherRecordingsService::class)->delete($teacher, [$foreign->id]));
         $this->assertNotSoftDeleted($foreign);
     }
 
