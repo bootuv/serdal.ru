@@ -6,15 +6,18 @@
     $isStudent = $user?->role === \App\Models\User::ROLE_STUDENT;
     $unread = $user?->unreadNotifications()->count() ?? 0;
 
+    // Новый экран, если маршрут уже есть, иначе — страница старого кабинета
+    $to = fn (string $route, string $legacy) => \Illuminate\Support\Facades\Route::has($route) ? route($route) : url($legacy);
+
     $nav = $isStudent
         ? [
             ['key' => 'home', 'label' => 'Главная', 'icon' => 'home', 'href' => route('cabinet.student.home')],
-            ['key' => 'schedule', 'label' => 'Расписание', 'icon' => 'calendar', 'href' => url('/student/schedule-calendar')],
-            ['key' => 'tasks', 'label' => 'Задания', 'icon' => 'tasks', 'href' => url('/student/homework')],
+            ['key' => 'schedule', 'label' => 'Расписание', 'icon' => 'calendar', 'href' => $to('cabinet.student.schedule', '/student/schedule-calendar')],
+            ['key' => 'tasks', 'label' => 'Задания', 'icon' => 'tasks', 'href' => $to('cabinet.student.tasks', '/student/homework')],
             ['key' => 'messages', 'label' => 'Сообщения', 'icon' => 'chat', 'href' => url('/student/messenger')],
-            ['key' => 'materials', 'label' => 'Материалы', 'icon' => 'folder', 'href' => url('/student/materials')],
-            ['key' => 'recordings', 'label' => 'Записи', 'icon' => 'video', 'href' => url('/student/recordings')],
-            ['key' => 'payments', 'label' => 'Оплата', 'icon' => 'wallet', 'href' => url('/student/payment-debts')],
+            ['key' => 'materials', 'label' => 'Материалы', 'icon' => 'folder', 'href' => $to('cabinet.student.materials', '/student/materials')],
+            ['key' => 'recordings', 'label' => 'Записи', 'icon' => 'video', 'href' => $to('cabinet.student.recordings', '/student/recordings')],
+            ['key' => 'payments', 'label' => 'Оплата', 'icon' => 'wallet', 'href' => $to('cabinet.student.payments', '/student/payment-debts')],
         ]
         : [
             ['key' => 'today', 'label' => 'Сегодня', 'icon' => 'home', 'href' => url('/tutor')],
@@ -27,7 +30,7 @@
             ['key' => 'reviews', 'label' => 'Отзывы', 'icon' => 'star', 'href' => url('/tutor')],
         ];
     $mobileTabs = array_values(array_filter($nav, fn ($i) => in_array($i['key'], ['home', 'today', 'schedule', 'tasks', 'messages'])));
-    $profileHref = $isStudent ? url('/student/profile') : url('/tutor');
+    $profileHref = $isStudent ? $to('cabinet.student.profile', '/student/profile') : url('/tutor');
     $supportHref = $isStudent ? url('/student/messenger?support=1') : url('/tutor/messenger?support=1');
 @endphp
 <!DOCTYPE html>
@@ -109,5 +112,6 @@
         </nav>
     </div>
 </div>
+<x-ui.toast />
 </body>
 </html>
