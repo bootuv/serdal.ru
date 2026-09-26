@@ -36,7 +36,6 @@
                         @if ($current['downloadUrl'])
                             <x-ui.btn icon="download" :href="$current['downloadUrl']">Скачать</x-ui.btn>
                         @endif
-                        <x-ui.btn square icon="x" wire:click="close" aria-label="Закрыть запись" />
                         <x-ui.menu label="Действия с записью" align="left">
                             <x-ui.menu-item wire:click="askDelete">Удалить запись</x-ui.menu-item>
                         </x-ui.menu>
