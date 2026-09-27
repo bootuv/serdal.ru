@@ -27,7 +27,7 @@
                                         <x-ui.avatar :name="$r['student']" :id="$r['studentId']" />
                                         <div class="flex min-w-0 flex-1 flex-col gap-1">
                                             <a href="{{ $r['url'] }}" class="truncate text-t1 font-medium">{{ $r['title'] }}</a>
-                                            <span class="text-t2 text-muted">{{ $r['sub'] }}@if ($r['wait']) · <x-ui.em>{{ $r['wait'] }}</x-ui.em>@endif</span>
+                                            <span class="text-t2 text-muted">{{ $r['sub'] }}@if ($r['wait']) · <x-ui.em :danger="$r['overdue']">{{ $r['wait'] }}</x-ui.em>@endif</span>
                                         </div>
                                         @if ($r['badge'])<x-ui.badge :tone="$r['badge'][0]">{{ $r['badge'][1] }}</x-ui.badge>@endif
                                         <x-ui.btn variant="primary" :href="$r['url']">Проверить</x-ui.btn>

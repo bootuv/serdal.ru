@@ -100,7 +100,7 @@
                                     <x-ui.avatar :name="$item['student']" :id="$item['studentId']" />
                                     <div class="flex min-w-0 flex-1 flex-col gap-1">
                                         <a href="{{ $item['url'] }}" class="truncate text-t1 font-medium">{{ $item['title'] }}</a>
-                                        <span class="text-t2 text-muted">{{ $item['student'] }} · {{ $item['submitted'] }}@if ($item['waits']) · <x-ui.em>{{ $item['waits'] }}</x-ui.em>@endif</span>
+                                        <span class="text-t2 text-muted">{{ $item['student'] }} · {{ $item['submitted'] }}@if ($item['waits']) · <x-ui.em :danger="$item['overdue']">{{ $item['waits'] }}</x-ui.em>@endif</span>
                                     </div>
                                     <x-ui.btn size="s" :href="$item['url']">Проверить</x-ui.btn>
                                 </x-ui.row>

@@ -208,6 +208,7 @@ class Tasks extends Component
                 $sent,
             ])),
             'wait' => $first && $days >= 1 ? 'ждёт ' . plural_ru($days, 'день', 'дня', 'дней') : null,
+            'overdue' => $days >= HomeworkSubmission::REVIEW_OVERDUE_DAYS,
             'badge' => match (true) {
                 (bool) $s->resubmitted => ['neutral', 'Пересдано'],
                 $late => ['danger', 'Позже срока'],

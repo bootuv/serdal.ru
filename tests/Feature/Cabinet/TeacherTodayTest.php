@@ -154,6 +154,25 @@ class TeacherTodayTest extends TestCase
             ->assertSee(e(route('cabinet.teacher.messages', ['room' => $room->id])), false);
     }
 
+    public function test_review_waiting_a_week_is_red(): void
+    {
+        $teacher = $this->teacher();
+        $student = $this->studentOf($teacher, 'Павел Ким');
+        $room = $this->room($teacher, [$student]);
+        $homework = Homework::create(['teacher_id' => $teacher->id, 'room_id' => $room->id, 'title' => 'Задачи на проценты', 'is_visible' => true]);
+        HomeworkSubmission::create([
+            'homework_id' => $homework->id,
+            'student_id' => $student->id,
+            'status' => HomeworkSubmission::STATUS_SUBMITTED,
+            'submitted_at' => now()->subDays(HomeworkSubmission::REVIEW_OVERDUE_DAYS),
+        ]);
+
+        $this->actingAs($teacher)
+            ->get(route('cabinet.teacher.today'))
+            ->assertOk()
+            ->assertSee('<span class="font-semibold text-danger-fg">ждёт 7 дней</span>', false);
+    }
+
     public function test_mark_paid_and_undo(): void
     {
         $teacher = $this->teacher();

@@ -143,6 +143,7 @@ class Today extends Component
                         ? HumanDate::day($s->submitted_at)
                         : HumanDate::date($s->submitted_at)),
                     'waits' => $days >= 2 ? 'ждёт ' . plural_ru($days, 'день', 'дня', 'дней') : null,
+                    'overdue' => $days >= HomeworkSubmission::REVIEW_OVERDUE_DAYS,
                     'url' => Route::has('cabinet.teacher.review') ? route('cabinet.teacher.review', $s) : url('/tutor/homework-submissions/' . $s->id),
                 ];
             });

@@ -20,6 +20,9 @@ class HomeworkSubmission extends Model
     public const STATUS_REVISION_REQUESTED = 'revision_requested';
     public const STATUS_GRADED = 'graded';
 
+    /** Столько дней без проверки — уже проблема: «ждёт N дней» выделяется красным. */
+    public const REVIEW_OVERDUE_DAYS = 7;
+
     protected $fillable = [
         'homework_id',
         'student_id',
