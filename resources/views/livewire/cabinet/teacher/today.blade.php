@@ -108,6 +108,29 @@
                         </x-ui.list>
                     </x-ui.card>
                 @endif
+
+                {{-- Сообщения --}}
+                @if ($messages->isNotEmpty())
+                    <x-ui.card aria-labelledby="t-msg">
+                        <x-ui.card-head id="t-msg" title="Сообщения">
+                            <x-slot:action><a href="{{ $messagesUrl }}" class="link text-t2">Все</a></x-slot:action>
+                        </x-ui.card-head>
+                        <x-ui.list>
+                            @foreach ($messages as $m)
+                                <x-ui.row :href="$m['url']" :chevron="false" align="start" wire:key="msg-{{ $m['key'] }}">
+                                    <x-ui.avatar :name="$m['name']" :id="$m['userId']" />
+                                    <div class="flex min-w-0 flex-1 flex-col gap-1">
+                                        <div class="flex items-center justify-between gap-2">
+                                            <span @class(['truncate text-t1-s', 'font-semibold' => $m['unread'], 'font-medium' => ! $m['unread']])>{{ $m['name'] }}</span>
+                                            <span class="shrink-0 text-t2 text-muted">{{ $m['time'] }}</span>
+                                        </div>
+                                        <span @class(['truncate text-t2', 'text-ink' => $m['unread'], 'text-muted' => ! $m['unread']])>{{ $m['text'] }}</span>
+                                    </div>
+                                </x-ui.row>
+                            @endforeach
+                        </x-ui.list>
+                    </x-ui.card>
+                @endif
             </div>
 
             <div class="flex min-w-0 flex-col gap-6">
@@ -152,28 +175,6 @@
                     </x-ui.card>
                 @endif
 
-                {{-- Сообщения --}}
-                @if ($messages->isNotEmpty())
-                    <x-ui.card aria-labelledby="t-msg">
-                        <x-ui.card-head id="t-msg" title="Сообщения">
-                            <x-slot:action><a href="{{ $messagesUrl }}" class="link text-t2">Все</a></x-slot:action>
-                        </x-ui.card-head>
-                        <x-ui.list>
-                            @foreach ($messages as $m)
-                                <x-ui.row :href="$m['url']" :chevron="false" align="start" wire:key="msg-{{ $m['key'] }}">
-                                    <x-ui.avatar :name="$m['name']" :id="$m['userId']" />
-                                    <div class="flex min-w-0 flex-1 flex-col gap-1">
-                                        <div class="flex items-center justify-between gap-2">
-                                            <span @class(['truncate text-t1-s', 'font-semibold' => $m['unread'], 'font-medium' => ! $m['unread']])>{{ $m['name'] }}</span>
-                                            <span class="shrink-0 text-t2 text-muted">{{ $m['time'] }}</span>
-                                        </div>
-                                        <span @class(['truncate text-t2', 'text-ink' => $m['unread'], 'text-muted' => ! $m['unread']])>{{ $m['text'] }}</span>
-                                    </div>
-                                </x-ui.row>
-                            @endforeach
-                        </x-ui.list>
-                    </x-ui.card>
-                @endif
             </div>
         </div>
     @endif
