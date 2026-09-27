@@ -199,6 +199,38 @@ class TeacherReviewTest extends TestCase
         $this->assertNull($s->fresh()->grade);
     }
 
+    public function test_several_photos_open_from_list_and_return_to_it(): void
+    {
+        $s = $this->submission();
+
+        Livewire::actingAs($this->teacher)
+            ->test(Review::class, ['submission' => $s])
+            ->call('annotate', 1)
+            ->assertSet('annotating', 'homework-submissions/1/page2.png')
+            ->assertSee('Все фото')
+            ->call('showPhotos')
+            ->assertSet('annotating', null)
+            ->assertSet('photoList', true)
+            ->assertSee('Открыть фото 1 для пометок')
+            ->call('annotate', 0)
+            ->assertSet('photoList', false)
+            ->assertSet('annotating', 'homework-submissions/1/page1.jpg')
+            // Сохранили пометки — снова список фото
+            ->dispatch('imageAnnotated', path: 'homework-submissions/1/page1.jpg')
+            ->assertSet('photoList', true)
+            ->call('closeAnnotator')
+            ->assertSet('photoList', false);
+
+        // Одно фото — без списка и без «Все фото»
+        $s->update(['attachments' => ['homework-submissions/1/page1.jpg']]);
+        Livewire::actingAs($this->teacher)
+            ->test(Review::class, ['submission' => $s->fresh()])
+            ->call('annotate', 0)
+            ->assertDontSee('Все фото')
+            ->call('showPhotos')
+            ->assertSet('photoList', false);
+    }
+
     public function test_annotating_photo_keeps_original_and_saves_marks_separately(): void
     {
         $s = $this->submission(['file_names' => ['homework-submissions/1/page1.jpg' => 'Тетрадь, стр. 1.jpg']]);

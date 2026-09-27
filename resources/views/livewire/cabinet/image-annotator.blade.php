@@ -1,6 +1,7 @@
 {{-- Холст пометок нового кабинета (App\Livewire\ImageAnnotator). Стоит внутри x-ui.modal родителя (fill: окно на всю высоту);
      кнопка «Сохранить пометки» в подвале окна шлёт событие annotator-save. Сохранение — saveAnnotatedImage (как в старом кабинете).
-     Закрыть окно или открыть другое фото родитель просит событием annotator-leave ({ photo: номер } или без него):
+     Закрыть окно, открыть другое фото или вернуться к списку фото родитель просит событием annotator-leave
+     ({ photo: номер }, { list: true } или без него):
      если есть несохранённые пометки — сначала спрашиваем здесь же. Закрытие вкладки — предупреждение браузера.
      Рабочая область как в Figma: панель инструментов закреплена, фото лежит на холсте. Прокрутка и два пальца на тачпаде двигают фото
      (Shift — по горизонтали), щипок и Ctrl/⌘ + прокрутка масштабируют к курсору, пробел или средняя кнопка мыши — временная рука,
@@ -47,7 +48,7 @@
              x-on:pointerdown="down($event)" x-on:pointermove="move($event)" x-on:pointerup="up($event)" x-on:pointercancel="up($event)"
              x-on:wheel.prevent="wheel($event)" x-on:gesturestart.prevent="gestureStart($event)" x-on:gesturechange.prevent="gestureChange($event)"
              x-on:mousedown="if ($event.button === 1) $event.preventDefault()" x-on:contextmenu.prevent>
-            <canvas x-ref="canvas" class="absolute left-0 top-0 block max-w-none origin-top-left shadow-card"></canvas>
+            <canvas x-ref="canvas" x-show="canvas" class="absolute left-0 top-0 block max-w-none origin-top-left shadow-card"></canvas>
             <p x-show="failed" x-cloak class="absolute inset-0 m-auto flex items-center justify-center p-6 text-center text-t2 text-muted">Не удалось загрузить фото — закройте окно и попробуйте ещё раз.</p>
         </div>
     @else
@@ -371,7 +372,7 @@
 
         // Родитель просит закрыть окно или открыть другое фото
         leave(detail) {
-            const target = { photo: detail && detail.photo !== undefined ? detail.photo : null };
+            const target = { photo: detail && detail.photo !== undefined ? detail.photo : null, list: !!(detail && detail.list) };
             if (this.dirty()) {
                 this.pending = target;
                 return;
@@ -380,7 +381,7 @@
         },
 
         discard() {
-            const target = this.pending || { photo: null };
+            const target = this.pending || { photo: null, list: false };
             this.pending = null;
             this.history = this.history.slice(0, 1);
             this.rotated = false;
@@ -388,7 +389,9 @@
         },
 
         go(target) {
-            target.photo === null ? this.$wire.$parent.closeAnnotator() : this.$wire.$parent.annotate(target.photo);
+            if (target.list) this.$wire.$parent.showPhotos();
+            else if (target.photo === null) this.$wire.$parent.closeAnnotator();
+            else this.$wire.$parent.annotate(target.photo);
         },
 
         save() {

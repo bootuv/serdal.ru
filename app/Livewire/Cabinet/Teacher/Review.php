@@ -50,6 +50,10 @@ class Review extends Component
     #[Locked]
     public ?string $annotating = null;
 
+    /** Окно пометок показывает список фото (когда их несколько): из него открывают холст и возвращаются к нему. */
+    #[Locked]
+    public bool $photoList = false;
+
     public function mount(HomeworkSubmission $submission): void
     {
         $this->authorizeTeacher();
@@ -179,14 +183,26 @@ class Review extends Component
     /** Открыть фото для пометок: номер среди фото этой работы. */
     public function annotate(int $index): void
     {
-        $photos = array_values(array_filter($this->submission->attachments ?? [], fn ($p) => is_string($p) && Hw::isImage($p)));
+        $this->annotating = $this->photoPaths()[$index] ?? null;
+        $this->photoList = false;
+    }
 
-        $this->annotating = $photos[$index] ?? null;
+    /** Из холста — к списку фото (кнопка «Все фото»; только когда фото несколько). */
+    public function showPhotos(): void
+    {
+        $this->annotating = null;
+        $this->photoList = count($this->photoPaths()) > 1;
     }
 
     public function closeAnnotator(): void
     {
         $this->annotating = null;
+        $this->photoList = false;
+    }
+
+    private function photoPaths(): array
+    {
+        return array_values(array_filter($this->submission->attachments ?? [], fn ($p) => is_string($p) && Hw::isImage($p)));
     }
 
     /** ImageAnnotator сохранил пометки (отдельным файлом, он уже среди файлов комментария — Hw::saveAnnotation). */
@@ -194,7 +210,8 @@ class Review extends Component
     public function annotated(string $path): void
     {
         $this->submission = $this->submission->fresh();
-        $this->annotating = null;
+        // Фото несколько — после сохранения возвращаемся к списку: сразу видно, где пометки уже есть
+        $this->showPhotos();
         $this->dispatch('toast', message: 'Пометки сохранены');
     }
 

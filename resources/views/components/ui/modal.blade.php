@@ -1,7 +1,8 @@
 {{-- Модальное окно. Показывается, пока родитель рендерит его (@if). close — метод Livewire или выражение ($set(…)) для закрытия.
      width: s (480, подтверждение) | m (640, форма) | l (960, превью). Слоты: default (тело), footer (кнопки справа), note (слева в подвале).
-     fill — окно на всю высоту экрана, тело не прокручивается (рабочая область: холст пометок сам двигает фото). --}}
-@props(['title', 'sub' => null, 'close', 'width' => 'm', 'fill' => false])
+     fill — окно на всю высоту экрана, тело не прокручивается (рабочая область: холст пометок сам двигает фото).
+     back — выражение Livewire для шага назад внутри окна (второй уровень, например фото из списка), backLabel — куда: квадратная кнопка со стрелкой слева от заголовка, на одной строке с ним (место — рабочей области). --}}
+@props(['title', 'sub' => null, 'close', 'width' => 'm', 'fill' => false, 'back' => null, 'backLabel' => null])
 @php
     $w = ['s' => 'max-w-modal-s', 'm' => 'max-w-modal-m', 'l' => 'max-w-modal-l'][$width];
     $call = '$wire.' . (str_contains($close, '(') ? $close : $close . '()');
@@ -14,7 +15,10 @@
      x-on:click="if (down && $event.target === $el) {{ $call }}; down = false">
     <div role="dialog" aria-modal="true" aria-labelledby="modal-title" {{ $attributes->class(["flex max-h-full w-full flex-col overflow-hidden rounded-xl bg-white shadow-modal $w", 'h-full' => $fill]) }}>
         <div class="flex items-start justify-between gap-4 border-b border-line px-6 py-4">
-            <div class="flex min-w-0 flex-col gap-1">
+            @if ($back)
+                <x-ui.btn square icon="arrow-left" wire:click="{{ $back }}" aria-label="{{ $backLabel }}" title="{{ $backLabel }}" />
+            @endif
+            <div class="flex min-w-0 flex-1 flex-col gap-1">
                 <h2 id="modal-title" class="text-h2 font-medium">{{ $title }}</h2>
                 @if ($sub)<p class="truncate text-t2 text-muted">{{ $sub }}</p>@endif
             </div>
