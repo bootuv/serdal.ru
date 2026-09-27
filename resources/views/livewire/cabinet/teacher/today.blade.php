@@ -96,13 +96,13 @@
                         </x-ui.card-head>
                         <x-ui.list>
                             @foreach ($review as $item)
-                                <x-ui.row :href="$item['url']" wire:key="rv-{{ $item['key'] }}">
+                                <x-ui.row class="flex-wrap sm:flex-nowrap" wire:key="rv-{{ $item['key'] }}">
                                     <x-ui.avatar :name="$item['student']" :id="$item['studentId']" />
                                     <div class="flex min-w-0 flex-1 flex-col gap-1">
-                                        <span class="truncate text-t1 font-medium">{{ $item['title'] }}</span>
-                                        <span class="truncate text-t2 text-muted">{{ $item['student'] }} · {{ $item['submitted'] }}</span>
+                                        <a href="{{ $item['url'] }}" class="truncate text-t1 font-medium">{{ $item['title'] }}</a>
+                                        <span class="text-t2 text-muted">{{ $item['student'] }} · {{ $item['submitted'] }}@if ($item['waits']) · <x-ui.em>{{ $item['waits'] }}</x-ui.em>@endif</span>
                                     </div>
-                                    @if ($item['waits'])<span class="shrink-0 text-t2"><x-ui.em>{{ $item['waits'] }}</x-ui.em></span>@endif
+                                    <x-ui.btn size="s" :href="$item['url']">Проверить</x-ui.btn>
                                 </x-ui.row>
                             @endforeach
                         </x-ui.list>
@@ -124,7 +124,10 @@
                                             <span @class(['truncate text-t1-s', 'font-semibold' => $m['unread'], 'font-medium' => ! $m['unread']])>{{ $m['name'] }}</span>
                                             <span class="shrink-0 text-t2 text-muted">{{ $m['time'] }}</span>
                                         </div>
-                                        <span @class(['truncate text-t2', 'text-ink' => $m['unread'], 'text-muted' => ! $m['unread']])>{{ $m['text'] }}</span>
+                                        <div class="flex items-center justify-between gap-2">
+                                            <span @class(['truncate text-t2', 'text-ink' => $m['unread'], 'text-muted' => ! $m['unread']])>{{ $m['text'] }}</span>
+                                            <x-ui.count :value="$m['unread']" />
+                                        </div>
                                     </div>
                                 </x-ui.row>
                             @endforeach

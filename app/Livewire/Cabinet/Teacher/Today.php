@@ -243,9 +243,9 @@ class Today extends Component
                 'userId' => $m->user_id,
                 'time' => $m->created_at->isToday() ? $m->created_at->format('H:i') : HumanDate::day($m->created_at),
                 'text' => $m->content ? Str::limit(trim(strip_tags($m->content)), 80) : 'Файл',
-                'unread' => ($unread[$m->room_id] ?? 0) > 0,
+                'unread' => $unread[$m->room_id] ?? 0,
                 'url' => \App\Services\MessengerService::url($teacher, $m->room_id),
-            ])->values(),
+            ])->sortByDesc(fn (array $m) => $m['unread'] > 0)->values(),
             'messagesUrl' => \App\Services\MessengerService::url($teacher),
         ];
     }
