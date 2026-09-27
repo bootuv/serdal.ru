@@ -40,6 +40,17 @@ else
     certbot certonly --nginx --cert-name "$DOMAIN" -d "$DOMAIN" -d "$WWW" --expand --non-interactive --agree-tos
 fi
 
+# www уже описан в server{} сайта (sites-enabled — симлинки, поэтому grep -R) — свой блок не нужен:
+# nginx возьмёт первый, а второй выдаст предупреждение «conflicting server name». Хватит перезагрузки с новым сертификатом.
+if grep -Rl "server_name[^;]*$WWW" /etc/nginx/sites-enabled/ /etc/nginx/conf.d/ 2>/dev/null | grep -v "serdal-www.conf" >/dev/null; then
+    echo "==> $WWW уже есть в конфиге сайта — отдельный блок не создаю"
+    rm -f "$CONF"
+    nginx -t && systemctl reload nginx
+    echo "==> Проверка"
+    curl -sI "https://$WWW/about" | grep -i -E "^HTTP|^location" || true
+    exit 0
+fi
+
 echo "==> $CONF"
 cat > "$CONF" <<NGINX
 # www.serdal.ru → serdal.ru: у сайта один адрес для поисковиков (deploy/server/enable-www.sh)
@@ -53,11 +64,6 @@ server {
     return 301 https://$DOMAIN\$request_uri;
 }
 NGINX
-
-# www уже описан в другом server{} на 443 — nginx возьмёт первый, и наш блок не сработает
-if grep -rln "server_name[^;]*$WWW" /etc/nginx/sites-enabled/ /etc/nginx/conf.d/ 2>/dev/null | grep -v "serdal-www.conf"; then
-    echo "!! $WWW уже упомянут в файлах выше: если это блок на 443, уберите оттуда $WWW и запустите скрипт снова"
-fi
 
 if ! nginx -t; then
     echo "!! Конфиг nginx не прошёл проверку — убираю $CONF, сайт работает как раньше"
