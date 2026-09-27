@@ -189,6 +189,58 @@ class ReviewsTest extends TestCase
             ->assertNotFound();
     }
 
+    public function test_share_visible_review(): void
+    {
+        $page = preg_replace('#^https?://#', '', route('tutors.show', $this->maria->username));
+
+        Livewire::actingAs($this->admin)->test(Reviews::class)
+            ->set('tab', 'all')
+            ->call('open', $this->visible->id)
+            ->assertSee('Поделиться')
+            ->call('toShare')
+            ->assertSee('Поделиться отзывом')
+            ->assertSee('Картинка для сторис')
+            ->assertSee(route('reviews.share-card', $this->visible), false)
+            ->assertSee('Все отзывы: ' . $page)
+            ->call('back')
+            ->assertSet('step', 'view');
+
+        $this->actingAs($this->admin)->get(route('reviews.share-card', $this->visible))
+            ->assertOk()->assertHeader('Content-Type', 'image/jpeg');
+    }
+
+    public function test_share_platform_review_only_when_published(): void
+    {
+        $platform = Review::create([
+            'teacher_id' => null, 'user_id' => $this->maria->id, 'rating' => 5, 'text' => 'Удобно вести занятия.',
+            'show_on_site' => true, 'approved_at' => now(),
+        ]);
+
+        Livewire::actingAs($this->admin)->test(Reviews::class)
+            ->set('tab', 'platform')
+            ->call('open', $platform->id)
+            ->call('toShare')
+            ->assertSee('Все отзывы: ' . preg_replace('#^https?://#', '', route('reviews')));
+
+        $platform->update(['approved_at' => null]);
+        Livewire::actingAs($this->admin)->test(Reviews::class)
+            ->set('tab', 'platform')
+            ->call('open', $platform->id)
+            ->call('toShare')
+            ->assertNotFound();
+    }
+
+    public function test_share_needs_visible_review(): void
+    {
+        foreach ([$this->reported, $this->hidden] as $review) {
+            Livewire::actingAs($this->admin)->test(Reviews::class)
+                ->set('tab', 'all')
+                ->call('open', $review->id)
+                ->call('toShare')
+                ->assertNotFound();
+        }
+    }
+
     public function test_notification_texts(): void
     {
         $n = new ReviewReportDecided($this->reported, ReviewReportDecided::HIDDEN);

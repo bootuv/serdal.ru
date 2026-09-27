@@ -1,4 +1,5 @@
-{{-- Жалобы на отзывы. Макет: AdminReviews. Вкладки «Жалобы / Все отзывы / Скрытые / О платформе», поиск, окно отзыва с решением. --}}
+{{-- Жалобы на отзывы. Макет: AdminReviews. Вкладки «Жалобы / Все отзывы / Скрытые / О платформе», поиск, окно отзыва с решением,
+     «Поделиться» — окно с картинкой для сторис (RvShareDesktop), на телефоне — системное окно. --}}
 <div class="flex flex-col gap-6 lg:gap-8">
     <x-ui.page-head title="Жалобы на отзывы" />
 
@@ -83,6 +84,9 @@
                     <x-ui.btn variant="primary" wire:click="approve" wire:loading.attr="disabled" wire:target="approve">Опубликовать</x-ui.btn>
                 @elseif ($r['status'] === 'published')
                     <x-ui.btn wire:click="toHide">Снять с сайта</x-ui.btn>
+                    <x-ui.btn variant="primary" icon="share" wire:click="toShare" class="hidden lg:inline-flex">Поделиться</x-ui.btn>
+                    <x-ui.btn variant="primary" icon="share" class="lg:hidden"
+                              x-on:click="window.serdalShareReviewCard(@js($r['shareUrl']))">Поделиться</x-ui.btn>
                 @elseif ($r['status'] === 'private')
                     <x-ui.btn wire:click="close">Закрыть</x-ui.btn>
                 @elseif ($r['status'] === 'reported')
@@ -90,12 +94,24 @@
                     <x-ui.btn variant="primary" wire:click="toKeep">Оставить отзыв</x-ui.btn>
                 @elseif ($r['status'] === 'visible')
                     <x-ui.btn wire:click="toHide">Скрыть отзыв</x-ui.btn>
+                    <x-ui.btn variant="primary" icon="share" wire:click="toShare" class="hidden lg:inline-flex">Поделиться</x-ui.btn>
+                    <x-ui.btn variant="primary" icon="share" class="lg:hidden"
+                              x-on:click="window.serdalShareReviewCard(@js($r['shareUrl']))">Поделиться</x-ui.btn>
                 @else
                     <x-ui.btn wire:click="close">Закрыть</x-ui.btn>
                     <x-ui.btn variant="primary" wire:click="restore">Вернуть отзыв</x-ui.btn>
                 @endif
             </x-slot:footer>
         </x-ui.modal>
+    @endif
+
+    {{-- Поделиться --}}
+    @if ($r && $step === 'share' && $r['shareable'])
+        @include('livewire.cabinet.partials.review-share-modal', [
+            'shared' => ['name' => $r['name'], 'date' => $r['day'], 'text' => $r['text'], 'shareUrl' => $r['shareUrl']],
+            'pageLabel' => $r['pageLabel'],
+            'close' => 'back',
+        ])
     @endif
 
     {{-- Скрыть --}}

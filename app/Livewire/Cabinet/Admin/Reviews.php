@@ -15,6 +15,7 @@ use Livewire\Component;
  * Отзывы и жалобы учителей на них: «Жалобы / Все отзывы / Скрытые», окно отзыва,
  * «Оставить отзыв» (снять жалобу), «Скрыть отзыв», «Вернуть отзыв», письмо учителю о решении.
  * «О платформе» — отзывы учителей о Serdal: проверка и публикация на /reviews («Опубликовать», «Снять с сайта»).
+ * «Поделиться» — картинка для сторис и подпись, как у учителя: для видимых отзывов учеников и опубликованных о платформе.
  * Макет: AdminReviews. Логика — AdminReviewsService.
  */
 #[Layout('components.layouts.cabinet', ['title' => 'Жалобы на отзывы', 'active' => 'reviews'])]
@@ -42,7 +43,7 @@ class Reviews extends Component
     #[Locked]
     public ?int $openId = null;
 
-    /** Шаг окна: view · hide · keep. */
+    /** Шаг окна: view · hide · keep · share. */
     #[Locked]
     public string $step = '';
 
@@ -112,6 +113,13 @@ class Reviews extends Component
     {
         abort_unless($this->review((int) $this->openId)->is_reported, 404);
         $this->step = 'keep';
+    }
+
+    /** «Поделиться» на компьютере — окно с картинкой для сторис и подписью. */
+    public function toShare(): void
+    {
+        abort_unless($this->shareable($this->review((int) $this->openId)), 404);
+        $this->step = 'share';
     }
 
     /** «Опубликовать» отзыв о платформе — появится на странице отзывов. */
@@ -188,10 +196,38 @@ class Reviews extends Component
 
     private function review(int $id): Review
     {
-        $review = Review::with(['user:id,name', 'teacher:id,name,first_name'])->find($id);
+        $review = Review::with(['user:id,name', 'teacher:id,name,first_name,username'])->find($id);
         abort_unless($review, 404);
 
         return $review;
+    }
+
+    /** Делиться можно тем, что видно на сайте: отзыв ученика без жалобы и не скрытый, отзыв о платформе — опубликованный. */
+    private function shareable(Review $r): bool
+    {
+        if ($r->is_rejected) {
+            return false;
+        }
+
+        return $r->isPlatform() ? $r->show_on_site && $r->approved_at !== null : ! $r->is_reported;
+    }
+
+    /** Для окна «Поделиться»: картинка, подпись и адрес страницы, где видны все отзывы. */
+    private function share(Review $r): array
+    {
+        $page = match (true) {
+            $r->isPlatform() => route('reviews'),
+            (bool) $r->teacher?->username => route('tutors.show', $r->teacher->username),
+            default => null,
+        };
+
+        return [
+            'shareable' => $this->shareable($r),
+            'shareUrl' => route('reviews.share-card', $r),
+            'name' => $r->user?->name ?? ($r->isPlatform() ? 'Учитель' : 'Ученик'),
+            'day' => $r->created_at ? HumanDate::day($r->created_at) : '',
+            'pageLabel' => $page ? preg_replace('#^https?://#', '', $page) : null,
+        ];
     }
 
     /** Имя учителя для текстов: «Мария». */
@@ -272,7 +308,7 @@ class Reviews extends Component
             default => 'visible',
         };
 
-        return $this->row($r) + [
+        return $this->row($r) + $this->share($r) + [
             'status' => $status,
             'title' => 'Отзыв: ' . $student,
             'sub' => 'Учитель ' . $teacher . ($r->created_at ? ' · ' . HumanDate::at($r->created_at) : ''),
@@ -300,7 +336,7 @@ class Reviews extends Component
             default => 'pending',
         };
 
-        return $this->row($r) + [
+        return $this->row($r) + $this->share($r) + [
             'status' => $status,
             'title' => 'Отзыв о Serdal',
             'sub' => 'Учитель ' . $author . ($r->updated_at ? ' · ' . HumanDate::at($r->updated_at) : ''),
