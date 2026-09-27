@@ -149,11 +149,12 @@ class SeoCatalogTest extends TestCase
             ->assertSee('http://localhost/repetitory/matematika', false)
             ->assertSee('http://localhost/napravleniya/ege', false);
 
+        // На главной список учителей подгружается бесконечно: блоков после него нет, ссылки — в ленте направлений и подвале
         $this->get('/')
             ->assertOk()
-            ->assertSee('Репетиторы по предметам')
-            ->assertSee('http://localhost/napravleniya/ege', false)
-            ->assertSee('"@type":"FAQPage"', false);
+            ->assertSee('href="http://localhost/napravleniya/ege"', false)
+            ->assertDontSee('Частые вопросы')
+            ->assertDontSee('"@type":"FAQPage"', false);
 
         $this->get('/about')->assertSee('http://localhost/repetitory/matematika', false);
     }

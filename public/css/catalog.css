@@ -1,4 +1,5 @@
-/* Каталог репетиторов по предметам, хлебные крошки и частые вопросы на публичных страницах */
+/* Каталог репетиторов по предметам, хлебные крошки и частые вопросы на публичных страницах.
+   Сетка — как у шапки и списка учителей: на всю ширину, поля 32px (24px до 991px, 16px до 479px). */
 
 .breadcrumbs {
   display: flex;
@@ -23,18 +24,18 @@
 .catalog-head {
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
   gap: 24px;
-  max-width: 1216px;
-  width: 100%;
-  margin: 0 auto;
   padding: 48px 32px 0;
-  box-sizing: border-box;
 }
 
+/* Заголовок страницы — размером с заголовок каталога на главной («Найти специалиста») */
 .catalog-head__title.h1 {
   font-size: 64px;
-  line-height: 68px;
+  line-height: 66px;
   letter-spacing: -1px;
+  hyphens: manual;
+  -webkit-hyphens: manual;
 }
 
 .catalog-head__facts {
@@ -48,27 +49,15 @@
 }
 
 .specialists.catalog-list {
-  margin-top: 32px;
+  margin-top: 48px;
 }
 
 .catalog-links {
   display: flex;
   flex-direction: column;
   gap: 32px;
-  max-width: 1216px;
-  width: 100%;
-  margin: 64px auto 0;
+  margin-top: 80px;
   padding: 0 32px;
-  box-sizing: border-box;
-}
-
-.catalog-links__heading.h2 {
-  padding: 0;
-}
-
-.direction-link {
-  color: inherit;
-  text-decoration: none;
 }
 
 .catalog-links--hub {
@@ -112,8 +101,7 @@
 }
 
 .catalog-links__more a,
-.tutor-subjects a,
-.faq__answer a {
+.tutor-subjects a {
   color: inherit;
   text-decoration: underline;
   text-decoration-color: var(--line-light);
@@ -125,26 +113,28 @@
   text-decoration-color: currentColor;
 }
 
+.direction-link {
+  color: inherit;
+  text-decoration: none;
+}
+
 a.direction-tag:hover {
   border-color: var(--black);
   color: var(--black);
 }
 
+/* Частые вопросы — строками с линией во всю ширину, как список учителей */
 .faq {
-  max-width: 1216px;
-  width: 100%;
-  margin: 104px auto 0;
-  padding: 0 0 32px;
-  box-sizing: border-box;
+  margin-top: 104px;
 }
 
 .faq__list {
   margin-top: 32px;
-  padding: 0 32px;
   border-top: 1px solid var(--line-light);
 }
 
 .faq__item {
+  padding: 0 32px;
   border-bottom: 1px solid var(--line-light);
 }
 
@@ -155,7 +145,6 @@ a.direction-tag:hover {
   padding: 24px 0;
   cursor: pointer;
   list-style: none;
-  font-weight: 500;
 }
 
 .faq__question::-webkit-details-marker {
@@ -180,62 +169,59 @@ a.direction-tag:hover {
 }
 
 @media screen and (max-width: 991px) {
-  .catalog-head__title.h1 {
-    font-size: 52px;
-    line-height: 56px;
-  }
-}
-
-@media screen and (max-width: 767px) {
   .catalog-head,
-  .catalog-links {
+  .catalog-links,
+  .faq__item {
     padding-left: 24px;
     padding-right: 24px;
   }
 
+  .catalog-head__title.h1 {
+    font-size: 58px;
+    line-height: 62px;
+  }
+}
+
+@media screen and (max-width: 767px) {
   .catalog-head {
     padding-top: 32px;
     gap: 16px;
   }
 
   .catalog-head__title.h1 {
-    font-size: 40px;
-    line-height: 44px;
+    font-size: 52px;
+    line-height: 56px;
   }
 
-  .catalog-links__heading.h2 {
-    padding: 0;
-  }
-
-  .catalog-head__facts.p24 {
-    font-size: 20px;
-    line-height: 28px;
-  }
-
-  .faq {
-    margin-top: 64px;
-  }
-
-  .faq__list {
-    padding: 0 24px;
-  }
-
+  .catalog-head__facts.p24,
   .faq__question.p24 {
     font-size: 20px;
     line-height: 28px;
+  }
+
+  .specialists.catalog-list {
+    margin-top: 32px;
+  }
+
+  .catalog-links {
+    margin-top: 64px;
+  }
+
+  .faq {
+    margin-top: 80px;
   }
 }
 
 @media screen and (max-width: 479px) {
   .catalog-head,
   .catalog-links,
-  .faq__list {
+  .faq__item {
     padding-left: 16px;
     padding-right: 16px;
   }
 
   .catalog-head__title.h1 {
-    font-size: 34px;
-    line-height: 38px;
+    font-size: 40px;
+    line-height: 40px;
   }
 }

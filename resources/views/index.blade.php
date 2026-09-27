@@ -233,25 +233,6 @@
     <div id="load-trigger" data-offset="20" style="height: 1px;"></div>
   </section>
 
-  @if($catalog['subjects'] || $catalog['directs'])
-    <section class="catalog-links">
-      <h2 class="h2 catalog-links__heading">Репетиторы по предметам</h2>
-      @foreach(['Предметы' => $catalog['subjects'], 'Направления' => $catalog['directs']] as $groupTitle => $pages)
-        @if($pages)
-          <div class="catalog-links__group">
-            <h3 class="catalog-links__title p24">{{ $groupTitle }}</h3>
-            <ul class="catalog-links__list" role="list">
-              @foreach(collect($pages)->sortByDesc('count') as $page)
-                <li><a href="{{ $page['url'] }}" class="direction-tag catalog-links__link p18">{{ $page['name'] }} <span class="catalog-links__count">{{ $page['count'] }}</span></a></li>
-              @endforeach
-            </ul>
-          </div>
-        @endif
-      @endforeach
-    </section>
-  @endif
-
-  @include('partials.faq', ['faq' => $faq])
   <script>
     document.addEventListener('DOMContentLoaded', function () {
       // Подчёркиваем закреплённые фильтры, когда они «прилипли» к верху экрана

@@ -181,13 +181,9 @@ class IndexController extends Controller
             ]);
         }
 
-        // Ссылки на страницы предметов и направлений и частые вопросы с ценами по всему каталогу
-        $catalogService = app(TutorCatalogService::class);
-        $catalog = $catalogService->catalog();
-
+        // Направления в ленте под обложкой ведут на страницы каталога (/napravleniya/…)
         return view('index', [
-            'catalog'       => $catalog,
-            'faq'           => $catalogService->faq($catalog['stats']),
+            'catalog'       => app(TutorCatalogService::class)->catalog(),
             'specialists'   => $specialists,
             'lessonFormats' => $lessonFormats,
             'totalCount'    => $totalCount,
