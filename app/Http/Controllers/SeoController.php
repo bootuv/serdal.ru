@@ -6,7 +6,10 @@ use App\Models\HelpArticle;
 use App\Models\HelpCategory;
 use App\Models\Tariff;
 use App\Models\User;
+use App\Services\IndexNowService;
+use App\Services\SitemapService;
 use App\Services\SubscriptionService;
+use App\Services\TutorCatalogService;
 use App\Support\OfferSettings;
 use App\Support\Seo;
 use App\Support\SeoSettings;
@@ -24,9 +27,14 @@ class SeoController extends Controller
     /** Пути, закрытые от индексации (личный кабинет, платежи, комнаты занятий). */
     private const DISALLOW = [
         '/admin',
+        '/cabinet',
         '/login',
+        '/forgot-password',
+        '/reset-password/',
         '/welcome',
         '/register/',
+        '/r/',
+        '/recordings/',
         '/rooms/',
         '/session/',
         '/subscription/',
@@ -36,6 +44,12 @@ class SeoController extends Controller
         '/reviews/load-more',
         '/livewire/',
         '/*?offset=',
+    ];
+
+    /** Параметры адреса, которые не меняют содержимое страницы (директива Clean-param для Яндекса). */
+    private const CLEAN_PARAMS = [
+        'utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term',
+        'yclid', 'gclid', 'fbclid', 'ysclid', 'from', 'ref', 'sort', 'offset',
     ];
 
     /** ИИ-краулеры, которым явно разрешён доступ к публичным страницам. */
@@ -52,7 +66,7 @@ class SeoController extends Controller
         'Google-Extended',
         'Applebot-Extended',
         'CCBot',
-        'YandexBot',
+        'YandexAdditional',
         'Bingbot',
         'DuckAssistBot',
         'MistralAI-User',
@@ -88,6 +102,15 @@ class SeoController extends Controller
         }
         $lines[] = '';
 
+        // Яндекс: метки рекламы и фильтры каталога не создают новых страниц (остальные поисковики смотрят на canonical)
+        $lines[] = 'User-agent: Yandex';
+        $lines[] = 'Allow: /';
+        foreach (self::DISALLOW as $path) {
+            $lines[] = 'Disallow: ' . $path;
+        }
+        $lines[] = 'Clean-param: ' . implode('&', self::CLEAN_PARAMS);
+        $lines[] = '';
+
         if ($aiAllowed) {
             $lines[] = '# ИИ-ассистентам и поисковым краулерам доступ к публичным страницам разрешён';
             foreach (self::AI_BOTS as $bot) {
@@ -118,10 +141,16 @@ class SeoController extends Controller
     public function sitemap(): Response
     {
         $xml = Cache::remember('seo.sitemap', self::CACHE_TTL, function () {
-            return view('seo.sitemap', ['urls' => $this->sitemapUrls()])->render();
+            return view('seo.sitemap', ['urls' => app(SitemapService::class)->urls()])->render();
         });
 
         return response($xml, 200, ['Content-Type' => 'application/xml; charset=UTF-8']);
+    }
+
+    /** Ключ IndexNow: поисковик скачивает его, чтобы убедиться, что адреса прислал владелец сайта. */
+    public function indexNowKey(): Response
+    {
+        return $this->text(IndexNowService::key());
     }
 
     public function llms(): Response
@@ -138,71 +167,9 @@ class SeoController extends Controller
         return $this->text($text);
     }
 
-    /** @return array<int, array{loc: string, lastmod: ?string, changefreq: string, priority: string}> */
-    private function sitemapUrls(): array
-    {
-        $urls = [];
-        $add = function (string $path, ?string $lastmod, string $changefreq, string $priority) use (&$urls) {
-            $urls[] = [
-                'loc' => Seo::url($path),
-                'lastmod' => $lastmod,
-                'changefreq' => $changefreq,
-                'priority' => $priority,
-            ];
-        };
-
-        $add('/', now()->toDateString(), 'daily', '1.0');
-        $add(route('about', [], false), null, 'monthly', '0.8');
-        $add(route('tariffs', [], false), null, 'monthly', '0.8');
-        $add(route('reviews', [], false), now()->toDateString(), 'weekly', '0.6');
-        $add(route('help.index', [], false), null, 'weekly', '0.7');
-        $add(route('privacy', [], false), null, 'yearly', '0.3');
-        $add(route('terms', [], false), null, 'yearly', '0.3');
-        $add(route('offer', [], false), null, 'yearly', '0.3');
-
-        $categories = HelpCategory::published()
-            ->with(['publishedArticles' => fn ($q) => $q->orderBy('sort_order')])
-            ->orderBy('sort_order')
-            ->get();
-
-        foreach ($categories->groupBy('audience') as $audience => $group) {
-            $slug = HelpCategory::AUDIENCE_SLUGS[$audience] ?? null;
-            if ($slug) {
-                $add(route('help.section', $slug, false), $group->max('updated_at')?->toDateString(), 'weekly', '0.6');
-            }
-        }
-
-        foreach ($categories as $category) {
-            $add(
-                route('help.category', [$category->audience_slug, $category->slug], false),
-                $category->updated_at?->toDateString(),
-                'weekly',
-                '0.5'
-            );
-
-            foreach ($category->publishedArticles as $article) {
-                $add(
-                    route('help.article', [$category->audience_slug, $category->slug, $article->slug], false),
-                    $article->updated_at?->toDateString(),
-                    'monthly',
-                    '0.5'
-                );
-            }
-        }
-
-        $this->publicTutors()->each(function (User $tutor) use ($add) {
-            $add(route('tutors.show', $tutor, false), $tutor->updated_at?->toDateString(), 'weekly', '0.7');
-        });
-
-        return $urls;
-    }
-
     private function publicTutors()
     {
-        return User::isSpecialist()
-            ->where('is_active', true)
-            ->where('is_blocked', false)
-            ->whereNotNull('username')
+        return app(TutorCatalogService::class)->publicTutorsQuery()
             ->with(['subjects', 'directs'])
             ->orderBy('id')
             ->get();
@@ -232,7 +199,41 @@ class SeoController extends Controller
         $out[] = '- [Отзывы](' . Seo::url(route('reviews', [], false)) . '): отзывы учеников о преподавателях';
         $out[] = '- [Центр помощи](' . Seo::url(route('help.index', [], false)) . '): инструкции и видео для учеников и репетиторов';
         $out[] = '- [Стать преподавателем](' . Seo::url(route('become-tutor', [], false)) . '): заявка на регистрацию репетитора';
+        $out[] = '- [Репетиторы по предметам](' . Seo::url(route('catalog.index', [], false)) . '): подборки учителей по предметам и направлениям подготовки';
         $out[] = '';
+
+        $catalog = app(TutorCatalogService::class)->catalog();
+        $stats = $catalog['stats'];
+        if ($stats['count'] > 0) {
+            $out[] = '## Каталог репетиторов в цифрах';
+            $out[] = '- Учителей с открытой страницей: ' . $stats['count'];
+            if ($stats['price_min'] !== null) {
+                $out[] = '- Цена занятия: от ' . $stats['price_min'] . ' до ' . $stats['price_max'] . ' ₽, в среднем ' . $stats['price_avg'] . ' ₽ (цену назначает учитель)';
+            }
+            if ($stats['rating'] !== null) {
+                $out[] = '- Средняя оценка учителей: ' . number_format($stats['rating'], 1, ',', '') . ' из 5 по ' . $stats['reviews'] . ' отзывам учеников';
+            }
+            if ($stats['grades'] !== '') {
+                $out[] = '- Ученики: ' . $stats['grades'];
+            }
+            $out[] = '- Для ученика платформа бесплатна: занятия оплачиваются учителю напрямую. Занятия идут в браузере — видеосвязь, интерактивная доска, демонстрация экрана, запись урока.';
+            $out[] = '';
+
+            $out[] = '## Репетиторы по предметам';
+            foreach (collect($catalog['subjects'])->sortByDesc('count') as $page) {
+                $out[] = '- [' . $page['heading'] . ' онлайн](' . $page['url'] . '): ' . plural_ru($page['count'], 'учитель', 'учителя', 'учителей');
+            }
+            $out[] = '';
+
+            $out[] = '## Направления подготовки';
+            foreach (collect($catalog['directs'])->sortByDesc('count') as $page) {
+                $out[] = '- [' . $page['heading'] . ' онлайн](' . $page['url'] . '): ' . plural_ru($page['count'], 'учитель', 'учителя', 'учителей');
+            }
+            foreach (collect($catalog['combos'])->where('indexable', true)->sortByDesc('count') as $page) {
+                $out[] = '- [' . $page['heading'] . ' онлайн](' . $page['url'] . '): ' . plural_ru($page['count'], 'учитель', 'учителя', 'учителей');
+            }
+            $out[] = '';
+        }
 
         $out[] = '## Тарифы для преподавателей';
         $tariffs = Tariff::active()->get();
@@ -294,7 +295,7 @@ class SeoController extends Controller
         if ($tutors->isNotEmpty()) {
             $out[] = '## Преподаватели на платформе';
             foreach ($tutors as $tutor) {
-                $line = '- [' . $tutor->name . '](' . Seo::url(route('tutors.show', $tutor, false)) . ')';
+                $line = '- [' . \Illuminate\Support\Str::squish($tutor->name) . '](' . Seo::url(route('tutors.show', $tutor, false)) . ')';
                 $parts = array_filter([
                     $tutor->subjectsList,
                     $tutor->directs->pluck('name')->implode(', '),

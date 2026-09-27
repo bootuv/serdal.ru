@@ -35,18 +35,22 @@
       </div>
     </div>
   </section>
+  @php
+    $directPages = collect($catalog['directs'])->keyBy('id');
+  @endphp
   <section class="directions-row">
     <ul role="list" class="directions">
-      @foreach(App\Models\Direct::all() as $direct)
-        <li class="direction">
-          <div class="p30">{{ $direct->name }}</div>
-        </li>
-      @endforeach
-      {{-- Дублирование вывода записей --}}
-      @foreach(App\Models\Direct::all() as $direct)
-        <li class="direction">
-          <div class="p30">{{ $direct->name }}</div>
-        </li>
+      {{-- Лента прокручивается по кругу, поэтому записи выведены дважды; ссылки — на страницы направлений --}}
+      @foreach([false, true] as $duplicate)
+        @foreach(App\Models\Direct::all() as $direct)
+          <li class="direction" @if($duplicate) aria-hidden="true" @endif>
+            @if($directPages->has($direct->id))
+              <a href="{{ $directPages[$direct->id]['url'] }}" class="p30 direction-link" @if($duplicate) tabindex="-1" @endif>{{ $direct->name }}</a>
+            @else
+              <div class="p30">{{ $direct->name }}</div>
+            @endif
+          </li>
+        @endforeach
       @endforeach
     </ul>
   </section>
@@ -228,6 +232,26 @@
     </div>
     <div id="load-trigger" data-offset="20" style="height: 1px;"></div>
   </section>
+
+  @if($catalog['subjects'] || $catalog['directs'])
+    <section class="catalog-links">
+      <h2 class="h2 catalog-links__heading">Репетиторы по предметам</h2>
+      @foreach(['Предметы' => $catalog['subjects'], 'Направления' => $catalog['directs']] as $groupTitle => $pages)
+        @if($pages)
+          <div class="catalog-links__group">
+            <h3 class="catalog-links__title p24">{{ $groupTitle }}</h3>
+            <ul class="catalog-links__list" role="list">
+              @foreach(collect($pages)->sortByDesc('count') as $page)
+                <li><a href="{{ $page['url'] }}" class="direction-tag catalog-links__link p18">{{ $page['name'] }} <span class="catalog-links__count">{{ $page['count'] }}</span></a></li>
+              @endforeach
+            </ul>
+          </div>
+        @endif
+      @endforeach
+    </section>
+  @endif
+
+  @include('partials.faq', ['faq' => $faq])
   <script>
     document.addEventListener('DOMContentLoaded', function () {
       // Подчёркиваем закреплённые фильтры, когда они «прилипли» к верху экрана

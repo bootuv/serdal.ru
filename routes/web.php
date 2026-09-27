@@ -13,6 +13,13 @@ Route::get('/robots.txt', [\App\Http\Controllers\SeoController::class, 'robots']
 Route::get('/sitemap.xml', [\App\Http\Controllers\SeoController::class, 'sitemap'])->name('seo.sitemap');
 Route::get('/llms.txt', [\App\Http\Controllers\SeoController::class, 'llms'])->name('seo.llms');
 Route::get('/llms-full.txt', [\App\Http\Controllers\SeoController::class, 'llmsFull'])->name('seo.llms-full');
+Route::get('/indexnow.txt', [\App\Http\Controllers\SeoController::class, 'indexNowKey'])->name('seo.indexnow');
+
+// Каталог репетиторов для поиска: по предмету, по направлению и их сочетанию
+Route::get('/repetitory', [\App\Http\Controllers\TutorCatalogController::class, 'index'])->name('catalog.index');
+Route::get('/repetitory/{subject}', [\App\Http\Controllers\TutorCatalogController::class, 'subject'])->name('catalog.subject');
+Route::get('/repetitory/{subject}/{direct}', [\App\Http\Controllers\TutorCatalogController::class, 'combo'])->name('catalog.combo');
+Route::get('/napravleniya/{direct}', [\App\Http\Controllers\TutorCatalogController::class, 'direct'])->name('catalog.direct');
 
 
 

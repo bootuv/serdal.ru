@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\LessonType;
 use App\Models\Review;
 use App\Models\User;
+use App\Services\TutorCatalogService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -180,7 +181,13 @@ class IndexController extends Controller
             ]);
         }
 
+        // Ссылки на страницы предметов и направлений и частые вопросы с ценами по всему каталогу
+        $catalogService = app(TutorCatalogService::class);
+        $catalog = $catalogService->catalog();
+
         return view('index', [
+            'catalog'       => $catalog,
+            'faq'           => $catalogService->faq($catalog['stats']),
             'specialists'   => $specialists,
             'lessonFormats' => $lessonFormats,
             'totalCount'    => $totalCount,

@@ -8,6 +8,9 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote')->hourly();
 
+// Сообщить Яндексу и Bing об изменённых публичных страницах (IndexNow); на тестовом стенде команда ничего не отправляет
+Schedule::command('seo:indexnow')->dailyAt('07:00')->withoutOverlapping();
+
 // Update next_start date for expired lessons
 Schedule::command('room:update-next-start')->everyMinute();
 

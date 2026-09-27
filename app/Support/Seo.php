@@ -144,6 +144,72 @@ class Seo
         ];
     }
 
+    /** FAQPage из списка [['question' => ..., 'answer' => ...], ...]. */
+    public static function faqPage(array $faq): array
+    {
+        return [
+            '@type' => 'FAQPage',
+            'inLanguage' => 'ru-RU',
+            'mainEntity' => collect($faq)->map(fn ($item) => [
+                '@type' => 'Question',
+                'name' => $item['question'],
+                'acceptedAnswer' => ['@type' => 'Answer', 'text' => $item['answer']],
+            ])->values()->all(),
+        ];
+    }
+
+    /**
+     * Страница-подборка учителей (CollectionPage + ItemList): кто есть в разделе и почём.
+     *
+     * @param  iterable<\App\Models\User>  $tutors
+     */
+    public static function tutorCollection(string $name, string $description, iterable $tutors, array $stats): array
+    {
+        $items = [];
+        foreach ($tutors as $tutor) {
+            $items[] = [
+                '@type' => 'ListItem',
+                'position' => count($items) + 1,
+                'url' => self::url(route('tutors.show', $tutor, false)),
+                'name' => trim($tutor->name),
+            ];
+        }
+
+        $page = [
+            '@type' => 'CollectionPage',
+            'name' => $name,
+            'description' => $description,
+            'url' => self::canonical(),
+            'inLanguage' => 'ru-RU',
+            'isPartOf' => ['@id' => self::url('#website')],
+            'mainEntity' => [
+                '@type' => 'ItemList',
+                'numberOfItems' => count($items),
+                'itemListElement' => $items,
+            ],
+        ];
+
+        if ($stats['price_min'] !== null) {
+            $page['about'] = [
+                '@type' => 'Service',
+                'name' => $name,
+                'serviceType' => 'Онлайн-занятия с репетитором',
+                'provider' => ['@id' => self::url('#organization')],
+                'areaServed' => ['@type' => 'Country', 'name' => 'Россия'],
+                'availableChannel' => ['@type' => 'ServiceChannel', 'serviceUrl' => self::canonical()],
+                'offers' => [
+                    '@type' => 'AggregateOffer',
+                    'priceCurrency' => 'RUB',
+                    'lowPrice' => $stats['price_min'],
+                    'highPrice' => $stats['price_max'],
+                    'offerCount' => count($items),
+                ],
+            ];
+        }
+
+        return $page;
+    }
+
     /**
      * BreadcrumbList из списка [['name' => ..., 'url' => ...], ...].
      * Первым элементом всегда идёт главная страница.

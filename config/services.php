@@ -51,4 +51,9 @@ return [
         'proxy' => env('TELEGRAM_PROXY'),
     ],
 
+    // IndexNow (Яндекс, Bing): без ключа в .env используется постоянный ключ, выведенный из APP_KEY
+    'indexnow' => [
+        'key' => env('INDEXNOW_KEY'),
+    ],
+
 ];

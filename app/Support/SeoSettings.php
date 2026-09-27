@@ -50,7 +50,7 @@ class SeoSettings
     ];
 
     /** Ключи кэшей, которые зависят от этих настроек. */
-    public const CACHE_KEYS = ['seo.sitemap', 'seo.llms', 'seo.llms-full'];
+    public const CACHE_KEYS = ['seo.sitemap', 'seo.llms', 'seo.llms-full', \App\Services\TutorCatalogService::CACHE_KEY];
 
     /** @var array<string, string>|null */
     protected static ?array $values = null;

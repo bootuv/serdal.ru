@@ -24,6 +24,7 @@
   <meta property="og:description" content="{{ $seoDescription }}">
   <meta property="og:url" content="{{ $seoCanonical }}">
   <meta property="og:image" content="{{ $seoImage }}">
+  <meta property="og:image:alt" content="{{ $seoTitle }}">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="{{ $seoTitle }}">
   <meta name="twitter:description" content="{{ $seoDescription }}">
@@ -44,12 +45,12 @@
   <link href="/css/normalize.css" rel="stylesheet" type="text/css">
   <link href="/css/webflow.css" rel="stylesheet" type="text/css">
   <link href="/css/serdal-ru.webflow.css" rel="stylesheet" type="text/css">
+  <link href="/css/catalog.css?v={{ filemtime(public_path('css/catalog.css')) }}" rel="stylesheet" type="text/css">
   @yield('styles')
+  {{-- Шрифт — обычной таблицей стилей с display=swap: текст виден сразу, без блокирующего загрузчика --}}
   <link href="https://fonts.googleapis.com" rel="preconnect">
   <link href="https://fonts.gstatic.com" rel="preconnect" crossorigin="anonymous">
-  <script src="https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js" type="text/javascript"></script>
-  <script
-    type="text/javascript">WebFont.load({ google: { families: ["Inter:regular,500,600,italic:cyrillic,latin"] } });</script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;1,400&amp;display=swap" rel="stylesheet">
   <script
     type="text/javascript">!function (o, c) { var n = c.documentElement, t = " w-mod-"; n.className += t + "js", ("ontouchstart" in o || o.DocumentTouch && c instanceof DocumentTouch) && (n.className += t + "touch") }(window, document);</script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
@@ -173,8 +174,8 @@
 <body class="body" x-data="{ mobileMenuOpen: false }">
   <section
     class="header {{ Request::is('/') ? 'home' : (Route::currentRouteName() == 'tutors.show' ? 'tutor-page' : 'underline') }}">
-    <a href="/" class="logo-wrapper w-inline-block"><img src="/images/Logo.svg" loading="lazy" width="Auto" height="32"
-        alt="" class="logo"></a>
+    <a href="/" class="logo-wrapper w-inline-block"><img src="/images/Logo.svg" width="Auto" height="32"
+        alt="{{ $seoSiteName }}" class="logo"></a>
     <div class="menu-wrapper">
       <div class="main-menu">
         <a href="{{ route('about') }}" class="p24">О нас</a>
@@ -206,6 +207,16 @@
           <a href="{{ route('reviews') }}">Отзывы</a>
           <a href="{{ route('help.index') }}">Помощь</a>
         </div>
+        @php($footerSubjects = app(\App\Services\TutorCatalogService::class)->topSubjects(6))
+        @if($footerSubjects)
+          <div class="footer-col">
+            <div class="footer-col__title">Репетиторы</div>
+            @foreach($footerSubjects as $footerSubject)
+              <a href="{{ $footerSubject['url'] }}">{{ $footerSubject['name'] }}</a>
+            @endforeach
+            <a href="{{ route('catalog.index') }}">Все предметы</a>
+          </div>
+        @endif
         <div class="footer-col">
           <div class="footer-col__title">Документы</div>
           <a href="{{ route('privacy') }}">Конфиденциальность</a>

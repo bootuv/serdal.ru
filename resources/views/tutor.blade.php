@@ -1,15 +1,42 @@
 @extends('layout')
 
 @php
+  $tutorName = \Illuminate\Support\Str::squish($user->name);
   $tutorSubjects = $user->subjects->pluck('name')->all();
   $tutorTopics = $user->directs->pluck('name')->all();
-  $tutorTitle = $user->name . ($user->subjectsList ? ' — репетитор: ' . mb_strtolower($user->subjectsList) : ' — ' . mb_strtolower($user->displayRole)) . ' | Serdal';
+  // Страницы каталога по предметам и направлениям учителя — для ссылок и хлебных крошек
+  $catalogPages = app(\App\Services\TutorCatalogService::class)->catalog();
+  $subjectPages = collect($catalogPages['subjects'])->keyBy('id');
+  $directPages = collect($catalogPages['directs'])->keyBy('id');
+  $mainSubjectPage = $user->subjects->map(fn ($subject) => $subjectPages->get($subject->id))->filter()->first();
+  $tutorOffers = collect([
+      'Индивидуальные занятия' => $lessonTypeIndividual,
+      'Групповые занятия' => $lessonTypeGroup,
+  ])->filter(fn ($lesson) => $lesson && $lesson->price)->map(fn ($lesson, $label) => [
+      '@type' => 'Offer',
+      'name' => $label,
+      'price' => (int) $lesson->price,
+      'priceCurrency' => 'RUB',
+      'priceSpecification' => [
+          '@type' => 'UnitPriceSpecification',
+          'price' => (int) $lesson->price,
+          'priceCurrency' => 'RUB',
+          'unitText' => $lesson->payment_type === 'monthly' ? 'месяц' : 'занятие',
+      ],
+      'itemOffered' => array_filter([
+          '@type' => 'Service',
+          'name' => $label . ($user->subjectsList ? ': ' . mb_strtolower($user->subjectsList) : ''),
+          'serviceType' => 'Онлайн-занятия с репетитором',
+      ]),
+  ])->values()->all();
+  $tutorTitle = $tutorName . ($user->subjectsList ? ' — репетитор: ' . mb_strtolower($user->subjectsList) : ' — ' . mb_strtolower($user->displayRole)) . ' | Serdal';
   $tutorDescription = \App\Support\Seo::text(implode(' ', array_filter([
-      $user->name . ' — ' . mb_strtolower($user->displayRole) . ' на платформе Serdal.',
+      $tutorName . ' — ' . mb_strtolower($user->displayRole) . ' на платформе Serdal.',
       $user->subjectsList ? 'Предметы: ' . $user->subjectsList . '.' : null,
       $tutorTopics ? 'Направления: ' . implode(', ', $tutorTopics) . '.' : null,
       $user->displayGrade ? 'Ученики: ' . $user->displayGrade . '.' : null,
-      'Онлайн-занятия, отзывы учеников и контакты.',
+      $ratingAvg !== null ? 'Оценка ' . number_format($ratingAvg, 1, ',', '') . ' по ' . plural_ru($reviewsTotal, 'отзыву', 'отзывам', 'отзывам') . '.' : null,
+      'Онлайн-занятия, цены и контакты.',
   ])), 300);
 @endphp
 
@@ -23,10 +50,11 @@
 @endsection
 
 @push('jsonld')
-  {!! \App\Support\Seo::jsonLd(\App\Support\Seo::breadcrumbs([
-      ['name' => 'Репетиторы', 'url' => \App\Support\Seo::url('/#specialists')],
-      ['name' => $user->name, 'url' => \App\Support\Seo::canonical()],
-  ])) !!}
+  {!! \App\Support\Seo::jsonLd(\App\Support\Seo::breadcrumbs(array_values(array_filter([
+      ['name' => 'Репетиторы', 'url' => \App\Support\Seo::url(route('catalog.index', [], false))],
+      $mainSubjectPage ? ['name' => $mainSubjectPage['name'], 'url' => $mainSubjectPage['url']] : null,
+      ['name' => $tutorName, 'url' => \App\Support\Seo::canonical()],
+  ])))) !!}
   {!! \App\Support\Seo::jsonLd([
       '@type' => 'ProfilePage',
       'url' => \App\Support\Seo::canonical(),
@@ -35,24 +63,53 @@
       'isPartOf' => ['@id' => \App\Support\Seo::url('#website')],
       'mainEntity' => array_filter([
           '@type' => 'Person',
-          'name' => $user->name,
+          '@id' => \App\Support\Seo::canonical() . '#person',
+          'name' => $tutorName,
           'url' => \App\Support\Seo::canonical(),
           'image' => $user->avatarUrl,
-          'jobTitle' => $user->displayRole,
+          'jobTitle' => 'Репетитор',
           'description' => $tutorDescription,
           'knowsAbout' => array_values(array_unique(array_merge($tutorSubjects, $tutorTopics))) ?: null,
+          'knowsLanguage' => 'ru',
           'memberOf' => ['@id' => \App\Support\Seo::url('#organization')],
+          'makesOffer' => $tutorOffers ?: null,
       ]),
   ]) !!}
+  @if($ratingAvg !== null)
+    {{-- Оценки учеников — на услуге учителя: у Person по schema.org рейтинга нет --}}
+    {!! \App\Support\Seo::jsonLd([
+        '@type' => 'Service',
+        'name' => 'Онлайн-занятия: ' . $tutorName,
+        'serviceType' => 'Онлайн-занятия с репетитором',
+        'url' => \App\Support\Seo::canonical(),
+        'provider' => ['@id' => \App\Support\Seo::canonical() . '#person'],
+        'areaServed' => ['@type' => 'Country', 'name' => 'Россия'],
+        'aggregateRating' => [
+            '@type' => 'AggregateRating',
+            'ratingValue' => round($ratingAvg, 1),
+            'bestRating' => 5,
+            'worstRating' => 1,
+            'ratingCount' => $reviewsTotal,
+            'reviewCount' => $reviewsTotal,
+        ],
+        'review' => $reviews->take(5)->map(fn ($review) => array_filter([
+            '@type' => 'Review',
+            'author' => ['@type' => 'Person', 'name' => \Illuminate\Support\Str::squish($review->user->name)],
+            'datePublished' => optional($review->created_at)->toDateString(),
+            'reviewBody' => \App\Support\Seo::text($review->text, 500),
+            'reviewRating' => ['@type' => 'Rating', 'ratingValue' => (int) $review->rating, 'bestRating' => 5, 'worstRating' => 1],
+        ]))->values()->all(),
+    ]) !!}
+  @endif
 @endpush
 
 @section('content')
 
   <section class="profile">
     <div class="profile-pic-wrapper">
-      <img src="{{ $user->avatarUrl }}" loading="lazy" width="280" height="280" alt="" sizes="280px" class="profile-pic">
+      <img src="{{ $user->avatarUrl }}" width="280" height="280" alt="{{ $tutorName }} — репетитор" sizes="280px" class="profile-pic" fetchpriority="high">
     </div>
-    <h1 class="h3 tutor-name">{{ $user->name }}</h1>
+    <h1 class="h3 tutor-name">{{ $tutorName }}</h1>
     @if($ratingAvg !== null)
       <a href="#teacher-reviews" class="profile-rating">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.95 6.1 6.7.9-4.9 4.7 1.2 6.7L12 17.7l-5.95 3.2 1.2-6.7-4.9-4.7 6.7-.9L12 2.5z"/></svg>
@@ -60,15 +117,27 @@
         <span class="profile-rating__count">{{ plural_ru($reviewsTotal, 'отзыв', 'отзыва', 'отзывов') }}</span>
       </a>
     @endif
-    @if(!empty($user->subjects_list) && trim(strip_tags($user->subjects_list)) !== '')
-      <div class="tutor-subjects p24">{{ $user->subjects_list }}</div>
+    @if($user->subjects->isNotEmpty())
+      {{-- Предметы ссылаются на подборки «Репетитор по …» --}}
+      <div class="tutor-subjects p24">
+        @foreach($user->subjects as $subject)
+          @php($subjectName = $loop->first ? $subject->name : \Illuminate\Support\Str::lower($subject->name))
+          @if($subjectPages->has($subject->id))<a href="{{ $subjectPages[$subject->id]['url'] }}">{{ $subjectName }}</a>@else{{ $subjectName }}@endif{{ $loop->last ? '' : ', ' }}
+        @endforeach
+      </div>
     @endif
     @if($user->directs && $user->directs->count() > 0)
       <div class="direction-tags-list tutor-page">
         @foreach($user->directs as $direct)
-          <div class="direction-tag tutor-page">
-            <div class="p24">{{ $direct->name }}</div>
-          </div>
+          @if($directPages->has($direct->id))
+            <a href="{{ $directPages[$direct->id]['url'] }}" class="direction-tag tutor-page">
+              <div class="p24">{{ $direct->name }}</div>
+            </a>
+          @else
+            <div class="direction-tag tutor-page">
+              <div class="p24">{{ $direct->name }}</div>
+            </div>
+          @endif
         @endforeach
       </div>
     @endif
