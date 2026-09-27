@@ -11,7 +11,7 @@
             </span>
         @endforeach
         <input type="text" wire:model="{{ $model }}" wire:keydown.enter.prevent="{{ $add }}" wire:blur="{{ $add }}" placeholder="{{ $placeholder }}" aria-label="{{ $placeholder }}"
-               class="h-8 min-w-0 flex-1 bg-transparent px-1 text-t2 text-ink outline-none placeholder:text-muted">
+               class="h-8 min-w-0 flex-1 bg-transparent px-1 text-t1 text-ink outline-none placeholder:text-muted lg:text-t2">
     </div>
     @if ($hint)<span class="text-t3 text-muted">{{ $hint }}</span>@endif
 </div>

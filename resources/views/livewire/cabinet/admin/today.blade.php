@@ -57,7 +57,7 @@
             <div class="flex flex-col gap-2 lg:flex-row lg:items-center">
                 <label class="relative flex">
                     <span class="sr-only">Учитель</span>
-                    <select wire:model.live="teacher" class="h-9 w-full appearance-none truncate rounded bg-white pl-3 pr-8 text-t2 text-ink shadow-outline outline-none focus:shadow-outline-ink lg:w-sidebar">
+                    <select wire:model.live="teacher" class="h-9 w-full appearance-none truncate rounded bg-white pl-3 pr-8 text-t1 text-ink shadow-outline outline-none focus:shadow-outline-ink lg:w-sidebar lg:text-t2">
                         <option value="">Все учителя</option>
                         @foreach ($teachers as $id => $name)<option value="{{ $id }}">{{ $name }}</option>@endforeach
                     </select>

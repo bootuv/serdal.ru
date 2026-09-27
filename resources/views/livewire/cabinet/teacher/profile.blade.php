@@ -100,7 +100,7 @@
                             @endif
                             <div class="flex min-w-0 flex-col gap-3">
                                 <div class="flex flex-col items-start gap-3">
-                                    <span class="text-h2">{{ $preview['name'] }}</span>
+                                    <span class="break-words text-h2">{{ $preview['name'] }}</span>
                                     @if ($preview['directs']->isNotEmpty())
                                         <div class="flex flex-wrap gap-1">
                                             @foreach ($preview['directs'] as $name)

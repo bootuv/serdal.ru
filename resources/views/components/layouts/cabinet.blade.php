@@ -150,7 +150,8 @@
         </div>
     </aside>
 
-    <div @class(['flex min-w-0 flex-1 flex-col', 'lg:h-screen' => $bare])>
+    {{-- overflow-x-clip: что бы ни пришло в данных, страница не шире экрана и не ездит вбок на телефоне (clip, а не hidden — верхняя панель остаётся липкой) --}}
+    <div @class(['flex min-w-0 flex-1 flex-col overflow-x-clip', 'lg:h-screen' => $bare])>
         {{-- Верхняя панель (телефон) --}}
         <div class="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-line bg-white px-4 lg:hidden">
             <a href="{{ $nav[0]['href'] }}" aria-label="Serdal — на главный экран кабинета"><img src="{{ asset('images/Logo.svg') }}" alt="Serdal" class="h-6 w-auto"></a>

@@ -13,7 +13,7 @@
             @endif
         @endforeach
         @if (count($selected) < count($options))
-            <select wire:model.live="{{ $model }}" class="h-8 min-w-0 flex-1 cursor-pointer appearance-none bg-transparent px-1 text-t2 text-muted outline-none hover:text-ink" aria-label="Добавить {{ $what }}">
+            <select wire:model.live="{{ $model }}" class="h-8 min-w-0 flex-1 cursor-pointer appearance-none bg-transparent px-1 text-t1 text-muted outline-none hover:text-ink lg:text-t2" aria-label="Добавить {{ $what }}">
                 <option value="">{{ $add }}</option>
                 @foreach ($options as $value => $name)
                     @unless (in_array($value, $selected, true))<option value="{{ $value }}">{{ $name }}</option>@endunless

@@ -72,6 +72,24 @@ class BrandRulesTest extends TestCase
         $this->assertSame([], $violations, "Инлайн-стили и классы Filament в кабинетах запрещены (BRAND.md §1):\n" . implode("\n", $violations));
     }
 
+    public function test_form_controls_are_16px_on_phones(): void
+    {
+        $violations = [];
+        foreach ($this->templates() as $path => $content) {
+            // Поле, список или многострочное поле: мелкий текст допустим только с lg: — иначе iOS увеличивает страницу при касании
+            preg_match_all('/<(?:input|select|textarea)\b[^>]*>/s', $content, $m);
+            foreach ($m[0] as $tag) {
+                if (preg_match('/type="(?:checkbox|radio|file|hidden|range)"/', $tag) || str_contains($tag, 'sr-only')) {
+                    continue;
+                }
+                if (preg_match('/(?<![\w:-])text-(?:t1-s|t2|t3|count|tab)\b/', $tag)) {
+                    $violations[] = basename($path) . ': ' . trim(mb_substr(preg_replace('/\s+/', ' ', $tag), 0, 120));
+                }
+            }
+        }
+        $this->assertSame([], $violations, "Текст в полях ввода на телефоне — не меньше 16 (BRAND.md §5), мелкий — только с lg::\n" . implode("\n", $violations));
+    }
+
     public function test_dictionary_words(): void
     {
         $forbidden = [

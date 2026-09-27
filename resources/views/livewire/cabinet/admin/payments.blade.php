@@ -171,7 +171,7 @@
                             @elseif ($label === 'Платёж в ЮKassa')
                                 @if ($cur['yk'])
                                     <span class="flex min-w-0 flex-1 items-center gap-2">
-                                        <input type="text" readonly value="{{ $cur['yk'] }}" class="field h-9 min-w-0 flex-1 text-t2 text-muted" aria-label="Номер платежа в ЮKassa" x-data x-on:focus="$el.select()">
+                                        <input type="text" readonly value="{{ $cur['yk'] }}" class="field h-9 min-w-0 flex-1 text-muted lg:text-t2" aria-label="Номер платежа в ЮKassa" x-data x-on:focus="$el.select()">
                                         <x-ui.copy :value="$cur['yk']" message="Номер платежа скопирован" size="s" />
                                     </span>
                                 @else

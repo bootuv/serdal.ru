@@ -25,7 +25,7 @@
                             <x-ui.stars :value="$review->rating" role="img" aria-label="Оценка {{ $review->rating }} из 5" />
                             <span class="text-t2 text-muted">{{ $updated }}</span>
                         </div>
-                        <p class="line-clamp-3 text-t1-s">{{ $review->text }}</p>
+                        <p class="line-clamp-3 break-words text-t1-s">{{ $review->text }}</p>
                         <span @class(['text-t2', 'font-semibold' => $status === 'На проверке', 'text-muted' => $status !== 'На проверке'])>
                             {{ $status }}@if ($status === 'На сайте') · <a href="{{ $publicUrl }}" class="link" target="_blank" rel="noopener">страница отзывов</a>@endif
                         </span>

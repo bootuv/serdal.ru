@@ -62,4 +62,7 @@
     .option:has(input:checked) { @apply shadow-selected; }
 
     .field { @apply h-11 w-full rounded bg-white px-4 text-t1 text-ink shadow-outline outline-none placeholder:text-faint focus:shadow-outline-ink; }
+    /* Дата и время: в iOS у родного поля своя минимальная ширина — без appearance-none оно вылезает из колонки и растягивает страницу */
+    .field[type=date], .field[type=time], .field[type=datetime-local] { @apply min-w-0 appearance-none text-left; }
+    .field::-webkit-date-and-time-value { @apply text-left; }
 }
