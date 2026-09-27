@@ -134,6 +134,11 @@ sudo systemctl restart serdal-reverb.service
 sudo systemctl restart serdal-pulse.service
 
 sleep 3
+echo "==> IndexNow"
+# Сообщаем Яндексу и Bing о новых и изменённых страницах (уже после перезапуска php-fpm — новые адреса открываются).
+# Ошибка отправки деплой не валит.
+"$PHP_BIN" artisan seo:indexnow || echo "!! IndexNow: отправка не удалась, повторится по расписанию"
+
 echo "==> Статус"
 systemctl is-active "$PHP_FPM" serdal-queue serdal-queue-recordings serdal-scheduler.timer serdal-reverb serdal-pulse
 

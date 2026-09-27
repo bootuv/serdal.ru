@@ -9,6 +9,7 @@
 | `nginx-serdal-site-snippet.conf` | `/etc/nginx/snippets/serdal-static.conf` + `include` в server{} | то же |
 | `php-99-serdal.ini` | `/etc/php/8.4/fpm/conf.d/99-serdal.ini` | `systemctl restart php8.4-fpm` |
 | `fail2ban-jail.local` | `/etc/fail2ban/jail.local` | `systemctl restart fail2ban` |
+| `enable-www.sh` | сертификат на www + `/etc/nginx/conf.d/serdal-www.conf` (www → serdal.ru, 301) | запустить один раз: `bash deploy/server/enable-www.sh` |
 
 Ещё на сервере (без файла-эталона):
 

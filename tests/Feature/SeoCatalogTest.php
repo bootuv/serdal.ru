@@ -209,6 +209,8 @@ class SeoCatalogTest extends TestCase
 
     public function test_indexnow_key_file_and_submission(): void
     {
+        \Illuminate\Support\Facades\Storage::fake('local');
+
         $this->get('/indexnow.txt')->assertOk()->assertSeeText(IndexNowService::key());
         $this->assertMatchesRegularExpression('/^[a-f0-9]{32}$/', IndexNowService::key());
 
@@ -223,9 +225,30 @@ class SeoCatalogTest extends TestCase
         $results = app(IndexNowService::class)->submit(app(IndexNowService::class)->changedUrls(all: true));
 
         $this->assertSame([202, 202], array_values($results));
+
+        // Отправленное помнится и после очистки кэша (деплой делает optimize:clear); новые страницы уходят сразу
+        Cache::flush();
+        $this->assertSame([], app(IndexNowService::class)->changedUrls());
+        $this->tutor('physics-one', [$this->physics]);
+        Cache::forget(TutorCatalogService::CACHE_KEY);
+        $this->assertContains('http://localhost/repetitory/fizika', app(IndexNowService::class)->changedUrls());
         Http::assertSent(fn ($request) => $request->url() === 'https://yandex.com/indexnow'
             && $request['key'] === IndexNowService::key()
             && in_array('http://localhost/repetitory/matematika', $request['urlList'], true));
+    }
+
+    public function test_merging_directions_in_admin_updates_catalog_at_once(): void
+    {
+        $opr = Direct::create(['name' => 'ОПР']);
+        $vpr = Direct::create(['name' => 'ВПР']);
+        $this->tutor('math-one', [$this->math], [$opr]);
+
+        $this->get('/napravleniya/opr')->assertOk();
+
+        app(\App\Services\DictionaryService::class)->merge('directs', $opr->id, $vpr->id);
+
+        $this->get('/napravleniya/opr')->assertNotFound();
+        $this->get('/napravleniya/vpr')->assertOk()->assertSee('Подготовка к ВПР онлайн</h1>', false);
     }
 
     public function test_catalog_is_cached_and_flushed_with_seo_settings(): void

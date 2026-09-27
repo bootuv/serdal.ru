@@ -5,7 +5,9 @@ namespace App\Services;
 use App\Models\Direct;
 use App\Models\Subject;
 use App\Models\TeacherApplication;
+use App\Support\SeoSettings;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -74,12 +76,24 @@ class DictionaryService
 
     public function add(string $kind, string $name): object
     {
-        return $this->meta($kind)['model']::create(['name' => self::clean($name)]);
+        $item = $this->meta($kind)['model']::create(['name' => self::clean($name)]);
+        $this->flushPublicPages();
+
+        return $item;
     }
 
     public function rename(string $kind, int $id, string $name): void
     {
         $this->meta($kind)['model']::findOrFail($id)->update(['name' => self::clean($name)]);
+        $this->flushPublicPages();
+    }
+
+    /** Названия — это заголовки и адреса страниц каталога (/repetitory/…), карта сайта и llms.txt: пересобрать сразу. */
+    private function flushPublicPages(): void
+    {
+        foreach (SeoSettings::CACHE_KEYS as $key) {
+            Cache::forget($key);
+        }
     }
 
     /** Удалить можно только значение без учителей и заявок на рассмотрении. Возвращает false, если используется. */
@@ -96,6 +110,7 @@ class DictionaryService
             $this->rewriteApplications($m['column'], $id, null);
             $m['model']::whereKey($id)->delete();
         });
+        $this->flushPublicPages();
 
         return true;
     }
@@ -120,6 +135,7 @@ class DictionaryService
             $this->rewriteApplications($m['column'], $sourceId, $targetId);
             $m['model']::whereKey($sourceId)->delete();
         });
+        $this->flushPublicPages();
     }
 
     /** В JSON-массивах заявок заменить id (или убрать, если $to = null). */

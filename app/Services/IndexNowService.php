@@ -4,8 +4,8 @@ namespace App\Services;
 
 use App\Support\Seo;
 use App\Support\SeoSettings;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * IndexNow — протокол мгновенного оповещения поисковиков об изменённых страницах.
@@ -23,7 +23,11 @@ class IndexNowService
     /** За один запрос протокол принимает до 10 000 адресов. */
     private const BATCH = 10000;
 
-    private const LAST_RUN_KEY = 'seo.indexnow.last_run';
+    /**
+     * Что уже отправлено: адреса с датой изменения на момент отправки. Лежит в файле, а не в кэше —
+     * деплой чистит кэш (optimize:clear), и тогда каждый деплой слал бы весь сайт заново.
+     */
+    private const STATE_FILE = 'indexnow.json';
 
     /** Ключ из INDEXNOW_KEY или постоянный, выведенный из ключа приложения (32 символа a-f0-9). */
     public static function key(): string
@@ -40,21 +44,49 @@ class IndexNowService
     }
 
     /**
-     * Адреса из карты сайта, изменившиеся с прошлой отправки (или все при $all).
+     * Адреса из карты сайта, которые стоит отправить: новые или с другой датой изменения, чем при прошлой
+     * отправке. При $all — все.
      *
      * @return array<int, string>
      */
     public function changedUrls(bool $all = false): array
     {
-        // Первая отправка (или сброшенный кэш) — все адреса; дальше — только с датой изменения не раньше прошлой
-        $since = $all ? null : Cache::get(self::LAST_RUN_KEY);
+        $sent = $all ? [] : $this->sent();
 
         return collect(app(SitemapService::class)->urls())
-            ->filter(fn ($url) => $since === null || ($url['lastmod'] !== null && $url['lastmod'] >= $since))
+            ->filter(fn ($url) => !array_key_exists($url['loc'], $sent) || $sent[$url['loc']] !== $url['lastmod'])
             ->pluck('loc')
             ->unique()
             ->values()
             ->all();
+    }
+
+    /** @return array<string, ?string> адрес => дата изменения, с которой он отправлен */
+    private function sent(): array
+    {
+        $disk = Storage::disk('local');
+        $state = $disk->exists(self::STATE_FILE) ? json_decode((string) $disk->get(self::STATE_FILE), true) : null;
+
+        return is_array($state['urls'] ?? null) ? $state['urls'] : [];
+    }
+
+    /** @param  array<int, string>  $urls */
+    private function remember(array $urls): void
+    {
+        $lastmod = collect(app(SitemapService::class)->urls())->pluck('lastmod', 'loc');
+        $sent = $this->sent();
+        foreach ($urls as $url) {
+            $sent[$url] = $lastmod[$url] ?? null;
+        }
+
+        Storage::disk('local')->put(self::STATE_FILE, json_encode([
+            'sent_at' => now()->toDateTimeString(),
+            'urls' => $sent,
+        ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+
+        // Отправляют и деплой (пользователь SSH), и планировщик (www-data): файл должен быть доступен обоим.
+        // Внутри только публичные адреса сайта.
+        @chmod(Storage::disk('local')->path(self::STATE_FILE), 0666);
     }
 
     /**
@@ -89,7 +121,10 @@ class IndexNowService
             }
         }
 
-        Cache::forever(self::LAST_RUN_KEY, now()->toDateString());
+        // Запоминаем, только если хотя бы один поисковик принял адреса — иначе попробуем в следующий раз
+        if (array_intersect($results, [200, 202]) !== []) {
+            $this->remember($urls);
+        }
 
         return $results;
     }
