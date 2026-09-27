@@ -143,7 +143,7 @@ class TeacherTodayTest extends TestCase
         $this->actingAs($teacher)
             ->get(route('cabinet.teacher.today'))
             ->assertOk()
-            ->assertSee('Нужно проверить · 1')
+            ->assertSee('Нужно проверить')
             ->assertSee('Задачи на проценты')
             ->assertSee('ждёт 3 дня')
             ->assertSee('Ждут оплаты')

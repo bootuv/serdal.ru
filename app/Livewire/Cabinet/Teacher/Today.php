@@ -247,6 +247,7 @@ class Today extends Component
                 'unread' => $unread[$m->room_id] ?? 0,
                 'url' => \App\Services\MessengerService::url($teacher, $m->room_id),
             ])->sortByDesc(fn (array $m) => $m['unread'] > 0)->values(),
+            'messagesUnread' => Message::whereIn('room_id', $roomIds)->where('user_id', '!=', $teacher->id)->whereNull('read_at')->count(),
             'messagesUrl' => \App\Services\MessengerService::url($teacher),
         ];
     }

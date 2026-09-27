@@ -91,7 +91,7 @@
                 {{-- Работы на проверку --}}
                 @if ($review->isNotEmpty())
                     <x-ui.card aria-labelledby="t-review">
-                        <x-ui.card-head id="t-review" :title="'Нужно проверить · ' . $reviewCount">
+                        <x-ui.card-head id="t-review" title="Нужно проверить" :count="$reviewCount">
                             <x-slot:action><a href="{{ $reviewAllUrl }}" class="link text-t2">Все работы</a></x-slot:action>
                         </x-ui.card-head>
                         <x-ui.list>
@@ -112,7 +112,7 @@
                 {{-- Сообщения --}}
                 @if ($messages->isNotEmpty())
                     <x-ui.card aria-labelledby="t-msg">
-                        <x-ui.card-head id="t-msg" title="Сообщения">
+                        <x-ui.card-head id="t-msg" title="Сообщения" :count="$messagesUnread">
                             <x-slot:action><a href="{{ $messagesUrl }}" class="link text-t2">Все</a></x-slot:action>
                         </x-ui.card-head>
                         <x-ui.list>
