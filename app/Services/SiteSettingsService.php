@@ -6,6 +6,9 @@ use App\Models\Setting;
 use App\Support\OfferSettings;
 use App\Support\SeoSettings;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Intervention\Image\Laravel\Facades\Image;
 
 /**
  * Настройки сайта по группам (вкладки «Настройки» новой админки). Ключи и значения по умолчанию —
@@ -169,7 +172,9 @@ class SiteSettingsService
         foreach (array_keys(SeoSettings::DEFAULTS) as $key) {
             if (in_array($key, SeoSettings::FILE_KEYS, true)) {
                 if (($files[$key] ?? null) instanceof UploadedFile) {
-                    $this->put($key, $files[$key]->storePublicly('seo', 's3'));
+                    $this->put($key, $key === 'seo_og_image'
+                        ? $this->storeLinkPreview($files[$key])
+                        : $files[$key]->storePublicly('seo', 's3'));
                 }
                 continue;
             }
@@ -179,6 +184,25 @@ class SiteSettingsService
                 : trim((string) $value));
         }
         SeoSettings::flush();
+    }
+
+    /**
+     * Картинка для превью ссылок — всегда JPG до 1200px по ширине: PNG такого размера весит в разы больше,
+     * а WebP понимают не все соцсети и мессенджеры. Прозрачные места становятся белыми.
+     */
+    private function storeLinkPreview(UploadedFile $file): string
+    {
+        try {
+            $jpeg = (string) Image::read($file->get())->scaleDown(width: 1200)->toJpeg(88);
+            $path = 'seo/' . Str::lower(Str::random(24)) . '.jpg';
+            Storage::disk('s3')->put($path, $jpeg, 'public');
+
+            return $path;
+        } catch (\Throwable $e) {
+            report($e);
+
+            return $file->storePublicly('seo', 's3');
+        }
     }
 
     /* ---------- Блок для школ (B2B на странице тарифов) ---------- */

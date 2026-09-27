@@ -181,6 +181,9 @@ class SettingsTest extends TestCase
         $path = SeoSettings::get('seo_og_image');
         $this->assertStringStartsWith('seo/', $path);
         Storage::disk('s3')->assertExists($path);
+        // Картинка для превью ссылок хранится в JPG, даже если загрузили PNG
+        $this->assertStringEndsWith('.jpg', $path);
+        $this->assertSame('image/jpeg', getimagesizefromstring(Storage::disk('s3')->get($path))['mime']);
     }
 
     public function test_home_hero_texts_are_edited_in_seo_tab(): void
