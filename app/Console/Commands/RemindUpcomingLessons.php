@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\Room;
 use App\Models\RoomSchedule;
+use App\Models\User;
 use App\Notifications\LessonStartingSoon;
 use App\Services\StudentScheduleService;
 use Illuminate\Console\Command;
@@ -35,7 +36,8 @@ class RemindUpcomingLessons extends Command
 
         $sent = 0;
         foreach ($occurrences->occurrences($schedules, $from, $to) as $event) {
-            if ($event['start']->lte($from)) {
+            // Повторяющиеся занятия расписание отдаёт на весь день — берём только начало в ближайшие 15 минут
+            if ($event['start']->lte($from) || $event['start']->gt($to)) {
                 continue;
             }
 
@@ -49,7 +51,16 @@ class RemindUpcomingLessons extends Command
                 continue;
             }
 
-            foreach (collect([$room->user])->merge($room->participants)->filter()->unique('id') as $user) {
+            // Админ не ведёт занятий и не учится — напоминания только учителю и ученикам
+            $recipients = collect([$room->user])->merge($room->participants)->filter()->unique('id')
+                ->reject(fn (User $user) => $user->role === User::ROLE_ADMIN);
+
+            foreach ($recipients as $user) {
+                // Отметка в кеше пропадает при деплое (optimize:clear) — сверяемся и с уже сохранёнными уведомлениями
+                if (LessonStartingSoon::alreadySent($user, $room, $event['start'])) {
+                    continue;
+                }
+
                 try {
                     $user->notify(new LessonStartingSoon($room, $event['start']->copy()));
                     $sent++;

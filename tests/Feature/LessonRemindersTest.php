@@ -73,6 +73,51 @@ class LessonRemindersTest extends TestCase
         Notification::assertNothingSentTo($alina);
     }
 
+    public function test_weekly_lesson_later_today_is_not_reminded_hours_ahead(): void
+    {
+        $teacher = $this->teacher(false);
+        $alina = $this->studentOf($teacher);
+        $this->weeklyAt($this->room($teacher, [$alina]), [4], '20:55'); // чт, сегодня вечером
+
+        $this->artisan('lessons:remind')->assertSuccessful();
+
+        Notification::assertNothingSentTo($teacher);
+        Notification::assertNothingSentTo($alina);
+    }
+
+    public function test_admins_are_not_reminded(): void
+    {
+        $teacher = $this->teacher(false);
+        $admin = User::factory()->create(['role' => User::ROLE_ADMIN, 'username' => 'admin-one']);
+        $room = $this->room($teacher, []);
+        $room->participants()->attach($admin->id);
+        $this->onceAt($room, '2026-09-24 12:10');
+
+        $this->artisan('lessons:remind')->assertSuccessful();
+
+        Notification::assertSentToTimes($teacher, LessonStartingSoon::class, 1);
+        Notification::assertNothingSentTo($admin);
+    }
+
+    public function test_reminder_is_not_repeated_after_cache_is_cleared_on_deploy(): void
+    {
+        $teacher = $this->teacher(false);
+        $room = $this->room($teacher, []);
+        $this->onceAt($room, '2026-09-24 12:10');
+
+        // Напоминание уже лежит в кабинете учителя, а деплой очистил кеш команды
+        $teacher->notifications()->create([
+            'id' => (string) \Illuminate\Support\Str::uuid(),
+            'type' => LessonStartingSoon::class,
+            'data' => (new LessonStartingSoon($room, now()->setTime(12, 10)))->toDatabase($teacher),
+        ]);
+        \Illuminate\Support\Facades\Cache::flush();
+
+        $this->artisan('lessons:remind')->assertSuccessful();
+
+        Notification::assertNothingSentTo($teacher);
+    }
+
     public function test_moved_lesson_is_reminded_at_new_time(): void
     {
         $teacher = $this->teacher(false);

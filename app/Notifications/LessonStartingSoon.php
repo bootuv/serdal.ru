@@ -31,7 +31,21 @@ class LessonStartingSoon extends CabinetNotification
             ->body('«' . $this->room->name . '» ' . HumanDate::at($this->start) . ' — через ' . plural_ru($minutes, 'минуту', 'минуты', 'минут'))
             ->icon('clock')
             ->action($teacher ? 'Начать занятие' : 'Открыть занятие', $this->getWebPushUrl($notifiable))
-            ->toArray();
+            ->toArray() + [
+                // Для проверки «уже напомнили» (alreadySent): кеш команды чистится при деплое
+                'room_id' => $this->room->id,
+                'starts_at' => $this->start->timestamp,
+            ];
+    }
+
+    /** Напоминание об этом вхождении занятия уже есть у пользователя. */
+    public static function alreadySent(object $notifiable, Room $room, Carbon $start): bool
+    {
+        return $notifiable->notifications()
+            ->where('type', static::class)
+            ->where('data->room_id', $room->id)
+            ->where('data->starts_at', $start->timestamp)
+            ->exists();
     }
 
     public function getWebPushUrl(object $notifiable): string
