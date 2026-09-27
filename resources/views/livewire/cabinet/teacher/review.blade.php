@@ -185,10 +185,10 @@
     {{-- Пометки на фото: холст ImageAnnotator внутри окна --}}
     @if ($current)
         {{-- Закрыть и переключить фото — через холст: он предупредит о несохранённых пометках --}}
-        <x-ui.modal :title="'Пометки · ' . $current['label']" :sub="trim(($student?->name ?? '') . ' · ' . $homework->title, ' ·')" close="$dispatch('annotator-leave')" width="l">
-            <div class="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-start">
+        <x-ui.modal :title="'Пометки · ' . $current['label']" :sub="trim(($student?->name ?? '') . ' · ' . $homework->title, ' ·')" close="$dispatch('annotator-leave')" width="l" fill>
+            <div class="flex min-h-0 min-w-0 flex-1 flex-col gap-4 lg:flex-row">
                 @if (count($photos) > 1)
-                    <div class="flex gap-3 overflow-x-auto lg:w-40 lg:shrink-0 lg:flex-col" role="group" aria-label="Фото">
+                    <div class="flex shrink-0 gap-3 overflow-x-auto lg:w-40 lg:flex-col lg:overflow-y-auto" role="group" aria-label="Фото">
                         @foreach ($photos as $i => $p)
                             <button type="button" x-on:click="$dispatch('annotator-leave', { photo: {{ $i }} })" aria-pressed="{{ $p['path'] === $current['path'] ? 'true' : 'false' }}" wire:key="rail-{{ $p['path'] }}"
                                     @class(['flex w-40 shrink-0 flex-col gap-2 rounded-lg p-2 text-left lg:w-full',
