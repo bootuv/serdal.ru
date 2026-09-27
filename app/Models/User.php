@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use App\Models\Subject;
+use App\Services\AvatarService;
 use App\Models\Direct;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Support\Str;
@@ -187,6 +188,22 @@ class User extends Authenticatable
     {
         return Attribute::make(
             get: fn() => $this->avatar ? Storage::disk('s3')->url($this->avatar) : asset('images/default-avatar.png'),
+        );
+    }
+
+    /** Фото для списков (до 128px на экране): уменьшенная WebP-копия. */
+    public function avatarThumbUrl(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => $this->avatar ? AvatarService::url(AvatarService::thumbPath($this->avatar)) : asset('images/default-avatar.png'),
+        );
+    }
+
+    /** Фото в JPG — для превью ссылки в соцсетях и мессенджерах и для разметки schema.org. */
+    public function avatarJpgUrl(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => $this->avatar ? AvatarService::url(AvatarService::jpgPath($this->avatar)) : asset('images/default-avatar.png'),
         );
     }
 
@@ -383,9 +400,8 @@ class User extends Authenticatable
         });
 
         static::deleting(function ($user) {
-            if ($user->avatar) {
-                Storage::disk('s3')->delete($user->avatar);
-            }
+            // Фото вместе с копиями для списков и превью
+            app(\App\Services\AvatarService::class)->delete($user->avatar);
 
             // Удаляем комнаты (soft delete, затем force delete в обсервере комнаты, если нужно)
             // Но в ТЗ "удалять все созданные им занятия", подразумевается полное удаление

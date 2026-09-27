@@ -43,7 +43,7 @@ class SupportMessageSent implements ShouldBroadcast
             'support_chat_id' => $this->message->support_chat_id,
             'user_id' => $this->message->user_id,
             'user_name' => $this->message->user->name,
-            'user_avatar' => $this->message->user->avatar_url,
+            'user_avatar' => $this->message->user->avatar_thumb_url,
             'content' => $this->message->content,
             'attachments' => $this->message->attachments ?? [],
             'created_at' => $this->message->created_at->toISOString(),

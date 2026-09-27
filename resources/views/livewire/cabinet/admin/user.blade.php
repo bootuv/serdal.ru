@@ -18,7 +18,7 @@
         <header class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between lg:gap-6">
             <div class="flex min-w-0 items-center gap-4">
                 @if ($u->avatar)
-                    <img src="{{ $u->avatar_url }}" alt="" class="size-16 shrink-0 rounded-lg object-cover">
+                    <img src="{{ $u->avatar_thumb_url }}" alt="" class="size-16 shrink-0 rounded-lg object-cover">
                 @else
                     <x-ui.avatar :user="$u" size="lg" />
                 @endif
@@ -210,7 +210,7 @@
                             @if ($photo && ! $errors->has('photo') && $photo->isPreviewable())
                                 <img src="{{ $photo->temporaryUrl() }}" alt="" class="size-16 shrink-0 rounded-lg object-cover">
                             @elseif ($u->avatar && ! $removePhoto)
-                                <img src="{{ $u->avatar_url }}" alt="" class="size-16 shrink-0 rounded-lg object-cover">
+                                <img src="{{ $u->avatar_thumb_url }}" alt="" class="size-16 shrink-0 rounded-lg object-cover">
                             @else
                                 <x-ui.avatar :user="$u" size="lg" />
                             @endif

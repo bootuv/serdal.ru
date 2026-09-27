@@ -1,7 +1,7 @@
 <a href="{{ route('tutors.show', $specialist) }}" class="specialist-list-item w-inline-block">
     <div class="specialist-list-item-group">
         <div class="list-item-userpic-wrap">
-            <img src="{{ $specialist->avatarUrl }}" loading="lazy" width="128" height="128" alt=""
+            <img src="{{ $specialist->avatarThumbUrl }}" loading="lazy" width="128" height="128" alt=""
                 class="list-item-userpic">
         </div>
         <div class="specialist-list-item-details">

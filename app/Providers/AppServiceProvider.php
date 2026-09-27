@@ -37,7 +37,7 @@ class AppServiceProvider extends ServiceProvider
         \Laravel\Pulse\Facades\Pulse::user(fn($user) => [
             'name' => $user->name,
             'extra' => $user->email,
-            'avatar' => $user->avatar_url,
+            'avatar' => $user->avatar_thumb_url,
         ]);
     }
 }

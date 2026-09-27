@@ -2,10 +2,8 @@
 
 namespace App\Services;
 
-use App\Helpers\FileUploadHelper;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
 
 /**
  * Профиль ученика: варианты класса и сохранение (аватар, пароль).
@@ -58,10 +56,8 @@ class StudentProfileService
         $oldAvatar = $user->avatar;
 
         if (array_key_exists('avatar', $data)) {
-            // Одиночный файл — в массив: processFiles приводит аргумент к массиву
-            $files = is_object($data['avatar']) ? [$data['avatar']] : $data['avatar'];
-            $processed = FileUploadHelper::processFiles($files, 'avatars', 640, 640);
-            $data['avatar'] = $processed[0] ?? null;
+            // Новое фото — WebP с копиями для списков и превью ссылок (AvatarService)
+            $data['avatar'] = app(AvatarService::class)->resolve($data['avatar'], $user->id);
         }
 
         if (empty($data['password'])) {
@@ -72,11 +68,7 @@ class StudentProfileService
 
         // Старое фото больше не нужно
         if (array_key_exists('avatar', $data) && $oldAvatar && $oldAvatar !== $user->avatar) {
-            try {
-                Storage::disk('s3')->delete($oldAvatar);
-            } catch (\Throwable $e) {
-                \Log::error('StudentProfileService: failed to delete old avatar - ' . $e->getMessage());
-            }
+            app(AvatarService::class)->delete($oldAvatar);
         }
 
         if (isset($data['password'])) {

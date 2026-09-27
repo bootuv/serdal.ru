@@ -43,7 +43,7 @@
 @section('title', $tutorTitle)
 @section('description', $tutorDescription)
 @section('og_type', 'profile')
-@section('og_image', $user->avatarUrl)
+@section('og_image', $user->avatarJpgUrl)
 
 @section('meta')
   <meta property="profile:username" content="{{ $user->username }}">
@@ -66,7 +66,7 @@
           '@id' => \App\Support\Seo::canonical() . '#person',
           'name' => $tutorName,
           'url' => \App\Support\Seo::canonical(),
-          'image' => $user->avatarUrl,
+          'image' => $user->avatarJpgUrl,
           'jobTitle' => 'Репетитор',
           'description' => $tutorDescription,
           'knowsAbout' => array_values(array_unique(array_merge($tutorSubjects, $tutorTopics))) ?: null,

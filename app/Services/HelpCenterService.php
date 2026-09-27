@@ -10,6 +10,8 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Intervention\Image\Laravel\Facades\Image;
 
 /**
  * База знаний (Help Center): категории, статьи, порядок, видео и картинки статей.
@@ -165,9 +167,30 @@ class HelpCenterService
         $article->delete();
     }
 
-    /** Картинка в текст статьи: загружается на CDN, возвращается адрес для <img src>. */
+    /** Ширина картинки в статье: колонка текста уже, с запасом на экраны с высокой плотностью. */
+    private const IMAGE_MAX_WIDTH = 1600;
+
+    /**
+     * Картинка в текст статьи: загружается на CDN, возвращается адрес для <img src>.
+     * JPG, PNG и WebP сохраняются в WebP (легче при том же виде); GIF — как есть, чтобы не пропала анимация.
+     */
     public function storeImage(UploadedFile $file): string
     {
+        $extension = strtolower($file->getClientOriginalExtension());
+
+        if (in_array($extension, ['jpg', 'jpeg', 'png', 'webp'], true)) {
+            try {
+                $webp = (string) Image::read($file->get())->scaleDown(width: self::IMAGE_MAX_WIDTH)->toWebp(82);
+                $path = self::IMAGE_DIR . '/' . Str::lower(Str::random(24)) . '.webp';
+                Storage::disk(self::DISK)->put($path, $webp, 'public');
+
+                return Storage::disk(self::DISK)->url($path);
+            } catch (\Throwable $e) {
+                // Нет поддержки WebP или картинка не читается — загружаем исходный файл
+                report($e);
+            }
+        }
+
         $path = $file->storePublicly(self::IMAGE_DIR, self::DISK);
 
         return Storage::disk(self::DISK)->url($path);

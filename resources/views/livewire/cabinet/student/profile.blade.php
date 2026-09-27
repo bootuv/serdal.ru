@@ -18,7 +18,7 @@
                     @if ($photo && ! $errors->has('photo') && $photo->isPreviewable())
                         <img src="{{ $photo->temporaryUrl() }}" alt="" class="size-16 shrink-0 rounded-lg object-cover">
                     @elseif ($user->avatar)
-                        <img src="{{ $user->avatar_url }}" alt="" class="size-16 shrink-0 rounded-lg object-cover">
+                        <img src="{{ $user->avatar_thumb_url }}" alt="" class="size-16 shrink-0 rounded-lg object-cover">
                     @else
                         <x-ui.avatar :user="$user" size="lg" />
                     @endif

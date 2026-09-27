@@ -134,6 +134,10 @@ sudo systemctl restart serdal-reverb.service
 sudo systemctl restart serdal-pulse.service
 
 sleep 3
+echo "==> Фото профилей в WebP"
+# Ставит в очередь только ещё не переведённые фото — повторный запуск ничего не делает
+"$PHP_BIN" artisan avatars:webp || echo "!! avatars:webp не запустился"
+
 echo "==> IndexNow"
 # Сообщаем Яндексу и Bing о новых и изменённых страницах (уже после перезапуска php-fpm — новые адреса открываются).
 # Ошибка отправки деплой не валит.
