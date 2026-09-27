@@ -18,9 +18,9 @@
       <div class="video-gradient"></div>
       <div class="title-block">
         <div class="title-description">
-          <h1 class="h1 white-text">Платформа профессиональных репетиторов</h1>
-          <div class="p30 white-text">Занимайтесь онлайн с опытными репетиторами и менторами — подберём специалиста
-            под вашу цель.</div>
+          <h1 class="h1 white-text">Репетиторы и наставники онлайн</h1>
+          <div class="p30 white-text">Школьные предметы, ЕГЭ и ОГЭ, иностранные языки и IT — занятия для любого
+            возраста.</div>
         </div>
       </div>
       <div class="main-actions">
@@ -80,14 +80,14 @@
       </div>
     </div>
   </section>
-  {{-- Подборки по предметам и направлениям — до каталога: после бесконечного списка до них не долистать --}}
+  {{-- Подборки по предметам — до каталога: после бесконечного списка до них не долистать.
+       Направления здесь не повторяем — они в бегущей строке под обложкой и тоже ведут в каталог --}}
   @include('partials.catalog-links', [
       'heading' => 'Репетиторы по предметам',
       'class' => 'catalog-panel--home',
       'id' => 'catalog-subjects',
       'groups' => [
-          ['title' => 'Предметы', 'links' => collect($catalog['subjects'])->sortByDesc('count')->values()->all()],
-          ['title' => 'Направления', 'links' => collect($catalog['directs'])->sortByDesc('count')->values()->all()],
+          ['links' => collect($catalog['subjects'])->sortByDesc('count')->values()->all()],
       ],
   ])
   <section class="specialists">

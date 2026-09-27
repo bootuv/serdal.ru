@@ -131,8 +131,8 @@
                         <x-ui.field label="Название сайта" name="seo.seo_site_name" wire:model="seo.seo_site_name" />
                         <x-ui.field label="Заголовок по умолчанию" name="seo.seo_default_title" wire:model="seo.seo_default_title" hint="Для страниц без своего заголовка, до 60 знаков" />
                         <x-ui.field label="Описание по умолчанию" name="seo.seo_default_description" :rows="2" wire:model="seo.seo_default_description" hint="120–160 знаков" />
-                        <x-ui.field label="Заголовок главной страницы" name="seo.seo_home_title" wire:model="seo.seo_home_title" />
-                        <x-ui.field label="Описание главной страницы" name="seo.seo_home_description" :rows="3" wire:model="seo.seo_home_description" />
+                        <x-ui.field label="Заголовок главной страницы" name="seo.seo_home_title" wire:model="seo.seo_home_title" hint="Во вкладке браузера и в поисковой выдаче, до 60 знаков. Надпись на обложке главной не меняет" />
+                        <x-ui.field label="Описание главной страницы" name="seo.seo_home_description" :rows="3" wire:model="seo.seo_home_description" hint="Текст под заголовком в поисковой выдаче, 120–160 знаков" />
                     </x-ui.card>
                     <x-ui.card aria-labelledby="h-more">
                         <x-ui.card-head id="h-more" title="Дополнительно" />
