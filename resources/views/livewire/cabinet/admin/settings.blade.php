@@ -126,6 +126,11 @@
         @elseif ($tab === 'seo')
             <div class="grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
                 <div class="flex min-w-0 flex-col gap-6">
+                    <x-ui.card aria-labelledby="h-hero">
+                        <x-ui.card-head id="h-hero" title="Обложка главной" />
+                        <x-ui.field label="Заголовок" name="seo.home_hero_title" wire:model="seo.home_hero_title" hint="Крупная надпись на обложке, до 80 знаков. Поисковики считают её главным заголовком страницы" />
+                        <x-ui.field label="Подзаголовок" name="seo.home_hero_subtitle" :rows="2" wire:model="seo.home_hero_subtitle" hint="Строка под заголовком, до 200 знаков" />
+                    </x-ui.card>
                     <x-ui.card aria-labelledby="h-meta">
                         <x-ui.card-head id="h-meta" title="Заголовки и описания" />
                         <x-ui.field label="Название сайта" name="seo.seo_site_name" wire:model="seo.seo_site_name" />

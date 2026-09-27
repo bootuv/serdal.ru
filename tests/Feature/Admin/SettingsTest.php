@@ -182,4 +182,26 @@ class SettingsTest extends TestCase
         $this->assertStringStartsWith('seo/', $path);
         Storage::disk('s3')->assertExists($path);
     }
+
+    public function test_home_hero_texts_are_edited_in_seo_tab(): void
+    {
+        $this->get('/')->assertSee('Репетиторы и наставники онлайн</h1>', false);
+
+        Livewire::actingAs($this->user(User::ROLE_ADMIN))->test(Settings::class, ['tab' => 'seo'])
+            ->assertSee('Обложка главной')
+            ->set('seo.home_hero_title', 'Занятия с репетитором онлайн')
+            ->set('seo.home_hero_subtitle', 'Предметы, экзамены и языки')
+            ->call('save')
+            ->assertHasNoErrors();
+
+        SeoSettings::flush();
+        $this->get('/')
+            ->assertSee('<h1 class="h1 white-text">Занятия с репетитором онлайн</h1>', false)
+            ->assertSee('Предметы, экзамены и языки');
+
+        Livewire::actingAs($this->user(User::ROLE_ADMIN))->test(Settings::class, ['tab' => 'seo'])
+            ->set('seo.home_hero_title', '')
+            ->call('save')
+            ->assertHasErrors('seo.home_hero_title');
+    }
 }

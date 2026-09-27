@@ -18,9 +18,9 @@
       <div class="video-gradient"></div>
       <div class="title-block">
         <div class="title-description">
-          <h1 class="h1 white-text">Репетиторы и наставники онлайн</h1>
-          <div class="p30 white-text">Школьные предметы, ЕГЭ и ОГЭ, иностранные языки и IT — занятия для любого
-            возраста.</div>
+          {{-- Тексты обложки — в админке: «Настройки» → «Сайт и поисковики» → «Обложка главной» --}}
+          <h1 class="h1 white-text">{{ \App\Support\SeoSettings::get('home_hero_title') }}</h1>
+          <div class="p30 white-text">{{ \App\Support\SeoSettings::get('home_hero_subtitle') }}</div>
         </div>
       </div>
       <div class="main-actions">

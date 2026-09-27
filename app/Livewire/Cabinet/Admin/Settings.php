@@ -182,6 +182,8 @@ class Settings extends Component
                 'legal.offer_refund_processing_days' => ['required', 'integer', 'min:0'],
             ],
             'seo' => [
+                'seo.home_hero_title' => ['required', 'string', 'max:80'],
+                'seo.home_hero_subtitle' => ['required', 'string', 'max:200'],
                 'seo.seo_site_name' => ['required', 'string', 'max:100'],
                 'seo.seo_default_title' => ['required', 'string', 'max:120'],
                 'seo.seo_default_description' => ['required', 'string', 'max:300'],
