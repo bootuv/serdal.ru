@@ -23,20 +23,28 @@
                         <x-ui.list>
                             @foreach ($review as $r)
                                 @if ($loop->first)
-                                    <x-ui.row class="-mx-4 flex-wrap rounded-lg border-t-0 bg-white px-4 shadow-card last:pb-4 sm:flex-nowrap" wire:key="rv-{{ $r['id'] }}">
-                                        <x-ui.avatar :name="$r['student']" :id="$r['studentId']" />
-                                        <div class="flex min-w-0 flex-1 flex-col gap-1">
-                                            <a href="{{ $r['url'] }}" class="truncate text-t1 font-medium">{{ $r['title'] }}</a>
-                                            <span class="text-t2 text-muted">{{ $r['sub'] }}@if ($r['wait']) · <x-ui.em :danger="$r['overdue']">{{ $r['wait'] }}</x-ui.em>@endif</span>
+                                    {{-- Телефон: бейдж под подписью, кнопка под текстом на всю ширину --}}
+                                    <x-ui.row align="start" class="-mx-4 flex-col rounded-lg border-t-0 bg-white px-4 shadow-card last:pb-4 sm:flex-row sm:items-center" wire:key="rv-{{ $r['id'] }}">
+                                        <div class="flex w-full min-w-0 flex-1 items-center gap-4">
+                                            <x-ui.avatar :name="$r['student']" :id="$r['studentId']" />
+                                            <div class="flex min-w-0 flex-1 flex-col gap-1">
+                                                <a href="{{ $r['url'] }}" class="line-clamp-2 break-words text-t1 font-medium sm:line-clamp-none sm:truncate">{{ $r['title'] }}</a>
+                                                <span class="text-t2 text-muted">{{ $r['sub'] }}@if ($r['wait']) · <x-ui.em :danger="$r['overdue']">{{ $r['wait'] }}</x-ui.em>@endif</span>
+                                                @if ($r['badge'])<span class="flex sm:hidden"><x-ui.badge :tone="$r['badge'][0]">{{ $r['badge'][1] }}</x-ui.badge></span>@endif
+                                            </div>
+                                            @if ($r['badge'])<x-ui.badge :tone="$r['badge'][0]" class="hidden sm:inline-flex">{{ $r['badge'][1] }}</x-ui.badge>@endif
                                         </div>
-                                        @if ($r['badge'])<x-ui.badge :tone="$r['badge'][0]">{{ $r['badge'][1] }}</x-ui.badge>@endif
-                                        <x-ui.btn variant="primary" :href="$r['url']">Проверить</x-ui.btn>
+                                        <x-ui.btn variant="primary" :href="$r['url']" class="self-start sm:self-center">Проверить</x-ui.btn>
                                     </x-ui.row>
                                 @else
                                     <x-ui.row :href="$r['url']" :class="$loop->index === 1 ? 'border-t-0' : ''" wire:key="rv-{{ $r['id'] }}">
                                         <x-ui.avatar :name="$r['student']" :id="$r['studentId']" />
-                                        <x-ui.text :title="$r['title']" :sub="$r['sub']" />
-                                        @if ($r['badge'])<x-ui.badge :tone="$r['badge'][0]">{{ $r['badge'][1] }}</x-ui.badge>@endif
+                                        <div class="flex min-w-0 flex-1 flex-col gap-1">
+                                            <span class="line-clamp-2 break-words text-t1 font-medium sm:line-clamp-none sm:truncate">{{ $r['title'] }}</span>
+                                            <span class="text-t2 text-muted">{{ $r['sub'] }}</span>
+                                            @if ($r['badge'])<span class="flex sm:hidden"><x-ui.badge :tone="$r['badge'][0]">{{ $r['badge'][1] }}</x-ui.badge></span>@endif
+                                        </div>
+                                        @if ($r['badge'])<x-ui.badge :tone="$r['badge'][0]" class="hidden sm:inline-flex">{{ $r['badge'][1] }}</x-ui.badge>@endif
                                     </x-ui.row>
                                 @endif
                             @endforeach
@@ -112,13 +120,20 @@
                                     <x-ui.avatar :name="$it['who']" :id="$it['avatarId']" />
                                 @endif
                                 <div class="flex min-w-0 flex-1 flex-col gap-1">
-                                    <span class="truncate text-t1 font-medium">{{ $it['title'] }}</span>
+                                    <span class="line-clamp-2 break-words text-t1 font-medium sm:line-clamp-none sm:truncate">{{ $it['title'] }}</span>
                                     <span class="text-t2 text-muted">{{ $it['who'] }}@if ($it['dueEm']) · <x-ui.em>{{ $it['dueEm'] }}</x-ui.em>@elseif ($it['due']) · {{ $it['due'] }}@endif</span>
+                                    {{-- Телефон: прогресс и бейдж под подписью --}}
+                                    @if ($it['prog'] || $it['badge'])
+                                        <span class="flex flex-wrap items-center gap-2 sm:hidden">
+                                            @if ($it['prog'])<span class="text-t2 text-muted">{{ $it['prog'][0] }} <x-ui.em>{{ $it['prog'][1] }}</x-ui.em></span>@endif
+                                            @if ($it['badge'])<x-ui.badge :tone="$it['badge'][0]">{{ $it['badge'][1] }}</x-ui.badge>@endif
+                                        </span>
+                                    @endif
                                 </div>
                                 @if ($it['prog'])
-                                    <span class="whitespace-nowrap text-t2 text-muted">{{ $it['prog'][0] }} <x-ui.em>{{ $it['prog'][1] }}</x-ui.em></span>
+                                    <span class="hidden whitespace-nowrap text-t2 text-muted sm:inline">{{ $it['prog'][0] }} <x-ui.em>{{ $it['prog'][1] }}</x-ui.em></span>
                                 @endif
-                                @if ($it['badge'])<x-ui.badge :tone="$it['badge'][0]">{{ $it['badge'][1] }}</x-ui.badge>@endif
+                                @if ($it['badge'])<x-ui.badge :tone="$it['badge'][0]" class="hidden sm:inline-flex">{{ $it['badge'][1] }}</x-ui.badge>@endif
                             </x-ui.row>
                         @endforeach
                     </x-ui.list>

@@ -39,8 +39,9 @@
                     <div class="flex min-w-0 flex-1 flex-col gap-1">
                         <span class="text-t1 font-medium">{{ $d['title'] }}</span>
                         @if ($d['hint'])<span class="text-t2 font-semibold text-ink">{{ $d['hint'] }}</span>@endif
+                        @if ($d['overdue'])<span class="flex sm:hidden"><x-ui.badge tone="danger">Просрочено</x-ui.badge></span>@endif
                     </div>
-                    @if ($d['overdue'])<x-ui.badge tone="danger">Просрочено</x-ui.badge>@endif
+                    @if ($d['overdue'])<x-ui.badge tone="danger" class="hidden sm:inline-flex">Просрочено</x-ui.badge>@endif
                     @if ($d['amount'])<span class="shrink-0 text-t1 font-medium">{{ $d['amount'] }}</span>@endif
                 </x-ui.row>
             @endforeach

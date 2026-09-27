@@ -162,8 +162,8 @@
                     <x-ui.card class="min-w-0 flex-1" :aria-label="$day['title']">
                         <x-ui.list>
                             @foreach ($day['rows'] as $row)
-                                <div class="flex items-center gap-4 border-t border-line py-4 first:border-t-0 first:pt-0 last:pb-0" wire:key="past-{{ $row['key'] }}">
-                                    <div class="flex w-16 shrink-0 flex-col gap-1">
+                                <div class="flex items-center gap-3 border-t border-line py-4 first:border-t-0 first:pt-0 last:pb-0 sm:gap-4" wire:key="past-{{ $row['key'] }}">
+                                    <div class="flex w-13 shrink-0 flex-col gap-1 sm:w-16">
                                         <span @class(['text-t1 font-medium', 'text-muted' => $row['dim']])>{{ $row['time'] }}</span>
                                         <span class="text-t3 text-muted">{{ $row['duration'] }}</span>
                                     </div>
@@ -171,8 +171,9 @@
                                     <div class="flex min-w-0 flex-1 flex-col gap-1">
                                         <a href="{{ $row['url'] }}" @class(['truncate text-t1 font-medium hover:underline', 'text-muted' => $row['dim']])>{{ $row['heading'] }}</a>
                                         @if ($row['facts'])<span class="text-t2 text-muted">{{ $row['facts'] }}</span>@endif
+                                        @if ($row['unpaid'])<span class="flex sm:hidden"><x-ui.badge tone="danger">Не оплачено</x-ui.badge></span>@endif
                                     </div>
-                                    @if ($row['unpaid'])<x-ui.badge tone="danger">Не оплачено</x-ui.badge>@endif
+                                    @if ($row['unpaid'])<x-ui.badge tone="danger" class="hidden sm:inline-flex">Не оплачено</x-ui.badge>@endif
                                     @if ($row['recordingUrl'])<a href="{{ $row['recordingUrl'] }}" class="link hidden shrink-0 text-t2 lg:inline">Смотреть запись</a>@endif
                                 </div>
                             @endforeach

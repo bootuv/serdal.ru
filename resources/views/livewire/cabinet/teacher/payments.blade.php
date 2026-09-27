@@ -12,7 +12,8 @@
                     <x-ui.disclosure :title="$month['title']" :meta="$month['note']" :open="$loop->first" wire:key="pm-{{ $loop->index }}-{{ $month['title'] }}">
                         @foreach ($month['rows'] as $row)
                             <div class="flex flex-wrap items-center gap-4 border-t border-line py-3 pl-4 lg:flex-nowrap" wire:key="pay-{{ $row['id'] }}">
-                                <div class="flex min-w-0 flex-1 flex-col gap-1">
+                                {{-- basis-1/2: не меньше половины строки под текст, иначе правый блок переносится вниз --}}
+                                <div class="flex min-w-0 flex-1 basis-1/2 flex-col gap-1 lg:basis-0">
                                     <span class="text-t1-s font-medium">{{ $row['title'] }}</span>
                                     <span class="text-t2 text-muted">{{ $row['meta'] }}</span>
                                     @if ($row['refund'])

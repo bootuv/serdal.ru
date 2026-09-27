@@ -232,7 +232,8 @@
                         $title = $binding ? 'Привязка способа оплаты' : $payment->title . (! $payment->isExtraLessons() && $payment->period_days >= 365 ? ' на год' : '');
                     @endphp
                     <x-ui.row class="flex-wrap lg:flex-nowrap" wire:key="pay-{{ $payment->id }}">
-                        <div class="flex min-w-0 flex-1 flex-col gap-1">
+                        {{-- basis-1/2: не меньше половины строки под текст, иначе правый блок переносится вниз --}}
+                        <div class="flex min-w-0 flex-1 basis-1/2 flex-col gap-1 lg:basis-0">
                             <span class="text-t1 font-medium">{{ $title }}</span>
                             <span class="text-t2 text-muted">
                                 {{ HumanDate::at($payment->created_at) }}@if ($binding) · проверочный платёж@endif

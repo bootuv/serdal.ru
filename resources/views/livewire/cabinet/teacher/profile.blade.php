@@ -188,8 +188,10 @@
                                                     оплата за занятие@if ($lt->payment_due_days) <x-ui.em>в течение {{ plural_ru((int) $lt->payment_due_days, 'дня', 'дней', 'дней') }}</x-ui.em>@endif
                                                 @endif
                                             </span>
+                                            {{-- Телефон: цена строкой под условиями, колонка справа отнимала ширину у текста --}}
+                                            <span class="text-t2 text-muted sm:hidden"><span class="whitespace-nowrap text-t1 font-semibold text-ink">{{ number_format((float) $lt->price, 0, ',', ' ') }} ₽</span> {{ $lt->isMonthly() ? 'в месяц' . ($perLessonMonthly ? ' · ≈ ' . number_format($perLessonMonthly, 0, ',', ' ') . ' ₽ за занятие' : '') : 'за занятие' }}</span>
                                         </span>
-                                        <span class="flex shrink-0 flex-col items-end gap-1 text-right">
+                                        <span class="hidden shrink-0 flex-col items-end gap-1 text-right sm:flex">
                                             <span class="whitespace-nowrap text-t1 font-semibold">{{ number_format((float) $lt->price, 0, ',', ' ') }} ₽</span>
                                             <span class="text-t3 text-muted">{{ $lt->isMonthly() ? 'в месяц' . ($perLessonMonthly ? ' · ≈ ' . number_format($perLessonMonthly, 0, ',', ' ') . ' ₽ за занятие' : '') : 'за занятие' }}</span>
                                         </span>

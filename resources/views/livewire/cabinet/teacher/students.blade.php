@@ -149,11 +149,15 @@
                                         <div class="flex min-w-0 flex-1 flex-col gap-1">
                                             <a href="{{ $d['row']['href'] }}" class="truncate text-t1 font-medium hover:underline">{{ $d['row']['name'] }}</a>
                                             <span class="text-t2 text-muted">{{ $d['meta'] }}</span>
+                                            {{-- Телефон: бейдж под подписью --}}
+                                            @if ($d['paid'] || $d['overdue'])
+                                                <span class="flex sm:hidden"><x-ui.badge :tone="$d['paid'] ? 'ok' : 'danger'">{{ $d['paid'] ? 'Оплачено' : 'Просрочено' }}</x-ui.badge></span>
+                                            @endif
                                         </div>
                                         @if ($d['paid'])
-                                            <x-ui.badge tone="ok">Оплачено</x-ui.badge>
+                                            <x-ui.badge tone="ok" class="hidden sm:inline-flex">Оплачено</x-ui.badge>
                                         @elseif ($d['overdue'])
-                                            <x-ui.badge tone="danger">Просрочено</x-ui.badge>
+                                            <x-ui.badge tone="danger" class="hidden sm:inline-flex">Просрочено</x-ui.badge>
                                         @endif
                                     </div>
                                     @if ($d['claim'])

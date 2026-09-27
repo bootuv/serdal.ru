@@ -96,13 +96,16 @@
                         </x-ui.card-head>
                         <x-ui.list>
                             @foreach ($review as $item)
-                                <x-ui.row class="flex-wrap sm:flex-nowrap" wire:key="rv-{{ $item['key'] }}">
-                                    <x-ui.avatar :name="$item['student']" :id="$item['studentId']" />
-                                    <div class="flex min-w-0 flex-1 flex-col gap-1">
-                                        <a href="{{ $item['url'] }}" class="truncate text-t1 font-medium">{{ $item['title'] }}</a>
-                                        <span class="text-t2 text-muted">{{ $item['student'] }} · {{ $item['submitted'] }}@if ($item['waits']) · <x-ui.em :danger="$item['overdue']">{{ $item['waits'] }}</x-ui.em>@endif</span>
+                                {{-- Телефон: кнопка под текстом на всю ширину, текст — во всю строку --}}
+                                <x-ui.row align="start" class="flex-col sm:flex-row sm:items-center" wire:key="rv-{{ $item['key'] }}">
+                                    <div class="flex w-full min-w-0 flex-1 items-center gap-4">
+                                        <x-ui.avatar :name="$item['student']" :id="$item['studentId']" />
+                                        <div class="flex min-w-0 flex-1 flex-col gap-1">
+                                            <a href="{{ $item['url'] }}" class="line-clamp-2 break-words text-t1 font-medium sm:line-clamp-none sm:truncate">{{ $item['title'] }}</a>
+                                            <span class="text-t2 text-muted">{{ $item['student'] }} · {{ $item['submitted'] }}@if ($item['waits']) · <x-ui.em :danger="$item['overdue']">{{ $item['waits'] }}</x-ui.em>@endif</span>
+                                        </div>
                                     </div>
-                                    <x-ui.btn size="s" :href="$item['url']">Проверить</x-ui.btn>
+                                    <x-ui.btn size="s" :href="$item['url']" class="self-start sm:self-center">Проверить</x-ui.btn>
                                 </x-ui.row>
                             @endforeach
                         </x-ui.list>
@@ -158,9 +161,13 @@
                                             <span class="truncate text-t1 font-medium">{{ $p['name'] }}</span>
                                             <span class="text-t2 text-muted">{{ $p['facts'] }}</span>
                                             @if ($p['claim'])<span class="text-t2"><x-ui.em>Ученик сообщил об оплате</x-ui.em></span>@endif
+                                            {{-- Телефон: бейдж под подписью --}}
+                                            @if ($p['paid'] || $p['badge'])
+                                                <span class="flex sm:hidden"><x-ui.badge :tone="$p['paid'] ? 'ok' : 'danger'">{{ $p['paid'] ? 'Оплачено' : $p['badge'] }}</x-ui.badge></span>
+                                            @endif
                                         </div>
-                                        @if ($p['paid'])<x-ui.badge tone="ok">Оплачено</x-ui.badge>
-                                        @elseif ($p['badge'])<x-ui.badge tone="danger">{{ $p['badge'] }}</x-ui.badge>@endif
+                                        @if ($p['paid'])<x-ui.badge tone="ok" class="hidden sm:inline-flex">Оплачено</x-ui.badge>
+                                        @elseif ($p['badge'])<x-ui.badge tone="danger" class="hidden sm:inline-flex">{{ $p['badge'] }}</x-ui.badge>@endif
                                     </div>
                                     <div class="flex flex-wrap gap-2">
                                         @if ($p['paid'])
