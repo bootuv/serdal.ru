@@ -2,7 +2,7 @@
      counts: ['key' => n] — красный счётчик (только то, что требует действия).
      Подписи не переносятся: если вкладки не помещаются (телефон), ряд прокручивается вбок. --}}
 @props(['items', 'model', 'active', 'counts' => []])
-<div {{ $attributes->except('aria-label')->class('min-w-0 overflow-x-auto') }}>
+<div {{ $attributes->except('aria-label')->class('scroll-row min-w-0 overflow-x-auto') }}>
     <div class="inline-flex min-w-full gap-6 border-b border-line align-top" role="tablist" {!! $attributes->has('aria-label') ? 'aria-label="' . e($attributes->get('aria-label')) . '"' : '' !!}>
         @foreach ($items as $key => $label)
             <button type="button" role="tab" wire:click="$set('{{ $model }}', '{{ $key }}')" aria-selected="{{ $active === $key ? 'true' : 'false' }}"

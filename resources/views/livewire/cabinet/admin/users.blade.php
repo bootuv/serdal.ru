@@ -7,15 +7,18 @@
 
     <div class="flex flex-col gap-6">
         <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:gap-6">
-            <div class="flex flex-1 gap-6 overflow-x-auto border-b border-line" role="tablist" aria-label="Кого показать">
-                @foreach (['teachers' => 'Учителя', 'students' => 'Ученики', 'admins' => 'Администраторы'] as $key => $label)
-                    <button type="button" role="tab" wire:click="$set('tab', '{{ $key }}')" aria-selected="{{ $tab === $key ? 'true' : 'false' }}"
-                            @class(['-mb-px inline-flex h-11 shrink-0 items-center gap-2 border-b-2 text-t1-s',
-                                    'border-ink font-semibold text-ink' => $tab === $key,
-                                    'border-transparent font-medium text-muted hover:text-ink' => $tab !== $key])>
-                        {{ $label }}<span class="text-t3 font-medium text-muted">{{ $counts[$key] }}</span>
-                    </button>
-                @endforeach
+            {{-- Прокрутка — снаружи, линия — внутри: подчёркивание вкладки (-mb-px) не вылезает за блок и не рисует полосу прокрутки --}}
+            <div class="scroll-row min-w-0 flex-1 overflow-x-auto">
+                <div class="flex min-w-full gap-6 border-b border-line" role="tablist" aria-label="Кого показать">
+                    @foreach (['teachers' => 'Учителя', 'students' => 'Ученики', 'admins' => 'Администраторы'] as $key => $label)
+                        <button type="button" role="tab" wire:click="$set('tab', '{{ $key }}')" aria-selected="{{ $tab === $key ? 'true' : 'false' }}"
+                                @class(['-mb-px inline-flex h-11 shrink-0 items-center gap-2 border-b-2 text-t1-s',
+                                        'border-ink font-semibold text-ink' => $tab === $key,
+                                        'border-transparent font-medium text-muted hover:text-ink' => $tab !== $key])>
+                            {{ $label }}<span class="text-t3 font-medium text-muted">{{ $counts[$key] }}</span>
+                        </button>
+                    @endforeach
+                </div>
             </div>
             <div class="lg:border-b lg:border-line lg:pb-2">
                 <x-ui.search placeholder="Имя, почта или телефон" wire:model.live.debounce.300ms="search" />
