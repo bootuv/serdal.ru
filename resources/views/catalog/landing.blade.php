@@ -30,20 +30,7 @@
     </div>
   </section>
 
-  @if($related)
-    <section class="catalog-links">
-      @foreach($related as $group)
-        <div class="catalog-links__group">
-          <h2 class="catalog-links__title p24">{{ $group['title'] }}</h2>
-          <ul class="catalog-links__list" role="list">
-            @foreach($group['links'] as $link)
-              <li><a href="{{ $link['url'] }}" class="direction-tag catalog-links__link p18">{{ $link['name'] }} <span class="catalog-links__count">{{ $link['count'] }}</span></a></li>
-            @endforeach
-          </ul>
-        </div>
-      @endforeach
-    </section>
-  @endif
+  @include('partials.catalog-links', ['groups' => $related])
 
   @include('partials.faq', ['faq' => $faq])
 @endsection

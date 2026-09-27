@@ -65,11 +65,12 @@
       flex: 1 0 auto;
     }
 
+    /* Подвал — на всю ширину, поля как у шапки (32 / 24 / 16px); слева описание, справа колонки ссылок одним рядом */
     .footer {
       flex-direction: column;
       align-items: stretch;
       gap: 48px;
-      padding: 56px 32px 32px;
+      padding: 64px 32px 32px;
     }
 
     .footer a {
@@ -77,17 +78,9 @@
     }
 
     .footer-top {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: space-between;
-      gap: 48px 64px;
-      max-width: 1216px;
-      width: 100%;
-      margin: 0 auto;
-    }
-
-    .footer-brand {
-      max-width: 340px;
+      display: grid;
+      grid-template-columns: minmax(0, 4fr) minmax(0, 8fr);
+      gap: 48px 96px;
     }
 
     .footer-brand img {
@@ -95,23 +88,23 @@
     }
 
     .footer-brand p {
-      margin: 16px 0 0;
-      font-size: 15px;
-      line-height: 1.55;
+      max-width: 520px;
+      margin: 24px 0 0;
+      font-size: 16px;
+      line-height: 1.6;
       color: #9b9e9e;
     }
 
     .footer-cols {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 40px 72px;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 40px 32px;
     }
 
     .footer-col {
       display: flex;
       flex-direction: column;
       gap: 12px;
-      min-width: 160px;
     }
 
     .footer-col__title {
@@ -139,22 +132,41 @@
       flex-wrap: wrap;
       justify-content: space-between;
       gap: 8px 24px;
-      max-width: 1216px;
-      width: 100%;
-      margin: 0 auto;
       padding-top: 24px;
       border-top: 1px solid rgba(255, 255, 255, .12);
       font-size: 14px;
       color: #9b9e9e;
     }
 
+    @media (max-width: 991px) {
+      .footer {
+        padding: 56px 24px 32px;
+      }
+
+      .footer-top {
+        grid-template-columns: minmax(0, 1fr);
+      }
+
+      .footer-brand p {
+        max-width: 560px;
+      }
+    }
+
     @media (max-width: 767px) {
       .footer {
-        padding: 40px 20px 28px;
+        padding: 48px 24px 28px;
       }
 
       .footer-cols {
-        gap: 32px 48px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 32px 24px;
+      }
+    }
+
+    @media (max-width: 479px) {
+      .footer {
+        padding-left: 16px;
+        padding-right: 16px;
       }
     }
 

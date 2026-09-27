@@ -52,24 +52,39 @@
   margin-top: 48px;
 }
 
-.catalog-links {
-  display: flex;
-  flex-direction: column;
-  gap: 32px;
+.catalog-panel {
   margin-top: 80px;
   padding: 0 32px;
 }
 
-.catalog-links--hub {
+.catalog-panel--home {
+  margin-top: 104px;
+}
+
+.catalog-head + .catalog-panel {
   margin-top: 48px;
 }
 
-.catalog-links__title {
+/* Мятный контейнер — как карточки шагов на главной и блоки страницы «О нас» */
+.catalog-panel__box {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  padding: 48px;
+  border-radius: 32px;
+  background-color: var(--bg1);
+}
+
+.catalog-panel__heading.h3 {
+  margin-bottom: 8px;
+}
+
+.catalog-panel__title {
   margin: 0 0 16px;
   font-weight: 500;
 }
 
-.catalog-links__list {
+.catalog-panel__list {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -78,29 +93,32 @@
   list-style: none;
 }
 
-.direction-tag.catalog-links__link {
+.catalog-panel__link {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   padding: 8px 16px;
+  border: 1px solid transparent;
+  border-radius: 24px;
+  background-color: var(--white);
   color: var(--black);
-  transition: border-color .15s ease, background-color .15s ease;
+  text-decoration: none;
+  transition: border-color .15s ease;
 }
 
-.direction-tag.catalog-links__link:hover {
+.catalog-panel__link:hover {
   border-color: var(--black);
-  background-color: var(--brand-main-light);
 }
 
-.catalog-links__count {
+.catalog-panel__count {
   color: var(--icon);
 }
 
-.catalog-links__more {
+.catalog-panel__more {
   margin: 0;
 }
 
-.catalog-links__more a,
+.catalog-panel__more a,
 .tutor-subjects a {
   color: inherit;
   text-decoration: underline;
@@ -108,7 +126,7 @@
   text-underline-offset: 4px;
 }
 
-.catalog-links__more a:hover,
+.catalog-panel__more a:hover,
 .tutor-subjects a:hover {
   text-decoration-color: currentColor;
 }
@@ -170,10 +188,14 @@ a.direction-tag:hover {
 
 @media screen and (max-width: 991px) {
   .catalog-head,
-  .catalog-links,
+  .catalog-panel,
   .faq__item {
     padding-left: 24px;
     padding-right: 24px;
+  }
+
+  .catalog-panel__box {
+    padding: 40px 32px;
   }
 
   .catalog-head__title.h1 {
@@ -203,8 +225,20 @@ a.direction-tag:hover {
     margin-top: 32px;
   }
 
-  .catalog-links {
+  .catalog-panel,
+  .catalog-panel--home {
     margin-top: 64px;
+  }
+
+  .catalog-panel__box {
+    gap: 24px;
+    padding: 32px 24px;
+    border-radius: 24px;
+  }
+
+  .catalog-panel__heading.h3 {
+    font-size: 36px;
+    line-height: 40px;
   }
 
   .faq {
@@ -214,10 +248,19 @@ a.direction-tag:hover {
 
 @media screen and (max-width: 479px) {
   .catalog-head,
-  .catalog-links,
+  .catalog-panel,
   .faq__item {
     padding-left: 16px;
     padding-right: 16px;
+  }
+
+  .catalog-panel__box {
+    padding: 24px 16px;
+  }
+
+  .catalog-panel__heading.h3 {
+    font-size: 30px;
+    line-height: 34px;
   }
 
   .catalog-head__title.h1 {

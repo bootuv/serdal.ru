@@ -34,21 +34,13 @@
     <p class="catalog-head__facts p24">{{ implode(' · ', $facts) }}</p>
   </section>
 
-  <section class="catalog-links catalog-links--hub">
-    @foreach(['Предметы' => $subjects, 'Направления' => $directs] as $groupTitle => $pages)
-      @if($pages)
-        <div class="catalog-links__group">
-          <h2 class="catalog-links__title p24">{{ $groupTitle }}</h2>
-          <ul class="catalog-links__list" role="list">
-            @foreach($pages as $page)
-              <li><a href="{{ $page['url'] }}" class="direction-tag catalog-links__link p18">{{ $page['name'] }} <span class="catalog-links__count">{{ $page['count'] }}</span></a></li>
-            @endforeach
-          </ul>
-        </div>
-      @endif
-    @endforeach
-    <p class="catalog-links__more p18"><a href="{{ url('/') }}#specialists">Все репетиторы с фильтрами по цене, рейтингу и классам</a></p>
-  </section>
+  @include('partials.catalog-links', [
+      'groups' => [
+          ['title' => 'Предметы', 'links' => $subjects],
+          ['title' => 'Направления', 'links' => $directs],
+      ],
+      'more' => ['name' => 'Все репетиторы с фильтрами по цене, рейтингу и классам', 'url' => url('/') . '#specialists'],
+  ])
 
   @include('partials.faq', ['faq' => $faq])
 @endsection

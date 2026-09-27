@@ -80,6 +80,16 @@
       </div>
     </div>
   </section>
+  {{-- Подборки по предметам и направлениям — до каталога: после бесконечного списка до них не долистать --}}
+  @include('partials.catalog-links', [
+      'heading' => 'Репетиторы по предметам',
+      'class' => 'catalog-panel--home',
+      'id' => 'catalog-subjects',
+      'groups' => [
+          ['title' => 'Предметы', 'links' => collect($catalog['subjects'])->sortByDesc('count')->values()->all()],
+          ['title' => 'Направления', 'links' => collect($catalog['directs'])->sortByDesc('count')->values()->all()],
+      ],
+  ])
   <section class="specialists">
     <h2 id="specialists" class="h2">Найти специалиста</h2>
     <div class="filters-sentinel" aria-hidden="true"></div>
