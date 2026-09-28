@@ -25,13 +25,7 @@
       </div>
       <div class="main-actions">
         <a href="#specialists" class="main-button search-tutor w-button">Найти специалиста</a>
-        <a data-w-id="79cbc6fb-829e-0080-5bfd-8999f35ce137" href="#" class="trailer-button w-inline-block">
-          <div class="button-play"><img src="images/thumb.png" loading="lazy" width="76" height="76" alt=""
-              class="trailer-button-thumb"><img src="images/play.svg" loading="lazy" alt="" class="play-icon">
-            <div class="dark-opacity"></div>
-          </div>
-          <div class="trailet-button-text">Трейлер</div>
-        </a>
+        <a href="{{ route('become-tutor') }}" class="trailer-button become-tutor-button w-inline-block">Стать репетитором</a>
       </div>
     </div>
   </section>
@@ -252,44 +246,6 @@
         new IntersectionObserver(function (entries) {
           filtersWrapper.classList.toggle('is-stuck', !entries[0].isIntersecting);
         }, { threshold: 0 }).observe(filtersSentinel);
-      }
-
-      const trailerBtn = document.querySelector('.trailer-button');
-      const popupWrapper = document.querySelector('.popup-wrapper');
-      const closeBtn = document.querySelector('.close-button');
-      const closeZone = document.querySelector('.close-click-zone');
-
-      if (trailerBtn && popupWrapper) {
-        const iframe = popupWrapper.querySelector('iframe');
-        let initialSrc = '';
-
-        if (iframe) {
-          initialSrc = iframe.src;
-        }
-
-        trailerBtn.addEventListener('click', function (e) {
-          e.preventDefault();
-          if (iframe && initialSrc) {
-            const separator = initialSrc.includes('?') ? '&' : '?';
-            iframe.src = initialSrc + separator + 'autoplay=1';
-          }
-          popupWrapper.style.display = 'flex';
-        });
-
-        const closePopup = function () {
-          popupWrapper.style.display = 'none';
-          if (iframe && initialSrc) {
-            iframe.src = initialSrc;
-          }
-        };
-
-        if (closeBtn) {
-          closeBtn.addEventListener('click', closePopup);
-        }
-
-        if (closeZone) {
-          closeZone.addEventListener('click', closePopup);
-        }
       }
     });
   </script>

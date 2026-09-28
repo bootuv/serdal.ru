@@ -276,6 +276,10 @@ a {
   border-color: #ffffff80;
 }
 
+.trailer-button.become-tutor-button {
+  padding-left: 32px;
+}
+
 .trailer-button-thumb {
   z-index: 1;
   width: 100%;
