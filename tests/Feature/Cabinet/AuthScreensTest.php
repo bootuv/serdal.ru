@@ -45,7 +45,7 @@ class AuthScreensTest extends TestCase
             ->assertSee('Вход в кабинет')
             ->assertSee('Забыли пароль?')
             ->assertSee('Стать репетитором')
-            ->assertSee(asset('images/bg.jpg'), false);
+            ->assertSee(asset('images/auth.webp'), false);
 
         // Уже вошедший — сразу в свой кабинет
         $this->actingAs($this->user(User::ROLE_TUTOR))->get('/login')->assertRedirect(route('cabinet.teacher.today'));

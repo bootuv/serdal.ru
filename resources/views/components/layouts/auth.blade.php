@@ -22,7 +22,7 @@
     <div class="flex min-w-0 flex-1 flex-col p-4 lg:p-12">
         <div class="mx-auto flex w-full flex-1 flex-col gap-6 lg:max-w-auth-form lg:gap-8">
             <a href="{{ url('/') }}" class="self-start"><img src="{{ asset('images/Logo.svg') }}" alt="{{ \App\Support\Seo::SITE_NAME }}" class="h-6 w-auto"></a>
-            <img src="{{ asset('images/bg-p-800.jpg') }}" alt="Учительница ведёт онлайн-занятие на Serdal" class="h-40 w-full rounded object-cover lg:hidden">
+            <img src="{{ asset('images/auth.webp') }}" alt="Учитель ведёт онлайн-занятие на Serdal" class="h-40 w-full rounded object-cover lg:hidden">
 
             <main class="flex flex-1 flex-col justify-center gap-8">
                 {{ $slot }}
@@ -40,7 +40,7 @@
 
     {{-- Правая половина: фото --}}
     <div class="sticky top-0 hidden h-screen min-w-0 flex-1 p-4 pl-0 lg:flex">
-        <img src="{{ asset('images/bg.jpg') }}" alt="Учительница ведёт онлайн-занятие на Serdal" class="h-full w-full rounded-xl object-cover">
+        <img src="{{ asset('images/auth.webp') }}" alt="Учитель ведёт онлайн-занятие на Serdal" class="h-full w-full rounded-xl object-cover">
     </div>
 </div>
 </body>
