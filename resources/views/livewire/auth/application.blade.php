@@ -17,7 +17,7 @@
         @if ($referrer)
             {{-- Приглашение от коллеги по партнёрской программе --}}
             <div class="flex flex-col gap-1 rounded-lg bg-promo p-4 text-t2">
-                <p class="font-semibold">Вас пригласил(а) {{ $referrer->name }}</p>
+                <p class="font-semibold">Приглашение от {{ $referrer->name }}</p>
                 <p class="text-muted">
                     @if ($referralBonus > 0)
                         После первой оплаты тарифа вы получите <x-ui.em>+{{ $referralBonus }} {{ \App\Services\SubscriptionService::lessonsWord($referralBonus) }} в подарок</x-ui.em>. Бонусные занятия не сгорают.
@@ -25,6 +25,7 @@
                         Заполните анкету — после одобрения заявки вы сможете сразу начать работу.
                     @endif
                 </p>
+                <button type="button" wire:click="declineReferral" class="link self-start">Меня никто не приглашал</button>
             </div>
         @endif
 

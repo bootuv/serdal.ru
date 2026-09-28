@@ -13,6 +13,7 @@ use App\Models\User;
 use App\Notifications\TeacherApplicationReceived;
 use App\Services\ReferralService;
 use App\Services\TeacherProfileService;
+use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\Rule;
@@ -52,7 +53,8 @@ class BecomeTutorPage extends Component
             $this->desiredTariffId = Tariff::active()->where('slug', $slug)->value('id');
         }
 
-        $this->referralCode = request('ref') ?: request()->cookie(ReferralService::COOKIE);
+        // У вошедшего уже есть аккаунт — он не приглашённый новичок
+        $this->referralCode = auth()->check() ? null : (request('ref') ?: request()->cookie(ReferralService::COOKIE));
 
         $this->resetForm();
     }
@@ -72,12 +74,19 @@ class BecomeTutorPage extends Component
         ];
     }
 
-    /** Пригласивший учитель — показываем плашку «Вас пригласил…». */
+    /** Пригласивший учитель — показываем плашку «Приглашение от …». */
     public function referrer(): ?User
     {
         return ReferralService::enabled()
             ? ReferralService::findReferrer($this->referralCode)
             : null;
+    }
+
+    /** «Меня никто не приглашал»: заявка уйдёт без пригласившего, ссылка забывается в браузере. */
+    public function declineReferral(): void
+    {
+        $this->referralCode = null;
+        Cookie::queue(Cookie::forget(ReferralService::COOKIE));
     }
 
     public function desiredTariff(): ?Tariff
@@ -199,6 +208,10 @@ class BecomeTutorPage extends Component
                 Log::error('Ошибка отправки уведомления администратору (' . $admin->email . '): ' . $e->getMessage());
             }
         }
+
+        // Одна ссылка — одна заявка: следующая заявка с этого браузера уже не считается приглашённой
+        $this->referralCode = null;
+        Cookie::queue(Cookie::forget(ReferralService::COOKIE));
 
         $this->sentName = $application->first_name;
         $this->sentEmail = $application->email;

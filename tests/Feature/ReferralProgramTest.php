@@ -172,7 +172,7 @@ class ReferralProgramTest extends TestCase
 
         Livewire::withQueryParams(['ref' => $referrer->referralCode()])
             ->test(\App\Livewire\BecomeTutorPage::class)
-            ->assertSee('Вас пригласил(а) Анна Петрова')
+            ->assertSee('Приглашение от Анна Петрова')
             ->set('data.last_name', 'Иванов')
             ->set('data.first_name', 'Иван')
             ->set('data.middle_name', 'Иванович')
@@ -186,6 +186,115 @@ class ReferralProgramTest extends TestCase
             ->assertHasNoErrors();
 
         $this->assertEquals($referrer->id, TeacherApplication::where('email', 'ivanov@example.com')->value('referred_by_id'));
+    }
+
+    public function test_logged_in_user_opening_invite_link_gets_no_cookie(): void
+    {
+        $referrer = $this->makeTutor();
+        $code = $referrer->referralCode();
+
+        $this->actingAs($referrer)
+            ->get('/r/' . $code)
+            ->assertRedirect(route('become-tutor'))
+            ->assertCookieMissing(ReferralService::COOKIE);
+    }
+
+    public function test_application_without_invite_has_no_referrer(): void
+    {
+        $subject = \App\Models\Subject::create(['name' => 'Математика']);
+        $direct = \App\Models\Direct::create(['name' => 'ЕГЭ']);
+
+        $this->fillApplication(Livewire::test(\App\Livewire\BecomeTutorPage::class), $subject, $direct, 'plain@example.com')
+            ->assertDontSee('Приглашение от')
+            ->call('create')
+            ->assertHasNoErrors();
+
+        $this->assertNull(TeacherApplication::where('email', 'plain@example.com')->value('referred_by_id'));
+    }
+
+    public function test_applicant_can_decline_referral(): void
+    {
+        $referrer = $this->makeTutor(['name' => 'Анна Петрова']);
+        $subject = \App\Models\Subject::create(['name' => 'Математика']);
+        $direct = \App\Models\Direct::create(['name' => 'ЕГЭ']);
+
+        $component = Livewire::withQueryParams(['ref' => $referrer->referralCode()])
+            ->test(\App\Livewire\BecomeTutorPage::class)
+            ->assertSee('Приглашение от Анна Петрова')
+            ->call('declineReferral')
+            ->assertDontSee('Приглашение от');
+
+        $this->fillApplication($component, $subject, $direct, 'solo@example.com')
+            ->call('create')
+            ->assertHasNoErrors();
+
+        $this->assertNull(TeacherApplication::where('email', 'solo@example.com')->value('referred_by_id'));
+    }
+
+    public function test_second_application_from_same_browser_is_not_referred(): void
+    {
+        $referrer = $this->makeTutor();
+        $subject = \App\Models\Subject::create(['name' => 'Математика']);
+        $direct = \App\Models\Direct::create(['name' => 'ЕГЭ']);
+
+        $component = Livewire::withQueryParams(['ref' => $referrer->referralCode()])
+            ->test(\App\Livewire\BecomeTutorPage::class);
+
+        $this->fillApplication($component, $subject, $direct, 'first@example.com')->call('create')->assertHasNoErrors();
+        $this->fillApplication($component->set('isSubmitted', false), $subject, $direct, 'second@example.com')->call('create')->assertHasNoErrors();
+
+        $this->assertEquals($referrer->id, TeacherApplication::where('email', 'first@example.com')->value('referred_by_id'));
+        $this->assertNull(TeacherApplication::where('email', 'second@example.com')->value('referred_by_id'));
+    }
+
+    public function test_logged_in_user_sees_no_referrer_on_application_page(): void
+    {
+        $referrer = $this->makeTutor(['name' => 'Анна Петрова']);
+
+        Livewire::actingAs($referrer)
+            ->withQueryParams(['ref' => $referrer->referralCode()])
+            ->test(\App\Livewire\BecomeTutorPage::class)
+            ->assertDontSee('Приглашение от');
+    }
+
+    public function test_login_forgets_invite_cookie(): void
+    {
+        $user = $this->makeTutor();
+
+        request()->cookies->set(ReferralService::COOKIE, 'abc');
+        event(new \Illuminate\Auth\Events\Login('web', $user, false));
+
+        $this->assertTrue(collect(\Illuminate\Support\Facades\Cookie::getQueuedCookies())
+            ->contains(fn ($cookie) => $cookie->getName() === ReferralService::COOKIE && $cookie->getExpiresTime() < time()));
+    }
+
+    public function test_no_bonus_if_teacher_paid_before_program_was_enabled(): void
+    {
+        $referrer = $this->makeTutor();
+        $referred = $this->makeTutor(['referred_by_id' => $referrer->id]);
+
+        Setting::updateOrCreate(['key' => 'referral_enabled'], ['value' => '0']);
+        $this->pay($referred);
+
+        Setting::updateOrCreate(['key' => 'referral_enabled'], ['value' => '1']);
+        $this->pay($referred);
+
+        $this->assertEquals(0, ReferralReward::count());
+        $this->assertEquals(0, (int) $referrer->fresh()->extra_lessons_balance);
+    }
+
+    protected function fillApplication($component, $subject, $direct, string $email)
+    {
+        return $component
+            ->set('data.last_name', 'Иванов')
+            ->set('data.first_name', 'Иван')
+            ->set('data.middle_name', 'Иванович')
+            ->set('data.email', $email)
+            ->set('data.phone', '+79005554433')
+            ->set('data.subjects', [$subject->id])
+            ->set('data.directs', [$direct->id])
+            ->set('data.grade', ['5'])
+            ->set('data.about', 'Опыт 10 лет');
     }
 
     public function test_tutor_referrals_page_renders(): void

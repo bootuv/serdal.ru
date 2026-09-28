@@ -6,6 +6,7 @@ use App\Models\ReferralReward;
 use App\Models\Setting;
 use App\Models\SubscriptionPayment;
 use App\Models\User;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -165,11 +166,60 @@ class ReferralService
         $referred = $payment->user;
         $referrer = $referred?->referrer;
 
-        if (!$referrer || $referrer->id === $referred->id) {
+        if (!$referrer || $referrer->id === $referred->id || self::hasEarlierTariffPayment($payment)) {
             return null;
         }
 
-        $reward = DB::transaction(function () use ($payment, $referred, $referrer) {
+        try {
+            $reward = self::createReward($payment, $referred, $referrer);
+        } catch (UniqueConstraintViolationException) {
+            // Тот же приглашённый оплатил дважды одновременно — начисление уже сделал параллельный запрос
+            return null;
+        }
+
+        if (!$reward) {
+            return null;
+        }
+
+        if ($reward->referrer_lessons > 0) {
+            $referrer->refresh();
+            $referrer->notify(new \App\Notifications\ReferralBonusCredited(
+                $reward->referrer_lessons,
+                (int) $referrer->extra_lessons_balance,
+                'Ваш коллега ' . $referred->name . ' оплатил тариф по вашему приглашению.',
+            ));
+        }
+
+        if ($reward->referred_lessons > 0) {
+            $referred->refresh();
+            $referred->notify(new \App\Notifications\ReferralBonusCredited(
+                $reward->referred_lessons,
+                (int) $referred->extra_lessons_balance,
+                'Подарок за регистрацию по приглашению коллеги.',
+            ));
+        }
+
+        return $reward;
+    }
+
+    /**
+     * Бонус — только за самую первую оплату тарифа. Если учитель уже платил раньше
+     * (например, пока программа была выключена), следующие оплаты бонусов не дают.
+     */
+    protected static function hasEarlierTariffPayment(SubscriptionPayment $payment): bool
+    {
+        return SubscriptionPayment::where('user_id', $payment->user_id)
+            ->where('id', '<', $payment->id)
+            ->whereIn('status', [SubscriptionPayment::STATUS_PAID, SubscriptionPayment::STATUS_REFUNDED])
+            ->where('amount', '>', 0)
+            ->where(fn ($q) => $q->whereNull('extra_lessons')->orWhere('extra_lessons', 0))
+            ->get()
+            ->contains(fn (SubscriptionPayment $p) => empty($p->meta['card_binding']));
+    }
+
+    protected static function createReward(SubscriptionPayment $payment, User $referred, User $referrer): ?ReferralReward
+    {
+        return DB::transaction(function () use ($payment, $referred, $referrer) {
             // Одно начисление на приглашённого — только за первую оплату
             if (ReferralReward::where('referred_id', $referred->id)->lockForUpdate()->exists()) {
                 return null;
@@ -206,30 +256,6 @@ class ReferralService
 
             return $reward;
         });
-
-        if (!$reward) {
-            return null;
-        }
-
-        if ($reward->referrer_lessons > 0) {
-            $referrer->refresh();
-            $referrer->notify(new \App\Notifications\ReferralBonusCredited(
-                $reward->referrer_lessons,
-                (int) $referrer->extra_lessons_balance,
-                'Ваш коллега ' . $referred->name . ' оплатил тариф по вашему приглашению.',
-            ));
-        }
-
-        if ($reward->referred_lessons > 0) {
-            $referred->refresh();
-            $referred->notify(new \App\Notifications\ReferralBonusCredited(
-                $reward->referred_lessons,
-                (int) $referred->extra_lessons_balance,
-                'Подарок за регистрацию по приглашению коллеги.',
-            ));
-        }
-
-        return $reward;
     }
 
     /**
