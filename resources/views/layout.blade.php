@@ -44,7 +44,7 @@
   {!! \App\Support\SeoSettings::get('seo_head_extra') !!}
   <link href="/css/normalize.css" rel="stylesheet" type="text/css">
   <link href="/css/webflow.css" rel="stylesheet" type="text/css">
-  <link href="/css/serdal-ru.webflow.css" rel="stylesheet" type="text/css">
+  <link href="/css/serdal-ru.webflow.css?v={{ filemtime(public_path('css/serdal-ru.webflow.css')) }}" rel="stylesheet" type="text/css">
   <link href="/css/catalog.css?v={{ filemtime(public_path('css/catalog.css')) }}" rel="stylesheet" type="text/css">
   @yield('styles')
   {{-- Шрифт — обычной таблицей стилей с display=swap: текст виден сразу, без блокирующего загрузчика --}}

@@ -277,7 +277,30 @@ a {
 }
 
 .trailer-button.become-tutor-button {
+  white-space: nowrap;
   padding-left: 32px;
+}
+
+/* Размеры — как у «Найти специалиста» рядом */
+@media screen and (max-width: 991px) {
+  .trailer-button.become-tutor-button {
+    font-size: 24px;
+    line-height: 32px;
+  }
+}
+
+@media screen and (max-width: 767px) {
+  .trailer-button.become-tutor-button {
+    justify-content: center;
+  }
+}
+
+@media screen and (max-width: 479px) {
+  .trailer-button.become-tutor-button {
+    padding-left: 16px;
+    padding-right: 16px;
+    font-size: 22px;
+  }
 }
 
 .trailer-button-thumb {
