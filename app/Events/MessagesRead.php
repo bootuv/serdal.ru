@@ -16,15 +16,17 @@ class MessagesRead implements ShouldBroadcast
     public int $roomId;
     public array $messageIds;
     public string $readAt;
+    public string $channel;
 
     /**
-     * Create a new event instance.
+     * Create a new event instance. $channel — канал чата: «room.{id}» (по умолчанию) или «personal-chat.{id}».
      */
-    public function __construct(int $roomId, array $messageIds, string $readAt)
+    public function __construct(int $roomId, array $messageIds, string $readAt, ?string $channel = null)
     {
         $this->roomId = $roomId;
         $this->messageIds = $messageIds;
         $this->readAt = $readAt;
+        $this->channel = $channel ?? 'room.' . $roomId;
     }
 
     /**
@@ -35,7 +37,7 @@ class MessagesRead implements ShouldBroadcast
     public function broadcastOn(): array
     {
         return [
-            new PrivateChannel('room.' . $this->roomId),
+            new PrivateChannel($this->channel),
         ];
     }
 

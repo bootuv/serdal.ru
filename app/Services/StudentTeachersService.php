@@ -102,18 +102,10 @@ class StudentTeachersService
             ->values();
     }
 
-    /**
-     * Ссылка «Написать учителю»: чат общего занятия (последнего по времени).
-     */
+    /** Ссылка «Написать учителю»: личный чат или чат индивидуального занятия (см. MessengerService::chatUrlWith). */
     public function chatUrl(int $studentId, int $teacherId): string
     {
-        $roomId = Room::query()
-            ->where('user_id', $teacherId)
-            ->whereHas('participants', fn ($q) => $q->where('users.id', $studentId))
-            ->latest('updated_at')
-            ->value('id');
-
-        return MessengerService::url(User::findOrFail($studentId), $roomId);
+        return app(MessengerService::class)->chatUrlWith(User::findOrFail($studentId), $teacherId);
     }
 
     /** Отзыв ученика об учителе (один на пару ученик–учитель). */

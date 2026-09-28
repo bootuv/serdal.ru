@@ -7,11 +7,14 @@ use App\Jobs\SendUnreadMessageNotification;
 use App\Jobs\SendUnreadSupportMessageNotification;
 use App\Livewire\Cabinet\Messages;
 use App\Models\Message;
+use App\Models\PersonalChat;
 use App\Models\Room;
 use App\Models\SupportChat;
 use App\Models\SupportMessage;
 use App\Models\User;
 use App\Services\MessengerService;
+use App\Services\StudentTeachersService;
+use App\Services\TeacherStudentsService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Event;
@@ -280,5 +283,110 @@ class MessagesTest extends TestCase
     {
         $this->assertSame(route('cabinet.teacher.messages', ['room' => 5]), MessengerService::url($this->teacher, 5));
         $this->assertSame(route('cabinet.student.messages', ['support' => 1]), MessengerService::url($this->alina, support: true));
+    }
+
+    public function test_teacher_writes_to_student_without_lessons(): void
+    {
+        $oleg = $this->user(User::ROLE_STUDENT, 'Олег Кузнецов');
+        $this->teacher->students()->attach($oleg);
+
+        // Общих занятий нет — ссылка ведёт в личный чат, он создаётся при открытии
+        $url = app(TeacherStudentsService::class)->chatUrl($this->teacher, $oleg->id);
+        $this->assertSame(route('cabinet.teacher.messages', ['with' => $oleg->id]), $url);
+
+        Livewire::withQueryParams(['with' => $oleg->id])
+            ->actingAs($this->teacher)
+            ->test(Messages::class)
+            ->assertSet('with', null)
+            ->assertSee('Олег Кузнецов')
+            ->assertSee('Карточка ученика')
+            ->set('draft', 'Олег, добрый день! Когда удобно начать?')
+            ->call('send');
+
+        $chat = PersonalChat::firstOrFail();
+        $this->assertSame([$this->teacher->id, $oleg->id], [$chat->teacher_id, $chat->student_id]);
+        $this->assertSame($chat->id, Message::firstOrFail()->personal_chat_id);
+        Queue::assertPushed(SendUnreadMessageNotification::class, fn ($job) => $job->recipient->id === $oleg->id);
+
+        // Повторная ссылка ведёт в тот же чат; у ученика он в списке, ответ доходит учителю
+        $this->assertSame(route('cabinet.teacher.messages', ['personal' => $chat->id]), app(TeacherStudentsService::class)->chatUrl($this->teacher, $oleg->id));
+        $this->assertSame(1, app(MessengerService::class)->unreadCount($oleg));
+
+        Livewire::actingAs($oleg)->test(Messages::class)
+            ->assertSee('Мария Соколова')
+            ->assertSee('Олег, добрый день!')
+            ->call('open', 'personal-' . $chat->id)
+            ->set('draft', 'Давайте с понедельника')
+            ->call('send');
+
+        $this->assertSame(0, app(MessengerService::class)->unreadCount($oleg));
+        $this->assertSame(1, app(MessengerService::class)->unreadCount($this->teacher));
+        Queue::assertPushed(SendUnreadMessageNotification::class, fn ($job) => $job->recipient->id === $this->teacher->id);
+    }
+
+    public function test_student_sees_teacher_without_lessons_and_writes_first(): void
+    {
+        $oleg = $this->user(User::ROLE_STUDENT, 'Олег Кузнецов');
+        $this->teacher->students()->attach($oleg);
+
+        $this->assertSame(
+            route('cabinet.student.messages', ['with' => $this->teacher->id]),
+            app(StudentTeachersService::class)->chatUrl($oleg->id, $this->teacher->id),
+        );
+
+        Livewire::actingAs($oleg)->test(Messages::class)
+            ->assertSee('Мария Соколова')
+            ->call('open', 'with-' . $this->teacher->id)
+            ->assertSet('personal', fn ($id) => $id !== null)
+            ->set('draft', 'Здравствуйте! Я по поводу занятий')
+            ->call('send');
+
+        $this->assertSame(1, PersonalChat::where('teacher_id', $this->teacher->id)->where('student_id', $oleg->id)->count());
+        $this->assertSame(1, app(MessengerService::class)->unreadCount($this->teacher));
+    }
+
+    public function test_write_link_prefers_individual_lesson_chat(): void
+    {
+        $this->teacher->students()->attach([$this->alina->id, $this->ivan->id]);
+
+        // У Алины есть индивидуальное занятие — пишем туда, у Ивана только группа — в личный чат
+        $this->assertSame(route('cabinet.teacher.messages', ['room' => $this->single->id]), app(TeacherStudentsService::class)->chatUrl($this->teacher, $this->alina->id));
+        $this->assertSame(route('cabinet.teacher.messages', ['with' => $this->ivan->id]), app(TeacherStudentsService::class)->chatUrl($this->teacher, $this->ivan->id));
+        $this->assertSame(route('cabinet.student.messages', ['room' => $this->single->id]), app(StudentTeachersService::class)->chatUrl($this->alina->id, $this->teacher->id));
+    }
+
+    public function test_personal_chat_needs_teacher_student_link(): void
+    {
+        $stranger = $this->user(User::ROLE_STUDENT, 'Пётр Чужой');
+
+        // Не ученик учителя — чат не создаётся
+        Livewire::withQueryParams(['with' => $stranger->id])
+            ->actingAs($this->teacher)
+            ->test(Messages::class)
+            ->assertSet('personal', null);
+        $this->assertSame(0, PersonalChat::count());
+
+        // Чужой личный чат не открывается
+        $otherTeacher = $this->user(User::ROLE_TUTOR);
+        $foreign = PersonalChat::create(['teacher_id' => $otherTeacher->id, 'student_id' => $stranger->id]);
+        Livewire::withQueryParams(['personal' => $foreign->id])
+            ->actingAs($this->teacher)
+            ->test(Messages::class)
+            ->assertSet('personal', null);
+
+        // Ученика убрали из списка — переписка остаётся для чтения
+        $this->teacher->students()->attach($this->ivan);
+        $chat = PersonalChat::create(['teacher_id' => $this->teacher->id, 'student_id' => $this->ivan->id]);
+        Message::create(['personal_chat_id' => $chat->id, 'user_id' => $this->ivan->id, 'content' => 'Спасибо за занятия']);
+        $this->teacher->students()->detach($this->ivan);
+
+        Livewire::withQueryParams(['personal' => $chat->id])
+            ->actingAs($this->teacher)
+            ->test(Messages::class)
+            ->assertSee('Спасибо за занятия')
+            ->assertSee('Архив')
+            ->set('draft', 'Ещё одно')
+            ->call('send')
+            ->assertForbidden();
     }
 }

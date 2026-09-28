@@ -17,19 +17,21 @@ class NewMessage extends CabinetNotification
 
     public function toDatabase(object $notifiable): array
     {
-        $roomName = $this->message->room->name;
         $senderName = $this->message->user->name;
         $roomId = $this->message->room_id;
+        $personalId = $this->message->personal_chat_id;
 
         // Determine the correct URL based on user role
         $url = null;
         try {
-            $url = \App\Services\MessengerService::url($notifiable, $roomId);
+            $url = \App\Services\MessengerService::url($notifiable, $roomId, personal: $personalId);
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::warning("Failed to generate messenger URL for notification: " . $e->getMessage());
         }
 
-        $notification = CabinetMessage::make("Новое сообщение в «{$roomName}»")
+        $title = $personalId ? "Новое сообщение от {$senderName}" : "Новое сообщение в «{$this->message->room?->name}»";
+
+        $notification = CabinetMessage::make($title)
             ->body($senderName . ': ' . CabinetMessage::messagePreview($this->message->content, $this->message->attachments))
             ->icon('chat');
 

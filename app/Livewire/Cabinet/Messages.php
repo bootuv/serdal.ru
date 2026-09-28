@@ -5,6 +5,7 @@ namespace App\Livewire\Cabinet;
 use App\Helpers\FileUploadHelper;
 use App\Livewire\Cabinet\Teacher\Concerns\TeacherScreen;
 use App\Models\Message;
+use App\Models\PersonalChat;
 use App\Models\Room;
 use App\Models\SupportChat;
 use App\Models\SupportMessage;
@@ -18,7 +19,7 @@ use Livewire\Component;
 use Livewire\WithFileUploads;
 
 /**
- * «Сообщения» учителя и ученика: чаты занятий и поддержка. Макет: «Учитель · Сообщения» (docs/design/BRAND.md).
+ * «Сообщения» учителя и ученика: личные чаты, чаты занятий и поддержка. Макет: «Учитель · Сообщения» (docs/design/BRAND.md).
  * Один экран на обе роли — маршруты cabinet.teacher.messages и cabinet.student.messages.
  */
 #[Layout('components.layouts.cabinet', ['title' => 'Сообщения', 'active' => 'messages', 'bare' => true])]
@@ -33,6 +34,14 @@ class Messages extends Component
 
     #[Url(except: null)]
     public ?int $room = null;
+
+    /** Личный чат учителя и ученика. */
+    #[Url(except: null)]
+    public ?int $personal = null;
+
+    /** Собеседник из ссылки «Написать…»: открываем личный чат с ним (создаём при первом открытии). */
+    #[Url(except: null)]
+    public ?int $with = null;
 
     #[Url(except: false)]
     public bool $support = false;
@@ -68,6 +77,15 @@ class Messages extends Component
         if ($this->room && ! $this->service()->room($user, $this->room)) {
             $this->room = null;
         }
+        if ($this->with) {
+            $this->personal = $this->service()->personalChatWith($user, $this->with)?->id;
+            $this->with = null;
+            $this->room = null;
+            $this->support = false;
+        }
+        if ($this->personal && ! $this->service()->personalChat($user, $this->personal)) {
+            $this->personal = null;
+        }
         $this->markOpenRead();
     }
 
@@ -81,11 +99,12 @@ class Messages extends Component
         return auth()->user();
     }
 
-    /** Открытый чат: занятие или поддержка. */
-    private function chat(): Room|SupportChat|null
+    /** Открытый чат: личный, занятия или поддержка. */
+    private function chat(): Room|PersonalChat|SupportChat|null
     {
         return match (true) {
             $this->support => $this->service()->supportChat($this->user()),
+            $this->personal !== null => $this->service()->personalChat($this->user(), $this->personal),
             $this->room !== null => $this->service()->room($this->user(), $this->room),
             default => null,
         };
@@ -103,13 +122,23 @@ class Messages extends Component
         $this->resetComposer();
         $this->limit = self::PAGE;
 
+        $this->support = false;
+        $this->room = null;
+        $this->personal = null;
+
         if ($key === 'support') {
             $this->support = true;
-            $this->room = null;
+        } elseif (str_starts_with($key, 'with-')) {
+            $chat = $this->service()->personalChatWith($this->user(), (int) str_replace('with-', '', $key));
+            abort_unless($chat, 404);
+            $this->personal = $chat->id;
+        } elseif (str_starts_with($key, 'personal-')) {
+            $id = (int) str_replace('personal-', '', $key);
+            abort_unless($this->service()->personalChat($this->user(), $id), 404);
+            $this->personal = $id;
         } else {
             $id = (int) str_replace('room-', '', $key);
             abort_unless($this->service()->room($this->user(), $id), 404);
-            $this->support = false;
             $this->room = $id;
         }
 
@@ -121,6 +150,7 @@ class Messages extends Component
     {
         $this->resetComposer();
         $this->room = null;
+        $this->personal = null;
         $this->support = false;
     }
 
@@ -146,8 +176,14 @@ class Messages extends Component
         foreach ($this->service()->rooms($user)->withoutTrashed()->pluck('rooms.id') as $id) {
             $listeners["echo-private:room.{$id},.message.sent"] = 'incoming';
         }
+        foreach ($this->service()->personalChats($user)->pluck('id') as $id) {
+            $listeners["echo-private:personal-chat.{$id},.message.sent"] = 'incoming';
+        }
         if ($this->room) {
             $listeners["echo-private:room.{$this->room},.messages.read"] = '$refresh';
+        }
+        if ($this->personal) {
+            $listeners["echo-private:personal-chat.{$this->personal},.messages.read"] = '$refresh';
         }
         if ($chat = SupportChat::where('user_id', $user->id)->first()) {
             $listeners["echo-private:support-chat.{$chat->id},.support.message.sent"] = 'incoming';
@@ -190,6 +226,7 @@ class Messages extends Component
         $chat = $this->chat();
         abort_unless($chat, 404);
         abort_if($chat instanceof Room && $chat->trashed(), 403);
+        abort_if($chat instanceof PersonalChat && ! $chat->isActive(), 403);
 
         $this->validate(['draft' => ['nullable', 'string', 'max:5000']], ['draft.max' => 'Сообщение слишком длинное — разделите его на несколько.']);
 
@@ -254,9 +291,11 @@ class Messages extends Component
         $chat = $this->chat();
         abort_unless($chat, 404);
 
-        $message = $chat instanceof SupportChat
-            ? SupportMessage::where('support_chat_id', $chat->id)->find($id)
-            : Message::where('room_id', $chat->id)->find($id);
+        $message = match (true) {
+            $chat instanceof SupportChat => SupportMessage::where('support_chat_id', $chat->id)->find($id),
+            $chat instanceof PersonalChat => Message::where('personal_chat_id', $chat->id)->find($id),
+            default => Message::where('room_id', $chat->id)->find($id),
+        };
         abort_unless($message, 404);
 
         return $message;
@@ -285,6 +324,7 @@ class Messages extends Component
         $chat = $this->chat();
         $current = match (true) {
             $chat instanceof SupportChat => $list['support'],
+            $chat instanceof PersonalChat => $list['dialogs']->firstWhere('personal_id', $chat->id),
             $chat instanceof Room => $list['dialogs']->firstWhere('room_id', $chat->id),
             default => null,
         };

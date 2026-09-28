@@ -26,6 +26,13 @@ Broadcast::channel('room.{roomId}', function ($user, $roomId) {
     return $room->participants()->where('user_id', $user->id)->exists();
 });
 
+// Канал личного чата учителя и ученика - доступен только им двоим
+Broadcast::channel('personal-chat.{chatId}', function ($user, $chatId) {
+    $chat = \App\Models\PersonalChat::find($chatId);
+
+    return $chat && in_array($user->id, [$chat->teacher_id, $chat->student_id], true);
+});
+
 // Канал для чата техподдержки - доступен владельцу чата и всем админам
 Broadcast::channel('support-chat.{chatId}', function ($user, $chatId) {
     $chat = \App\Models\SupportChat::find($chatId);

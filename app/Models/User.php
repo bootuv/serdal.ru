@@ -415,6 +415,8 @@ class User extends Authenticatable
             $user->homeworks()->get()->each->delete();
             $user->homeworkSubmissions()->get()->each->delete();
             $user->messages()->get()->each->delete();
+            // Личные чаты с собеседниками — вместе с их сообщениями и файлами
+            PersonalChat::where('teacher_id', $user->id)->orWhere('student_id', $user->id)->get()->each->delete();
 
             // Assuming SupportMessage relation exists or will be added, if not present we need to add it or use query
             // Checking file analysis, SupportMessage has user_id, but User model doesn't have supportMessages relation yet.

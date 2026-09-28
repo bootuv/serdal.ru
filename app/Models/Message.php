@@ -12,6 +12,7 @@ class Message extends Model
 
     protected $fillable = [
         'room_id',
+        'personal_chat_id',
         'user_id',
         'content',
         'attachments',
@@ -26,6 +27,17 @@ class Message extends Model
     public function room(): BelongsTo
     {
         return $this->belongsTo(Room::class);
+    }
+
+    public function personalChat(): BelongsTo
+    {
+        return $this->belongsTo(PersonalChat::class);
+    }
+
+    /** Канал реалтайма: чат занятия или личный чат. */
+    public function channelName(): string
+    {
+        return $this->personal_chat_id ? 'personal-chat.' . $this->personal_chat_id : 'room.' . $this->room_id;
     }
 
     public function user(): BelongsTo

@@ -217,25 +217,24 @@ class Today extends Component
         ];
     }
 
-    /** Последние сообщения учеников в чатах занятий (как список чатов в «Сообщениях» старого кабинета). */
+    /** Последние сообщения учеников в чатах занятий и личных чатах (как список чатов в «Сообщениях»). */
     private function messages(User $teacher): array
     {
         $roomIds = Room::withTrashed()->where('user_id', $teacher->id)->pluck('id');
+        $personalIds = \App\Models\PersonalChat::where('teacher_id', $teacher->id)->pluck('id');
+        $incoming = fn () => Message::where(fn ($q) => $q->whereIn('room_id', $roomIds)->orWhereIn('personal_chat_id', $personalIds))
+            ->where('user_id', '!=', $teacher->id);
+        $chatKey = fn (Message $m) => $m->personal_chat_id ? 'p' . $m->personal_chat_id : 'r' . $m->room_id;
 
-        $latest = Message::whereIn('room_id', $roomIds)
-            ->where('user_id', '!=', $teacher->id)
+        $latest = $incoming()
             ->with('user:id,name')
             ->latest()
             ->limit(50)
             ->get()
-            ->unique('room_id')
+            ->unique($chatKey)
             ->take(3);
 
-        $unread = Message::whereIn('room_id', $latest->pluck('room_id'))
-            ->where('user_id', '!=', $teacher->id)
-            ->whereNull('read_at')
-            ->pluck('room_id')
-            ->countBy();
+        $unread = $incoming()->whereNull('read_at')->get(['room_id', 'personal_chat_id'])->countBy($chatKey);
 
         return [
             'messages' => $latest->map(fn (Message $m) => [
@@ -244,10 +243,10 @@ class Today extends Component
                 'userId' => $m->user_id,
                 'time' => $m->created_at->isToday() ? $m->created_at->format('H:i') : HumanDate::day($m->created_at),
                 'text' => $m->content ? Str::limit(trim(strip_tags($m->content)), 80) : 'Файл',
-                'unread' => $unread[$m->room_id] ?? 0,
-                'url' => \App\Services\MessengerService::url($teacher, $m->room_id),
+                'unread' => $unread[$chatKey($m)] ?? 0,
+                'url' => \App\Services\MessengerService::url($teacher, $m->room_id, personal: $m->personal_chat_id),
             ])->sortByDesc(fn (array $m) => $m['unread'] > 0)->values(),
-            'messagesUnread' => Message::whereIn('room_id', $roomIds)->where('user_id', '!=', $teacher->id)->whereNull('read_at')->count(),
+            'messagesUnread' => $unread->sum(),
             'messagesUrl' => \App\Services\MessengerService::url($teacher),
         ];
     }

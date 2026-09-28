@@ -10,6 +10,7 @@ use App\Jobs\SendSupportMessageTelegramNotification;
 use App\Jobs\SendUnreadMessageNotification;
 use App\Jobs\SendUnreadSupportMessageNotification;
 use App\Models\Message;
+use App\Models\PersonalChat;
 use App\Models\Room;
 use App\Models\SupportChat;
 use App\Models\SupportMessage;
@@ -19,11 +20,12 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 
 /**
- * Сообщения: чаты занятий (учитель — владелец, ученики — участники) и чат с поддержкой.
+ * Сообщения: личные чаты учителя и ученика, чаты занятий (учитель — владелец, ученики — участники) и чат с поддержкой.
  * Используется экраном «Сообщения» и поддержкой в админке.
  */
 class MessengerService
@@ -53,6 +55,57 @@ class MessengerService
         return $this->rooms($user)->whereKey($roomId)->first();
     }
 
+    /** Личные чаты пользователя (включая чаты с бывшими учениками и учителями — они только для чтения). */
+    public function personalChats(User $user): Builder
+    {
+        return PersonalChat::query()->where(self::isTeacher($user) ? 'teacher_id' : 'student_id', $user->id);
+    }
+
+    public function personalChat(User $user, int $chatId): ?PersonalChat
+    {
+        return $this->personalChats($user)->whereKey($chatId)->first();
+    }
+
+    /**
+     * Личный чат с собеседником: учитель — с учеником из своего списка, ученик — со своим учителем.
+     * Создаётся при первом открытии. Связи teacher_student нет — только уже существующий чат (для чтения).
+     */
+    public function personalChatWith(User $user, int $otherId): ?PersonalChat
+    {
+        [$teacherId, $studentId] = self::isTeacher($user) ? [$user->id, $otherId] : [$otherId, $user->id];
+
+        $chat = PersonalChat::where('teacher_id', $teacherId)->where('student_id', $studentId)->first();
+        if ($chat || ! DB::table('teacher_student')->where('teacher_id', $teacherId)->where('student_id', $studentId)->exists()) {
+            return $chat;
+        }
+
+        return PersonalChat::firstOrCreate(['teacher_id' => $teacherId, 'student_id' => $studentId]);
+    }
+
+    /**
+     * Ссылка «Написать ученику» / «Написать учителю»: личный чат, если переписка уже есть;
+     * иначе чат индивидуального занятия с этим человеком; иначе новый личный чат.
+     */
+    public function chatUrlWith(User $user, int $otherId): string
+    {
+        [$teacherId, $studentId] = self::isTeacher($user) ? [$user->id, $otherId] : [$otherId, $user->id];
+
+        $personalId = PersonalChat::where('teacher_id', $teacherId)->where('student_id', $studentId)->value('id');
+        if ($personalId) {
+            return self::url($user, personal: $personalId);
+        }
+
+        $roomId = Room::query()
+            ->where('user_id', $teacherId)
+            ->where(fn (Builder $q) => $q->whereNull('type')->orWhere('type', '!=', 'group'))
+            ->whereHas('participants', fn ($q) => $q->where('users.id', $studentId))
+            ->has('participants', '=', 1)
+            ->latest('updated_at')
+            ->value('id');
+
+        return $roomId ? self::url($user, $roomId) : self::url($user, with: $otherId);
+    }
+
     public function supportChat(User $user): SupportChat
     {
         return SupportChat::getOrCreateForUser($user);
@@ -66,12 +119,17 @@ class MessengerService
             ->whereNull('read_at')
             ->count();
 
+        $personal = Message::whereIn('personal_chat_id', $this->personalChats($user)->select('personal_chats.id'))
+            ->where('user_id', '!=', $user->id)
+            ->whereNull('read_at')
+            ->count();
+
         $support = SupportMessage::whereHas('supportChat', fn ($q) => $q->where('user_id', $user->id))
             ->where('user_id', '!=', $user->id)
             ->whereNull('read_at')
             ->count();
 
-        return $rooms + $support;
+        return $rooms + $personal + $support;
     }
 
     /**
@@ -102,7 +160,9 @@ class MessengerService
                 'time' => $message ? $this->shortTime($message->created_at) : '',
                 'sort' => ($message?->created_at ?? $room->created_at)?->getTimestamp() ?? 0,
             ];
-        })->sortByDesc('sort')->values();
+        });
+
+        $dialogs = $dialogs->concat($this->personalDialogs($user))->sortByDesc('sort')->values();
 
         $chat = $this->supportChat($user);
         $lastSupport = $chat->messages()->latest('id')->first();
@@ -121,6 +181,74 @@ class MessengerService
         ];
 
         return ['support' => $support, 'dialogs' => $dialogs];
+    }
+
+    /** Личные чаты в списке диалогов. Ученику — и текущие учителя, с которыми переписки ещё нет (чат создастся при открытии). */
+    private function personalDialogs(User $user): Collection
+    {
+        $chats = $this->personalChats($user)
+            ->with(['teacher', 'student'])
+            ->withCount(['messages as unread_count' => fn ($q) => $q->where('user_id', '!=', $user->id)->whereNull('read_at')])
+            ->get();
+
+        $last = Message::whereIn('id', Message::selectRaw('max(id)')->whereIn('personal_chat_id', $chats->pluck('id'))->groupBy('personal_chat_id'))
+            ->get()
+            ->keyBy('personal_chat_id');
+
+        $dialogs = $chats->map(function (PersonalChat $chat) use ($user, $last) {
+            $message = $last->get($chat->id);
+
+            return $this->describePersonal($user, $chat) + [
+                'key' => 'personal-' . $chat->id,
+                'room_id' => null,
+                'personal_id' => $chat->id,
+                'unread' => (int) $chat->unread_count,
+                'preview' => $message ? $this->preview($user, $message, false) : 'Сообщений пока нет',
+                'time' => $message ? $this->shortTime($message->created_at) : '',
+                'sort' => ($message?->created_at ?? $chat->created_at)?->getTimestamp() ?? 0,
+            ];
+        });
+
+        if (self::isTeacher($user)) {
+            return $dialogs;
+        }
+
+        $teachers = $user->teachers()->whereNotIn('users.id', $chats->pluck('teacher_id'))->get();
+
+        return $dialogs->concat($teachers->map(fn (User $teacher) => [
+            'type' => 'person',
+            'name' => $teacher->name,
+            'sub' => 'Учитель',
+            'link' => null,
+            'archived' => false,
+            'avatar' => $teacher,
+            'key' => 'with-' . $teacher->id,
+            'room_id' => null,
+            'personal_id' => null,
+            'unread' => 0,
+            'preview' => 'Сообщений пока нет',
+            'time' => '',
+            'sort' => 0,
+        ]));
+    }
+
+    /** Имя, подпись и ссылка личного чата с точки зрения пользователя. */
+    public function describePersonal(User $user, PersonalChat $chat): array
+    {
+        $other = $chat->other($user);
+        $archived = ! $chat->isActive();
+        $teacher = self::isTeacher($user);
+
+        return [
+            'type' => 'person',
+            'name' => $other?->name ?? ($teacher ? 'Ученик' : 'Учитель'),
+            'sub' => $teacher ? 'Ученик' : 'Учитель',
+            'link' => $teacher && ! $archived && $other && Route::has('cabinet.teacher.student')
+                ? ['label' => 'Карточка ученика', 'url' => TeacherStudentsService::studentUrl($other)]
+                : null,
+            'archived' => $archived,
+            'avatar' => $other,
+        ];
     }
 
     /** Имя, подпись и тип диалога занятия с точки зрения пользователя. */
@@ -199,7 +327,7 @@ class MessengerService
      *
      * @return array{items: array<int, array>, more: bool}
      */
-    public function thread(User $user, Room|SupportChat $chat, int $limit): array
+    public function thread(User $user, Room|PersonalChat|SupportChat $chat, int $limit): array
     {
         $rows = $chat->messages()->with('user:id,name')->latest('id')->take($limit + 1)->get();
         $more = $rows->count() > $limit;
@@ -256,7 +384,7 @@ class MessengerService
     }
 
     /** Помечает прочитанными чужие сообщения и сообщает собеседникам (галочки). */
-    public function markRead(User $user, Room|SupportChat $chat): void
+    public function markRead(User $user, Room|PersonalChat|SupportChat $chat): void
     {
         // Администратор читает сообщения владельца чата поддержки (ответы других администраторов — не его входящие)
         $unread = self::isSupportSide($user, $chat)
@@ -270,13 +398,15 @@ class MessengerService
         $readAt = now();
         $chat->messages()->whereKey($ids)->update(['read_at' => $readAt]);
 
-        broadcast($chat instanceof Room
-            ? new MessagesRead($chat->id, $ids, $readAt->toISOString())
-            : new SupportMessagesRead($chat->id, $ids, $readAt->toISOString()))->toOthers();
+        broadcast(match (true) {
+            $chat instanceof Room => new MessagesRead($chat->id, $ids, $readAt->toISOString()),
+            $chat instanceof PersonalChat => new MessagesRead($chat->id, $ids, $readAt->toISOString(), 'personal-chat.' . $chat->id),
+            default => new SupportMessagesRead($chat->id, $ids, $readAt->toISOString()),
+        })->toOthers();
     }
 
     /** Администратор в чужом чате поддержки — отвечает от имени поддержки. */
-    public static function isSupportSide(User $user, Room|SupportChat $chat): bool
+    public static function isSupportSide(User $user, Room|PersonalChat|SupportChat $chat): bool
     {
         return $chat instanceof SupportChat && $user->role === User::ROLE_ADMIN && $chat->user_id !== $user->id;
     }
@@ -348,7 +478,7 @@ class MessengerService
     /**
      * Отправляет сообщение. $attachments — уже загруженные файлы: [path, name, type, size].
      */
-    public function send(User $user, Room|SupportChat $chat, string $text, array $attachments = []): Model
+    public function send(User $user, Room|PersonalChat|SupportChat $chat, string $text, array $attachments = []): Model
     {
         $text = trim($text);
         $attachments = array_values(array_map(fn (array $a) => [
@@ -380,8 +510,10 @@ class MessengerService
             return $message;
         }
 
+        $personal = $chat instanceof PersonalChat;
         $message = Message::create([
-            'room_id' => $chat->id,
+            'room_id' => $personal ? null : $chat->id,
+            'personal_chat_id' => $personal ? $chat->id : null,
             'user_id' => $user->id,
             'content' => $text,
             'attachments' => $attachments ?: null,
@@ -389,8 +521,12 @@ class MessengerService
         $message->load('user');
         broadcast(new MessageSent($message))->toOthers();
 
-        $chat->loadMissing('participants', 'user');
-        $recipients = $chat->participants->push($chat->user)->filter()->unique('id')->reject(fn (User $u) => $u->id === $user->id);
+        if ($personal) {
+            $recipients = collect([$chat->other($user)])->filter();
+        } else {
+            $chat->loadMissing('participants', 'user');
+            $recipients = $chat->participants->push($chat->user)->filter()->unique('id')->reject(fn (User $u) => $u->id === $user->id);
+        }
         foreach ($recipients as $recipient) {
             SendUnreadMessageNotification::dispatch($message, $recipient)->delay(now()->addSeconds(self::NOTIFY_DELAY_SECONDS));
         }
@@ -398,16 +534,20 @@ class MessengerService
         return $message;
     }
 
-    /** Удалить можно своё сообщение; учитель — любое в своём занятии; админ — любое. */
+    /** Удалить можно своё сообщение; учитель — любое в своём занятии и личном чате; админ — любое. */
     public function canDelete(User $user, Model $message): bool
     {
         if ($message->user_id === $user->id || $user->role === User::ROLE_ADMIN) {
             return true;
         }
 
-        return $message instanceof Message
-            && self::isTeacher($user)
-            && Room::withTrashed()->whereKey($message->room_id)->where('user_id', $user->id)->exists();
+        if (! $message instanceof Message || ! self::isTeacher($user)) {
+            return false;
+        }
+
+        return $message->personal_chat_id
+            ? PersonalChat::whereKey($message->personal_chat_id)->where('teacher_id', $user->id)->exists()
+            : Room::withTrashed()->whereKey($message->room_id)->where('user_id', $user->id)->exists();
     }
 
     public function delete(User $user, Model $message): void
@@ -433,11 +573,14 @@ class MessengerService
         }
     }
 
-    /** Ссылка на диалог: новый экран, если он есть, иначе старый кабинет. */
-    public static function url(User $user, ?int $roomId = null, bool $support = false): string
+    /**
+     * Ссылка на диалог: новый экран, если он есть, иначе старый кабинет.
+     * $personal — личный чат, $with — собеседник (личный чат с ним создастся при открытии).
+     */
+    public static function url(User $user, ?int $roomId = null, bool $support = false, ?int $personal = null, ?int $with = null): string
     {
         $route = self::isTeacher($user) ? 'cabinet.teacher.messages' : 'cabinet.student.messages';
-        $params = array_filter(['room' => $roomId, 'support' => $support ? 1 : null]);
+        $params = array_filter(['room' => $roomId, 'personal' => $personal, 'with' => $with, 'support' => $support ? 1 : null]);
 
         if (Route::has($route)) {
             return route($route, $params);

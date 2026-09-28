@@ -33,7 +33,7 @@
                 <p class="p-3 text-t2 text-muted">Никого не нашли — проверьте имя или название группы</p>
             @elseif ($q === '' && $dialogs->isEmpty())
                 <p class="p-3 text-t2 text-muted">
-                    {{ \App\Services\MessengerService::isTeacher(auth()->user()) ? 'Чат появится, когда вы добавите ученика в занятие.' : 'Чат появится, когда учитель добавит вас в занятие.' }}
+                    {{ \App\Services\MessengerService::isTeacher(auth()->user()) ? 'Чатов пока нет. Написать ученику можно из его карточки.' : 'Чат появится, когда у вас будет учитель.' }}
                 </p>
             @endif
         </div>
