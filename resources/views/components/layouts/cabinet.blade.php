@@ -61,6 +61,9 @@
         default => $to('cabinet.teacher.profile', '/tutor/edit-profile'),
     };
     $supportHref = $user ? \App\Services\MessengerService::url($user, support: true) : '#';
+    // «Тур по кабинету» — вернуться к туру в любой момент (CabinetTourService)
+    $tourHref = ! $isAdmin && \App\Services\CabinetTourService::available($user) ? \App\Services\CabinetTourService::startUrl($user) : null;
+    $helpCenterHref = route('help.section', $isStudent ? 'students' : 'tutors');
 
     // Тариф и лимиты учитель видит карточкой на «Сегодня» (x-ui.tariff), в сайдбаре — только ссылка
     $profileSub = $isAdmin ? 'Администратор' : ($isStudent ? 'Профиль' : 'Профиль и тариф');
@@ -74,6 +77,9 @@
         $moreItems[] = ['key' => 'settings', 'label' => 'Настройки', 'icon' => 'settings', 'href' => route('cabinet.admin.settings')];
         $moreItems[] = ['key' => 'profile', 'label' => 'Профиль', 'icon' => 'user', 'href' => $profileHref];
     } else {
+        if ($tourHref) {
+            $moreItems[] = ['key' => 'tour', 'label' => 'Тур по кабинету', 'icon' => 'play', 'href' => $tourHref];
+        }
         $moreItems[] = ['key' => 'support', 'label' => 'Поддержка', 'icon' => 'help', 'href' => $supportHref];
         $moreItems[] = ['key' => 'profile', 'label' => $isStudent ? 'Профиль' : 'Профиль и тариф', 'icon' => 'user', 'href' => $profileHref];
     }
@@ -90,6 +96,10 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    @if ($tourHref)
+        {{-- Идёт тур по кабинету (resources/js/tour.js) — затемняем экран сразу, до загрузки скриптов, чтобы переход между шагами не мигал --}}
+        <script>try { if (sessionStorage.getItem('cabinet-tour') || /[?&]tour=/.test(location.search)) { const h = document.documentElement; h.dataset.tour = 'loading'; setTimeout(() => { if (h.dataset.tour === 'loading') delete h.dataset.tour; }, 5000); } } catch (e) {}</script>
+    @endif
     @vite(['resources/css/cabinet.css', 'resources/js/cabinet.js'])
 </head>
 <body>
@@ -99,7 +109,7 @@
     <aside class="sticky top-0 hidden h-screen w-sidebar shrink-0 flex-col gap-8 border-r border-line px-4 pb-4 pt-8 lg:flex">
         <div class="flex items-center justify-between gap-2 pl-3">
             <a href="{{ $nav[0]['href'] }}"><img src="{{ asset('images/Logo.svg') }}" alt="Serdal" class="h-6 w-auto"></a>
-            <button type="button" x-data="{ n: {{ $unread }} }" x-on:notifications-count.window="n = $event.detail.count" x-on:click="$dispatch('notifications-open')"
+            <button type="button" x-data="{ n: {{ $unread }} }" x-on:notifications-count.window="n = $event.detail.count" x-on:click="$dispatch('notifications-open')" data-tour="bell"
                 class="relative flex size-9 items-center justify-center rounded text-muted hover:bg-soft-hover hover:text-ink" x-bind:aria-label="n ? 'Уведомления, есть новые' : 'Уведомления'" aria-label="Уведомления">
                 <x-ui.icon name="bell" />
                 <span x-show="n > 0" class="absolute right-2 top-2 size-2 rounded-full bg-danger shadow-dot-ring" {!! $unread ? '' : 'x-cloak' !!}></span>
@@ -112,7 +122,7 @@
                     <span class="mx-3 my-2 h-px bg-line" aria-hidden="true"></span>
                     @continue
                 @endif
-                <a href="{{ $item['href'] }}" @class([
+                <a href="{{ $item['href'] }}" data-tour="nav-{{ $item['key'] }}" @class([
                     'flex h-11 items-center gap-3 rounded px-3 text-t1-s font-medium',
                     'bg-mint font-semibold text-ink' => $active === $item['key'],
                     'text-muted hover:bg-soft-hover hover:text-ink' => $active !== $item['key'],
@@ -132,15 +142,29 @@
                 <livewire:cabinet.referral-promo />
                 {{-- Плашку скрыли — партнёрка остаётся доступной обычной ссылкой --}}
                 @if (\App\Services\ReferralService::enabled() && ! \App\Services\ReferralService::shouldShowBanner($user) && \Illuminate\Support\Facades\Route::has('cabinet.teacher.referrals'))
-                    <a href="{{ route('cabinet.teacher.referrals') }}" class="flex h-11 items-center gap-3 rounded px-3 text-t1-s font-medium text-muted hover:bg-soft-hover hover:text-ink"><x-ui.icon name="share" />Пригласить коллег</a>
+                    <a href="{{ route('cabinet.teacher.referrals') }}" data-tour="referrals" class="flex h-11 items-center gap-3 rounded px-3 text-t1-s font-medium text-muted hover:bg-soft-hover hover:text-ink"><x-ui.icon name="share" />Пригласить коллег</a>
                 @endif
             @endunless
             @if ($isAdmin)
                 <a href="{{ route('cabinet.admin.settings') }}" @class(['flex h-11 items-center gap-3 rounded px-3 text-t1-s font-medium', 'bg-mint font-semibold text-ink' => $active === 'settings', 'text-muted hover:bg-soft-hover hover:text-ink' => $active !== 'settings'])><x-ui.icon name="settings" />Настройки</a>
             @else
-                <a href="{{ $supportHref }}" class="flex h-11 items-center gap-3 rounded px-3 text-t1-s font-medium text-muted hover:bg-soft-hover hover:text-ink"><x-ui.icon name="help" />Поддержка</a>
+                {{-- Помощь: поддержка, тур и база знаний одной строкой, список открывается вверх. Тур открывает его сам (событие tour-reveal). --}}
+                <div class="relative" data-tour="help" x-data="{ open: false }" x-on:click.outside="open = false" x-on:keydown.escape="open = false"
+                     x-on:tour-reveal.window="open = $event.detail.name === 'help'">
+                    <div x-show="open" x-cloak role="menu" aria-label="Помощь" data-tour="help-menu" class="absolute inset-x-0 bottom-full z-10 mb-1 flex flex-col rounded border border-line bg-white p-1 shadow-card">
+                        <a href="{{ $supportHref }}" role="menuitem" class="flex h-11 items-center gap-3 rounded-sm px-3 text-t1-s font-medium text-ink hover:bg-soft-hover"><x-ui.icon name="chat" />Поддержка</a>
+                        @if ($tourHref)
+                            <a href="{{ $tourHref }}" role="menuitem" class="flex h-11 items-center gap-3 rounded-sm px-3 text-t1-s font-medium text-ink hover:bg-soft-hover"><x-ui.icon name="play" />Тур по кабинету</a>
+                        @endif
+                        <a href="{{ $helpCenterHref }}" target="_blank" rel="noopener" role="menuitem" class="flex h-11 items-center gap-3 rounded-sm px-3 text-t1-s font-medium text-ink hover:bg-soft-hover"><x-ui.icon name="list" />База знаний<x-ui.icon name="external" size="s" class="ml-auto text-faint" /></a>
+                    </div>
+                    <button type="button" x-on:click="open = ! open" x-bind:aria-expanded="open" aria-haspopup="menu"
+                            class="flex h-11 w-full items-center gap-3 rounded px-3 text-t1-s font-medium hover:bg-soft-hover hover:text-ink" x-bind:class="open ? 'bg-soft-hover text-ink' : 'text-muted'">
+                        <x-ui.icon name="help" />Помощь<x-ui.icon name="chevron-down" size="s" class="ml-auto transition-transform" x-bind:class="open && 'rotate-180'" />
+                    </button>
+                </div>
             @endif
-            <a href="{{ $profileHref }}" class="flex items-center gap-3 border-t border-line px-3 pt-4">
+            <a href="{{ $profileHref }}" data-tour="nav-profile" class="flex items-center gap-3 border-t border-line px-3 pt-4">
                 <x-ui.avatar :user="$user" />
                 <span class="flex min-w-0 flex-col gap-1">
                     <span class="truncate text-t2 font-medium">{{ $user?->name }}</span>
@@ -155,7 +179,7 @@
         {{-- Верхняя панель (телефон) --}}
         <div class="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-line bg-white px-4 lg:hidden">
             <a href="{{ $nav[0]['href'] }}" aria-label="Serdal — на главный экран кабинета"><img src="{{ asset('images/Logo.svg') }}" alt="Serdal" class="h-6 w-auto"></a>
-            <button type="button" x-data="{ n: {{ $unread }} }" x-on:notifications-count.window="n = $event.detail.count" x-on:click="$dispatch('notifications-open')"
+            <button type="button" x-data="{ n: {{ $unread }} }" x-on:notifications-count.window="n = $event.detail.count" x-on:click="$dispatch('notifications-open')" data-tour="bell"
                 class="relative flex size-11 items-center justify-center rounded shadow-outline" x-bind:aria-label="n ? 'Уведомления, есть новые' : 'Уведомления'" aria-label="Уведомления">
                 <x-ui.icon name="bell" />
                 <span x-show="n > 0" class="absolute right-3 top-3 size-2 rounded-full bg-danger shadow-dot-ring" {!! $unread ? '' : 'x-cloak' !!}></span>
@@ -169,12 +193,12 @@
         {{-- Нижняя панель вкладок (телефон) --}}
         <nav class="fixed inset-x-0 bottom-0 z-10 flex border-t border-line bg-white pb-4 pt-2 lg:hidden" aria-label="Разделы">
             @foreach ($mobileTabs as $item)
-                <a href="{{ $item['href'] }}" class="flex flex-1 flex-col items-center gap-1 text-tab font-medium {{ $active === $item['key'] ? 'text-ink' : 'text-muted' }}">
+                <a href="{{ $item['href'] }}" data-tour="tab-{{ $item['key'] }}" class="flex flex-1 flex-col items-center gap-1 text-tab font-medium {{ $active === $item['key'] ? 'text-ink' : 'text-muted' }}">
                     <span class="relative flex h-8 w-12 items-center justify-center rounded-full {{ $active === $item['key'] ? 'bg-mint' : '' }}"><x-ui.icon :name="$item['icon']" />@if (! empty($item['count']))<span class="absolute right-3 top-1 size-2 rounded-full bg-danger shadow-dot-ring"></span>@endif</span>
                     {{ $item['label'] }}
                 </a>
             @endforeach
-            <button type="button" x-data x-on:click="$dispatch('more-open')" aria-haspopup="dialog" class="flex flex-1 flex-col items-center gap-1 text-tab font-medium {{ $moreActive ? 'text-ink' : 'text-muted' }}">
+            <button type="button" x-data x-on:click="$dispatch('more-open')" aria-haspopup="dialog" data-tour="more" class="flex flex-1 flex-col items-center gap-1 text-tab font-medium {{ $moreActive ? 'text-ink' : 'text-muted' }}">
                 <span class="relative flex h-8 w-12 items-center justify-center rounded-full {{ $moreActive ? 'bg-mint' : '' }}"><x-ui.icon name="menu" />@if (collect($moreItems)->contains(fn ($i) => ! empty($i['count'])))<span class="absolute right-3 top-1 size-2 rounded-full bg-danger shadow-dot-ring"></span>@endif</span>Ещё
             </button>
         </nav>
@@ -205,6 +229,9 @@
 <livewire:cabinet.notifications />
 <x-ui.lightbox />
 <livewire:cabinet.push-prompt />
+@unless ($isAdmin)
+    <livewire:cabinet.tour />
+@endunless
 <x-ui.toast />
 {{-- Звук важных уведомлений (флаг sound у broadcast-уведомления) — тот же скрипт, что в старом кабинете --}}
 @include('partials.notification-sound')

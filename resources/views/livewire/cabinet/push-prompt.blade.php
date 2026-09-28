@@ -7,7 +7,8 @@
             if (Notification.permission === 'denied') return;
             await window.PushNotifications.init(@js($vapid));
             if (Notification.permission === 'granted' && window.PushNotifications.isSubscribed) return;
-            setTimeout(() => this.ask = true, 1500);
+            // Идёт тур по кабинету (resources/js/tour.js) — не перебиваем его, спросим на следующем экране
+            setTimeout(() => this.ask = ! document.documentElement.dataset.tour, 1500);
         },
         async enable() {
             this.busy = true;

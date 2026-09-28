@@ -10,6 +10,6 @@
             <h1 class="text-h1-m font-medium lg:text-h1">{{ $title }}</h1>
             @if ($sub)<p class="text-t1 text-muted">{{ $sub }}</p>@endif
         </div>
-        @isset($actions)<div class="flex shrink-0 items-center gap-2">{{ $actions }}</div>@endisset
+        @isset($actions)<div class="flex shrink-0 items-center gap-2" data-tour="actions">{{ $actions }}</div>@endisset
     </header>
 </div>

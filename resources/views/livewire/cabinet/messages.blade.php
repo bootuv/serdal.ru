@@ -16,9 +16,12 @@
         </div>
 
         <div class="flex flex-col gap-1 px-3 pb-tabbar lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pb-6">
-            @foreach (array_filter([$supportDialog]) as $d)
-                @include('livewire.cabinet.messages.dialog', ['d' => $d, 'classes' => $row($d)])
-            @endforeach
+            @if ($supportDialog)
+                {{-- Чат поддержки подсвечивает тур по кабинету --}}
+                <div data-tour="support-chat" class="flex flex-col">
+                    @include('livewire.cabinet.messages.dialog', ['d' => $supportDialog, 'classes' => $row($supportDialog)])
+                </div>
+            @endif
             @if ($supportDialog && $dialogs->isNotEmpty())
                 <div class="mx-3 my-1 h-px shrink-0 bg-line"></div>
             @endif

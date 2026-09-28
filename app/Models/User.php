@@ -67,6 +67,7 @@ class User extends Authenticatable
         'referral_code',
         'referred_by_id',
         'referral_banner_hidden_until',
+        'tour_seen_at',
     ];
 
     /**
@@ -97,6 +98,7 @@ class User extends Authenticatable
             'extra_lessons_balance' => 'integer',
             'referral_banner_hidden_until' => 'datetime',
             'last_login_at' => 'datetime',
+            'tour_seen_at' => 'datetime',
             'platform_review_dismissed_at' => 'datetime',
         ];
     }

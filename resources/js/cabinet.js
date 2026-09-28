@@ -35,6 +35,7 @@ window.serdalShareReviewCard = async function (url) {
 import './rich-editor';
 import './lightbox';
 import './video-player';
+import './tour';
 
 /**
  * Сбои запросов Livewire: вместо стандартного окна Livewire (английский confirm для 419, HTML ошибки для 500)

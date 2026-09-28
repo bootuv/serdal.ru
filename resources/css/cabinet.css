@@ -5,11 +5,17 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Плавная смена экранов; вне тура её отключает resources/js/tour.js (pageswap) */
+@view-transition { navigation: auto; }
+
 @layer base {
     html { -webkit-font-smoothing: antialiased; }
     body { @apply bg-white font-sans text-t1 text-ink; }
     :focus-visible { outline: 2px solid theme('colors.ink.DEFAULT'); outline-offset: 2px; }
     [x-cloak] { display: none !important; }
+
+    /* Тур по кабинету (resources/js/tour.js): экран затемнён, пока грузится следующий шаг */
+    html[data-tour="loading"] body::after { content: ''; @apply pointer-events-none fixed inset-0 z-30 bg-scrim; }
     summary::-webkit-details-marker { display: none; }
 }
 
