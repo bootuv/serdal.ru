@@ -47,6 +47,37 @@ class RichText
             ->implode('');
     }
 
+    /** Простой текст сообщения → экранированный HTML, где адреса (https://…, www.…) стали ссылками в новой вкладке. */
+    public static function linkify(string $text): HtmlString
+    {
+        $parts = preg_split('~((?:https?://|www\.)[^\s<>"\']+)~iu', $text, -1, PREG_SPLIT_DELIM_CAPTURE);
+
+        $html = '';
+        foreach ($parts as $i => $part) {
+            if ($i % 2 === 0) {
+                $html .= e($part);
+                continue;
+            }
+
+            // Знаки препинания в конце — часть предложения, а не адреса; закрывающая скобка — если нет открывающей
+            preg_match('~^(.*?)([.,;:!?…]*)$~su', $part, $m);
+            [$url, $tail] = [$m[1], $m[2]];
+            while (str_ends_with($url, ')') && substr_count($url, '(') < substr_count($url, ')')) {
+                $url = substr($url, 0, -1);
+                $tail = ')' . $tail;
+            }
+            if (preg_match('~^(?:https?://|www\.)$~i', $url)) {
+                $html .= e($part);
+                continue;
+            }
+
+            $href = preg_match('~^https?://~i', $url) ? $url : 'https://' . $url;
+            $html .= '<a href="' . e($href) . '" target="_blank" rel="noopener noreferrer" class="link">' . e($url) . '</a>' . e($tail);
+        }
+
+        return new HtmlString($html);
+    }
+
     /** HTML → простой текст для поля ввода. */
     public static function toPlain(?string $html): string
     {

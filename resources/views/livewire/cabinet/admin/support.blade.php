@@ -84,7 +84,7 @@
                                         @endif
                                     @endforeach
 
-                                    @if ($m['text'] !== '')<p class="whitespace-pre-wrap break-words text-t1-s">{{ $m['text'] }}</p>@endif
+                                    @if ($m['text'] !== '')<p class="whitespace-pre-wrap break-words text-t1-s">{{ \App\Support\RichText::linkify($m['text']) }}</p>@endif
 
                                     <span class="flex items-center justify-end gap-1 text-count text-muted">
                                         {{ $m['time'] }}
