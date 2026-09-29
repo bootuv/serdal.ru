@@ -80,6 +80,7 @@ Route::middleware(['auth', \App\Http\Middleware\CheckUserActive::class])
             'tariffs' => ['/admin/tariffs', 'Tariffs'],
             'tariff' => ['/admin/tariffs/{tariff}', 'Tariff'],     // {tariff} = id или new
             'referrals' => ['/admin/referrals', 'Referrals'],
+            'founders' => ['/admin/founders', 'Founders'],        // вкладки: взносы, расходы, доли (?tab=)
             'help' => ['/admin/help', 'Help'],
             'help-article' => ['/admin/help/articles/{article}', 'HelpArticle'], // {article} = id или new
             'settings' => ['/admin/settings', 'Settings'],        // вкладки, в т.ч. «Справочники» (предметы и направления)

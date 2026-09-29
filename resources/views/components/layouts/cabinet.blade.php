@@ -50,6 +50,7 @@
             ['key' => 'payments', 'label' => 'Платежи', 'icon' => 'wallet', 'href' => $a('payments')],
             ['key' => 'tariffs', 'label' => 'Тарифы', 'icon' => 'tasks', 'href' => $a('tariffs')],
             ['key' => 'referrals', 'label' => 'Приглашения', 'icon' => 'share', 'href' => $a('referrals')],
+            ['key' => 'founders', 'label' => 'Основатели', 'icon' => 'lock', 'href' => $a('founders')],
             ['sep' => true],
             ['key' => 'help', 'label' => 'База знаний', 'icon' => 'help', 'href' => $a('help')],
         ];

@@ -46,3 +46,6 @@ Schedule::call(function () {
     \App\Models\Room::where('is_running', true)->distinct()->pluck('user_id')
         ->each(fn ($userId) => \App\Jobs\SyncUserBbbStatus::dispatch((int) $userId));
 })->everyTwoMinutes()->name('bbb-status-fallback-sync')->withoutOverlapping();
+
+// Основателям: напоминание о ежемесячном сборе на расходы платформы (админка «Основатели»)
+Schedule::command('founders:remind')->dailyAt('10:00')->withoutOverlapping();
