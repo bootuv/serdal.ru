@@ -16,6 +16,7 @@ use Illuminate\Support\Collection;
  * Раздел «Основатели»: доли, расходы на инфраструктуру и ежемесячный сбор.
  *
  * Взнос за месяц = расходы в месяц (годовые — /12, выключенные не считаются) × доля основателя.
+ * Разовый расход собирается отдельной строкой (своя отметка «Внесено») вместе со сбором за выбранный месяц.
  * Сбор — раз в месяц в назначенный день (founders_contribution_day; в коротком месяце — последний день).
  * Пока взнос не отмечен внесённым, сумма пересчитывается от текущих расходов и долей; внесённый — не меняется.
  * Напоминания на почту: за N дней до дня сбора, в сам день и через OVERDUE_DAYS дней, если не внесено.
@@ -72,7 +73,7 @@ class FounderService
     /** Расходы в месяц: годовые — делённые на 12, выключенные не считаются. */
     public function monthlyTotal(): float
     {
-        return round(FounderExpense::where('is_active', true)->get()->sum(fn (FounderExpense $e) => $e->monthly()), 2);
+        return round(FounderExpense::where('is_active', true)->where('period', '!=', FounderExpense::PERIOD_ONCE)->get()->sum(fn (FounderExpense $e) => $e->monthly()), 2);
     }
 
     public function sharesTotal(): float
@@ -80,7 +81,19 @@ class FounderService
         return round((float) Founder::sum('share'), 2);
     }
 
-    /** Взнос основателя от суммы расходов в месяц — в целых рублях. */
+    /**
+     * Разовые расходы, которые собираем вместе со сбором за месяц period.
+     *
+     * @return Collection<int, FounderExpense>
+     */
+    public function oneOffs(Carbon $period): Collection
+    {
+        return FounderExpense::where('period', FounderExpense::PERIOD_ONCE)->where('is_active', true)
+            ->whereDate('charge_period', $period->copy()->startOfMonth())
+            ->orderBy('sort')->orderBy('id')->get();
+    }
+
+    /** Взнос основателя от суммы расходов — в целых рублях. */
     public static function amountFor(Founder $founder, float $total): int
     {
         return (int) round($total * (float) $founder->share / 100);
@@ -126,7 +139,9 @@ class FounderService
     }
 
     /**
-     * Взносы за месяц по всем основателям: недостающие создаются, невнесённые пересчитываются.
+     * Взносы за месяц по всем основателям: ежемесячный и по строке на каждый разовый расход этого месяца.
+     * Недостающие создаются, невнесённые пересчитываются; невнесённые доли в разовых расходах,
+     * которые удалили, выключили или перенесли на другой месяц, убираются. Порядок: основатель, ежемесячный, разовые.
      *
      * @return Collection<int, FounderContribution>
      */
@@ -134,20 +149,51 @@ class FounderService
     {
         $period = $period->copy()->startOfMonth();
         $total = $this->monthlyTotal();
+        $oneOffs = $this->oneOffs($period);
+        $existing = FounderContribution::whereDate('period', $period)->get();
 
-        return $this->founders()->map(function (Founder $founder) use ($period, $total) {
-            $c = FounderContribution::where('founder_id', $founder->id)->whereDate('period', $period)->first()
-                ?? new FounderContribution(['founder_id' => $founder->id, 'period' => $period]);
+        // Невнесённые доли в разовых расходах, которых в этом месяце больше нет
+        $stale = $existing->filter(fn (FounderContribution $c) => $c->isOneOff() && ! $c->paid_at && ! $oneOffs->contains('id', $c->founder_expense_id));
+        if ($stale->isNotEmpty()) {
+            FounderContribution::whereKey($stale->modelKeys())->delete();
+            $existing = $existing->diff($stale);
+        }
 
-            if (! $c->paid_at) {
-                $c->amount = self::amountFor($founder, $total);
+        $founders = $this->founders();
+        $result = collect();
+        foreach ($founders as $founder) {
+            $lines = [[null, null, $total]];
+            foreach ($oneOffs as $e) {
+                $lines[] = [$e->id, $e->name, (float) $e->amount];
             }
-            if ($c->isDirty()) {
-                $c->save();
-            }
 
-            return $c->setRelation('founder', $founder);
-        });
+            foreach ($lines as [$expenseId, $title, $sum]) {
+                $c = $existing->first(fn (FounderContribution $x) => $x->founder_id === $founder->id
+                    && ($expenseId ? $x->founder_expense_id === $expenseId : ! $x->isOneOff()))
+                    ?? new FounderContribution(['founder_id' => $founder->id, 'founder_expense_id' => $expenseId, 'period' => $period, 'title' => $title]);
+
+                if (! $c->paid_at) {
+                    $c->amount = self::amountFor($founder, $sum);
+                    $c->title = $title;
+                }
+                if ($c->isDirty()) {
+                    $c->save();
+                }
+                $result->push($c->setRelation('founder', $founder));
+            }
+        }
+
+        // Внесённые доли удалённых расходов остаются в истории
+        $existing->filter(fn (FounderContribution $c) => $c->isOneOff() && $c->paid_at && ! $oneOffs->contains('id', $c->founder_expense_id))
+            ->each(fn (FounderContribution $c) => $result->push($c->setRelation('founder', $founders->firstWhere('id', $c->founder_id))));
+
+        return $result->filter(fn (FounderContribution $c) => $c->founder)->values();
+    }
+
+    /** Строки взносов в порядке: основатель, ежемесячный, разовые. */
+    public static function ordered(Collection $contributions): Collection
+    {
+        return $contributions->sortBy(fn (FounderContribution $c) => sprintf('%010d-%d-%010d', $c->founder?->sort ?? 0, $c->founder_id, $c->isOneOff() ? $c->id : 0))->values();
     }
 
     /** Отметить взнос внесённым (by — кто отметил) или снять отметку. */
@@ -194,7 +240,7 @@ class FounderService
             ->orderByDesc('period')->orderBy('id')
             ->get()
             ->groupBy(fn (FounderContribution $c) => $c->period->format('Y-m'))
-            ->map(fn (Collection $items) => ['period' => $items->first()->period, 'contributions' => $items->values()])
+            ->map(fn (Collection $items) => ['period' => $items->first()->period, 'contributions' => self::ordered($items)])
             ->when($onlyDebts, fn (Collection $months) => $months->filter(fn (array $m) => $m['contributions']->contains(fn ($c) => $this->isOverdue($c) && (float) $c->amount > 0)))
             ->values();
     }
@@ -216,7 +262,7 @@ class FounderService
                 'founder' => $f,
                 'paid' => (float) $items->whereNotNull('paid_at')->sum('amount'),
                 'debt' => (float) $overdue->sum('amount'),
-                'debtMonths' => $overdue->count(),
+                'debtMonths' => $overdue->map(fn (FounderContribution $c) => $c->period->format('Y-m'))->unique()->count(),
             ];
         });
     }
@@ -252,21 +298,24 @@ class FounderService
         return $due;
     }
 
-    /** Разослать положенные сегодня напоминания тем, кто ещё не внёс. Возвращает число писем. */
+    /** Разослать положенные сегодня напоминания тем, кто ещё не внёс: одно письмо на основателя. Возвращает число писем. */
     public function sendReminders(?Carbon $today = null): int
     {
         $sent = 0;
-        $expenses = FounderExpense::where('is_active', true)->orderBy('sort')->orderBy('id')->get();
+        $expenses = FounderExpense::where('is_active', true)->where('period', '!=', FounderExpense::PERIOD_ONCE)->orderBy('sort')->orderBy('id')->get();
         $total = $this->monthlyTotal();
 
         foreach ($this->remindersDue($today) as ['period' => $period, 'kind' => $kind]) {
-            foreach ($this->sync($period) as $c) {
-                if ($c->paid_at || ! $c->founder->email || (float) $c->amount <= 0 || $c->reminded_at?->isToday()) {
+            $byFounder = $this->sync($period)->groupBy('founder_id');
+            foreach ($byFounder as $items) {
+                $founder = $items->first()->founder;
+                $unpaid = $items->filter(fn (FounderContribution $c) => ! $c->paid_at && (float) $c->amount > 0)->values();
+                if ($unpaid->isEmpty() || ! $founder->email || $unpaid->contains(fn ($c) => $c->reminded_at?->isToday())) {
                     continue;
                 }
 
-                $c->founder->notify(new FounderContributionReminder($c, $kind, $this->dueDate($period), $total, $expenses));
-                $c->update(['reminded_at' => now()]);
+                $founder->notify(new FounderContributionReminder($unpaid, $kind, $this->dueDate($period), $total, $expenses));
+                FounderContribution::whereKey($unpaid->pluck('id')->all())->update(['reminded_at' => now()]);
                 $sent++;
             }
         }

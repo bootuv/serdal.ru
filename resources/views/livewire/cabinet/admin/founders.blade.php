@@ -1,4 +1,4 @@
-{{-- Основатели: вкладки «Взносы» (текущий сбор, долги), «История» (все месяцы, итоги по основателям), «Расходы», «Доли»; окна расхода, основателя, удаления и настроек сбора. --}}
+{{-- Основатели: вкладки «Взносы» (текущий сбор, долги), «История» (все месяцы, итоги по основателям), «Расходы» (постоянные и разовые), «Доли»; окна расхода, основателя, удаления и настроек сбора. --}}
 <div class="flex flex-col gap-6 lg:gap-8">
     <x-ui.page-head title="Основатели" :sub="$factLine">
         <x-slot:actions>
@@ -137,9 +137,9 @@
         @endif
     @elseif ($tab === 'expenses')
         <x-ui.card aria-labelledby="f-exp">
-            <x-ui.card-head id="f-exp" title="Расходы на инфраструктуру" />
+            <x-ui.card-head id="f-exp" title="Постоянные расходы" />
             @if ($expenses->isEmpty())
-                <p class="text-t2 text-muted">Пока пусто — добавьте сервер, домен и сервисы, за которые платим.</p>
+                <p class="text-t2 text-muted">Пока пусто — добавьте сервер, домен и сервисы, за которые платим каждый месяц или раз в год.</p>
             @else
                 <div>
                     <div class="hidden items-center gap-4 pb-3 text-t3 font-medium text-muted lg:flex">
@@ -167,6 +167,29 @@
                     <span class="text-t2 text-muted">Итого · {{ $money($total * 12) }} в год</span>
                     <span class="text-num font-medium">{{ $money($total) }}<span class="text-t2 font-normal text-muted"> в месяц</span></span>
                 </div>
+            @endif
+        </x-ui.card>
+
+        <x-ui.card aria-labelledby="f-once">
+            <x-ui.card-head id="f-once" title="Разовые расходы" />
+            @if ($oneOffs->isEmpty())
+                <p class="text-t2 text-muted">Пока пусто — покупка, которую оплачиваем один раз, делится по долям и собирается вместе с ближайшим или выбранным сбором.</p>
+            @else
+                <x-ui.list>
+                    @foreach ($oneOffs as $e)
+                        <button type="button" wire:key="fo-{{ $e['id'] }}" wire:click="editExpense({{ $e['id'] }})" class="group flex items-center gap-4 border-t border-line py-4 text-left text-ink first:border-t-0 first:pt-0 last:pb-0">
+                            <span class="flex min-w-0 flex-1 flex-col gap-1">
+                                <span class="flex min-w-0 flex-wrap items-center gap-2">
+                                    <span @class(['truncate text-t1 font-medium group-hover:underline', 'text-muted' => ! $e['active'] || $e['past']])>{{ $e['name'] }}</span>
+                                    @unless ($e['active'])<x-ui.badge>Не учитывается</x-ui.badge>@endunless
+                                </span>
+                                @if ($e['sub'])<span class="text-t2 text-muted">{{ $e['sub'] }}</span>@endif
+                            </span>
+                            <span @class(['shrink-0 text-right text-t1 font-medium lg:w-40', 'text-muted' => $e['past'], 'line-through' => ! $e['active']])>{{ $e['amount'] }}</span>
+                            <x-ui.icon name="chevron-right" class="text-faint group-hover:text-ink" />
+                        </button>
+                    @endforeach
+                </x-ui.list>
             @endif
         </x-ui.card>
     @else
@@ -209,15 +232,18 @@
     @endif
 
     @if ($expenseId !== null)
-        <x-ui.modal :title="$expenseId ? 'Расход' : 'Новый расход'" sub="Во взносах годовой расход делится на 12" close="closeExpense">
+        <x-ui.modal :title="$expenseId ? 'Расход' : 'Новый расход'" :sub="$expensePeriod === 'once' ? 'Делится по долям и собирается отдельной строкой' : 'Во взносах годовой расход делится на 12'" close="closeExpense">
             <x-ui.field label="За что платим" name="expenseName" placeholder="Например, сервер" wire:model="expenseName" />
             <div class="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-x-4">
                 <x-ui.unit-field label="Цена" name="expenseAmount" unit="₽" inputmode="decimal" :hint="$expenseMonthly" wire:model.live.debounce.400ms="expenseAmount" />
-                <div class="flex min-w-0 flex-col gap-2">
-                    <span class="text-t2 font-medium">Как платим</span>
-                    <x-ui.seg :items="['month' => 'Каждый месяц', 'year' => 'Раз в год']" model="expensePeriod" :active="$expensePeriod" aria-label="Как платим" />
-                </div>
             </div>
+            <div class="flex min-w-0 flex-col gap-2">
+                <span class="text-t2 font-medium">Как платим</span>
+                <x-ui.seg :items="['month' => 'Каждый месяц', 'year' => 'Раз в год', 'once' => 'Один раз']" model="expensePeriod" :active="$expensePeriod" aria-label="Как платим" />
+            </div>
+            @if ($expensePeriod === 'once')
+                <x-ui.select label="Скидываемся" name="expenseCharge" :options="$chargeOptions" wire:model.live="expenseCharge" />
+            @endif
             <x-ui.field label="Заметка" name="expenseNote" optional placeholder="Где оплачиваем, с какой карты" wire:model="expenseNote" />
             <div class="flex items-start justify-between gap-4 rounded-lg p-4 shadow-line">
                 <div class="flex min-w-0 flex-col gap-1">

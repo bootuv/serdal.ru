@@ -137,7 +137,7 @@ class FoundersTest extends TestCase
         $c = FounderContribution::firstOrCreate(['founder_id' => $ivan->id, 'period' => '2026-10-01']);
         $service->setPaid($c, true);
         $this->artisan('founders:remind')->assertSuccessful();
-        Notification::assertSentTo($petr, FounderContributionReminder::class, fn ($n) => $n->kind === 'soon' && (float) $n->contribution->amount === 3640.0);
+        Notification::assertSentTo($petr, FounderContributionReminder::class, fn ($n) => $n->kind === 'soon' && $n->amount() === 3640.0);
         Notification::assertNotSentTo($ivan, FounderContributionReminder::class);
 
         // Повторно в тот же день не шлём
@@ -162,12 +162,13 @@ class FoundersTest extends TestCase
     {
         [$ivan] = $this->seedData();
         $service = app(FounderService::class);
-        $c = $service->sync(Carbon::parse('2026-10-01'))->firstWhere('founder_id', $ivan->id);
+        $c = $service->sync(Carbon::parse('2026-10-01'))->where('founder_id', $ivan->id)->values();
         $mail = (new FounderContributionReminder($c, 'today', Carbon::parse('2026-10-05'), 9100, FounderExpense::where('is_active', true)->get()))->toMail($ivan);
 
         $this->assertStringContainsString('5 460 ₽', $mail->subject);
         $text = implode("\n", $mail->introLines);
-        $this->assertStringContainsString('60 % от 9 100 ₽', $text);
+        $this->assertStringContainsString('ваша доля 60 %', $text);
+        $this->assertStringContainsString('ежемесячный взнос: 5 460 ₽ (от 9 100 ₽ в месяц)', $text);
         $this->assertStringContainsString('Домен: 1 200 ₽ в год (100 ₽ в месяц)', $text);
     }
 
@@ -223,5 +224,61 @@ class FoundersTest extends TestCase
         Carbon::setTestNow('2026-10-20 10:00');
         $this->artisan('founders:remind')->assertSuccessful();
         $this->assertSame(2, FounderContribution::whereDate('period', '2026-11-01')->count());
+    }
+
+    public function test_one_off_expense_is_collected_separately(): void
+    {
+        $admin = $this->user(User::ROLE_ADMIN);
+        $this->actingAs($admin);
+        Notification::fake();
+        [$ivan, $petr] = $this->seedData();
+        FounderService::saveSettings(5, 3, true);
+        $service = app(FounderService::class);
+        Carbon::setTestNow('2026-10-01 10:00');
+
+        // Иван уже внёс ежемесячный взнос за октябрь
+        $service->sync(now());
+        $service->setPaid(FounderContribution::where('founder_id', $ivan->id)->whereNull('title')->first(), true, $admin);
+
+        Livewire::test(Founders::class)
+            ->set('tab', 'expenses')
+            ->call('editExpense')
+            ->set('expenseName', 'Лицензия')->set('expenseAmount', '10000')->set('expensePeriod', 'once')
+            ->assertSee('По долям: Иван — 6 000 ₽, Пётр — 4 000 ₽')
+            ->assertSet('expenseCharge', '2026-10')
+            ->call('saveExpense')->assertHasNoErrors()
+            ->assertSee('Разовые расходы')->assertSee('в сбор за октябрь');
+
+        // Ежемесячные расходы не выросли, внесённый взнос Ивана не пересчитан — доля в лицензии отдельной строкой
+        $this->assertSame(9100.0, $service->monthlyTotal());
+        $rows = $service->sync(now());
+        $this->assertCount(4, $rows);
+        $ivanRows = $rows->where('founder_id', $ivan->id);
+        $this->assertSame(5460.0, (float) $ivanRows->firstWhere('title', null)->amount);
+        $this->assertNotNull($ivanRows->firstWhere('title', null)->paid_at);
+        $this->assertSame(6000.0, (float) $ivanRows->firstWhere('title', 'Лицензия')->amount);
+        $this->assertNull($ivanRows->firstWhere('title', 'Лицензия')->paid_at);
+
+        Livewire::test(Founders::class)->assertSee('Разово: Лицензия')->assertSee('не внесли 2 из 2');
+
+        // Напоминание: одно письмо, в нём всё невнесённое
+        Carbon::setTestNow('2026-10-02 10:00');
+        $this->assertSame(2, $service->sendReminders());
+        Notification::assertSentTo($ivan, FounderContributionReminder::class, fn ($n) => $n->amount() === 6000.0);
+        Notification::assertSentTo($petr, FounderContributionReminder::class, fn ($n) => $n->amount() === 7640.0);
+
+        // Перенесли на ноябрь — невнесённые доли переехали
+        $expense = FounderExpense::where('name', 'Лицензия')->first();
+        $expense->update(['charge_period' => '2026-11-01']);
+        $this->assertCount(2, $service->sync(Carbon::parse('2026-10-01')));
+        $this->assertSame(2, $service->sync(Carbon::parse('2026-11-01'))->whereNotNull('title')->count());
+
+        // Удалили: невнесённое пропало, внесённое осталось в истории
+        $paid = FounderContribution::where('founder_id', $ivan->id)->where('title', 'Лицензия')->first();
+        $service->setPaid($paid, true, $admin);
+        Livewire::test(Founders::class)->set('tab', 'expenses')->call('editExpense', $expense->id)->call('askDelete', 'expense')->call('confirmDelete');
+        $this->assertSame(1, FounderContribution::where('title', 'Лицензия')->count());
+        $this->assertNotNull(FounderContribution::where('title', 'Лицензия')->first()->paid_at);
+        $this->assertCount(3, $service->sync(Carbon::parse('2026-11-01')));
     }
 }

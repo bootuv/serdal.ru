@@ -17,7 +17,7 @@ use Livewire\Component;
  * Основатели: ежемесячный сбор на расходы платформы.
  * Вкладки: «Взносы» (текущий сбор — кто сколько вносит, отметка «Внесено», долги, окно «Настройки сбора»),
  * «История» (все месяцы: кто внёс, кто нет, кто отметил; итоги и долги по каждому основателю),
- * «Расходы» (инфраструктура с ценами в месяц или в год), «Доли» (основатели, их доли и почта для напоминаний).
+ * «Расходы» (инфраструктура с ценами в месяц, в год или разово — разовый собирается отдельной строкой со сбором за выбранный месяц), «Доли» (основатели, их доли и почта для напоминаний).
  * Логика — FounderService.
  */
 #[Layout('components.layouts.cabinet', ['title' => 'Основатели', 'active' => 'founders'])]
@@ -44,6 +44,8 @@ class Founders extends Component
     public string $expensePeriod = FounderExpense::PERIOD_MONTH;
     public string $expenseNote = '';
     public bool $expenseActive = true;
+    /** Разовый расход: со сбором за какой месяц («2026-10»). */
+    public string $expenseCharge = '';
 
     /* Окно основателя: id или 0 — новый; null — закрыто. */
     public ?int $founderId = null;
@@ -123,6 +125,7 @@ class Founders extends Component
         $this->expensePeriod = $e?->period ?? FounderExpense::PERIOD_MONTH;
         $this->expenseNote = (string) $e?->note;
         $this->expenseActive = $e ? (bool) $e->is_active : true;
+        $this->expenseCharge = ($e?->charge_period ?? $this->service()->currentPeriod())->format('Y-m');
         $this->resetErrorBag();
     }
 
@@ -138,18 +141,21 @@ class Founders extends Component
         $this->validate([
             'expenseName' => ['required', 'string', 'max:120'],
             'expenseAmount' => ['required', 'numeric', 'min:0', 'max:100000000'],
-            'expensePeriod' => ['required', 'in:month,year'],
+            'expensePeriod' => ['required', 'in:month,year,once'],
+            'expenseCharge' => ['required_if:expensePeriod,once', 'nullable', 'regex:/^\d{4}-\d{2}$/'],
             'expenseNote' => ['nullable', 'string', 'max:255'],
         ], [
             'expenseName.required' => 'Укажите, за что платим',
             'expenseAmount.required' => 'Укажите цену',
             'expenseAmount.numeric' => 'Только число, например 990 или 990,50',
+            'expenseCharge.required_if' => 'Выберите, в какой сбор скидываемся',
         ]);
 
         $data = [
             'name' => trim($this->expenseName),
             'amount' => round((float) $this->expenseAmount, 2),
             'period' => $this->expensePeriod,
+            'charge_period' => $this->expensePeriod === FounderExpense::PERIOD_ONCE ? $this->expenseCharge . '-01' : null,
             'note' => trim($this->expenseNote) ?: null,
             'is_active' => $this->expenseActive,
         ];
@@ -234,6 +240,8 @@ class Founders extends Component
     {
         $this->authorizeAdmin();
         if ($this->deleting === 'expense' && $this->expenseId) {
+            // Невнесённые доли разового расхода уходят вместе с ним, внесённые остаются в истории
+            FounderContribution::where('founder_expense_id', $this->expenseId)->whereNull('paid_at')->delete();
             FounderExpense::whereKey($this->expenseId)->delete();
             $this->expenseId = null;
             $this->dispatch('toast', message: 'Расход удалён');
@@ -285,6 +293,22 @@ class Founders extends Component
 
     /* ---------- Вид ---------- */
 
+    /** В какой сбор скинуться на разовый расход: текущий и 5 следующих месяцев (+ уже выбранный, если он в прошлом). */
+    private function chargeOptions(\Illuminate\Support\Carbon $current): array
+    {
+        $options = [];
+        if ($this->expenseCharge !== '' && $this->expenseCharge < $current->format('Y-m') && preg_match('/^\d{4}-\d{2}$/', $this->expenseCharge)) {
+            $past = \Illuminate\Support\Carbon::createFromFormat('Y-m-d', $this->expenseCharge . '-01');
+            $options[$this->expenseCharge] = Str::ucfirst(HumanDate::month($past)) . ' — сбор был ' . HumanDate::date($this->service()->dueDate($past));
+        }
+        for ($i = 0; $i < 6; $i++) {
+            $m = $current->copy()->startOfMonth()->addMonths($i);
+            $options[$m->format('Y-m')] = Str::ucfirst(HumanDate::month($m)) . ' — сбор ' . HumanDate::date($this->service()->dueDate($m));
+        }
+
+        return $options;
+    }
+
     /** Вкладка «История»: итоги по основателям и месяцы с отметками. */
     private function historyView(\Illuminate\Support\Carbon $current): array
     {
@@ -303,14 +327,14 @@ class Founders extends Component
             'months' => $months->take($this->historyMonths)->map(function (array $m) use ($service, $money, $current) {
                 $due = $service->dueDate($m['period']);
                 $items = $m['contributions'];
-                $unpaid = $items->filter(fn ($c) => ! $c->paid_at && (float) $c->amount > 0)->count();
+                $unpaid = $items->filter(fn ($c) => ! $c->paid_at && (float) $c->amount > 0)->pluck('founder_id')->unique()->count();
                 $isCurrent = $m['period']->equalTo($current->copy()->startOfMonth());
 
                 return [
                     'key' => $m['period']->format('Y-m'),
                     'title' => Str::ucfirst(HumanDate::month($m['period'])),
                     'sub' => $money((float) $items->sum('amount')) . ' · ' . ($isCurrent && today()->lte($due) ? 'сбор ' : 'сбор был ') . HumanDate::day($due),
-                    'status' => $unpaid ? 'не внесли ' . $unpaid . ' из ' . $items->count() : 'все внесли',
+                    'status' => $unpaid ? 'не внесли ' . $unpaid . ' из ' . $items->pluck('founder_id')->unique()->count() : 'все внесли',
                     'unpaid' => $unpaid,
                     'overdue' => $unpaid && today()->gt($due),
                     'rows' => $items->map(fn (FounderContribution $c) => [
@@ -319,9 +343,9 @@ class Founders extends Component
                         'amount' => $money((float) $c->amount),
                         'paid' => (bool) $c->paid_at,
                         'overdue' => $service->isOverdue($c) && (float) $c->amount > 0,
-                        'sub' => $c->paid_at
+                        'sub' => ($c->isOneOff() ? $c->label() . ' · ' : '') . ($c->paid_at
                             ? 'внесено ' . HumanDate::day($c->paid_at) . ($c->paidBy ? ', отметка — ' . $c->paidBy->name : '')
-                            : 'не внесено',
+                            : 'не внесено'),
                     ]),
                 ];
             }),
@@ -340,8 +364,9 @@ class Founders extends Component
         $overdue = today()->gt($due);
         $money = fn (float $v) => FounderService::money($v);
 
-        $contributions = $founders->isNotEmpty() ? $service->sync($period) : collect();
-        $unpaid = $contributions->whereNull('paid_at')->count();
+        $contributions = $founders->isNotEmpty() ? FounderService::ordered($service->sync($period)) : collect();
+        $unpaidFounders = $contributions->filter(fn ($c) => ! $c->paid_at && (float) $c->amount > 0)->pluck('founder_id')->unique()->count();
+        $expenses = $service->expenses();
         $debts = $service->debts();
         $pastDebts = $debts->filter(fn (FounderContribution $c) => $c->period->lt($period->copy()->startOfMonth()))->values();
         $history = $this->tab === 'history' ? $this->historyView($period) : null;
@@ -359,13 +384,15 @@ class Founders extends Component
             'sharesOk' => abs($sharesTotal - 100) < 0.01,
 
             'periodTitle' => 'Взнос за ' . HumanDate::month($period),
-            'periodSub' => ($overdue ? 'Срок прошёл ' : 'Сбор ') . HumanDate::day($due) . ' · ' . ($unpaid ? 'не внесли ' . $unpaid . ' из ' . $contributions->count() : 'все внесли'),
+            'periodSub' => ($overdue ? 'Срок прошёл ' : 'Сбор ') . HumanDate::day($due) . ' · ' . $money((float) $contributions->sum('amount'))
+                . ' · ' . ($unpaidFounders ? 'не внесли ' . $unpaidFounders . ' из ' . $founders->count() : 'все внесли'),
+            'hasOneOffs' => $contributions->contains(fn ($c) => $c->isOneOff()),
             'overdue' => $overdue,
             'contributions' => $contributions->map(fn (FounderContribution $c) => [
                 'id' => $c->id,
                 'name' => $c->founder->name,
                 'sub' => implode(' · ', array_filter([
-                    FounderService::percent((float) $c->founder->share),
+                    $c->isOneOff() ? $c->label() : FounderService::percent((float) $c->founder->share),
                     $c->paid_at ? 'внесено ' . HumanDate::day($c->paid_at) : null,
                     ! $c->paid_at && ! $c->founder->email ? 'нет почты — напоминания не придут' : null,
                 ])),
@@ -379,12 +406,12 @@ class Founders extends Component
             'debts' => $pastDebts->map(fn (FounderContribution $c) => [
                 'id' => $c->id,
                 'name' => $c->founder->name,
-                'sub' => 'за ' . HumanDate::month($c->period) . ' · сбор был ' . HumanDate::day($service->dueDate($c->period)),
+                'sub' => ($c->isOneOff() ? mb_strtolower(mb_substr($c->label(), 0, 1)) . mb_substr($c->label(), 1) . ', ' : '') . 'за ' . HumanDate::month($c->period) . ' · сбор был ' . HumanDate::day($service->dueDate($c->period)),
                 'amount' => $money((float) $c->amount),
             ]),
             'debtsTotal' => $money((float) $pastDebts->sum('amount')),
 
-            'expenses' => $service->expenses()->map(fn (FounderExpense $e) => [
+            'expenses' => $expenses->reject(fn (FounderExpense $e) => $e->isOneOff())->values()->map(fn (FounderExpense $e) => [
                 'id' => $e->id,
                 'name' => $e->name,
                 'sub' => implode(' · ', array_filter([
@@ -394,6 +421,22 @@ class Founders extends Component
                 'monthly' => $money($e->monthly()),
                 'active' => (bool) $e->is_active,
             ]),
+
+            // Разовые: ближайшие сверху, собранные — ниже
+            'oneOffs' => $expenses->filter(fn (FounderExpense $e) => $e->isOneOff())
+                ->sortBy(fn (FounderExpense $e) => [$e->charge_period?->lt($period) ? 1 : 0, $e->charge_period?->lt($period) ? -$e->charge_period->timestamp : $e->charge_period?->timestamp])
+                ->values()->map(fn (FounderExpense $e) => [
+                    'id' => $e->id,
+                    'name' => $e->name,
+                    'sub' => implode(' · ', array_filter([
+                        $e->charge_period ? ($e->charge_period->lt($period) ? 'собирали за ' : 'в сбор за ') . HumanDate::month($e->charge_period) : null,
+                        $e->note,
+                    ])),
+                    'amount' => $money((float) $e->amount),
+                    'active' => (bool) $e->is_active,
+                    'past' => (bool) $e->charge_period?->lt($period),
+                ]),
+            'chargeOptions' => $this->chargeOptions($period),
 
             'founders' => $founders->map(fn (Founder $f) => [
                 'id' => $f->id,
@@ -406,9 +449,13 @@ class Founders extends Component
             'history' => $history,
             'historyFilters' => ['all' => 'Все месяцы', 'debts' => 'Где не внесли · ' . $debts->groupBy(fn ($c) => $c->period->format('Y-m'))->count()],
 
-            'expenseMonthly' => $this->expensePeriod === FounderExpense::PERIOD_YEAR && is_numeric(self::number($this->expenseAmount))
-                ? 'В месяц — ' . $money((float) self::number($this->expenseAmount) / 12)
-                : null,
+            'expenseMonthly' => match (true) {
+                ! is_numeric(self::number($this->expenseAmount)) => null,
+                $this->expensePeriod === FounderExpense::PERIOD_YEAR => 'В месяц — ' . $money((float) self::number($this->expenseAmount) / 12),
+                $this->expensePeriod === FounderExpense::PERIOD_ONCE && $founders->isNotEmpty() => 'По долям: ' . $founders
+                    ->map(fn (Founder $f) => $f->name . ' — ' . $money(FounderService::amountFor($f, (float) self::number($this->expenseAmount))))->implode(', '),
+                default => null,
+            },
         ]);
     }
 }

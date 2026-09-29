@@ -16,6 +16,7 @@ use Illuminate\Support\Collection;
 
 /**
  * Письмо основателю: пора скинуться на расходы платформы (раздел админки «Основатели»).
+ * contributions — невнесённые строки основателя за месяц: ежемесячный взнос и доли в разовых расходах.
  * kind: soon — за несколько дней до дня сбора, today — в день сбора, overdue — срок прошёл, а взнос не отмечен.
  * Только почта: основатель не обязательно пользователь кабинета.
  */
@@ -23,8 +24,12 @@ class FounderContributionReminder extends Notification implements ShouldQueue
 {
     use Queueable;
 
+    /**
+     * @param  Collection<int, FounderContribution>  $contributions
+     * @param  Collection<int, FounderExpense>  $expenses  ежемесячные и годовые расходы — из чего складывается ежемесячный взнос
+     */
     public function __construct(
-        public FounderContribution $contribution,
+        public Collection $contributions,
         public string $kind,
         public Carbon $dueDate,
         public float $total,
@@ -36,12 +41,17 @@ class FounderContributionReminder extends Notification implements ShouldQueue
         return ['mail'];
     }
 
+    public function amount(): float
+    {
+        return (float) $this->contributions->sum('amount');
+    }
+
     public function toMail(object $notifiable): MailMessage
     {
-        $c = $this->contribution;
-        $amount = FounderService::money((float) $c->amount);
-        $month = HumanDate::month($c->period);
+        $amount = FounderService::money($this->amount());
+        $month = HumanDate::month($this->contributions->first()->period);
         $due = HumanDate::date($this->dueDate);
+        $share = FounderService::percent((float) $notifiable->share);
 
         $subject = match ($this->kind) {
             'soon' => 'Скоро сбор на расходы: ' . $amount,
@@ -58,12 +68,17 @@ class FounderContributionReminder extends Notification implements ShouldQueue
             ->subject($subject . ' — ' . Seo::SITE_NAME)
             ->greeting('Здравствуйте, ' . $notifiable->name . '!')
             ->line($lead)
-            ->line('Ваш взнос — **' . $amount . '** (' . FounderService::percent((float) $notifiable->share) . ' от ' . FounderService::money($this->total) . ' в месяц).');
+            ->line('С вас — **' . $amount . '**, ваша доля ' . $share . ':');
 
-        if ($this->expenses->isNotEmpty()) {
-            $mail->line('Из чего складываются расходы:');
+        foreach ($this->contributions as $c) {
+            $mail->line('— ' . ($c->isOneOff()
+                ? 'разовый расход «' . $c->title . '»: ' . FounderService::money((float) $c->amount)
+                : 'ежемесячный взнос: ' . FounderService::money((float) $c->amount) . ' (от ' . FounderService::money($this->total) . ' в месяц)'));
+        }
+
+        if ($this->expenses->isNotEmpty() && $this->contributions->contains(fn ($c) => ! $c->isOneOff())) {
+            $mail->line('Из чего складываются расходы в месяц:');
             foreach ($this->expenses as $e) {
-                /** @var FounderExpense $e */
                 $mail->line('— ' . $e->name . ': ' . FounderService::money((float) $e->amount)
                     . ($e->period === FounderExpense::PERIOD_YEAR ? ' в год (' . FounderService::money($e->monthly()) . ' в месяц)' : ' в месяц'));
             }
