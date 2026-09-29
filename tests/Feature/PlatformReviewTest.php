@@ -57,8 +57,11 @@ class PlatformReviewTest extends TestCase
             ->assertDontSee('Как вам Serdal?');
         $this->assertFalse($service->shouldPrompt($teacher->fresh()), 'закрыл — больше не спрашиваем');
 
-        // В профиле оставить отзыв можно всегда
-        Livewire::actingAs($teacher->fresh())->test(PlatformReview::class)->assertSee('Отзыв о Serdal')->assertSee('Оставить отзыв');
+        // В профиле оставить отзыв можно всегда: звезда сразу открывает форму с этой оценкой
+        Livewire::actingAs($teacher->fresh())->test(PlatformReview::class)
+            ->assertSee('Отзыв о Serdal')->assertSee('Оцените от 1 до 5')
+            ->set('promptRating', 4)
+            ->assertSet('open', true)->assertSet('rating', 4)->assertSet('promptRating', 0);
     }
 
     public function test_review_goes_to_moderation_then_to_public_page(): void

@@ -28,6 +28,9 @@ class PlatformReview extends Component
 
     public bool $showOnSite = true;
 
+    /** Звёзды на карточке-приглашении: выбранная оценка сразу открывает форму. */
+    public int $promptRating = 0;
+
     /** Приглашение закрыто в этом просмотре (или отзыв уже отправлен). */
     #[Locked]
     public bool $hidden = false;
@@ -50,6 +53,16 @@ class PlatformReview extends Component
         $this->showOnSite = $review?->show_on_site ?? true;
         $this->resetValidation();
         $this->open = true;
+    }
+
+    public function updatedPromptRating(int $value): void
+    {
+        $this->promptRating = 0;
+
+        if ($value >= 1 && $value <= 5) {
+            $this->openForm();
+            $this->rating = $value;
+        }
     }
 
     public function closeForm(): void
