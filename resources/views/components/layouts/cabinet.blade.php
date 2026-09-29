@@ -9,6 +9,7 @@
     $isAdmin = $user?->role === \App\Models\User::ROLE_ADMIN && request()->routeIs('cabinet.admin.*');
     $unread = $user?->unreadNotifications()->count() ?? 0;
     $unreadMessages = $user ? app(\App\Services\MessengerService::class)->unreadCount($user) : 0;
+    $unreadNews = app(\App\Services\AnnouncementService::class)->unreadCount($user);
 
     // Новый экран, если маршрут уже есть, иначе — страница старого кабинета
     $to = fn (string $route, string $legacy) => \Illuminate\Support\Facades\Route::has($route) ? route($route) : url($legacy);
@@ -22,6 +23,7 @@
             ['key' => 'materials', 'label' => 'Материалы', 'icon' => 'folder', 'href' => $to('cabinet.student.materials', '/student/materials')],
             ['key' => 'recordings', 'label' => 'Записи', 'icon' => 'video', 'href' => $to('cabinet.student.recordings', '/student/recordings')],
             ['key' => 'payments', 'label' => 'Оплата', 'icon' => 'wallet', 'href' => $to('cabinet.student.payments', '/student/payment-debts')],
+            ['key' => 'news', 'label' => 'Новости', 'icon' => 'news', 'href' => $to('cabinet.student.news', '/cabinet/student'), 'count' => $unreadNews],
         ]
         : [
             ['key' => 'today', 'label' => 'Сегодня', 'icon' => 'home', 'href' => $to('cabinet.teacher.today', '/tutor')],
@@ -32,6 +34,7 @@
             ['key' => 'materials', 'label' => 'Материалы', 'icon' => 'folder', 'href' => $to('cabinet.teacher.materials', '/tutor/materials')],
             ['key' => 'recordings', 'label' => 'Записи', 'icon' => 'video', 'href' => $to('cabinet.teacher.recordings', '/tutor/recordings')],
             ['key' => 'reviews', 'label' => 'Отзывы', 'icon' => 'star', 'href' => $to('cabinet.teacher.reviews', '/tutor/reviews'), 'count' => app(\App\Services\TeacherReviewsService::class)->unreadCount($user)],
+            ['key' => 'news', 'label' => 'Новости', 'icon' => 'news', 'href' => $to('cabinet.teacher.news', '/cabinet/teacher'), 'count' => $unreadNews],
         ];
     if ($isAdmin) {
         $inbox = app(\App\Services\AdminInboxService::class)->counts();
@@ -52,6 +55,7 @@
             ['key' => 'referrals', 'label' => 'Приглашения', 'icon' => 'share', 'href' => $a('referrals')],
             ['key' => 'founders', 'label' => 'Основатели', 'icon' => 'lock', 'href' => $a('founders')],
             ['sep' => true],
+            ['key' => 'news', 'label' => 'Новости', 'icon' => 'news', 'href' => $a('news')],
             ['key' => 'help', 'label' => 'База знаний', 'icon' => 'help', 'href' => $a('help')],
         ];
     }

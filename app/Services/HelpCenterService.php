@@ -173,15 +173,16 @@ class HelpCenterService
     /**
      * Картинка в текст статьи: загружается на CDN, возвращается адрес для <img src>.
      * JPG, PNG и WebP сохраняются в WebP (легче при том же виде); GIF — как есть, чтобы не пропала анимация.
+     * $dir — папка на CDN (новости кладут картинки в свою).
      */
-    public function storeImage(UploadedFile $file): string
+    public function storeImage(UploadedFile $file, string $dir = self::IMAGE_DIR): string
     {
         $extension = strtolower($file->getClientOriginalExtension());
 
         if (in_array($extension, ['jpg', 'jpeg', 'png', 'webp'], true)) {
             try {
                 $webp = (string) Image::read($file->get())->scaleDown(width: self::IMAGE_MAX_WIDTH)->toWebp(82);
-                $path = self::IMAGE_DIR . '/' . Str::lower(Str::random(24)) . '.webp';
+                $path = $dir . '/' . Str::lower(Str::random(24)) . '.webp';
                 Storage::disk(self::DISK)->put($path, $webp, 'public');
 
                 return Storage::disk(self::DISK)->url($path);
@@ -191,7 +192,7 @@ class HelpCenterService
             }
         }
 
-        $path = $file->storePublicly(self::IMAGE_DIR, self::DISK);
+        $path = $file->storePublicly($dir, self::DISK);
 
         return Storage::disk(self::DISK)->url($path);
     }

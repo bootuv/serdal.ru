@@ -32,6 +32,9 @@
         </x-ui.card>
     @endif
 
+    {{-- Важная новость от администрации --}}
+    <livewire:cabinet.news-banner />
+
     {{-- Фокус-блок: следующее занятие --}}
     @if ($next)
         <x-ui.card focus class="lg:flex-row lg:items-center lg:justify-between lg:gap-6" aria-label="Следующее занятие">

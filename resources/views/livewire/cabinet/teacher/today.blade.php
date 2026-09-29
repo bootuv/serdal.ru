@@ -3,6 +3,9 @@
         {{-- Новый учитель: первые шаги (макет SyEmptyTeacher) --}}
         <x-ui.page-head :title="'Добро пожаловать, ' . $firstName . '!'" :sub="$today" />
 
+        {{-- Важная новость от администрации --}}
+        <livewire:cabinet.news-banner />
+
         <div class="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
             <x-ui.card focus class="lg:col-span-2" aria-labelledby="fs">
                 <x-ui.card-head id="fs" title="Первые шаги">
@@ -66,6 +69,9 @@
                 <x-ui.btn :href="$limitBanner['action']['url']" class="self-start lg:self-center">{{ $limitBanner['action']['label'] }}</x-ui.btn>
             </x-ui.card>
         @endif
+
+        {{-- Важная новость от администрации --}}
+        <livewire:cabinet.news-banner />
 
         <div class="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
             <div class="flex min-w-0 flex-col gap-6 lg:col-span-2">

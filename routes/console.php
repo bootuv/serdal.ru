@@ -49,3 +49,6 @@ Schedule::call(function () {
 
 // Основателям: напоминание о ежемесячном сборе на расходы платформы (админка «Основатели»)
 Schedule::command('founders:remind')->dailyAt('10:00')->withoutOverlapping();
+
+// Запланированные новости (админка «Новости»): наступило время — уведомляем учителей и учеников
+Schedule::command('news:publish')->everyMinute()->withoutOverlapping();

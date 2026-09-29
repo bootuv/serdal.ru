@@ -20,6 +20,12 @@ Route::middleware(['auth', \App\Http\Middleware\CheckUserActive::class])
         Route::get('/student/messages', \App\Livewire\Cabinet\Messages::class)->name('student.messages')->middleware(\App\Http\Middleware\EnsureCabinetRole::class . ':student');
         Route::get('/teacher/messages', \App\Livewire\Cabinet\Messages::class)->name('teacher.messages')->middleware(\App\Http\Middleware\EnsureCabinetRole::class . ':teacher');
 
+        // Новости от администрации — общие экраны для обеих ролей
+        Route::get('/student/news', \App\Livewire\Cabinet\News::class)->name('student.news')->middleware(\App\Http\Middleware\EnsureCabinetRole::class . ':student');
+        Route::get('/student/news/{announcement}', \App\Livewire\Cabinet\NewsItem::class)->name('student.news-item')->middleware(\App\Http\Middleware\EnsureCabinetRole::class . ':student');
+        Route::get('/teacher/news', \App\Livewire\Cabinet\News::class)->name('teacher.news')->middleware(\App\Http\Middleware\EnsureCabinetRole::class . ':teacher');
+        Route::get('/teacher/news/{announcement}', \App\Livewire\Cabinet\NewsItem::class)->name('teacher.news-item')->middleware(\App\Http\Middleware\EnsureCabinetRole::class . ':teacher');
+
         // Экраны ученика: маршрут подключается, когда готов класс экрана (до этого меню ведёт в старый кабинет)
         $student = [
             'schedule' => ['/student/schedule', 'Schedule'],
@@ -81,6 +87,8 @@ Route::middleware(['auth', \App\Http\Middleware\CheckUserActive::class])
             'tariff' => ['/admin/tariffs/{tariff}', 'Tariff'],     // {tariff} = id или new
             'referrals' => ['/admin/referrals', 'Referrals'],
             'founders' => ['/admin/founders', 'Founders'],        // вкладки: взносы, расходы, доли (?tab=)
+            'news' => ['/admin/news', 'News'],                    // вкладки: опубликованные, запланированные, черновики (?tab=)
+            'news-item' => ['/admin/news/{announcement}', 'NewsItem'], // {announcement} = id или new
             'help' => ['/admin/help', 'Help'],
             'help-article' => ['/admin/help/articles/{article}', 'HelpArticle'], // {article} = id или new
             'settings' => ['/admin/settings', 'Settings'],        // вкладки, в т.ч. «Справочники» (предметы и направления)

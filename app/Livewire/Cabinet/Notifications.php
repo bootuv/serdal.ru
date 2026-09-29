@@ -74,14 +74,17 @@ class Notifications extends Component
         auth()->user()->notifications()->delete();
     }
 
-    /** Счётчики пунктов меню: сообщения, работы на проверку, новые отзывы. */
+    /** Счётчики пунктов меню: сообщения, новости, работы на проверку, новые отзывы. */
     public static function navCounts(\App\Models\User $user): array
     {
         if ($user->role === \App\Models\User::ROLE_ADMIN && request()->routeIs('cabinet.admin.*', 'livewire.update')) {
             return app(\App\Services\AdminInboxService::class)->counts();
         }
 
-        $counts = ['messages' => app(\App\Services\MessengerService::class)->unreadCount($user)];
+        $counts = [
+            'messages' => app(\App\Services\MessengerService::class)->unreadCount($user),
+            'news' => app(\App\Services\AnnouncementService::class)->unreadCount($user),
+        ];
         if ($user->role !== \App\Models\User::ROLE_STUDENT) {
             $counts['tasks'] = \App\Services\HomeworkSubmissionService::toReview($user->id)->reorder()->count();
             $counts['reviews'] = app(\App\Services\TeacherReviewsService::class)->unreadCount($user);
