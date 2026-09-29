@@ -7,6 +7,7 @@ use App\Services\DictionaryService;
 use App\Services\SiteSettingsService;
 use App\Services\YooKassaService;
 use App\Support\SeoSettings;
+use App\Support\SubjectIcons;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -79,6 +80,11 @@ class Settings extends Component
     public ?int $mergeSource = null;
     public string $mergeTarget = '';
     public string $mergeQ = '';
+    /** Окно «Значок и цвет» предмета: iconPick — '' (авто), ключ иконки или 'text' (своя буква); iconColor — '' (авто) или ключ цвета. */
+    public ?int $iconId = null;
+    public string $iconPick = '';
+    public string $iconText = '';
+    public string $iconColor = '';
 
     public function mount(): void
     {
@@ -324,7 +330,7 @@ class Settings extends Component
         if (! in_array($this->dict, DictionaryService::KINDS, true)) {
             $this->dict = 'subjects';
         }
-        $this->reset('dictFilter', 'dictQ', 'adding', 'addName', 'editId', 'editName', 'mergeSource', 'mergeTarget', 'mergeQ');
+        $this->reset('dictFilter', 'dictQ', 'adding', 'addName', 'editId', 'editName', 'mergeSource', 'mergeTarget', 'mergeQ', 'iconId', 'iconPick', 'iconText', 'iconColor');
         $this->resetValidation();
     }
 
@@ -452,6 +458,66 @@ class Settings extends Component
         $this->dispatch('toast', message: '«' . $source['name'] . '» объединён с «' . $target['name'] . '»');
     }
 
+    public function openIcon(int $id): void
+    {
+        $item = $this->dict === 'subjects' ? $this->dictionaries()->items('subjects')->firstWhere('id', $id) : null;
+        if (! $item) {
+            return;
+        }
+        $this->resetValidation();
+        $icon = SubjectIcons::validMark($item['icon']) ? $item['icon'] : '';
+        $this->iconId = $id;
+        $this->iconPick = str_starts_with($icon, SubjectIcons::TEXT_PREFIX) ? 'text' : $icon;
+        $this->iconText = str_starts_with($icon, SubjectIcons::TEXT_PREFIX) ? mb_substr($icon, mb_strlen(SubjectIcons::TEXT_PREFIX)) : '';
+        $this->iconColor = (string) $item['color'];
+    }
+
+    public function closeIcon(): void
+    {
+        $this->reset('iconId', 'iconPick', 'iconText', 'iconColor');
+        $this->resetValidation('iconText');
+    }
+
+    public function pickIcon(string $key): void
+    {
+        if ($key === '' || $key === 'text' || isset(SubjectIcons::ICONS[$key])) {
+            $this->iconPick = $key;
+            $this->resetValidation('iconText');
+        }
+    }
+
+    public function pickColor(string $key): void
+    {
+        if ($key === '' || isset(SubjectIcons::COLORS[$key])) {
+            $this->iconColor = $key;
+        }
+    }
+
+    public function saveIcon(): void
+    {
+        if (! $this->iconId) {
+            return;
+        }
+        $icon = $this->chosenMark();
+        if ($this->iconPick === 'text' && $icon === null) {
+            $this->addError('iconText', 'Введите от одной до ' . SubjectIcons::TEXT_MAX . ' букв');
+
+            return;
+        }
+
+        $this->dictionaries()->setSubjectIcon($this->iconId, $icon, $this->iconColor ?: null);
+        $this->closeIcon();
+        $this->dispatch('toast', message: 'Значок сохранён');
+    }
+
+    /** Выбранный в окне значок в формате subjects.icon; null — авто или буква не введена. */
+    private function chosenMark(): ?string
+    {
+        $mark = $this->iconPick === 'text' ? SubjectIcons::TEXT_PREFIX . trim($this->iconText) : $this->iconPick;
+
+        return SubjectIcons::validMark($mark) ? $mark : null;
+    }
+
     public function render()
     {
         $data = [
@@ -550,6 +616,8 @@ class Settings extends Component
             'mergeSourceItem' => $source,
             'mergeOptions' => $mergeOptions,
             'mergeText' => $mergeText,
+            'iconItem' => $this->iconId ? $items->firstWhere('id', $this->iconId) : null,
+            'iconMark' => $this->iconId ? $this->chosenMark() : null,
         ];
     }
 

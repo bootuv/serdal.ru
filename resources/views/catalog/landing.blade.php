@@ -14,7 +14,14 @@
 @section('content')
   <section class="catalog-head">
     @include('partials.breadcrumbs', ['items' => $breadcrumbs])
-    <h1 class="h1 catalog-head__title">{{ $heading }} онлайн</h1>
+    @if($icon)
+      <div class="catalog-head__heading">
+        {!! $icon !!}
+        <h1 class="h1 catalog-head__title">{{ $heading }} онлайн</h1>
+      </div>
+    @else
+      <h1 class="h1 catalog-head__title">{{ $heading }} онлайн</h1>
+    @endif
     <p class="catalog-head__facts p24">{{ implode(' · ', $facts) }}</p>
     <p class="catalog-head__lead p18">
       Занятия проходят в браузере: видеосвязь, интерактивная доска, демонстрация экрана и запись урока.

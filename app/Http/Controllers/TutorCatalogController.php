@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Services\TutorCatalogService;
 use App\Support\Seo;
+use App\Support\SubjectIcons;
 
 /**
  * Посадочные страницы каталога репетиторов для поиска: по предмету, по направлению и их сочетанию.
@@ -42,8 +43,8 @@ class TutorCatalogController extends Controller
             ['name' => $page['name'], 'url' => $page['url']],
         ], [
             ['title' => 'Направления', 'links' => $related],
-            ['title' => 'Другие предметы', 'links' => $this->otherSubjects($subject)],
-        ]);
+            ['title' => 'Другие предметы', 'links' => $this->otherSubjects($subject), 'icons' => true],
+        ], icon: $page);
     }
 
     public function direct(string $direct)
@@ -99,10 +100,11 @@ class TutorCatalogController extends Controller
             ]],
             ['title' => $subjectPage['name'] . ': другие направления', 'links' => $siblings],
             ['title' => $directPage['name'] . ': другие предметы', 'links' => $sameDirect],
-        ], $page['indexable'] ? null : 'noindex, follow');
+        ], $page['indexable'] ? null : 'noindex, follow', $subjectPage);
     }
 
-    private function landing(string $heading, $tutors, array $breadcrumbs, array $related, ?string $robots = null)
+    /** $icon — страница предмета: его значок стоит рядом с заголовком (у направлений значка нет). */
+    private function landing(string $heading, $tutors, array $breadcrumbs, array $related, ?string $robots = null, ?array $icon = null)
     {
         $stats = $this->catalog->stats($tutors);
         $facts = $this->catalog->factsLine($stats);
@@ -117,6 +119,7 @@ class TutorCatalogController extends Controller
 
         return view('catalog.landing', [
             'heading' => $heading,
+            'icon' => $icon ? SubjectIcons::badge($icon['name'], $icon['icon'] ?? null, $icon['color'] ?? null, 64) : null,
             'title' => $title,
             'description' => $description,
             'robots' => $robots,
@@ -134,7 +137,7 @@ class TutorCatalogController extends Controller
         return collect($this->catalog->catalog()['subjects'])
             ->reject(fn ($item) => $item['slug'] === $except)
             ->sortByDesc('count')
-            ->map(fn ($item) => ['name' => $item['name'], 'url' => $item['url'], 'count' => $item['count']])
+            ->map(fn ($item) => ['name' => $item['name'], 'url' => $item['url'], 'count' => $item['count'], 'icon' => $item['icon'] ?? null, 'color' => $item['color'] ?? null])
             ->values()
             ->all();
     }

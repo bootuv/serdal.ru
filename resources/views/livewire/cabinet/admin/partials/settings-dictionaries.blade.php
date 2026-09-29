@@ -41,10 +41,16 @@
                         </div>
                     @else
                         <div wire:key="dict-{{ $r['id'] }}" class="flex min-h-9 items-center gap-4 border-t border-line py-2 last:pb-0">
+                            @if ($dict === 'subjects')
+                                <button type="button" class="shrink-0 rounded-full" wire:click="openIcon({{ $r['id'] }})" aria-label="Значок и цвет: {{ $r['name'] }}" title="Значок и цвет">{!! \App\Support\SubjectIcons::badge($r['name'], $r['icon'], $r['color'], 28) !!}</button>
+                            @endif
                             <span class="min-w-0 flex-1 truncate text-t1-s font-medium">{{ $r['name'] }}</span>
                             <span class="shrink-0 text-right text-t2 text-muted">{{ \App\Livewire\Cabinet\Admin\Settings::used($r) }}</span>
                             <x-ui.menu label="Действия: {{ $r['name'] }}">
                                 <x-ui.menu-item wire:click="startRename({{ $r['id'] }})">Переименовать</x-ui.menu-item>
+                                @if ($dict === 'subjects')
+                                    <x-ui.menu-item wire:click="openIcon({{ $r['id'] }})">Значок и цвет</x-ui.menu-item>
+                                @endif
                                 <x-ui.menu-item wire:click="openMerge({{ $r['id'] }})">Объединить с…</x-ui.menu-item>
                                 @if ($r['teachers'] === 0 && $r['applications'] === 0)
                                     <x-ui.menu-item wire:click="deleteItem({{ $r['id'] }})">Удалить</x-ui.menu-item>
@@ -87,6 +93,43 @@
             @endif
         </x-ui.card>
     </div>
+
+    @if ($iconItem)
+        <x-ui.modal :title="'Значок «' . $iconItem['name'] . '»'" sub="Виден в каталоге на сайте" close="closeIcon">
+            <div class="flex items-center gap-4">
+                {!! \App\Support\SubjectIcons::badge($iconItem['name'], $iconMark, $iconColor ?: null, 48) !!}
+                <span class="text-t2 text-muted">{{ $iconPick === '' && $iconColor === '' ? 'Подобран по названию' : 'Выбран вручную' }}</span>
+            </div>
+
+            <div class="flex flex-col gap-2">
+                <span id="ic-l" class="text-t2 font-medium">Значок</span>
+                <div class="flex flex-wrap gap-2" role="group" aria-labelledby="ic-l">
+                    <x-ui.swatch wide :on="$iconPick === ''" wire:click="pickIcon('')">Авто</x-ui.swatch>
+                    @foreach (\App\Support\SubjectIcons::ICONS as $key => $label)
+                        <x-ui.swatch :on="$iconPick === $key" wire:click="pickIcon('{{ $key }}')" wire:key="ic-{{ $key }}" aria-label="{{ $label }}" title="{{ $label }}">{!! \App\Support\SubjectIcons::badge($iconItem['name'], $key, $iconColor ?: null, 32) !!}</x-ui.swatch>
+                    @endforeach
+                    <x-ui.swatch wide :on="$iconPick === 'text'" wire:click="pickIcon('text')">Буква</x-ui.swatch>
+                </div>
+            </div>
+            @if ($iconPick === 'text')
+                <x-ui.field label="Буква или две" name="iconText" wire:model.live.debounce.300ms="iconText" maxlength="{{ \App\Support\SubjectIcons::TEXT_MAX }}" placeholder="Аа" hint="Для языков: Аа, Ab, ع" autofocus />
+            @endif
+
+            <div class="flex flex-col gap-2">
+                <span id="cl-l" class="text-t2 font-medium">Цвет</span>
+                <div class="flex flex-wrap gap-2" role="group" aria-labelledby="cl-l">
+                    <x-ui.swatch wide :on="$iconColor === ''" wire:click="pickColor('')">Авто</x-ui.swatch>
+                    @foreach (\App\Support\SubjectIcons::COLORS as $key => [$bg, $fg, $label])
+                        <x-ui.swatch :on="$iconColor === $key" wire:click="pickColor('{{ $key }}')" wire:key="cl-{{ $key }}" aria-label="{{ $label }}" title="{{ $label }}">{!! \App\Support\SubjectIcons::badge($iconItem['name'], $iconMark, $key, 32) !!}</x-ui.swatch>
+                    @endforeach
+                </div>
+            </div>
+            <x-slot:footer>
+                <x-ui.btn wire:click="closeIcon">Отмена</x-ui.btn>
+                <x-ui.btn variant="dark" wire:click="saveIcon">Сохранить</x-ui.btn>
+            </x-slot:footer>
+        </x-ui.modal>
+    @endif
 
     @if ($mergeSourceItem)
         <x-ui.modal :title="'Объединить «' . $mergeSourceItem['name'] . '»'" :sub="\App\Livewire\Cabinet\Admin\Settings::used($mergeSourceItem)" close="closeMerge">

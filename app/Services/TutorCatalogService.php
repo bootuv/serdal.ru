@@ -213,7 +213,7 @@ class TutorCatalogService
     private function buildCatalog(): array
     {
         $tutors = $this->publicTutorsQuery()
-            ->with(['subjects:id,name', 'directs:id,name'])
+            ->with(['subjects:id,name,icon,color', 'directs:id,name'])
             ->get(['id', 'updated_at']);
 
         $subjects = [];
@@ -236,6 +236,9 @@ class TutorCatalogService
                 'heading' => $heading,
                 'url' => Seo::url(route($route, $slug, false)),
                 'count' => 0,
+                // Значок предмета, назначенный в «Справочниках» (у направлений полей нет)
+                'icon' => $model->icon ?? null,
+                'color' => $model->color ?? null,
             ];
             $list[$slug]['count']++;
 

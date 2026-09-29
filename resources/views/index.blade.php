@@ -81,7 +81,7 @@
       'class' => 'catalog-panel--home',
       'id' => 'catalog-subjects',
       'groups' => [
-          ['links' => collect($catalog['subjects'])->sortByDesc('count')->values()->all()],
+          ['links' => collect($catalog['subjects'])->sortByDesc('count')->values()->all(), 'icons' => true],
       ],
   ])
   <section class="specialists">

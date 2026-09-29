@@ -6,6 +6,7 @@ use App\Models\Direct;
 use App\Models\Subject;
 use App\Models\TeacherApplication;
 use App\Support\SeoSettings;
+use App\Support\SubjectIcons;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -29,8 +30,9 @@ class DictionaryService
 
     /**
      * Все значения справочника по алфавиту с использованием: teachers — учителей, applications — заявок на рассмотрении.
+     * У предметов ещё значок, назначенный вручную: icon и color (null — подбирается по названию, App\Support\SubjectIcons).
      *
-     * @return Collection<int, array{id: int, name: string, teachers: int, applications: int}>
+     * @return Collection<int, array{id: int, name: string, teachers: int, applications: int, icon: ?string, color: ?string}>
      */
     public function items(string $kind): Collection
     {
@@ -38,12 +40,16 @@ class DictionaryService
         $teachers = DB::table($m['pivot'])->select($m['key'], DB::raw('count(distinct user_id) as n'))->groupBy($m['key'])->pluck('n', $m['key']);
         $applications = $this->applicationCounts($m['column']);
 
-        return $m['model']::orderBy('name')->get(['id', 'name'])
+        $columns = $kind === 'subjects' ? ['id', 'name', 'icon', 'color'] : ['id', 'name'];
+
+        return $m['model']::orderBy('name')->get($columns)
             ->map(fn ($item) => [
                 'id' => $item->id,
                 'name' => $item->name,
                 'teachers' => (int) ($teachers[$item->id] ?? 0),
                 'applications' => (int) ($applications[$item->id] ?? 0),
+                'icon' => $item->icon ?? null,
+                'color' => $item->color ?? null,
             ])
             ->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE)
             ->values();
@@ -85,6 +91,16 @@ class DictionaryService
     public function rename(string $kind, int $id, string $name): void
     {
         $this->meta($kind)['model']::findOrFail($id)->update(['name' => self::clean($name)]);
+        $this->flushPublicPages();
+    }
+
+    /** Значок предмета в каталоге: null — подбирать по названию. Неизвестные значения не сохраняются. */
+    public function setSubjectIcon(int $id, ?string $icon, ?string $color): void
+    {
+        Subject::findOrFail($id)->update([
+            'icon' => SubjectIcons::validMark($icon) ? $icon : null,
+            'color' => isset(SubjectIcons::COLORS[$color ?? '']) ? $color : null,
+        ]);
         $this->flushPublicPages();
     }
 

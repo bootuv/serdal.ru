@@ -1,6 +1,7 @@
 {{--
   Ссылки на страницы каталога в мятном контейнере — как карточки шагов на главной и блоки «О нас».
   $groups = [['title' => ..., 'links' => [['name' => ..., 'url' => ..., 'count' => ...]]]], $heading — необязательный заголовок.
+  'icons' => true у группы — перед названием цветной значок предмета (App\Support\SubjectIcons).
 --}}
 @php
   $groups = array_values(array_filter($groups, fn ($group) => !empty($group['links'])));
@@ -18,7 +19,12 @@
           @endif
           <ul class="catalog-panel__list" role="list">
             @foreach($group['links'] as $link)
-              <li><a href="{{ $link['url'] }}" class="catalog-panel__link p18">{{ $link['name'] }} <span class="catalog-panel__count">{{ $link['count'] }}</span></a></li>
+              <li>
+                <a href="{{ $link['url'] }}" @class(['catalog-panel__link p18', 'catalog-panel__link--icon' => !empty($group['icons'])])>
+                  @if(!empty($group['icons'])){!! App\Support\SubjectIcons::badge($link['name'], $link['icon'] ?? null, $link['color'] ?? null) !!}@endif
+                  {{ $link['name'] }} <span class="catalog-panel__count">{{ $link['count'] }}</span>
+                </a>
+              </li>
             @endforeach
           </ul>
         </div>

@@ -30,6 +30,19 @@
 }
 
 /* Заголовок страницы — размером с заголовок каталога на главной («Найти специалиста») */
+/* Значок предмета слева от заголовка — по высоте первой строки */
+.catalog-head__heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+}
+
+.catalog-head__heading .subject-icon {
+  width: 64px;
+  height: 64px;
+  margin-top: 1px;
+}
+
 .catalog-head__title.h1 {
   font-size: 64px;
   line-height: 66px;
@@ -112,6 +125,15 @@
 
 .catalog-panel__count {
   color: var(--icon);
+}
+
+/* Цветной значок предмета: пастельный кружок с линейной иконкой или буквой */
+.catalog-panel__link--icon {
+  padding: 5px 16px 5px 5px;
+}
+
+.subject-icon {
+  flex-shrink: 0;
 }
 
 .catalog-panel__more {
@@ -266,5 +288,15 @@ a.direction-tag:hover {
   .catalog-head__title.h1 {
     font-size: 40px;
     line-height: 40px;
+  }
+
+  .catalog-head__heading {
+    gap: 12px;
+  }
+
+  .catalog-head__heading .subject-icon {
+    width: 40px;
+    height: 40px;
+    margin-top: 0;
   }
 }

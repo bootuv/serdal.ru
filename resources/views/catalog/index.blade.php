@@ -36,7 +36,7 @@
 
   @include('partials.catalog-links', [
       'groups' => [
-          ['title' => 'Предметы', 'links' => $subjects],
+          ['title' => 'Предметы', 'links' => $subjects, 'icons' => true],
           ['title' => 'Направления', 'links' => $directs],
       ],
       'more' => ['name' => 'Все репетиторы с фильтрами по цене, рейтингу и классам', 'url' => url('/') . '#specialists'],
