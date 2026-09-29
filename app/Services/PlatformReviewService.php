@@ -20,15 +20,26 @@ class PlatformReviewService
     /** …и стольких дней на платформе. */
     public const PROMPT_AFTER_DAYS = 14;
 
+    /** «Не сейчас» прячет приглашение на столько дней… */
+    public const SNOOZE_DAYS = 30;
+
+    /** …а после стольких закрытий оно больше не появляется (отзыв можно оставить в профиле). */
+    public const MAX_DISMISSALS = 3;
+
     public function forTeacher(User $teacher): ?Review
     {
         return Review::platform()->where('user_id', $teacher->id)->first();
     }
 
-    /** Показать приглашение «Как вам Serdal?»: отзыва нет, приглашение не закрывали, учитель уже освоился. */
+    /** Показать приглашение «Как вам Serdal?»: отзыва нет, учитель уже освоился, приглашение не отложено. */
     public function shouldPrompt(User $teacher): bool
     {
-        if ($teacher->role !== User::ROLE_TUTOR || $teacher->platform_review_dismissed_at || $this->forTeacher($teacher)) {
+        if ($teacher->role !== User::ROLE_TUTOR || $this->forTeacher($teacher)) {
+            return false;
+        }
+
+        if ((int) $teacher->platform_review_dismissals >= self::MAX_DISMISSALS
+            || $teacher->platform_review_dismissed_at?->gt(now()->subDays(self::SNOOZE_DAYS))) {
             return false;
         }
 
@@ -41,7 +52,10 @@ class PlatformReviewService
 
     public function dismissPrompt(User $teacher): void
     {
-        $teacher->forceFill(['platform_review_dismissed_at' => now()])->save();
+        $teacher->forceFill([
+            'platform_review_dismissed_at' => now(),
+            'platform_review_dismissals' => min(255, (int) $teacher->platform_review_dismissals + 1),
+        ])->save();
     }
 
     /** Сохранить отзыв (новый или изменённый) — он уходит на проверку, администраторы получают уведомление. */

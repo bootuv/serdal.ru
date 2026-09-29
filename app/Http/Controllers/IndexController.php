@@ -218,9 +218,7 @@ class IndexController extends Controller
                 ->orderByDesc('recent_sessions_count'),
             'new' => $query
                 ->orderByDesc('created_at'),
-            default => $query
-                ->orderByDesc('recent_sessions_count')
-                ->orderByDesc('total_sessions_count'),
+            default => TutorCatalogService::orderByPopularity($query),
         };
     }
 }

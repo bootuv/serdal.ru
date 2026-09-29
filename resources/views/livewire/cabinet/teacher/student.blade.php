@@ -209,6 +209,24 @@
                     <button type="button" class="link shrink-0 text-t2" wire:click="openModal('assign')">Изменить</button>
                 </div>
             </div>
+            {{-- Отзыв ученика: оценка или «Попросить отзыв» (ReviewPromptService, не чаще раза в 30 дней) --}}
+            <div class="flex flex-col gap-2 border-t border-line pt-4">
+                <span class="text-t2 font-medium text-muted">Отзыв</span>
+                <div class="flex items-center justify-between gap-4">
+                    @if ($reviewAsk['rating'])
+                        <span class="flex min-w-0 items-center gap-2">
+                            <x-ui.stars :value="$reviewAsk['rating']" />
+                            <span class="text-t2 text-muted">{{ $reviewAsk['text'] }}</span>
+                        </span>
+                        <a href="{{ $reviewAsk['reviewsUrl'] }}" class="link shrink-0 text-t2">Отзывы</a>
+                    @else
+                        <span class="min-w-0 text-t1-s">{{ $reviewAsk['text'] }}</span>
+                        @if ($reviewAsk['can'])
+                            <button type="button" class="link shrink-0 text-t2" wire:click="requestReview">Попросить отзыв</button>
+                        @endif
+                    @endif
+                </div>
+            </div>
         </x-ui.card>
     </div>
 

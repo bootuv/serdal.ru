@@ -13,6 +13,7 @@ use App\Models\User;
 use App\Rules\NoContacts;
 use App\Services\PaymentClaimService;
 use App\Services\PaymentRecordService;
+use App\Services\ReviewPromptService;
 use App\Services\StudentPerformanceService;
 use App\Services\StudentScheduleService;
 use App\Services\StudentTeachersService;
@@ -21,6 +22,7 @@ use App\Support\HumanDate;
 use App\Support\Money;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Locked;
 use Livewire\Attributes\On;
 use Livewire\Component;
 
@@ -36,6 +38,11 @@ class Home extends Component
     public int $rating = 5;
     public string $reviewText = '';
 
+    // Карточка «Как вам занятия?» (ReviewPromptService): звезда открывает окно отзыва с этой оценкой
+    #[Locked]
+    public ?int $promptTeacherId = null;
+    public int $promptRating = 0;
+
     /** Обновляем, когда учитель начинает или завершает занятие. */
     #[On('echo:rooms,.room.status.updated')]
     public function refreshRooms(): void {}
@@ -43,6 +50,36 @@ class Home extends Component
     public function mount(): void
     {
         abort_unless(auth()->user()?->role === User::ROLE_STUDENT, 403);
+
+        // Ссылка из уведомления «Оставить отзыв» (?review=учитель) сразу открывает окно; устаревшая — просто главная
+        if ($teacherId = (int) request()->query('review')) {
+            try {
+                $this->openReview($teacherId);
+            } catch (\Symfony\Component\HttpKernel\Exception\HttpException) {
+            }
+        }
+    }
+
+    public function updatedPromptRating(int $value): void
+    {
+        $this->promptRating = 0;
+
+        if ($this->promptTeacherId && $value >= 1 && $value <= 5) {
+            $this->openReview($this->promptTeacherId);
+            $this->rating = $value;
+        }
+    }
+
+    /** «Позже» в карточке «Как вам занятия?». */
+    public function dismissReviewPrompt(): void
+    {
+        if (! $this->promptTeacherId) {
+            return;
+        }
+
+        [$teacher, $count] = $this->reviewable($this->promptTeacherId);
+        app(ReviewPromptService::class)->dismiss((int) auth()->id(), $teacher->id, $count);
+        $this->promptTeacherId = null;
     }
 
     public function openReview(int $teacherId): void
@@ -94,6 +131,8 @@ class Home extends Component
         $debt = $this->debt($student->id, $rooms);
         $nextView = $next ? $this->lessonView($next, $blockedTeacherIds) : null;
         $teacherRows = $this->teacherRows($student->id);
+        $prompt = $teacherRows->firstWhere('prompt', true);
+        $this->promptTeacherId = $prompt['id'] ?? null;
 
         return view('livewire.cabinet.student.home', [
             'firstName' => $student->first_name ?: $student->name,
@@ -117,6 +156,7 @@ class Home extends Component
             'teacherRows' => $next || $teacherRows->contains(fn (array $t) => $t['lessons'] > 0 || $t['review'] || ! $t['current'])
                 ? $teacherRows
                 : collect(),
+            'reviewPrompt' => $prompt,
             'reviewing' => $this->reviewTeacherId ? $teacherRows->firstWhere('id', $this->reviewTeacherId) : null,
             'stars' => ['', '1 — очень плохо', '2 — плохо', '3 — нормально', '4 — хорошо', '5 — отлично'],
         ]);
@@ -126,16 +166,17 @@ class Home extends Component
     private function teacherRows(int $studentId): Collection
     {
         $svc = $this->teachersService();
+        $pivots = app(ReviewPromptService::class)->pivotsForStudent($studentId);
 
         $current = $svc->currentTeachers($studentId)->with('subjects:id,name')->orderBy('name')->get()
-            ->map(fn (User $t) => $this->teacherRow($studentId, $t, $svc->lessonsWithCurrentTeacher($studentId, $t), true));
+            ->map(fn (User $t) => $this->teacherRow($studentId, $t, $svc->lessonsWithCurrentTeacher($studentId, $t), true, $pivots->get($t->id)));
         $former = $svc->formerTeachers($studentId)->with('subjects:id,name')->orderBy('name')->get()
             ->map(fn (User $t) => $this->teacherRow($studentId, $t, $svc->lessonsWithFormerTeacher($studentId, $t), false));
 
         return $current->concat($former)->values();
     }
 
-    private function teacherRow(int $studentId, User $teacher, Collection $lessons, bool $current): array
+    private function teacherRow(int $studentId, User $teacher, Collection $lessons, bool $current, ?object $pivot = null): array
     {
         $svc = $this->teachersService();
         $review = $svc->review($studentId, $teacher->id);
@@ -156,7 +197,10 @@ class Home extends Component
             'sub' => implode(' · ', array_filter([$teacher->subjects->pluck('name')->join(', '), $facts])),
             'review' => $review,
             'rejected' => $svc->hasRejectedReview($studentId, $teacher->id),
-            'canReview' => $svc->canReview($studentId, $teacher->id, $count),
+            'canReview' => $canReview = $svc->canReview($studentId, $teacher->id, $count),
+            // Карточка «Как вам занятия?» — только по текущему учителю
+            'prompt' => $current && $pivot && ReviewPromptService::shouldPrompt($pivot, $count, (bool) $review, $canReview),
+            'requested' => $pivot && ReviewPromptService::requested($pivot),
             'lessons' => $count,
             'chat' => $current ? $svc->chatUrl($studentId, $teacher->id) : null,
             'publicUrl' => $teacher->is_active && $teacher->username ? route('tutors.show', ['username' => $teacher->username]) : null,

@@ -10,6 +10,7 @@ use App\Models\PaymentRecord;
 use App\Models\Room;
 use App\Models\User;
 use App\Services\PaymentRecordService;
+use App\Services\ReviewPromptService;
 use App\Services\StudentPerformanceService;
 use App\Services\TeacherScheduleService;
 use App\Services\TeacherStudentsService;
@@ -229,6 +230,13 @@ class Student extends Component
         $this->dispatch('toast', message: $added->isEmpty() && $removed->isEmpty() ? 'Изменений нет' : 'Занятия ученика сохранены');
     }
 
+    /** «Попросить отзыв»: ученику придёт уведомление, а на его главной — карточка «Как вам занятия?». */
+    public function requestReview(): void
+    {
+        $asked = app(ReviewPromptService::class)->request($this->teacher(), $this->pupil);
+        $this->dispatch('toast', message: $asked ? 'Отправили просьбу об отзыве: ' . $this->pupil->name : 'Сейчас попросить нельзя');
+    }
+
     public function remove(): void
     {
         $this->service()->removeFromList($this->teacher(), $this->pupil);
@@ -295,6 +303,7 @@ class Student extends Component
             'rooms' => $rooms,
             'roomsLine' => $rooms->isNotEmpty() ? $rooms->pluck('name')->implode(', ') : 'Пока ни одного занятия',
             'contacts' => $this->contacts($student),
+            'reviewAsk' => $this->reviewAsk($teacher, $student),
             'metrics' => $this->tab === 'overview' ? app(StudentPerformanceService::class)->metrics($student, $teacher->id) : null,
             'perfSub' => $this->tab === 'overview' ? $this->perfSub($student, $teacher) : null,
             'homework' => in_array($this->tab, ['overview', 'tasks'], true) ? $this->homework($teacher, $student) : collect(),
@@ -305,6 +314,25 @@ class Student extends Component
             'debtStatus' => $unpaid->contains(fn (PaymentRecord $r) => $r->isOverdue()) ? PaymentRecordService::debtStatus($student->id, $teacher->id) : null,
             'modalData' => $this->modalData($teacher, $unpaid, $next),
         ] + $this->claimView($teacher))->title($student->name);
+    }
+
+    /** Блок «Отзыв» в правой колонке: оценка ученика или «Попросить отзыв». */
+    private function reviewAsk(User $teacher, User $student): array
+    {
+        $state = app(ReviewPromptService::class)->requestState($teacher, $student);
+
+        return [
+            'rating' => $state['review'] && ! $state['rejected'] ? (int) $state['review']->rating : null,
+            'reviewsUrl' => route('cabinet.teacher.reviews'),
+            'can' => $state['can'],
+            'text' => match (true) {
+                $state['rejected'] => 'Отзыв скрыт модератором',
+                (bool) $state['review'] => HumanDate::date($state['review']->created_at),
+                $state['can'] => 'Отзыва пока нет',
+                $state['requestedAt'] !== null => 'Попросили ' . HumanDate::date($state['requestedAt']) . ' — ждём отзыв',
+                default => 'Отзыв — после первого занятия',
+            },
+        ];
     }
 
     /** Ближайшее занятие ученика у учителя: идущее сейчас или с ближайшим началом. */

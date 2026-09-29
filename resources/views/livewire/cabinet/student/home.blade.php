@@ -98,6 +98,26 @@
 
     <div class="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
         <div class="flex min-w-0 flex-col gap-6 lg:col-span-2">
+            {{-- Как вам занятия? (ReviewPromptService): после трёх занятий с учителем или по его просьбе.
+                 Звезда открывает окно отзыва с этой оценкой, «Позже» прячет карточку на несколько занятий --}}
+            @if ($reviewPrompt)
+                <x-ui.card rate class="lg:flex-row lg:items-center lg:justify-between lg:gap-6" aria-labelledby="rv-ask" wire:key="rv-ask-{{ $reviewPrompt['id'] }}">
+                    <div class="flex min-w-0 items-center gap-4">
+                        <x-ui.avatar size="xl" :name="$reviewPrompt['name']" :id="$reviewPrompt['id']" />
+                        <div class="flex min-w-0 flex-col gap-1">
+                            <h2 id="rv-ask" class="text-h2 font-medium">Как вам занятия?</h2>
+                            <span class="text-t1 font-medium">{{ $reviewPrompt['name'] }}</span>
+                            <span class="text-t2 text-muted">{{ $reviewPrompt['requested'] ? 'Просит оставить отзыв' : $reviewPrompt['sub'] }}</span>
+                        </div>
+                    </div>
+                    <div class="flex shrink-0 flex-col gap-2 lg:items-end">
+                        {{-- На голубом фоне мятные пустые звёзды теряются — тон фона темнее (news-2) и крупнее --}}
+                        <x-ui.stars :value="$promptRating" model="promptRating" on-tint />
+                        <span class="text-t2 text-muted">Оцените от 1 до 5 · <button type="button" wire:click="dismissReviewPrompt" class="link">Позже</button></span>
+                    </div>
+                </x-ui.card>
+            @endif
+
             {{-- Первые шаги (пустая главная): уведомления в браузере и профиль --}}
             @if ($steps)
                 @include('livewire.cabinet.student.partials.first-steps')

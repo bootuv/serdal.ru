@@ -52,3 +52,6 @@ Schedule::command('founders:remind')->dailyAt('10:00')->withoutOverlapping();
 
 // Запланированные новости (админка «Новости»): наступило время — уведомляем учителей и учеников
 Schedule::command('news:publish')->everyMinute()->withoutOverlapping();
+
+// Ученикам после третьего занятия с учителем: предложение оставить отзыв (один раз на пару ученик–учитель)
+Schedule::command('reviews:invite')->dailyAt('18:00')->withoutOverlapping();

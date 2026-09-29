@@ -24,6 +24,28 @@ class TutorCatalogService
     /** Сколько учителей должно быть в сочетании «предмет + направление», чтобы открыть его для поиска. */
     public const MIN_TUTORS_TO_INDEX_COMBO = 2;
 
+    /** Порядок «по популярности»: сколько весят отзывы — столько же, сколько занятий за месяц… */
+    public const REVIEW_WEIGHT = 2;
+
+    /** …и сколько отзывов учитывается (дальше решает активность). */
+    public const REVIEW_CAP = 10;
+
+    /**
+     * Порядок «по популярности» — каталог на главной и страницы предметов. Главное — занятия за 30 дней;
+     * к ним добавляются отзывы с хорошей оценкой: при средней 5 каждый отзыв (до REVIEW_CAP) весит REVIEW_WEIGHT
+     * занятий, при 4 — вдвое меньше, при 3 и ниже — ничего. Нужны recent_sessions_count, total_sessions_count,
+     * reviews_count и rating_avg в выборке.
+     */
+    public static function orderByPopularity(Builder $query): Builder
+    {
+        $reviews = 'case when reviews_count > ' . self::REVIEW_CAP . ' then ' . self::REVIEW_CAP . ' else reviews_count end';
+        $quality = 'case when rating_avg > 3 then (rating_avg - 3) / 2 else 0 end';
+
+        return $query
+            ->orderByRaw('recent_sessions_count + ' . self::REVIEW_WEIGHT . " * ({$reviews}) * ({$quality}) desc")
+            ->orderByDesc('total_sessions_count');
+    }
+
     /** Учителя с публичной страницей: активные, не заблокированные, с адресом. */
     public function publicTutorsQuery(): Builder
     {
@@ -96,7 +118,7 @@ class TutorCatalogService
             ->where('is_rejected', false)
             ->whereHas('user', fn ($u) => $u->where('role', User::ROLE_STUDENT));
 
-        return $this->publicTutorsQuery()
+        return self::orderByPopularity($this->publicTutorsQuery())
             ->when($subjectId, fn ($q) => $q->whereHas('subjects', fn ($s) => $s->whereKey($subjectId)))
             ->when($directId, fn ($q) => $q->whereHas('directs', fn ($d) => $d->whereKey($directId)))
             ->with(['directs', 'subjects', 'lessonTypes'])
@@ -106,8 +128,6 @@ class TutorCatalogService
                 'receivedReviews as reviews_count' => $publishedReviews,
             ])
             ->withAvg(['receivedReviews as rating_avg' => $publishedReviews], 'rating')
-            ->orderByDesc('recent_sessions_count')
-            ->orderByDesc('total_sessions_count')
             ->orderBy('id')
             ->get();
     }

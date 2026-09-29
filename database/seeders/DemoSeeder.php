@@ -61,6 +61,10 @@ use Illuminate\Support\Str;
  *             pay-extra-1..6@demo.ru      обычная история: оплачено + свежее начисление
  *             pay-new@demo.ru             Рамзан — новый ученик, первое (пробное) занятие на следующей неделе
  *
+ * Отзывы и приглашения к ним: карточка «Как вам занятия?» — у Исы, Мадины (учитель попросил сам), Луизы
+ * (пришло уведомление), Марем (попросил учитель биологии); у Дауда отложена «Позже». Учителю химии на «Сегодня» —
+ * «Как вам Serdal?», учителю биологии в профиле — свой отзыв о платформе на проверке.
+ *
  * Что есть в кабинетах: занятия по расписанию с посещаемостью и активностью, переносы и отмены,
  * записи занятий, планы ближайших занятий, задания во всех статусах с файлами, материалы в папках,
  * чаты (личные и групповые, с вложениями), уведомления, отзывы, заявки «Я оплатил», тариф и история
@@ -171,6 +175,7 @@ class DemoSeeder extends Seeder
         $this->createMessages();
         $this->createSupportChat();
         $this->createReviews();
+        $this->createReviewPrompts();
         $this->createSubscriptions();
         $this->createReferrals();
         $this->createNotifications();
@@ -1604,8 +1609,38 @@ class DemoSeeder extends Seeder
 
         $this->review($this->s['hawa'], $this->bio, 5, 'Генетика с Лианой Руслановной — одно удовольствие. Задачи разбираем до полного понимания.', 10, true);
 
-        // Отзыв учителя о платформе — на проверке у команды
-        $this->review($this->teacher, null, 5, 'Перевёл всех учеников сюда за месяц. Больше всего экономит время проверка заданий с пометками на фото и то, что оплата учеников видна в одном месте.', 8, false);
+        // Отзыв учителя биологии о платформе — на проверке у команды (карточка «Отзыв о Serdal» в её профиле).
+        // У учителя химии отзыва нет — на «Сегодня» он видит приглашение «Как вам Serdal?»
+        $this->review($this->bio, null, 5, 'Перевёл всех учеников сюда за месяц. Больше всего экономит время проверка заданий с пометками на фото и то, что оплата учеников видна в одном месте.', 8, false);
+    }
+
+    /**
+     * Приглашения оставить отзыв (ReviewPromptService). Без отзыва и с тремя занятиями карточка «Как вам занятия?»
+     * появляется сама: Иса, Мадина, Луиза — у учителя химии (у Дауда отложена; с учителем биологии занятий пока меньше трёх).
+     * - Мадина: учитель попросил отзыв — «Просит оставить отзыв», у учителя в карточке «Попросили … — ждём отзыв».
+     * - Луиза: пришло уведомление после третьего занятия.
+     * - Марем: попросила учитель биологии — карточка в другом цвете (цвет аватара — от id учителя).
+ * - Дауд: нажал «Позже» — карточки нет, вернётся через пять занятий; учитель может «Попросить отзыв».
+     */
+    private function createReviewPrompts(): void
+    {
+        $pivot = fn (string $key, array $values) => $this->teacher->students()->updateExistingPivot($this->s[$key]->id, $values);
+        $lessons = fn (string $key) => app(\App\Services\StudentTeachersService::class)->lessonsWithCurrentTeacher($this->s[$key]->id, $this->teacher)->count();
+
+        $pivot('madina', ['review_requested_at' => $this->notFuture(now()->subDays(2)->setTime(19, 40))]);
+        $pivot('luiza', ['review_prompt_notified_at' => $this->notFuture(now()->subDay()->setTime(18, 0))]);
+        $pivot('daud', [
+            'review_prompt_dismissals' => 1,
+            'review_prompt_dismissed_at' => now()->subDays(3),
+            'review_prompt_resume_lessons' => $lessons('daud') + \App\Services\ReviewPromptService::AGAIN_AFTER_LESSONS,
+        ]);
+        // Марем: учитель биологии попросил отзыв — карточка с жёлтым аватаром (у учителя химии — сиреневый)
+        $this->bio->students()->updateExistingPivot($this->s['marem']->id, ['review_requested_at' => $this->notFuture(now()->subDay()->setTime(20, 15))]);
+
+        // Уведомления этих сценариев уже были — не шлём их повторно командой reviews:invite
+        foreach (['isa', 'madina', 'daud'] as $key) {
+            $pivot($key, ['review_prompt_notified_at' => now()->subDays(10)]);
+        }
     }
 
     private function review(User $author, ?User $teacher, int $rating, string $text, int $daysAgo, bool $read, array $extra = []): void
@@ -1756,6 +1791,14 @@ class DemoSeeder extends Seeder
         $t = $this->teacher;
         $s = $this->s;
         $ago = fn (int $days, string $time = '12:00') => $this->notFuture(now()->subDays($days)->setTimeFromTimeString($time));
+
+        // ── Приглашения оставить отзыв (createReviewPrompts) ──
+        $this->notify($s['madina'], 'ReviewInvite', CabinetMessage::make('Учитель просит отзыв')
+            ->body($t->name . ' просит оставить отзыв о занятиях. Его увидят ученики, которые выбирают учителя.')->icon('star')
+            ->action('Оставить отзыв', route('cabinet.student.home', ['review' => $t->id])), $ago(2, '19:40'), false);
+        $this->notify($s['luiza'], 'ReviewInvite', CabinetMessage::make('Как вам занятия?')
+            ->body('Оцените занятия с учителем: ' . $t->name . '. Отзыв поможет другим ученикам выбрать учителя.')->icon('star')
+            ->action('Оставить отзыв', route('cabinet.student.home', ['review' => $t->id])), $ago(1, '18:00'), false);
 
         // ── Учитель ──
         if ($work = $this->works['hawa-izomery'] ?? null) {

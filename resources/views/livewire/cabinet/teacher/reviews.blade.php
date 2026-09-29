@@ -11,9 +11,9 @@
 
     @if ($summary['count'] === 0 && $fresh->isEmpty() && $all->isEmpty())
         <x-ui.card focus>
-            <x-ui.empty icon="star" title="Пока нет отзывов" text="Ученики оставляют отзыв после первого занятия. Он появится здесь и на вашей странице.">
+            <x-ui.empty icon="star" title="Пока нет отзывов" text="Ученики оставляют отзыв после первого занятия. Он появится здесь и на вашей странице, а учителя с отзывами стоят выше в каталоге.">
                 <x-slot:action>
-                    <x-ui.btn variant="primary" :href="\App\Services\MessengerService::url(auth()->user())">Попросить учеников об отзыве</x-ui.btn>
+                    <x-ui.btn variant="primary" wire:click="requestAll" wire:loading.attr="disabled" wire:target="requestAll">Попросить учеников об отзыве</x-ui.btn>
                 </x-slot:action>
             </x-ui.empty>
         </x-ui.card>
@@ -113,6 +113,13 @@
                             </div>
                         @endforeach
                     </div>
+                    {{-- Ученики с занятиями, но без отзыва: одна кнопка просит всех (ReviewPromptService) --}}
+                    @if ($askable > 0)
+                        <div class="flex flex-col gap-2 border-t border-line pt-4">
+                            <span class="text-t2 text-muted">Ещё {{ plural_ru($askable, 'ученик', 'ученика', 'учеников') }} без отзыва</span>
+                            <button type="button" class="link self-start text-t2" wire:click="requestAll" wire:loading.attr="disabled" wire:target="requestAll">Попросить учеников об отзыве</button>
+                        </div>
+                    @endif
                 </x-ui.card>
             @endif
         </div>

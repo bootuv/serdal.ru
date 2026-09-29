@@ -4,6 +4,7 @@ namespace App\Livewire\Cabinet\Teacher;
 
 use App\Livewire\Cabinet\Teacher\Concerns\TeacherScreen;
 use App\Models\Review;
+use App\Services\ReviewPromptService;
 use App\Services\StudentPerformanceService;
 use App\Services\TeacherReviewsService;
 use App\Support\HumanDate;
@@ -101,6 +102,15 @@ class Reviews extends Component
         $this->dispatch('toast', message: 'Жалоба отправлена');
     }
 
+    /** «Попросить учеников об отзыве»: всем, у кого были занятия и нет отзыва (не чаще раза в 30 дней на ученика). */
+    public function requestAll(): void
+    {
+        $n = app(ReviewPromptService::class)->requestAll(auth()->user());
+        $this->dispatch('toast', message: $n > 0
+            ? 'Попросили ' . plural_ru($n, 'ученика', 'учеников', 'учеников') . ' оставить отзыв'
+            : 'Просить пока некого: у учеников без отзыва ещё не было занятий или их уже просили в этом месяце');
+    }
+
     public function updatedSearch(): void
     {
         $this->limit = self::PAGE;
@@ -139,6 +149,7 @@ class Reviews extends Component
             'shared' => $this->shareId ? $this->row($this->own($this->shareId)) : null,
             'reported' => $this->reportId ? $this->row($this->own($this->reportId)) : null,
             'reasons' => Review::REPORT_REASONS,
+            'askable' => app(ReviewPromptService::class)->askable($teacher)->count(),
         ]);
     }
 
