@@ -238,6 +238,7 @@ class Students extends Component
                 'id' => $s->id,
                 'user' => $s,
                 'name' => $s->name,
+                'email' => $s->email,
                 'firstName' => $this->firstName($s),
                 'href' => TeacherStudentsService::studentUrl($s),
                 'sub' => $rooms->isNotEmpty()

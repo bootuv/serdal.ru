@@ -11,28 +11,29 @@
         <x-ui.editor label="Что нужно сделать" name="description" wire:model="description"
                      placeholder="Опишите задание: что сделать, объём, на что обратить внимание" />
 
+        {{-- Занятие — сначала: его ученики подставляются в «Кому» --}}
+        <div class="flex flex-col gap-2">
+            <x-ui.search-select label="К какому занятию · необязательно" name="roomId" :options="$rooms" :selected="$roomId" model="roomId" clear="Не привязывать к занятию" search="Название занятия или ученик" />
+            <span class="text-t2 text-muted">Ученики занятия подставятся в «Кому»</span>
+        </div>
+
         {{-- Кому --}}
         <fieldset class="flex flex-col gap-3">
             <legend class="pb-2 text-t2 font-medium">Кому</legend>
-            @if ($searchable)
-                <x-ui.search placeholder="Найти ученика" wire:model.live.debounce.300ms="search" x-on:keydown.enter.prevent />
+            {{-- На странице — только выбранные; добавляем из списка с поиском (имя и почта), список не закрывается --}}
+            @if ($people)
+                <x-ui.person-select name="studentIds" :people="$people" :checked="$studentIds" action="toggleStudent" placeholder="Выбрать учеников" />
             @endif
-            @if ($students->isNotEmpty())
+            @if ($chosen->isNotEmpty())
                 <div class="flex flex-wrap gap-2">
-                    @foreach ($students as $s)
-                        <x-ui.pick :user="$s" :on="in_array($s->id, $studentIds, true)" wire:click="toggleStudent({{ $s->id }})" wire:key="st-{{ $s->id }}" />
+                    @foreach ($chosen as $s)
+                        <x-ui.token :remove="'toggleStudent(' . $s->id . ')'" :label="$s->name" title="{{ $s->email }}" wire:key="st-{{ $s->id }}">{{ $s->name }}</x-ui.token>
                     @endforeach
                 </div>
             @endif
             <span class="text-t2 text-muted">{{ $whoLabel }}</span>
-            @error('studentIds')<span class="text-t2 font-medium text-danger-fg">{{ $message }}</span>@enderror
             @error('studentIds.*')<span class="text-t2 font-medium text-danger-fg">{{ $message }}</span>@enderror
         </fieldset>
-
-        <div class="flex flex-col gap-2">
-            <x-ui.select label="К какому занятию · необязательно" name="roomId" wire:model.live="roomId" :options="$rooms" placeholder="Не привязывать к занятию" />
-            <span class="text-t2 text-muted">Ученики подставятся из занятия</span>
-        </div>
 
         {{-- Срок сдачи --}}
         <div class="flex flex-col gap-2" role="group" aria-labelledby="due-label">

@@ -89,7 +89,7 @@ class TeacherTaskNewTest extends TestCase
             ->set('title', 'Эссе «My last holiday»')
             ->set('description', '<p onclick="alert(1)">Напишите эссе, 150–200 слов.</p><p>Используйте &lt;Past Simple&gt;.</p>')
             ->call('toggleStudent', $this->alina->id)
-            ->assertSee('Получат: Алина Смирнова')
+            ->assertSee('Получат задание: 1 ученик')->assertSeeHtml('aria-label="Убрать: Алина Смирнова"')
             ->set('date', now()->addDays(2)->format('Y-m-d'))
             ->set('time', '18:30')
             ->set('maxScore', 20)
@@ -165,6 +165,50 @@ class TeacherTaskNewTest extends TestCase
         $h = Homework::firstOrFail();
         $this->assertSame($room->id, $h->room_id);
         $this->assertEqualsCanonicalizing([$this->ivan->id, $guest->id], $h->students()->pluck('users.id')->all());
+    }
+
+    public function test_students_are_picked_from_searchable_list_and_shown_as_tokens(): void
+    {
+        $twin = $this->user(User::ROLE_STUDENT, 'Иван Петрoв'); // почти тёзка: отличается одной буквой
+        $twin->update(['email' => 'twin@example.com']);
+        $this->teacher->students()->attach($twin->id);
+
+        Livewire::actingAs($this->teacher)->test(TaskNew::class)
+            // В списке с поиском — все ученики с почтой; на странице меток пока нет
+            ->assertSee('Выбрать учеников')->assertSee('Имя или почта')
+            ->assertSee('twin@example.com')->assertSee($this->alina->email)
+            ->assertViewHas('people', fn ($p) => count($p) === 3)
+            ->assertViewHas('chosen', fn ($c) => $c->isEmpty())
+            ->assertDontSee('Убрать: Алина Смирнова')
+            // Выбранные — метками с крестиком и галочкой в списке; повторное нажатие снимает
+            ->call('toggleStudent', $this->alina->id)->call('toggleStudent', $twin->id)
+            ->assertSeeHtml('aria-label="Убрать: Алина Смирнова"')
+            ->assertSee('Получат задание: 2 ученика')
+            ->assertViewHas('chosen', fn ($c) => $c->pluck('id')->all() === [$this->alina->id, $twin->id])
+            ->call('toggleStudent', $twin->id)
+            ->assertSet('studentIds', [$this->alina->id])
+            ->assertSee('Получат задание: 1 ученик');
+    }
+
+    public function test_room_is_picked_from_searchable_list(): void
+    {
+        $room = $this->room([$this->alina]);
+        $room->update(['next_start' => now()->addDay()->setTime(15, 0)]);
+
+        Livewire::actingAs($this->teacher)->test(TaskNew::class)
+            // Свой список с поиском вместо системного: название и ближайшее время
+            ->assertDontSeeHtml('<select name="roomId"')
+            ->assertSee('Название занятия или ученик')->assertSee('Не привязывать к занятию')
+            ->assertSee('ЕГЭ-2027')->assertSee('завтра в 15:00')
+            ->assertViewHas('rooms', fn ($rooms) => $rooms === [['value' => (string) $room->id, 'title' => 'ЕГЭ-2027', 'sub' => 'завтра в 15:00']])
+            // Крестик «снять привязку» — только когда занятие выбрано
+            ->assertDontSeeHtml('title="Не привязывать к занятию"')
+            ->set('roomId', (string) $room->id)
+            ->assertSet('studentIds', [$this->alina->id])
+            ->assertSeeHtml('title="Не привязывать к занятию"')
+            ->set('roomId', '')
+            ->assertDontSeeHtml('title="Не привязывать к занятию"')
+            ->assertSet('roomId', '');
     }
 
     public function test_validation(): void

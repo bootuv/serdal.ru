@@ -129,7 +129,6 @@ class Lesson extends Component
     /** @var array<int> */
     public array $editStudents = [];
 
-    public string $editSearch = '';
 
     /* Презентации: открываются в классе при старте */
     public bool $presentationsOpen = false;
@@ -531,7 +530,6 @@ class Lesson extends Component
         $this->editName = $room->name;
         $this->editStudents = $room->participants->pluck('id')->map(fn ($id) => (int) $id)->all();
         $this->editKind = count($this->editStudents) > 1 || $room->type === 'group' ? 'group' : 'individual';
-        $this->editSearch = '';
         $this->editOpen = true;
     }
 
@@ -1257,14 +1255,12 @@ class Lesson extends Component
         if ($this->editOpen) {
             $teacher = auth()->user();
             $options = app(TeacherLessonService::class)->participantOptions($teacher, $room);
-            $search = mb_strtolower(trim($this->editSearch));
             $count = count($this->editStudents);
             $tariff = $teacher->activeSubscription()?->tariff;
 
-            $data['editOptions'] = $search === '' ? $options : $options->filter(
-                fn (User $u) => in_array($u->id, $this->editStudents, true) || str_contains(mb_strtolower($u->name), $search)
-            );
-            $data['editSearchable'] = $options->count() > 8;
+            // Список с поиском (имя и почта); в окне — только выбранные
+            $data['editPeople'] = $options->map(fn (User $u) => ['id' => (int) $u->id, 'name' => (string) $u->name, 'email' => (string) $u->email])->values()->all();
+            $data['editChosen'] = $options->whereIn('id', $this->editStudents)->values();
             $data['editHint'] = match (true) {
                 $options->isEmpty() => 'Пока некого выбрать — пригласите ученика в разделе «Ученики»',
                 $this->editKind === 'group' && $count > 0 => plural_ru($count, 'ученик', 'ученика', 'учеников')

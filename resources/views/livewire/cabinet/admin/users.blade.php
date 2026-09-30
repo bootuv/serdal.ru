@@ -99,8 +99,14 @@
                         <x-ui.row :href="route('cabinet.admin.user', ['user' => $u['id']])" wire:key="user-{{ $u['id'] }}">
                             <x-ui.avatar :user="$u['user']" />
                             <div class="flex min-w-0 flex-1 flex-col gap-1">
-                                <span class="truncate text-t1 font-medium">{{ $u['name'] }}</span>
+                                <span class="line-clamp-2 text-t1 font-medium sm:truncate">{{ $u['name'] }}</span>
                                 <span class="truncate text-t2 text-muted">{{ $u['sub'] }}</span>
+                                {{-- Телефон: бейджи под подписью, ширина строки остаётся имени --}}
+                                @if ($u['marks'])
+                                    <div class="flex flex-wrap gap-2 pt-1 sm:hidden">
+                                        @foreach ($u['marks'] as $m)<x-ui.badge :tone="$m['tone']">{{ $m['label'] }}</x-ui.badge>@endforeach
+                                    </div>
+                                @endif
                             </div>
                             @if ($tab === 'teachers')
                                 <div class="hidden w-40 shrink-0 flex-col gap-1 lg:flex">
@@ -108,17 +114,21 @@
                                     @if ($u['term'])<span @class(['truncate text-t2', 'font-semibold text-ink' => $u['termUrgent'], 'text-muted' => ! $u['termUrgent']])>{{ $u['term'] }}</span>@endif
                                 </div>
                                 <span @class(['hidden w-16 shrink-0 lg:block', 'text-t1-s font-medium' => $u['students'], 'text-t2 text-muted' => ! $u['students']])>{{ $u['students'] ?: 'нет' }}</span>
-                                <div class="flex shrink-0 flex-wrap justify-end gap-2 lg:w-44 lg:justify-start">
+                                <div class="hidden shrink-0 flex-wrap justify-end gap-2 sm:flex lg:w-44 lg:justify-start">
                                     @foreach ($u['marks'] as $m)<x-ui.badge :tone="$m['tone']">{{ $m['label'] }}</x-ui.badge>@endforeach
                                 </div>
                             @elseif ($tab === 'students')
                                 <span @class(['hidden w-44 shrink-0 truncate lg:block', 'text-t1-s font-medium' => $u['teachers'] !== '', 'text-t2 text-muted' => $u['teachers'] === ''])>{{ $u['teachers'] ?: 'пока нет учителя' }}</span>
                                 <span @class(['hidden w-40 shrink-0 lg:block', 'text-t1-s font-medium' => $u['last'], 'text-t2 text-muted' => ! $u['last']])>{{ $u['last'] ?: 'ещё не было' }}</span>
-                                <div class="flex shrink-0 flex-wrap justify-end gap-2 lg:w-40 lg:justify-start">
+                                <div class="hidden shrink-0 flex-wrap justify-end gap-2 sm:flex lg:w-40 lg:justify-start">
                                     @foreach ($u['marks'] as $m)<x-ui.badge :tone="$m['tone']">{{ $m['label'] }}</x-ui.badge>@endforeach
                                 </div>
                             @else
-                                @foreach ($u['marks'] as $m)<x-ui.badge :tone="$m['tone']">{{ $m['label'] }}</x-ui.badge>@endforeach
+                                @if ($u['marks'])
+                                    <div class="hidden shrink-0 flex-wrap justify-end gap-2 sm:flex">
+                                        @foreach ($u['marks'] as $m)<x-ui.badge :tone="$m['tone']">{{ $m['label'] }}</x-ui.badge>@endforeach
+                                    </div>
+                                @endif
                                 <span class="hidden w-44 shrink-0 text-t2 text-muted lg:block">{{ $u['seen'] }}</span>
                             @endif
                         </x-ui.row>

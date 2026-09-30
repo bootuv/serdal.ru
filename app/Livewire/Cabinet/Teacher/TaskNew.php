@@ -42,8 +42,6 @@ class TaskNew extends Component
     /** @var array<int> */
     public array $studentIds = [];
 
-    public string $search = '';
-
     public string $date = '';
 
     public string $time = '';
@@ -277,21 +275,22 @@ class TaskNew extends Component
         $homework = $this->editId ? $this->homework() : null;
         $allowed = $this->allowedStudents();
         $selected = $allowed->whereIn('id', $this->studentIds);
-        $needle = mb_strtolower(trim($this->search));
-        $shown = $needle === ''
-            ? $allowed
-            : $allowed->filter(fn (User $u) => in_array($u->id, $this->studentIds, true) || str_contains(mb_strtolower($u->name), $needle));
-
         $count = $selected->count();
 
         return view('livewire.cabinet.teacher.task-new', [
             'homework' => $homework,
-            'rooms' => $this->rooms()->mapWithKeys(fn (Room $r) => [(string) $r->id => $this->roomLabel($r)])->all(),
-            'students' => $shown->values(),
-            'searchable' => $allowed->count() > 12,
+            // Занятия для списка с поиском: название и ближайшее время
+            'rooms' => $this->rooms()->map(fn (Room $r) => [
+                'value' => (string) $r->id,
+                'title' => (string) $r->name,
+                'sub' => $r->next_start && $r->next_start->isFuture() ? HumanDate::at($r->next_start) : null,
+            ])->all(),
+            // Список с поиском: все, кому можно выдать (имя и почта); на странице — только выбранные
+            'people' => $allowed->map(fn (User $u) => ['id' => (int) $u->id, 'name' => (string) $u->name, 'email' => (string) $u->email])->values()->all(),
+            'chosen' => $selected->values(),
             'whoLabel' => $count === 0
                 ? ($allowed->isEmpty() ? 'Пока нет учеников — пригласите их в разделе «Ученики».' : 'Выберите хотя бы одного ученика')
-                : 'Получат: ' . $selected->pluck('name')->implode(', ') . ($count > 1 ? ' · всего ' . plural_ru($count, 'ученик', 'ученика', 'учеников') : ''),
+                : 'Получат задание: ' . plural_ru($count, 'ученик', 'ученика', 'учеников'),
             'keptFiles' => Hw::fileViews($this->kept, $this->keptNames),
             'newFiles' => collect($this->files)->map(fn (TemporaryUploadedFile $f) => [
                 'name' => $f->getClientOriginalName(),
@@ -318,13 +317,6 @@ class TaskNew extends Component
             ->get(['id', 'name', 'next_start']));
     }
 
-    private function roomLabel(Room $room): string
-    {
-        return $room->next_start && $room->next_start->isFuture()
-            ? $room->name . ' · ' . HumanDate::at($room->next_start)
-            : $room->name;
-    }
-
     /**
      * Кому можно выдать: ученики учителя (связка teacher_student), участники выбранного занятия
      * и уже назначенные ученики изменяемого задания (как список в форме старого кабинета).
@@ -345,6 +337,6 @@ class TaskNew extends Component
                 }
             })
             ->orderBy('name')
-            ->get(['id', 'name']);
+            ->get(['id', 'name', 'email']);
     }
 }

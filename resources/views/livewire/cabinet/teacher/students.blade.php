@@ -96,7 +96,11 @@
                                     <x-ui.row :href="$s['href']" wire:key="student-{{ $s['id'] }}">
                                         <x-ui.avatar :user="$s['user']" />
                                         <div class="flex min-w-0 flex-1 flex-col gap-1">
-                                            <span class="truncate text-t1 font-medium">{{ $s['name'] }}</span>
+                                            {{-- Почта рядом с именем: по ней различают учеников с похожими именами --}}
+                                            <span class="flex min-w-0 flex-col gap-x-2 sm:flex-row sm:items-baseline">
+                                                <span class="truncate text-t1 font-medium sm:max-w-full sm:shrink-0">{{ $s['name'] }}</span>
+                                                @if ($s['email'])<span class="truncate text-t2 text-muted">{{ $s['email'] }}</span>@endif
+                                            </span>
                                             <span class="truncate text-t2 text-muted">{{ $s['sub'] }}</span>
                                         </div>
                                         <div class="hidden w-40 shrink-0 flex-col gap-1 lg:flex">

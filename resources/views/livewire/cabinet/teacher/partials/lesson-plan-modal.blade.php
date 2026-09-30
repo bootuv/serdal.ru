@@ -17,10 +17,7 @@
                 @if ($planChosen)
                     <div class="flex flex-wrap gap-2">
                         @foreach ($planChosen as $person)
-                            <span class="inline-flex h-9 items-center gap-1 rounded-full bg-soft pl-3 pr-1 text-t2 font-medium" wire:key="plan-st-{{ $person['id'] }}">
-                                {{ $person['name'] }}
-                                <button type="button" wire:click="removePlanStudent({{ $person['id'] }})" class="flex size-8 items-center justify-center rounded-full text-muted hover:text-ink" aria-label="Убрать: {{ $person['name'] }}"><x-ui.icon name="x" size="s" /></button>
-                            </span>
+                            <x-ui.token :remove="'removePlanStudent(' . $person['id'] . ')'" :label="$person['name']" wire:key="plan-st-{{ $person['id'] }}">{{ $person['name'] }}</x-ui.token>
                         @endforeach
                     </div>
                 @endif

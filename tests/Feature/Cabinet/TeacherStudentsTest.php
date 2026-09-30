@@ -106,6 +106,9 @@ class TeacherStudentsTest extends TestCase
             ->assertOk()
             ->assertSee('Алина Смирнова')
             ->assertSee('Павел Ким')
+            // Почта рядом с именем — по ней различают учеников с похожими именами
+            ->assertSee($alina->email)
+            ->assertSee($pavel->email)
             ->assertSee('Английский язык')
             ->assertSee('Завтра в 16:00')
             ->assertSee('Ждут оплаты')
