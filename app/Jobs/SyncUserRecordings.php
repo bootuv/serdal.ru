@@ -79,7 +79,7 @@ class SyncUserRecordings implements ShouldQueue
             // Only import if it belongs to one of our rooms
             if (in_array($meetingID, $userRoomIds)) {
                 $isPublished = ($publishedStr === 'true' || $publishedStr === '1');
-                $startTime = $startTimeRaw ? \Carbon\Carbon::createFromTimestamp($startTimeRaw / 1000) : null;
+                $startTime = $startTimeRaw ? \Carbon\Carbon::createFromTimestamp($startTimeRaw / 1000, config('app.timezone')) : null;
 
                 // Filter out "zombie" recordings:
                 // 1. If state is 'deleted' or 'unpublished'
@@ -117,7 +117,7 @@ class SyncUserRecordings implements ShouldQueue
                     'name' => $name,
                     'published' => $isPublished,
                     'start_time' => $startTime,
-                    'end_time' => $endTimeRaw ? \Carbon\Carbon::createFromTimestamp($endTimeRaw / 1000) : null,
+                    'end_time' => $endTimeRaw ? \Carbon\Carbon::createFromTimestamp($endTimeRaw / 1000, config('app.timezone')) : null,
                     'participants' => (int) trim((string) ($r['participants'] ?? '0')),
                     'url' => $playbackUrl ? trim($playbackUrl) : null,
                     // Ensure raw_data is a clean array without SimpleXMLElements for JSON cast

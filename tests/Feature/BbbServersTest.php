@@ -345,6 +345,45 @@ class BbbServersTest extends TestCase
         $this->assertSame($old->id, Recording::where('record_id', 'int-1')->value('bbb_server_id'));
     }
 
+    public function test_bbb4_publish_event_saves_recording_with_moscow_time(): void
+    {
+        $tz = date_default_timezone_get();
+        config(['app.timezone' => 'Europe/Moscow']);
+        date_default_timezone_set('Europe/Moscow');
+        $this->beforeApplicationDestroyed(fn () => date_default_timezone_set($tz));
+        Event::fake([\App\Events\RecordingUpdated::class]);
+
+        $server = $this->server('room2');
+        $teacher = $this->teacher();
+        $room = $this->room($teacher, ['meeting_id' => 'a03a0e7a-56d1-47ee-9e0e-ecb150a18393', 'bbb_server_id' => $server->id]);
+
+        // Событие в том виде, в каком его прислал room2.serdal.ru (BBB 4.0) 30.09.2026
+        $this->postJson(route('api.bbb.webhook'), ['event' => [['data' => [
+            'type' => 'event',
+            'id' => 'rap-publish-ended',
+            'attributes' => [
+                'meeting' => ['internal-meeting-id' => 'e4af-1790797578166', 'external-meeting-id' => $room->meeting_id],
+                'record-id' => 'e4af-1790797578166',
+                'success' => true,
+                'workflow' => 'video',
+                'recording' => [
+                    'name' => 3232323,
+                    'start-time' => 1790797578166,
+                    'end-time' => 1790797631593,
+                    'metadata' => ['meetingId' => $room->meeting_id, 'meetingName' => 3232323],
+                    'playback' => ['format' => 'video', 'link' => 'https://room2.serdal.ru/playback/video/e4af-1790797578166/', 'duration' => 36973],
+                ],
+            ],
+        ]]]])->assertOk();
+
+        $recording = Recording::where('record_id', 'e4af-1790797578166')->firstOrFail();
+        $this->assertSame('https://room2.serdal.ru/playback/video/e4af-1790797578166/', $recording->url);
+        $this->assertSame('3232323', $recording->name);
+        $this->assertSame($server->id, $recording->bbb_server_id);
+        $this->assertSame(1790797578, $recording->start_time->getTimestamp());
+        $this->assertSame('22:46', $recording->start_time->format('H:i'));
+    }
+
     public function test_admin_adds_server_and_it_is_checked_at_once(): void
     {
         $admin = User::factory()->create(['role' => User::ROLE_ADMIN, 'username' => 'a' . uniqid()]);

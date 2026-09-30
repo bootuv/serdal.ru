@@ -63,7 +63,7 @@ class RecordingSyncService
             $endTimeRaw = trim((string) ($r['endTime'] ?? ''));
 
             $isPublished = ($publishedStr === 'true' || $publishedStr === '1');
-            $startTime = $startTimeRaw ? Carbon::createFromTimestamp($startTimeRaw / 1000) : null;
+            $startTime = $startTimeRaw ? Carbon::createFromTimestamp($startTimeRaw / 1000, config('app.timezone')) : null;
 
             // Пропускаем удалённые и «зависшие» записи
             if (in_array($state, ['deleted', 'unpublished'], true) || (! $isPublished && (! $startTime || $startTime->lt(now()->subHours(24))))) {
@@ -85,7 +85,7 @@ class RecordingSyncService
                 'name' => trim((string) ($r['name'] ?? '')),
                 'published' => $isPublished,
                 'start_time' => $startTime,
-                'end_time' => $endTimeRaw ? Carbon::createFromTimestamp($endTimeRaw / 1000) : null,
+                'end_time' => $endTimeRaw ? Carbon::createFromTimestamp($endTimeRaw / 1000, config('app.timezone')) : null,
                 'participants' => (int) trim((string) ($r['participants'] ?? '0')),
                 'url' => $url ? trim((string) $url) : null,
                 'raw_data' => json_decode(json_encode($r), true),

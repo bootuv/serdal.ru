@@ -83,7 +83,7 @@ class BigBlueButtonWebhookController extends Controller
                 $this->handleUserRaiseHand($data);
             } elseif ($type === 'poll-started' || $type === 'poll-stopped') {
                 $this->handlePoll($data, $type);
-            } elseif ($type === 'publish_ended') {
+            } elseif ($type === 'publish_ended' || $type === 'rap-publish-ended') {
                 $this->handlePublishEnded($data);
             } elseif (
                 in_array($type, [
@@ -195,7 +195,22 @@ class BigBlueButtonWebhookController extends Controller
      */
     protected function handlePublishEnded(array $data)
     {
-        $payload = $data['payload'] ?? $data;
+        // Формат BBB 2.6+ / 4.0 (rap-publish-ended): data.attributes.record-id, recording.playback…
+        if (isset($data['data']['attributes']['record-id'])) {
+            $attributes = $data['data']['attributes'];
+            $recording = $attributes['recording'] ?? [];
+            $payload = [
+                'record_id' => $attributes['record-id'],
+                'external_meeting_id' => $attributes['meeting']['external-meeting-id'] ?? ($recording['metadata']['meetingId'] ?? null),
+                'playback' => $recording['playback'] ?? [],
+                'metadata' => ['meetingName' => (string) ($recording['metadata']['meetingName'] ?? $recording['name'] ?? '')] + ($recording['metadata'] ?? []),
+                'start_time' => $recording['start-time'] ?? null,
+                'end_time' => $recording['end-time'] ?? null,
+            ];
+        } else {
+            // Старый формат (publish_ended)
+            $payload = $data['payload'] ?? $data;
+        }
 
         $recordId = $payload['record_id'] ?? null;
         $meetingId = $payload['external_meeting_id'] ?? null;
@@ -210,8 +225,9 @@ class BigBlueButtonWebhookController extends Controller
         $videoUrl = $playback['link'] ?? null;
         $duration = $playback['duration'] ?? 0;
         $meetingName = $metadata['meetingName'] ?? 'Запись урока';
-        $startTime = isset($payload['start_time']) ? \Carbon\Carbon::createFromTimestampMs($payload['start_time']) : now();
-        $endTime = isset($payload['end_time']) ? \Carbon\Carbon::createFromTimestampMs($payload['end_time']) : now();
+        // Метки BBB — UTC; переводим в часовой пояс приложения, иначе в базу ляжет время на 3 часа раньше
+        $startTime = isset($payload['start_time']) ? \Carbon\Carbon::createFromTimestampMs($payload['start_time'], config('app.timezone')) : now();
+        $endTime = isset($payload['end_time']) ? \Carbon\Carbon::createFromTimestampMs($payload['end_time'], config('app.timezone')) : now();
 
         Log::info('BBB Webhook (publish_ended): Processing recording', [
             'record_id' => $recordId,
