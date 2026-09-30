@@ -5,7 +5,6 @@ import './push-notifications';
 /**
  * Шаринг-карточка отзыва (картинка для сторис): на телефоне — системное окно «Поделиться» (Web Share API),
  * на компьютере и там, где шаринг файлов не поддерживается, — обычное скачивание.
- * Та же функция есть в старом кабинете (render hook в AppServiceProvider).
  * Возвращает 'shared' | 'cancelled' | 'download'.
  */
 window.serdalShareReviewCard = async function (url) {
@@ -13,13 +12,18 @@ window.serdalShareReviewCard = async function (url) {
     const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
         || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
 
-    if (isMobile && navigator.canShare) {
-        try {
-            const response = await fetch(url);
-            if (!response.ok) throw new Error('HTTP ' + response.status);
-            const blob = await response.blob();
-            const file = new File([blob], 'serdal-review.jpg', { type: 'image/jpeg' });
+    let blob = null;
+    try {
+        const response = await fetch(url, { credentials: 'same-origin' });
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+        blob = await response.blob();
+    } catch (error) {
+        blob = null;
+    }
 
+    if (blob && isMobile && navigator.canShare) {
+        const file = new File([blob], 'serdal-review.jpg', { type: 'image/jpeg' });
+        try {
             if (navigator.canShare({ files: [file] })) {
                 await navigator.share({ files: [file] });
                 return 'shared';
@@ -29,7 +33,16 @@ window.serdalShareReviewCard = async function (url) {
         }
     }
 
-    window.location.href = url; // компьютер и запасной вариант: скачать файл
+    // Компьютер и запасной вариант: сохраняем файл через ссылку с download, без перехода страницы —
+    // переход (location.href) браузер отменял, когда следом закрывалось окно и Livewire обновлял страницу
+    const link = document.createElement('a');
+    link.href = blob ? URL.createObjectURL(blob) : url;
+    link.download = 'serdal-review.jpg';
+    link.rel = 'noopener';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    if (blob) setTimeout(() => URL.revokeObjectURL(link.href), 60000);
     return 'download';
 };
 import './rich-editor';

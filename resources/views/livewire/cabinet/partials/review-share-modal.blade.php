@@ -29,6 +29,6 @@
     <x-slot:footer>
         <x-ui.btn wire:click="{{ $close }}">Отмена</x-ui.btn>
         <x-ui.btn variant="primary" icon="download"
-                  x-on:click="window.serdalShareReviewCard(@js($shared['shareUrl'])).then(r => { if (r === 'download') $dispatch('toast', { message: 'Картинка сохранена в «Загрузки»' }) }); {{ $call }}">Скачать картинку</x-ui.btn>
+                  x-on:click="window.serdalShareReviewCard(@js($shared['shareUrl'])).then(r => { if (r === 'download') $dispatch('toast', { message: 'Картинка сохранена в «Загрузки»' }); {{ $call }} })">Скачать картинку</x-ui.btn>
     </x-slot:footer>
 </x-ui.modal>
