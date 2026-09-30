@@ -18,7 +18,7 @@ use Livewire\Component;
  * Основатели: ежемесячный сбор на расходы платформы.
  * Вкладки: «Взносы» (текущий сбор — кто сколько вносит, отметка «Внесено», долги, окно «Настройки сбора»),
  * «История» (все месяцы: кто внёс, кто нет, кто отметил; итоги и долги по каждому основателю),
- * «Расходы» (инфраструктура с ценами в месяц, в год или разово — разовый собирается отдельной строкой со сбором за выбранный месяц), «Доли» (основатели, их доли и почта для напоминаний).
+ * «Расходы» (инфраструктура с ценами в месяц, в год или разово — разовый собирается отдельной строкой со сбором за выбранный месяц), «Доли» (основатели — существующие пользователи, администраторы или учителя, и их доли).
  * Логика — FounderService.
  */
 #[Layout('components.layouts.cabinet', ['title' => 'Основатели', 'active' => 'founders'])]
@@ -50,12 +50,9 @@ class Founders extends Component
 
     /* Окно основателя: id или 0 — новый; null — закрыто. */
     public ?int $founderId = null;
-    public string $founderName = '';
-    public string $founderEmail = '';
     public string $founderShare = '';
-    /** Профиль на сайте, под которым основатель видит свою страницу сбора; поиск профиля по имени или почте. */
-    public ?int $founderUserId = null;
-    public string $founderUserQuery = '';
+    /** Профиль основателя на сайте (id пользователя): имя и почта берутся из него. */
+    public string $founderUserId = '';
 
     /* Окно «Удалить?»: expense | founder. */
     public ?string $deleting = null;
@@ -229,34 +226,12 @@ class Founders extends Component
     {
         $f = $id ? Founder::findOrFail($id) : null;
         $this->founderId = $f?->id ?? 0;
-        $this->founderName = (string) $f?->name;
-        $this->founderEmail = (string) $f?->email;
         $this->founderShare = $f ? rtrim(rtrim(number_format((float) $f->share, 2, ',', ''), '0'), ',') : '';
-        $this->founderUserId = $f?->user_id;
-        $this->founderUserQuery = '';
+        $this->founderUserId = (string) ($f?->user_id ?? '');
         $this->resetErrorBag();
     }
 
-    /** Привязать профиль (админ или учитель, ещё не привязанный к другому основателю). Пустую почту берём из профиля. */
-    public function pickFounderUser(int $id): void
-    {
-        $user = $this->founderUserCandidates()->whereKey($id)->firstOrFail();
-        $this->founderUserId = $user->id;
-        $this->founderUserQuery = '';
-        if (trim($this->founderEmail) === '') {
-            $this->founderEmail = (string) $user->email;
-        }
-        if (trim($this->founderName) === '') {
-            $this->founderName = (string) $user->name;
-        }
-    }
-
-    public function clearFounderUser(): void
-    {
-        $this->founderUserId = null;
-    }
-
-    /** Профили, которые можно привязать: администраторы и учителя, не занятые другим основателем. */
+    /** Кого можно сделать основателем: администраторы и учителя, не занятые другим основателем. */
     private function founderUserCandidates(): \Illuminate\Database\Eloquent\Builder
     {
         return User::query()->whereIn('role', [User::ROLE_ADMIN, User::ROLE_TUTOR])
@@ -268,33 +243,34 @@ class Founders extends Component
         $this->founderId = null;
     }
 
+    /** Основатель — только существующий пользователь: имя и почта берутся из профиля, вручную не вводятся. */
     public function saveFounder(): void
     {
         $this->authorizeAdmin();
         $this->founderShare = self::number($this->founderShare);
-        $this->founderEmail = trim($this->founderEmail);
         $this->validate([
-            'founderName' => ['required', 'string', 'max:120'],
-            'founderEmail' => ['nullable', 'email', 'max:255'],
+            'founderUserId' => ['required', \Illuminate\Validation\Rule::in($this->founderUserCandidates()->pluck('id')->map(fn ($id) => (string) $id)->all())],
             'founderShare' => ['required', 'numeric', 'min:0', 'max:100'],
         ], [
-            'founderName.required' => 'Укажите имя',
-            'founderEmail.email' => 'Проверьте адрес почты',
+            'founderUserId.required' => 'Выберите профиль основателя',
+            'founderUserId.in' => 'Выберите администратора или учителя, который ещё не добавлен',
             'founderShare.required' => 'Укажите долю в процентах',
             'founderShare.numeric' => 'Только число, например 50 или 33,33',
             'founderShare.max' => 'Не больше 100 %',
         ]);
 
+        $user = User::findOrFail((int) $this->founderUserId);
         $data = [
-            'name' => trim($this->founderName),
-            'email' => $this->founderEmail ?: null,
+            'user_id' => $user->id,
+            // Копия на случай удаления профиля; показываем и пишем всегда из профиля
+            'name' => (string) $user->name,
+            'email' => $user->email ?: null,
             'share' => round((float) $this->founderShare, 2),
-            'user_id' => $this->founderUserId && $this->founderUserCandidates()->whereKey($this->founderUserId)->exists() ? $this->founderUserId : null,
         ];
 
         if ($this->founderId) {
             Founder::findOrFail($this->founderId)->update($data);
-            $message = 'Доля сохранена';
+            $message = 'Основатель сохранён';
         } else {
             Founder::create($data + ['sort' => (int) Founder::max('sort') + 1]);
             $message = 'Основатель добавлен';
@@ -399,22 +375,20 @@ class Founders extends Component
         return $options;
     }
 
-    /** Окно основателя: привязанный профиль или результаты поиска профиля. */
+    /** Окно основателя: из кого выбирать (имя, почта) и подсказка про выбранный профиль. */
     private function founderUserView(): array
     {
-        $role = fn (User $u) => $u->role === User::ROLE_ADMIN ? 'Администратор' : 'Учитель';
-        $selected = $this->founderUserId ? User::find($this->founderUserId) : null;
-        $q = trim($this->founderUserQuery);
+        $people = $this->founderUserCandidates()->orderByRaw("role = 'admin' desc")->orderBy('name')->get(['id', 'name', 'email', 'role']);
+        $selected = $people->firstWhere('id', (int) $this->founderUserId);
+        $legacy = $this->founderId ? Founder::find($this->founderId) : null;
 
         return [
-            'selected' => $selected ? ['user' => $selected, 'sub' => $role($selected) . ' · ' . $selected->email] : null,
-            'results' => ! $selected && mb_strlen($q) >= 2
-                ? $this->founderUserCandidates()
-                    ->where(fn ($w) => $w->where('name', 'like', '%' . $q . '%')->orWhere('email', 'like', '%' . $q . '%'))
-                    ->orderBy('name')->limit(5)->get()
-                    ->map(fn (User $u) => ['user' => $u, 'sub' => $role($u) . ' · ' . $u->email])
-                : collect(),
-            'searched' => ! $selected && mb_strlen($q) >= 2,
+            'people' => $people->map(fn (User $u) => ['id' => (int) $u->id, 'name' => (string) $u->name, 'email' => (string) $u->email])->all(),
+            'hint' => match (true) {
+                (bool) $selected => ($selected->role === User::ROLE_ADMIN ? 'Администратор' : 'Учитель') . '. Напоминания придут на почту профиля, страница сбора откроется после входа под ним',
+                $legacy && ! $legacy->user_id => 'Раньше был добавлен вручную как «' . $legacy->name . '» — выберите его профиль на сайте',
+                default => 'Администратор или учитель. Имя и почта берутся из профиля',
+            },
         ];
     }
 
@@ -579,10 +553,8 @@ class Founders extends Component
             'founders' => $founders->map(fn (Founder $f) => [
                 'id' => $f->id,
                 'name' => $f->name,
-                'sub' => implode(' · ', array_filter([
-                    $f->email ?: 'почта не указана — напоминания не придут',
-                    $f->user_id ? null : 'профиль не привязан',
-                ])),
+                'sub' => $f->user_id ? ($f->email ?: 'в профиле нет почты — напоминания не придут') : null,
+                'unlinked' => ! $f->user_id ? 'Профиль не выбран — нажмите и выберите' : null,
                 'share' => FounderService::percent((float) $f->share),
                 'amount' => $money(FounderService::amountFor($f, $total)),
             ]),

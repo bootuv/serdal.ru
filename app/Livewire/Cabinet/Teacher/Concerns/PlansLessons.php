@@ -12,7 +12,8 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Validation\Rule;
 
 /**
- * Окно «Запланировать занятие» (макет LsPlan): ученики, название, дата и время, длительность, повтор по дням недели.
+ * Окно «Запланировать занятие» (макет LsPlan): ученики (список с поиском по имени и почте), название, дата и время,
+ * длительность, повтор по дням недели.
  * Создание — TeacherLessonService::create (как CreateRoom в старом кабинете). Разметка — partials/plan-modal.blade.php.
  */
 trait PlansLessons
@@ -108,6 +109,13 @@ trait PlansLessons
         $this->planAdd = '';
     }
 
+    /** Добавить ученика в группу из списка с поиском (x-ui.person-select). */
+    public function addPlanStudent(int $id): void
+    {
+        $this->planAdd = (string) $id;
+        $this->updatedPlanAdd();
+    }
+
     public function removePlanStudent(int $id): void
     {
         $this->planStudents = array_values(array_filter($this->planStudents, fn ($s) => (int) $s !== $id));
@@ -199,15 +207,18 @@ trait PlansLessons
             return [];
         }
 
-        $students = app(TeacherLessonService::class)->studentsQuery($teacher)->orderBy('name')->pluck('name', 'id');
+        $people = app(TeacherLessonService::class)->studentsQuery($teacher)->orderBy('name')->get(['users.id', 'users.name', 'users.email'])
+            ->map(fn (User $s) => ['id' => (int) $s->id, 'name' => (string) $s->name, 'email' => (string) $s->email]);
+        $students = $people->pluck('name', 'id');
         $lessonType = $teacher->lessonTypes()->where('type', $this->planKind)->first();
         $first = TeacherLessonService::firstOccurrence($this->planRepeat, $this->planDate, $this->planTime, $this->planDays);
         $tariff = $teacher->activeSubscription()?->tariff;
         $count = count($this->planStudents);
 
         return [
-            'planStudentOptions' => $students->all(),
-            'planGroupOptions' => $students->except($this->planStudents)->all(),
+            // Ученики для списка с поиском: имя и почта; в групповом — без уже добавленных
+            'planPeople' => $people->all(),
+            'planGroupPeople' => $people->reject(fn (array $p) => in_array($p['id'], array_map('intval', $this->planStudents), true))->values()->all(),
             'planChosen' => collect($this->planStudents)->map(fn ($id) => ['id' => (int) $id, 'name' => $students[$id] ?? ''])->all(),
             'planWhoHint' => $this->planKind === 'group' && $count
                 ? plural_ru($count, 'ученик', 'ученика', 'учеников') . ($tariff?->max_participants ? ' · на «' . $tariff->name . '» до ' . $tariff->max_participants . ' в занятии' : '')

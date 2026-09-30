@@ -8,7 +8,7 @@
 
         @if ($planKind === 'individual')
             <div class="flex flex-col gap-2">
-                <x-ui.select label="Ученик" name="planStudentId" :options="$planStudentOptions" placeholder="Выберите ученика" wire:model.live="planStudentId" />
+                <x-ui.person-select label="Ученик" name="planStudentId" :people="$planPeople" :selected="$planStudentId" model="planStudentId" placeholder="Выберите ученика" />
                 @unless ($errors->has('planStudentId'))<span class="text-t3 text-muted">{{ $planWhoHint }}</span>@endunless
             </div>
         @else
@@ -24,8 +24,8 @@
                         @endforeach
                     </div>
                 @endif
-                @if ($planGroupOptions)
-                    <x-ui.select name="planAdd" :options="$planGroupOptions" placeholder="Добавить ученика" wire:model.live="planAdd" aria-label="Добавить ученика" />
+                @if ($planGroupPeople)
+                    <x-ui.person-select name="planAdd" :people="$planGroupPeople" action="addPlanStudent" placeholder="Добавить ученика" />
                 @endif
                 @error('planStudents')<span class="text-t2 font-medium text-danger-fg">{{ $message }}</span>@else<span class="text-t3 text-muted">{{ $planWhoHint }}</span>@enderror
             </div>

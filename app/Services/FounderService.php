@@ -103,7 +103,7 @@ class FounderService
 
     public function founders(): Collection
     {
-        return Founder::orderBy('sort')->orderBy('id')->get();
+        return Founder::with('user')->orderBy('sort')->orderBy('id')->get();
     }
 
     public function expenses(): Collection

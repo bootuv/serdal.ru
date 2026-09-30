@@ -206,7 +206,7 @@
         <x-ui.card aria-labelledby="f-sh">
             <x-ui.card-head id="f-sh" title="Доли основателей" />
             @if ($founders->isEmpty())
-                <p class="text-t2 text-muted">Пока пусто — добавьте основателей и их доли в процентах.</p>
+                <p class="text-t2 text-muted">Пока пусто — добавьте основателей из пользователей сайта и укажите их доли.</p>
             @else
                 <div>
                     <div class="hidden items-center gap-4 pb-3 text-t3 font-medium text-muted lg:flex">
@@ -220,7 +220,7 @@
                             <button type="button" wire:key="ff-{{ $f['id'] }}" wire:click="editFounder({{ $f['id'] }})" class="group flex items-center gap-4 border-t border-line py-4 text-left text-ink last:pb-0">
                                 <span class="flex min-w-0 flex-1 flex-col gap-1">
                                     <span class="truncate text-t1 font-medium group-hover:underline">{{ $f['name'] }}</span>
-                                    <span class="truncate text-t2 text-muted">{{ $f['sub'] }}<span class="lg:hidden"> · {{ $f['share'] }}</span></span>
+                                    <span class="truncate text-t2 text-muted">@if ($f['unlinked'])<x-ui.em danger>{{ $f['unlinked'] }}</x-ui.em>@else{{ $f['sub'] }}@endif<span class="lg:hidden"> · {{ $f['share'] }}</span></span>
                                 </span>
                                 <span class="hidden w-24 shrink-0 text-right text-t1-s font-medium lg:block">{{ $f['share'] }}</span>
                                 <span class="shrink-0 text-right text-t1 font-medium lg:w-40">{{ $f['amount'] }}</span>
@@ -274,32 +274,11 @@
 
     @if ($founderId !== null)
         <x-ui.modal :title="$founderId ? 'Основатель' : 'Новый основатель'" sub="От доли зависит, сколько он вносит на расходы" close="closeFounder">
-            <x-ui.field label="Имя" name="founderName" wire:model="founderName" />
-            <x-ui.field label="Почта" name="founderEmail" type="email" optional hint="Сюда придут напоминания о сборе" wire:model="founderEmail" />
-            <x-ui.unit-field label="Доля" name="founderShare" unit="%" inputmode="decimal" hint="Доли всех основателей в сумме — 100 %" wire:model="founderShare" />
             <div class="flex flex-col gap-2">
-                <span class="text-t2 font-medium">Профиль на сайте <span class="font-normal text-muted">необязательно</span></span>
-                @if ($founderUser['selected'])
-                    <div class="flex items-center gap-3 rounded-lg p-3 shadow-line">
-                        <x-ui.avatar :user="$founderUser['selected']['user']" />
-                        <x-ui.text :title="$founderUser['selected']['user']->name" :sub="$founderUser['selected']['sub']" />
-                        <button type="button" wire:click="clearFounderUser" class="link shrink-0 text-t2">Отвязать</button>
-                    </div>
-                    <span class="text-t3 text-muted">Под этим профилем основатель видит свою страницу сбора: взнос, куда переводить, «Я перевёл»</span>
-                @else
-                    <x-ui.search full wire:model.live.debounce.300ms="founderUserQuery" placeholder="Имя или почта администратора или учителя" />
-                    @if ($founderUser['results']->isNotEmpty())
-                        <div class="flex flex-wrap gap-2">
-                            @foreach ($founderUser['results'] as $r)
-                                <x-ui.pick :user="$r['user']" wire:click="pickFounderUser({{ $r['user']->id }})" wire:key="fu-{{ $r['user']->id }}" title="{{ $r['sub'] }}" />
-                            @endforeach
-                        </div>
-                    @elseif ($founderUser['searched'])
-                        <span class="text-t2 text-muted">Никого не нашли — проверьте имя или почту.</span>
-                    @endif
-                    <span class="text-t3 text-muted">Без профиля страница сбора основателю недоступна — всё нужное будет в письме</span>
-                @endif
+                <x-ui.person-select label="Профиль на сайте" name="founderUserId" :people="$founderUser['people']" :selected="$founderUserId" model="founderUserId" placeholder="Выберите пользователя" />
+                @unless ($errors->has('founderUserId'))<span class="text-t3 text-muted">{{ $founderUser['hint'] }}</span>@endunless
             </div>
+            <x-ui.unit-field label="Доля" name="founderShare" unit="%" inputmode="decimal" hint="Доли всех основателей в сумме — 100 %" wire:model="founderShare" />
             <x-slot:note>
                 @if ($founderId)<button type="button" wire:click="askDelete('founder')" class="link">Удалить основателя</button>@endif
             </x-slot:note>
@@ -311,7 +290,7 @@
     @endif
 
     @if ($deleting)
-        <x-ui.modal :title="$deleting === 'expense' ? 'Удалить расход?' : 'Удалить основателя?'" :sub="$deleting === 'expense' ? $expenseName : $founderName" close="cancelDelete" width="s">
+        <x-ui.modal :title="$deleting === 'expense' ? 'Удалить расход?' : 'Удалить основателя?'" :sub="$deleting === 'expense' ? $expenseName : null" close="cancelDelete" width="s">
             <p class="text-t1-s">{{ $deleting === 'expense' ? 'Расход пропадёт из списка, невнесённые взносы пересчитаются.' : 'Вместе с основателем удалится история его взносов.' }}</p>
             <p class="text-t2 text-muted">Внесённые взносы не изменятся.</p>
             <x-slot:footer>

@@ -81,15 +81,24 @@ class FoundersTest extends TestCase
 
     public function test_screen_crud_and_paid_toggle(): void
     {
-        $this->actingAs($this->user(User::ROLE_ADMIN));
+        $admin = $this->user(User::ROLE_ADMIN);
+        $admin->update(['name' => 'Иван', 'email' => 'ivan@example.com']);
+        $tutor = $this->user(User::ROLE_TUTOR);
+        $tutor->update(['name' => 'Пётр']);
+        $this->actingAs($admin);
 
+        // Основатель — только из пользователей: без профиля не сохранить, имя и почта берутся из профиля
         Livewire::test(Founders::class)
             ->set('tab', 'shares')
             ->call('editFounder')
-            ->set('founderName', 'Иван')->set('founderEmail', 'ivan@example.com')->set('founderShare', '33,5')
+            ->assertDontSeeHtml('name="founderName"')->assertDontSeeHtml('name="founderEmail"')
+            ->set('founderShare', '33,5')
+            ->call('saveFounder')->assertHasErrors('founderUserId')
+            ->set('founderUserId', (string) $admin->id)
             ->call('saveFounder')->assertHasNoErrors()
+            ->assertSee('Иван')->assertSee('ivan@example.com')
             ->call('editFounder')
-            ->set('founderName', 'Пётр')->set('founderShare', '120')
+            ->set('founderUserId', (string) $tutor->id)->set('founderShare', '120')
             ->call('saveFounder')->assertHasErrors('founderShare')
             ->set('founderShare', '66,5')->call('saveFounder')->assertHasNoErrors()
             ->assertSee('33,5 %')->assertSee('100 %')
@@ -323,7 +332,9 @@ class FoundersTest extends TestCase
     {
         Notification::fake();
         $admin = $this->user(User::ROLE_ADMIN);
+        $admin->update(['name' => 'Пётр']);
         $tutor = $this->user(User::ROLE_TUTOR);
+        $tutor->update(['name' => 'Иван']);
         $stranger = $this->user(User::ROLE_TUTOR);
         [$ivan, $petr] = $this->seedData();
         $ivan->update(['user_id' => $tutor->id]);
@@ -371,36 +382,51 @@ class FoundersTest extends TestCase
         $this->assertNull(FounderContribution::where('founder_id', $petr->id)->first()->claimed_at);
     }
 
-    public function test_admin_links_founder_to_profile(): void
+    public function test_founder_is_always_an_existing_user(): void
     {
+        Notification::fake();
         $admin = $this->user(User::ROLE_ADMIN);
         $tutor = User::factory()->create(['role' => User::ROLE_TUTOR, 'username' => 'tt' . uniqid(), 'name' => 'Ахмед Мислауров', 'email' => 'ahmed@example.com']);
         $student = User::factory()->create(['role' => User::ROLE_STUDENT, 'username' => 'st' . uniqid(), 'name' => 'Ахмед Ученик']);
         [$ivan, $petr] = $this->seedData();
         $this->actingAs($admin);
 
+        // Добавленный раньше вручную — с пометкой; в списке выбора — админы и учителя с почтой, без учеников
         Livewire::test(Founders::class)->set('tab', 'shares')
-            ->assertSee('профиль не привязан')
+            ->assertSee('Профиль не выбран')
             ->call('editFounder', $ivan->id)
-            ->set('founderUserQuery', 'Ахмед')
-            ->assertSee('Ахмед Мислауров')->assertDontSee('Ахмед Ученик')
-            ->call('pickFounderUser', $tutor->id)
-            ->assertSee('Отвязать')
+            ->assertSee('Раньше был добавлен вручную как «Иван»')
+            ->assertSee('Ахмед Мислауров')->assertSee('ahmed@example.com')->assertDontSee('Ахмед Ученик')
+            ->call('saveFounder')->assertHasErrors('founderUserId')
+            ->set('founderUserId', (string) $tutor->id)
             ->call('saveFounder')->assertHasNoErrors();
-        $this->assertSame($tutor->id, $ivan->fresh()->user_id);
-        $this->assertSame(route('founders.page'), $ivan->fresh()->pageUrl());
 
-        // Один профиль — один основатель; ученика привязать нельзя
-        $component = Livewire::test(Founders::class)->call('editFounder', $petr->id)->set('founderUserQuery', 'Ахмед')->assertDontSee('Ахмед Мислауров');
-        $component->set('founderUserId', $tutor->id)->call('saveFounder');
-        $this->assertNull($petr->fresh()->user_id);
-        $component->call('editFounder', $petr->id)->set('founderUserId', $student->id)->call('saveFounder');
+        // Имя и почта — из профиля; меняются вместе с ним
+        $ivan = $ivan->fresh();
+        $this->assertSame($tutor->id, $ivan->user_id);
+        $this->assertSame('Ахмед Мислауров', $ivan->name);
+        $this->assertSame('ahmed@example.com', $ivan->email);
+        $this->assertSame(route('founders.page'), $ivan->pageUrl());
+        $tutor->update(['email' => 'new@example.com', 'name' => 'Ахмед М.']);
+        $this->assertSame('new@example.com', $ivan->fresh()->routeNotificationForMail());
+        $this->assertSame('Ахмед М.', $ivan->fresh()->name);
+
+        // Напоминание уходит на почту профиля
+        Carbon::setTestNow('2026-10-02 10:00');
+        app(FounderService::class)->remindNow(Carbon::parse('2026-10-01'), [$ivan->id]);
+        Notification::assertSentTo($ivan, FounderContributionReminder::class);
+
+        // Один профиль — один основатель; ученика выбрать нельзя
+        Livewire::test(Founders::class)->call('editFounder', $petr->id)
+            ->assertViewHas('founderUser', fn ($v) => ! in_array($tutor->id, array_column($v['people'], 'id'), true))
+            ->set('founderUserId', (string) $tutor->id)->call('saveFounder')->assertHasErrors('founderUserId')
+            ->set('founderUserId', (string) $student->id)->call('saveFounder')->assertHasErrors('founderUserId');
         $this->assertNull($petr->fresh()->user_id);
 
-        // Отвязать
-        Livewire::test(Founders::class)->call('editFounder', $ivan->id)->call('clearFounderUser')->call('saveFounder');
+        // Профиль удалили — основатель остаётся с сохранённой копией имени
+        $tutor->delete();
         $this->assertNull($ivan->fresh()->user_id);
-        $this->assertNull($ivan->fresh()->pageUrl());
+        $this->assertSame('Ахмед Мислауров', $ivan->fresh()->name);
     }
 
     public function test_reminder_mail_has_payment_details_and_personal_link(): void

@@ -296,6 +296,37 @@ class TeacherScheduleTest extends TestCase
         $this->assertEqualsCanonicalizing(['17:00', '18:00'], $room->schedules->map(fn ($s) => substr($s->recurrence_time, 0, 5))->all());
     }
 
+    public function test_plan_students_are_picked_from_searchable_list_with_emails(): void
+    {
+        $teacher = $this->teacher();
+        $a = $this->studentOf($teacher, 'Анна Белова');
+        $b = $this->studentOf($teacher, 'Иван Петров');
+        $foreign = $this->studentOf($this->teacher(), 'Чужой Ученик');
+
+        $component = Livewire::actingAs($teacher)
+            ->test(Schedule::class)
+            ->call('openPlan')
+            // Свой список с поиском вместо системного: имя и почта каждого ученика
+            ->assertSee('Имя или почта')
+            ->assertSee('Анна Белова')->assertSee($a->email)
+            ->assertSee('Иван Петров')->assertSee($b->email)
+            ->assertDontSee('Чужой Ученик')->assertDontSee($foreign->email)
+            ->assertDontSeeHtml('<select name="planStudentId"')
+            ->set('planStudentId', (string) $b->id)
+            ->assertSeeHtml('aria-selected="true"');
+
+        // Групповое: добавляем из того же списка, добавленные из него пропадают
+        $component->set('planStudentId', '')->set('planKind', 'group')
+            ->call('addPlanStudent', $a->id)
+            ->assertSet('planStudents', [$a->id])
+            ->assertViewHas('planGroupPeople', fn ($people) => array_column($people, 'id') === [$b->id])
+            ->call('addPlanStudent', $a->id)
+            ->assertSet('planStudents', [$a->id])
+            ->call('addPlanStudent', $b->id)
+            ->assertSet('planStudents', [$a->id, $b->id])
+            ->assertDontSee('Добавить ученика');
+    }
+
     public function test_once_plan_without_days(): void
     {
         $teacher = $this->teacher();
