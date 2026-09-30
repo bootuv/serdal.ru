@@ -89,6 +89,28 @@ class StudentProfileTest extends TestCase
         Storage::disk('s3')->assertExists($student->avatar);
     }
 
+    public function test_student_removes_photo_and_sees_crop_window(): void
+    {
+        Storage::fake('s3');
+        $student = $this->user(User::ROLE_STUDENT, ['avatar' => 'avatars/1/old.webp']);
+        Storage::disk('s3')->put('avatars/1/old.webp', 'webp');
+
+        Livewire::actingAs($student)
+            ->test(Profile::class)
+            // Фото выбирают через окно обрезки (x-ui.photo-crop), а не отправляют файл как есть
+            ->assertSeeHtml('x-data="photoCrop(\'photo\')"')
+            ->assertSee('Удалить')
+            ->call('deletePhoto')
+            ->assertSet('removePhoto', true)
+            ->assertDontSee('Удалить')
+            ->call('save')
+            ->assertHasNoErrors()
+            ->assertSet('removePhoto', false);
+
+        $this->assertNull($student->fresh()->avatar);
+        Storage::disk('s3')->assertMissing('avatars/1/old.webp');
+    }
+
     public function test_profile_validation(): void
     {
         $this->user(User::ROLE_STUDENT, ['email' => 'taken@example.com']);

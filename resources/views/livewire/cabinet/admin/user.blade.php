@@ -206,7 +206,7 @@
                 <div class="flex min-w-0 flex-col gap-6">
                     <x-ui.card aria-labelledby="p-name">
                         <x-ui.card-head id="p-name" title="Фото и имя" />
-                        <div class="flex items-center gap-4" x-data>
+                        <div class="flex items-center gap-4">
                             @if ($photo && ! $errors->has('photo') && $photo->isPreviewable())
                                 <img src="{{ $photo->temporaryUrl() }}" alt="" class="size-16 shrink-0 rounded-lg object-cover">
                             @elseif ($u->avatar && ! $removePhoto)
@@ -215,11 +215,10 @@
                                 <x-ui.avatar :user="$u" size="lg" />
                             @endif
                             <div class="flex min-w-0 flex-col items-start gap-2">
-                                <x-ui.btn size="s" icon="upload" x-on:click="$refs.photo.click()" wire:loading.attr="disabled" wire:target="photo">Загрузить фото</x-ui.btn>
+                                <x-ui.photo-crop size="s" icon="upload">Загрузить фото</x-ui.photo-crop>
                                 @if ($photo || ($u->avatar && ! $removePhoto))
                                     <button type="button" class="link text-t2" wire:click="deletePhoto">Удалить фото</button>
                                 @endif
-                                <input type="file" x-ref="photo" wire:model="photo" accept="image/*" class="sr-only" tabindex="-1" aria-label="Фото профиля">
                                 @error('photo')<span class="text-t2 font-medium text-danger-fg">{{ $message }}</span>@enderror
                             </div>
                         </div>

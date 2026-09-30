@@ -44,7 +44,7 @@
                 <div class="flex flex-col gap-6">
                     <div class="flex flex-col gap-2">
                         <span class="text-t2 font-medium">Фото профиля</span>
-                        <div class="flex items-center gap-4" x-data>
+                        <div class="flex items-center gap-4">
                             @if ($photo && ! $errors->has('photo') && $photo->isPreviewable())
                                 <img src="{{ $photo->temporaryUrl() }}" alt="" class="size-16 shrink-0 rounded-lg object-cover">
                             @elseif ($hasPhoto)
@@ -54,10 +54,9 @@
                             @endif
                             <div class="flex min-w-0 flex-col gap-2">
                                 <div class="flex flex-wrap items-center gap-2">
-                                    <x-ui.btn x-on:click="$refs.photo.click()" wire:loading.attr="disabled" wire:target="photo">{{ $hasPhoto ? 'Заменить' : 'Загрузить фото' }}</x-ui.btn>
+                                    <x-ui.photo-crop>{{ $hasPhoto ? 'Заменить' : 'Загрузить фото' }}</x-ui.photo-crop>
                                     @if ($hasPhoto)<x-ui.btn wire:click="deletePhoto">Удалить</x-ui.btn>@endif
                                 </div>
-                                <input type="file" x-ref="photo" wire:model="photo" accept="image/*" class="sr-only" tabindex="-1" aria-label="Фото профиля">
                                 <span wire:loading wire:target="photo" class="text-t3 text-muted">Загружаем…</span>
                                 @error('photo')<span class="text-t2 font-medium text-danger-fg">{{ $message }}</span>@enderror
                                 <span class="text-t3 text-muted">Ученики увидят его в расписании и на занятиях</span>

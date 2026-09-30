@@ -35,6 +35,7 @@ window.serdalShareReviewCard = async function (url) {
 import './rich-editor';
 import './lightbox';
 import './video-player';
+import './photo-crop';
 import './tour';
 
 /**

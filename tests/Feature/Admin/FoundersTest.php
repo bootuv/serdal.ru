@@ -318,4 +318,119 @@ class FoundersTest extends TestCase
         $service->remindNow(Carbon::parse('2026-10-01'), [$ivan->id]);
         Notification::assertSentTo($ivan, FounderContributionReminder::class, fn ($n) => $n->kind === 'overdue');
     }
+
+    public function test_founder_page_requires_linked_profile_and_claim(): void
+    {
+        Notification::fake();
+        $admin = $this->user(User::ROLE_ADMIN);
+        $tutor = $this->user(User::ROLE_TUTOR);
+        $stranger = $this->user(User::ROLE_TUTOR);
+        [$ivan, $petr] = $this->seedData();
+        $ivan->update(['user_id' => $tutor->id]);
+        $petr->update(['user_id' => $admin->id]);
+        FounderService::saveSettings(5, 3, true);
+        FounderService::savePayment(['recipient' => 'Берд А.', 'number' => '+7 900 000-00-00', 'bank' => 'Т-Банк', 'note' => '']);
+        $service = app(FounderService::class);
+        Carbon::setTestNow('2026-10-02 10:00');
+
+        // Без входа — на страницу входа; под чужим профилем — «Такой страницы нет»
+        $this->get('/founder')->assertRedirect(route('login'));
+        $this->actingAs($stranger)->get('/founder')->assertNotFound();
+        $this->actingAs($this->user(User::ROLE_STUDENT))->get('/founder')->assertNotFound();
+
+        // Учитель-основатель видит только своё
+        $this->actingAs($tutor)->get('/founder')->assertOk()
+            ->assertSee('Сбор на расходы')->assertSee('Иван · доля 60 %')->assertSee('5 460 ₽')
+            ->assertSee('Куда переводить')->assertSee('+7 900 000-00-00')->assertSee('Т-Банк')
+            ->assertSee('Сервер')->assertSee('noindex')
+            ->assertDontSee('3 640 ₽')->assertDontSee('Пётр');
+
+        // «Я перевёл» — ждёт подтверждения, админу уведомление, автонапоминания не приходят
+        Livewire::test(\App\Livewire\FounderPage::class)
+            ->assertSee('Я перевёл')
+            ->call('claim')
+            ->assertSee('Вы сообщили о переводе сегодня')->assertSee('Отменить');
+        $c = FounderContribution::where('founder_id', $ivan->id)->first();
+        $this->assertNotNull($c->claimed_at);
+        $this->assertNull($c->paid_at);
+        $this->assertNull(FounderContribution::where('founder_id', $petr->id)->first()->claimed_at);
+        Notification::assertSentTo($admin, \App\Notifications\FounderClaimedPayment::class, fn ($n) => $n->founderName === 'Иван' && $n->amount === 5460.0);
+
+        $this->assertSame(1, $service->sendReminders());
+        Notification::assertSentTo($petr, FounderContributionReminder::class);
+        Notification::assertNotSentTo($ivan, FounderContributionReminder::class);
+
+        // Админ видит сообщение и подтверждает
+        $this->actingAs($admin);
+        Livewire::test(Founders::class)->assertSee('Сообщение о переводе — сегодня, проверьте и отметьте')->call('togglePaid', $c->id);
+        $this->actingAs($tutor)->get('/founder')->assertOk()->assertSee('Внесено')->assertDontSee('Я перевёл');
+
+        // Админ-основатель: своя страница, отмена «Я перевёл»
+        $this->actingAs($admin);
+        Livewire::test(\App\Livewire\FounderPage::class)->assertSee('Пётр · доля 40 %')->call('claim')->call('unclaim')->assertSee('Я перевёл');
+        $this->assertNull(FounderContribution::where('founder_id', $petr->id)->first()->claimed_at);
+    }
+
+    public function test_admin_links_founder_to_profile(): void
+    {
+        $admin = $this->user(User::ROLE_ADMIN);
+        $tutor = User::factory()->create(['role' => User::ROLE_TUTOR, 'username' => 'tt' . uniqid(), 'name' => 'Ахмед Мислауров', 'email' => 'ahmed@example.com']);
+        $student = User::factory()->create(['role' => User::ROLE_STUDENT, 'username' => 'st' . uniqid(), 'name' => 'Ахмед Ученик']);
+        [$ivan, $petr] = $this->seedData();
+        $this->actingAs($admin);
+
+        Livewire::test(Founders::class)->set('tab', 'shares')
+            ->assertSee('профиль не привязан')
+            ->call('editFounder', $ivan->id)
+            ->set('founderUserQuery', 'Ахмед')
+            ->assertSee('Ахмед Мислауров')->assertDontSee('Ахмед Ученик')
+            ->call('pickFounderUser', $tutor->id)
+            ->assertSee('Отвязать')
+            ->call('saveFounder')->assertHasNoErrors();
+        $this->assertSame($tutor->id, $ivan->fresh()->user_id);
+        $this->assertSame(route('founders.page'), $ivan->fresh()->pageUrl());
+
+        // Один профиль — один основатель; ученика привязать нельзя
+        $component = Livewire::test(Founders::class)->call('editFounder', $petr->id)->set('founderUserQuery', 'Ахмед')->assertDontSee('Ахмед Мислауров');
+        $component->set('founderUserId', $tutor->id)->call('saveFounder');
+        $this->assertNull($petr->fresh()->user_id);
+        $component->call('editFounder', $petr->id)->set('founderUserId', $student->id)->call('saveFounder');
+        $this->assertNull($petr->fresh()->user_id);
+
+        // Отвязать
+        Livewire::test(Founders::class)->call('editFounder', $ivan->id)->call('clearFounderUser')->call('saveFounder');
+        $this->assertNull($ivan->fresh()->user_id);
+        $this->assertNull($ivan->fresh()->pageUrl());
+    }
+
+    public function test_reminder_mail_has_payment_details_and_personal_link(): void
+    {
+        [$ivan] = $this->seedData();
+        FounderService::savePayment(['recipient' => 'Берд А.', 'number' => '2200 0000 0000 0000', 'bank' => 'Т-Банк', 'note' => 'Serdal, октябрь']);
+        $service = app(FounderService::class);
+        $c = $service->sync(Carbon::parse('2026-10-01'))->where('founder_id', $ivan->id)->values();
+        $html = (string) (new FounderContributionReminder($c, 'soon', Carbon::parse('2026-10-05'), 9100, collect()))->toMail($ivan)->render();
+
+        $this->assertStringContainsString('Куда переводить', $html);
+        $this->assertStringContainsString('2200 0000 0000 0000', $html);
+        $this->assertStringContainsString('Serdal, октябрь', $html);
+        // Без профиля — кнопки нет, всё нужное в письме; с профилем — кнопка на страницу сбора
+        $this->assertStringNotContainsString('Открыть мой сбор', $html);
+        $this->assertStringNotContainsString('cabinet/admin', $html);
+
+        $ivan->update(['user_id' => $this->user(User::ROLE_TUTOR)->id]);
+        $html = (string) (new FounderContributionReminder($c, 'soon', Carbon::parse('2026-10-05'), 9100, collect()))->toMail($ivan->fresh())->render();
+        $this->assertStringContainsString('Открыть мой сбор', $html);
+        $this->assertStringContainsString(route('founders.page'), $html);
+    }
+
+    public function test_payment_settings(): void
+    {
+        $this->actingAs($this->user(User::ROLE_ADMIN));
+        Livewire::test(Founders::class)->call('openSettings')
+            ->set('payNumber', ' +7 900 000-00-00 ')->set('payBank', 'Сбер')->call('saveSettings')->assertHasNoErrors();
+
+        $this->assertSame('+7 900 000-00-00', FounderService::payment()['number']);
+        $this->assertSame([['label' => 'Номер', 'value' => '+7 900 000-00-00'], ['label' => 'Банк', 'value' => 'Сбер']], FounderService::paymentRows());
+    }
 }

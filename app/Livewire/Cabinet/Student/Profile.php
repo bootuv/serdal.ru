@@ -25,6 +25,7 @@ class Profile extends Component
     public string $grade = '';
     public string $password = '';
     public $photo = null;
+    public bool $removePhoto = false;
 
     /** Показать «Изменения сохранены» у кнопки. */
     public bool $saved = false;
@@ -53,8 +54,16 @@ class Profile extends Component
         }
 
         if ($property === 'photo') {
+            $this->removePhoto = false;
             $this->validateOnly('photo');
         }
+    }
+
+    public function deletePhoto(): void
+    {
+        $this->photo = null;
+        $this->removePhoto = true;
+        $this->saved = false;
     }
 
     protected function rules(): array
@@ -109,11 +118,13 @@ class Profile extends Component
 
         if ($this->photo) {
             $data['avatar'] = $this->photo;
+        } elseif ($this->removePhoto) {
+            $data['avatar'] = null;
         }
 
         app(StudentProfileService::class)->update(auth()->user(), $data);
 
-        $this->reset('password', 'photo');
+        $this->reset('password', 'photo', 'removePhoto');
         $this->saved = true;
     }
 

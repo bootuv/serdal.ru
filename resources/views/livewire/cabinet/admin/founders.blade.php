@@ -31,7 +31,11 @@
                     <x-ui.list>
                         @foreach ($contributions as $c)
                             <div wire:key="fc-{{ $c['id'] }}" class="flex items-center gap-4 border-t border-line py-4 last:pb-0">
-                                <x-ui.text :title="$c['name']" :sub="$c['sub']" />
+                                <div class="flex min-w-0 flex-1 flex-col gap-1">
+                                    <span class="truncate text-t1 font-medium">{{ $c['name'] }}</span>
+                                    <span class="text-t2 text-muted">{{ $c['sub'] }}</span>
+                                    @if ($c['claimed'])<span class="text-t2"><x-ui.em>{{ $c['claimed'] }}</x-ui.em></span>@endif
+                                </div>
                                 <span class="shrink-0 text-t1 font-medium">{{ $c['amount'] }}</span>
                                 <x-ui.switch :checked="$c['paid']" :label="'Внесено: ' . $c['name']" wire:click="togglePaid({{ $c['id'] }})" />
                             </div>
@@ -273,6 +277,29 @@
             <x-ui.field label="Имя" name="founderName" wire:model="founderName" />
             <x-ui.field label="Почта" name="founderEmail" type="email" optional hint="Сюда придут напоминания о сборе" wire:model="founderEmail" />
             <x-ui.unit-field label="Доля" name="founderShare" unit="%" inputmode="decimal" hint="Доли всех основателей в сумме — 100 %" wire:model="founderShare" />
+            <div class="flex flex-col gap-2">
+                <span class="text-t2 font-medium">Профиль на сайте <span class="font-normal text-muted">необязательно</span></span>
+                @if ($founderUser['selected'])
+                    <div class="flex items-center gap-3 rounded-lg p-3 shadow-line">
+                        <x-ui.avatar :user="$founderUser['selected']['user']" />
+                        <x-ui.text :title="$founderUser['selected']['user']->name" :sub="$founderUser['selected']['sub']" />
+                        <button type="button" wire:click="clearFounderUser" class="link shrink-0 text-t2">Отвязать</button>
+                    </div>
+                    <span class="text-t3 text-muted">Под этим профилем основатель видит свою страницу сбора: взнос, куда переводить, «Я перевёл»</span>
+                @else
+                    <x-ui.search full wire:model.live.debounce.300ms="founderUserQuery" placeholder="Имя или почта администратора или учителя" />
+                    @if ($founderUser['results']->isNotEmpty())
+                        <div class="flex flex-wrap gap-2">
+                            @foreach ($founderUser['results'] as $r)
+                                <x-ui.pick :user="$r['user']" wire:click="pickFounderUser({{ $r['user']->id }})" wire:key="fu-{{ $r['user']->id }}" title="{{ $r['sub'] }}" />
+                            @endforeach
+                        </div>
+                    @elseif ($founderUser['searched'])
+                        <span class="text-t2 text-muted">Никого не нашли — проверьте имя или почту.</span>
+                    @endif
+                    <span class="text-t3 text-muted">Без профиля страница сбора основателю недоступна — всё нужное будет в письме</span>
+                @endif
+            </div>
             <x-slot:note>
                 @if ($founderId)<button type="button" wire:click="askDelete('founder')" class="link">Удалить основателя</button>@endif
             </x-slot:note>
@@ -323,6 +350,18 @@
     @if ($settingsOpen)
         <x-ui.modal title="Настройки сбора" sub="Скидываемся раз в месяц" close="closeSettings">
             <x-ui.unit-field label="День сбора" name="day" hint="Число месяца. Если в месяце меньше дней — последний день" wire:model="day" />
+            <div class="flex flex-col gap-4 border-t border-line pt-6">
+                <div class="flex flex-col gap-1">
+                    <span class="text-t1-s font-medium">Куда переводить</span>
+                    <span class="text-t2 text-muted">Эти данные увидят основатели в письме и на своей странице сбора</span>
+                </div>
+                <div class="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-x-4">
+                    <x-ui.field label="Номер телефона или карты" name="payNumber" wire:model="payNumber" />
+                    <x-ui.field label="Банк" name="payBank" optional wire:model="payBank" />
+                    <x-ui.field label="Получатель" name="payRecipient" optional wire:model="payRecipient" />
+                    <x-ui.field label="Комментарий к переводу" name="payNote" optional wire:model="payNote" />
+                </div>
+            </div>
             <div class="flex items-start justify-between gap-4 rounded-lg p-4 shadow-line">
                 <div class="flex min-w-0 flex-col gap-1">
                     <span class="text-t1-s font-medium">Напоминать на почту</span>

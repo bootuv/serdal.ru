@@ -44,6 +44,9 @@ Route::post('/payments/yookassa/callback', [\App\Http\Controllers\SubscriptionPa
     ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class])
     ->name('subscription.payment.callback');
 
+// Личная страница основателя: сбор на расходы. Только после входа под профилем, привязанным к основателю (админ или учитель)
+Route::get('/founder', \App\Livewire\FounderPage::class)->middleware(['auth', \App\Http\Middleware\CheckUserActive::class])->name('founders.page');
+
 // Вход для всех ролей и восстановление пароля (docs/design/BRAND.md, экраны без сайдбара).
 // Старые адреса входа (/tutor/login и т. п.) ведут сюда через маршрут legacy.cabinet.
 Route::get('/login', \App\Livewire\Auth\Login::class)->name('login');

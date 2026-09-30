@@ -18,7 +18,7 @@ use Illuminate\Support\Collection;
  * Письмо основателю: пора скинуться на расходы платформы (раздел админки «Основатели»).
  * contributions — невнесённые строки основателя за месяц: ежемесячный взнос и доли в разовых расходах.
  * kind: soon — за несколько дней до дня сбора, today — в день сбора, overdue — срок прошёл, а взнос не отмечен.
- * Только почта: основатель не обязательно пользователь кабинета.
+ * Только почта: основатель не обязательно пользователь кабинета. Кнопка на личную страницу — если привязан профиль.
  */
 class FounderContributionReminder extends Notification implements ShouldQueueAfterCommit
 {
@@ -82,7 +82,8 @@ class FounderContributionReminder extends Notification implements ShouldQueueAft
                     'sub' => $e->period === FounderExpense::PERIOD_YEAR ? FounderService::money((float) $e->amount) . ' в год' : null,
                     'value' => FounderService::money($e->monthly()),
                 ])->all() : [],
-                'url' => route('cabinet.admin.founders'),
+                'payment' => FounderService::paymentRows(),
+                'url' => $notifiable->pageUrl(),
             ]);
     }
 }

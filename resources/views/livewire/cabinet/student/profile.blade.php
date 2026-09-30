@@ -14,20 +14,24 @@
             <x-ui.card as="form" wire:submit="save" aria-labelledby="pf-data">
                 <x-ui.card-head id="pf-data" title="Личные данные" />
 
-                <div class="flex items-center gap-4" x-data>
+                <div class="flex items-center gap-4">
                     @if ($photo && ! $errors->has('photo') && $photo->isPreviewable())
                         <img src="{{ $photo->temporaryUrl() }}" alt="" class="size-16 shrink-0 rounded-lg object-cover">
-                    @elseif ($user->avatar)
+                    @elseif ($user->avatar && ! $removePhoto)
                         <img src="{{ $user->avatar_thumb_url }}" alt="" class="size-16 shrink-0 rounded-lg object-cover">
                     @else
                         <x-ui.avatar :user="$user" size="lg" />
                     @endif
                     <div class="flex min-w-0 flex-col gap-2">
-                        <x-ui.btn size="s" class="self-start" x-on:click="$refs.photo.click()" wire:loading.attr="disabled" wire:target="photo">Загрузить фото</x-ui.btn>
-                        <input type="file" x-ref="photo" wire:model="photo" accept="image/*" class="sr-only" tabindex="-1" aria-label="Фото профиля">
+                        <div class="flex flex-wrap items-center gap-4">
+                            <x-ui.photo-crop size="s" icon="upload">Загрузить фото</x-ui.photo-crop>
+                            @if ($photo || ($user->avatar && ! $removePhoto))
+                                <button type="button" class="link text-t2" wire:click="deletePhoto">Удалить</button>
+                            @endif
+                        </div>
                         <span wire:loading wire:target="photo" class="text-t2 text-muted">Загружаем…</span>
                         @error('photo')<span class="text-t2 font-medium text-danger-fg">{{ $message }}</span>@enderror
-                        @if ($photo && ! $errors->has('photo'))<span class="text-t2 text-muted">Сохраните, чтобы обновить фото</span>@endif
+                        @if (($photo && ! $errors->has('photo')) || ($removePhoto && $user->avatar))<span class="text-t2 text-muted">Сохраните, чтобы обновить фото</span>@endif
                     </div>
                 </div>
 

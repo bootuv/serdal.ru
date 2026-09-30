@@ -7,6 +7,7 @@ use App\Models\FounderContribution;
 use App\Models\FounderExpense;
 use App\Models\Setting;
 use App\Models\User;
+use App\Notifications\FounderClaimedPayment;
 use App\Notifications\FounderContributionReminder;
 use App\Support\Money;
 use Illuminate\Support\Carbon;
@@ -56,6 +57,46 @@ class FounderService
         foreach ($values as $key => $value) {
             Setting::updateOrCreate(['key' => $key], ['value' => $value]);
         }
+    }
+
+    /* ---------- Куда переводить ---------- */
+
+    public const PAYMENT_KEYS = [
+        'recipient' => 'founders_pay_recipient',
+        'number' => 'founders_pay_number',
+        'bank' => 'founders_pay_bank',
+        'note' => 'founders_pay_note',
+    ];
+
+    /** Реквизиты сбора: кому, номер телефона или карты, банк, комментарий к переводу. Пустые — ''. */
+    public static function payment(): array
+    {
+        $stored = Setting::whereIn('key', array_values(self::PAYMENT_KEYS))->pluck('value', 'key');
+
+        return array_map(fn (string $key) => trim((string) ($stored[$key] ?? '')), self::PAYMENT_KEYS);
+    }
+
+    public static function savePayment(array $data): void
+    {
+        foreach (self::PAYMENT_KEYS as $field => $key) {
+            Setting::updateOrCreate(['key' => $key], ['value' => trim((string) ($data[$field] ?? ''))]);
+        }
+    }
+
+    /** Реквизиты строками «подпись — значение» (письмо, личная страница); без номера — пусто. */
+    public static function paymentRows(): array
+    {
+        $p = self::payment();
+        if ($p['number'] === '') {
+            return [];
+        }
+
+        return array_values(array_filter([
+            ['label' => 'Номер', 'value' => $p['number']],
+            $p['bank'] !== '' ? ['label' => 'Банк', 'value' => $p['bank']] : null,
+            $p['recipient'] !== '' ? ['label' => 'Получатель', 'value' => $p['recipient']] : null,
+            $p['note'] !== '' ? ['label' => 'Комментарий к переводу', 'value' => $p['note']] : null,
+        ]));
     }
 
     /* ---------- Расходы и доли ---------- */
@@ -196,6 +237,31 @@ class FounderService
         return $contributions->sortBy(fn (FounderContribution $c) => sprintf('%010d-%d-%010d', $c->founder?->sort ?? 0, $c->founder_id, $c->isOneOff() ? $c->id : 0))->values();
     }
 
+    /**
+     * «Я перевёл» с личной страницы: невнесённые строки основателя за месяц ждут подтверждения админа.
+     * Админы получают уведомление в кабинете. Возвращает, сколько строк отмечено.
+     */
+    public function claim(Founder $founder, Carbon $period): int
+    {
+        $items = $this->sync($period)->filter(fn (FounderContribution $c) => $c->founder_id === $founder->id && ! $c->paid_at && ! $c->claimed_at && (float) $c->amount > 0);
+        if ($items->isEmpty()) {
+            return 0;
+        }
+
+        FounderContribution::whereKey($items->pluck('id')->all())->update(['claimed_at' => now()]);
+        User::where('role', User::ROLE_ADMIN)->get()
+            ->each(fn (User $admin) => $admin->notify(new FounderClaimedPayment($founder->name, (float) $items->sum('amount'), $period)));
+
+        return $items->count();
+    }
+
+    /** Отменить «Я перевёл» (нажали по ошибке). */
+    public function unclaim(Founder $founder, Carbon $period): void
+    {
+        FounderContribution::where('founder_id', $founder->id)->whereDate('period', $period->copy()->startOfMonth())
+            ->whereNull('paid_at')->update(['claimed_at' => null]);
+    }
+
     /** Отметить взнос внесённым (by — кто отметил) или снять отметку. */
     public function setPaid(FounderContribution $c, bool $paid, ?User $by = null): void
     {
@@ -304,7 +370,7 @@ class FounderService
         $sent = 0;
         foreach ($this->remindersDue($today) as ['period' => $period, 'kind' => $kind]) {
             foreach ($this->unpaidByFounder($period) as $row) {
-                if ($row['remindedAt']?->isToday()) {
+                if ($row['remindedAt']?->isToday() || $row['claimedAt']) {
                     continue;
                 }
                 $sent += (int) $this->notifyFounder($row, $period, $kind);
@@ -329,6 +395,8 @@ class FounderService
                 'items' => $items->values(),
                 'amount' => (float) $items->sum('amount'),
                 'remindedAt' => $items->max('reminded_at'),
+                // Сообщил о переводе по всем строкам — ждёт подтверждения, автоматически не напоминаем
+                'claimedAt' => $items->every(fn (FounderContribution $c) => $c->claimed_at) ? $items->max('claimed_at') : null,
             ])
             ->values();
     }

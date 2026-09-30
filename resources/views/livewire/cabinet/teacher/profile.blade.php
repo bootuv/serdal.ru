@@ -29,7 +29,7 @@
                     {{-- Фото и имя --}}
                     <x-ui.card aria-labelledby="p-name">
                         <x-ui.card-head id="p-name" title="Фото и имя" />
-                        <div class="flex items-center gap-4" x-data>
+                        <div class="flex items-center gap-4">
                             @if ($photo && ! $errors->has('photo') && $photo->isPreviewable())
                                 <img src="{{ $photo->temporaryUrl() }}" alt="" class="size-16 shrink-0 rounded-lg object-cover">
                             @elseif ($user->avatar && ! $removePhoto)
@@ -39,15 +39,14 @@
                             @endif
                             <div class="flex min-w-0 flex-col gap-2">
                                 <div class="flex flex-wrap items-center gap-4">
-                                    <x-ui.btn size="s" icon="upload" x-on:click="$refs.photo.click()" wire:loading.attr="disabled" wire:target="photo">Загрузить фото</x-ui.btn>
+                                    <x-ui.photo-crop size="s" icon="upload">Загрузить фото</x-ui.photo-crop>
                                     @if ($photo || ($user->avatar && ! $removePhoto))
                                         <button type="button" class="link text-t2" wire:click="deletePhoto">Удалить</button>
                                     @endif
                                 </div>
-                                <input type="file" x-ref="photo" wire:model="photo" accept="image/*" class="sr-only" tabindex="-1" aria-label="Фото профиля">
                                 <span wire:loading wire:target="photo" class="text-t3 text-muted">Загружаем…</span>
                                 @error('photo')<span class="text-t2 font-medium text-danger-fg">{{ $message }}</span>@enderror
-                                <span class="text-t3 text-muted">Квадратное фото, на котором хорошо видно лицо</span>
+                                <span class="text-t3 text-muted">Фото, на котором хорошо видно лицо. Обрезать его можно при загрузке</span>
                             </div>
                         </div>
                         <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">

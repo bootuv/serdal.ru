@@ -53,6 +53,9 @@
     .vp-seek::-moz-range-thumb { @apply size-3 rounded-full border-0 bg-brand; }
     .vp-volume { @apply h-1 w-16 cursor-pointer; accent-color: theme('colors.brand.DEFAULT'); }
 
+    /* Ползунок (масштаб фото в x-ui.photo-crop) */
+    .range { @apply h-1 min-w-0 flex-1 cursor-pointer; accent-color: theme('colors.ink.DEFAULT'); }
+
     /* Текст из редактора (условие задания, описание): абзацы, списки, ссылки */
     .rich { @apply flex flex-col gap-3 text-t1 text-ink; }
     .rich ul { @apply flex list-disc flex-col gap-1 pl-6; }

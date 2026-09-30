@@ -6,6 +6,7 @@ use App\Livewire\Cabinet\Admin\Concerns\AdminScreen;
 use App\Models\Founder;
 use App\Models\FounderContribution;
 use App\Models\FounderExpense;
+use App\Models\User;
 use App\Services\FounderService;
 use App\Support\HumanDate;
 use Illuminate\Support\Str;
@@ -52,6 +53,9 @@ class Founders extends Component
     public string $founderName = '';
     public string $founderEmail = '';
     public string $founderShare = '';
+    /** Профиль на сайте, под которым основатель видит свою страницу сбора; поиск профиля по имени или почте. */
+    public ?int $founderUserId = null;
+    public string $founderUserQuery = '';
 
     /* Окно «Удалить?»: expense | founder. */
     public ?string $deleting = null;
@@ -61,6 +65,11 @@ class Founders extends Component
     public string $day = '';
     public string $remindDays = '';
     public bool $reminders = true;
+    /* Куда переводить: получатель, номер телефона или карты, банк, комментарий к переводу. */
+    public string $payRecipient = '';
+    public string $payNumber = '';
+    public string $payBank = '';
+    public string $payNote = '';
 
     /* Окно «Напомнить на почту»: месяц («2026-10») и отмеченные основатели. */
     public ?string $remindMonth = null;
@@ -117,7 +126,7 @@ class Founders extends Component
         $period = $this->periodOf($month);
         $this->remindMonth = $month;
         $this->remindIds = $this->service()->unpaidByFounder($period)
-            ->filter(fn (array $r) => $r['founder']->email)->map(fn (array $r) => (string) $r['founder']->id)->values()->all();
+            ->filter(fn (array $r) => $r['founder']->email && ! $r['claimedAt'])->map(fn (array $r) => (string) $r['founder']->id)->values()->all();
     }
 
     public function closeRemind(): void
@@ -223,7 +232,35 @@ class Founders extends Component
         $this->founderName = (string) $f?->name;
         $this->founderEmail = (string) $f?->email;
         $this->founderShare = $f ? rtrim(rtrim(number_format((float) $f->share, 2, ',', ''), '0'), ',') : '';
+        $this->founderUserId = $f?->user_id;
+        $this->founderUserQuery = '';
         $this->resetErrorBag();
+    }
+
+    /** Привязать профиль (админ или учитель, ещё не привязанный к другому основателю). Пустую почту берём из профиля. */
+    public function pickFounderUser(int $id): void
+    {
+        $user = $this->founderUserCandidates()->whereKey($id)->firstOrFail();
+        $this->founderUserId = $user->id;
+        $this->founderUserQuery = '';
+        if (trim($this->founderEmail) === '') {
+            $this->founderEmail = (string) $user->email;
+        }
+        if (trim($this->founderName) === '') {
+            $this->founderName = (string) $user->name;
+        }
+    }
+
+    public function clearFounderUser(): void
+    {
+        $this->founderUserId = null;
+    }
+
+    /** Профили, которые можно привязать: администраторы и учителя, не занятые другим основателем. */
+    private function founderUserCandidates(): \Illuminate\Database\Eloquent\Builder
+    {
+        return User::query()->whereIn('role', [User::ROLE_ADMIN, User::ROLE_TUTOR])
+            ->whereNotIn('id', Founder::whereNotNull('user_id')->when($this->founderId, fn ($q) => $q->where('id', '!=', $this->founderId))->select('user_id'));
     }
 
     public function closeFounder(): void
@@ -252,6 +289,7 @@ class Founders extends Component
             'name' => trim($this->founderName),
             'email' => $this->founderEmail ?: null,
             'share' => round((float) $this->founderShare, 2),
+            'user_id' => $this->founderUserId && $this->founderUserCandidates()->whereKey($this->founderUserId)->exists() ? $this->founderUserId : null,
         ];
 
         if ($this->founderId) {
@@ -303,6 +341,11 @@ class Founders extends Component
         $this->day = (string) $s['day'];
         $this->remindDays = (string) $s['remindDays'];
         $this->reminders = $s['reminders'];
+        $pay = FounderService::payment();
+        $this->payRecipient = $pay['recipient'];
+        $this->payNumber = $pay['number'];
+        $this->payBank = $pay['bank'];
+        $this->payNote = $pay['note'];
         $this->resetErrorBag();
         $this->settingsOpen = true;
     }
@@ -320,6 +363,10 @@ class Founders extends Component
         $this->validate([
             'day' => ['required', 'integer', 'min:1', 'max:31'],
             'remindDays' => ['required', 'integer', 'min:0', 'max:28'],
+            'payRecipient' => ['nullable', 'string', 'max:120'],
+            'payNumber' => ['nullable', 'string', 'max:40'],
+            'payBank' => ['nullable', 'string', 'max:60'],
+            'payNote' => ['nullable', 'string', 'max:120'],
         ], [
             'day.required' => 'Укажите число от 1 до 31',
             'day.min' => 'Число от 1 до 31',
@@ -329,6 +376,7 @@ class Founders extends Component
         ]);
 
         FounderService::saveSettings((int) $this->day, (int) $this->remindDays, $this->reminders);
+        FounderService::savePayment(['recipient' => $this->payRecipient, 'number' => $this->payNumber, 'bank' => $this->payBank, 'note' => $this->payNote]);
         $this->settingsOpen = false;
         $this->dispatch('toast', message: 'Настройки сбора сохранены');
     }
@@ -351,6 +399,25 @@ class Founders extends Component
         return $options;
     }
 
+    /** Окно основателя: привязанный профиль или результаты поиска профиля. */
+    private function founderUserView(): array
+    {
+        $role = fn (User $u) => $u->role === User::ROLE_ADMIN ? 'Администратор' : 'Учитель';
+        $selected = $this->founderUserId ? User::find($this->founderUserId) : null;
+        $q = trim($this->founderUserQuery);
+
+        return [
+            'selected' => $selected ? ['user' => $selected, 'sub' => $role($selected) . ' · ' . $selected->email] : null,
+            'results' => ! $selected && mb_strlen($q) >= 2
+                ? $this->founderUserCandidates()
+                    ->where(fn ($w) => $w->where('name', 'like', '%' . $q . '%')->orWhere('email', 'like', '%' . $q . '%'))
+                    ->orderBy('name')->limit(5)->get()
+                    ->map(fn (User $u) => ['user' => $u, 'sub' => $role($u) . ' · ' . $u->email])
+                : collect(),
+            'searched' => ! $selected && mb_strlen($q) >= 2,
+        ];
+    }
+
     /** Окно «Напомнить на почту»: кто не внёс за месяц, сколько с него и когда напоминали. */
     private function remindView(): ?array
     {
@@ -369,6 +436,7 @@ class Founders extends Component
                 'sub' => implode(' · ', array_filter([
                     FounderService::money($r['amount']),
                     $r['founder']->email ?: 'почта не указана',
+                    $r['claimedAt'] ? 'сообщение о переводе — ' . HumanDate::day($r['claimedAt']) : null,
                     $r['remindedAt'] ? 'напоминали ' . HumanDate::at($r['remindedAt']) : null,
                 ])),
             ]),
@@ -408,10 +476,10 @@ class Founders extends Component
                         'name' => $c->founder?->name ?? 'Удалённый основатель',
                         'amount' => $money((float) $c->amount),
                         'paid' => (bool) $c->paid_at,
-                        'overdue' => $service->isOverdue($c) && (float) $c->amount > 0,
+                        'overdue' => $service->isOverdue($c) && ! $c->claimed_at && (float) $c->amount > 0,
                         'sub' => ($c->isOneOff() ? $c->label() . ' · ' : '') . ($c->paid_at
                             ? 'внесено ' . HumanDate::day($c->paid_at) . ($c->paidBy ? ', отметка — ' . $c->paidBy->name : '')
-                            : 'не внесено'),
+                            : ($c->claimed_at ? 'сообщение о переводе — ' . HumanDate::day($c->claimed_at) : 'не внесено')),
                     ]),
                 ];
             }),
@@ -465,6 +533,7 @@ class Founders extends Component
                     $c->paid_at ? 'внесено ' . HumanDate::day($c->paid_at) : null,
                     ! $c->paid_at && ! $c->founder->email ? 'нет почты — напоминания не придут' : null,
                 ])),
+                'claimed' => ! $c->paid_at && $c->claimed_at ? 'Сообщение о переводе — ' . HumanDate::day($c->claimed_at) . ', проверьте и отметьте' : null,
                 'amount' => $money((float) $c->amount),
                 'paid' => (bool) $c->paid_at,
             ]),
@@ -510,10 +579,15 @@ class Founders extends Component
             'founders' => $founders->map(fn (Founder $f) => [
                 'id' => $f->id,
                 'name' => $f->name,
-                'sub' => $f->email ?: 'Почта не указана — напоминания не придут',
+                'sub' => implode(' · ', array_filter([
+                    $f->email ?: 'почта не указана — напоминания не придут',
+                    $f->user_id ? null : 'профиль не привязан',
+                ])),
                 'share' => FounderService::percent((float) $f->share),
                 'amount' => $money(FounderService::amountFor($f, $total)),
             ]),
+
+            'founderUser' => $this->founderId !== null ? $this->founderUserView() : null,
 
             'history' => $history,
             'historyFilters' => ['all' => 'Все месяцы', 'debts' => 'Где не внесли · ' . $debts->groupBy(fn ($c) => $c->period->format('Y-m'))->count()],
