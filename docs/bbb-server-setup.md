@@ -92,6 +92,23 @@ ssh root@room.serdal.ru cat /usr/local/bigbluebutton/core/scripts/post_publish/z
 Исходники занятий **без записи** BBB удаляет сам через 14 дней (`/etc/cron.daily/bigbluebutton`, `unrecorded_days=14`) —
 на текущем сервере это стандартное значение, его не трогаем.
 
+**Окончательное удаление записей.** Когда Serdal удаляет запись с сервера (после выгрузки в облако, по просьбе учителя
+или по сроку хранения), BBB её не стирает, а только переносит в `/var/bigbluebutton/deleted/` — и оттуда её никто не убирает
+(на `room.serdal.ru` за 8 месяцев так скопилось 11 ГБ). Ежедневная очистка папок, перенесённых туда больше недели назад:
+
+```bash
+cat > /etc/cron.daily/serdal-bbb-purge-deleted <<'CRON'
+#!/bin/sh
+# Serdal: окончательно удалить записи, которые BBB «удалил» (deleteRecordings только переносит их в /var/bigbluebutton/deleted).
+# Serdal удаляет запись с сервера после выгрузки в облако или по просьбе учителя; неделя — запас на случай ошибки.
+# Возраст — ctime папки: меняется при переносе в deleted/, а не при записи занятия.
+find /var/bigbluebutton/deleted -mindepth 2 -maxdepth 2 -type d -ctime +7 -exec rm -rf {} + 2>/dev/null
+exit 0
+CRON
+chmod 755 /etc/cron.daily/serdal-bbb-purge-deleted
+run-parts --test /etc/cron.daily | grep serdal    # скрипт виден cron
+```
+
 Папка опубликованных видео (`/var/bigbluebutton/published/video`) на работающем сервере почти пустая — это нормально,
 если в админке включено «Удалять с сервера видеосвязи после загрузки»: видео удаляется с сервера, как только
 выгружено в облако.
@@ -200,6 +217,7 @@ sudo bbb-conf --secret         # адрес API и секретный ключ �
 dpkg -l | grep -E 'bbb-webhooks|bbb-playback-video'   # оба пакета установлены
 systemctl is-active bbb-webhooks coturn                # обе службы active
 ls /usr/local/bigbluebutton/core/scripts/post_publish/ # есть zz_delete_raw.rb
+ls /etc/cron.daily/serdal-bbb-purge-deleted            # есть очистка удалённых записей
 curl -s https://room3.serdal.ru/bigbluebutton/api       # снаружи: <returncode>SUCCESS</returncode>
 ```
 
