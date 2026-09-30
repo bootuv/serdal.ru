@@ -152,6 +152,16 @@ systemctl daemon-reload && systemctl enable --now cpu-performance.service
 cat /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor | sort | uniq -c   # везде performance
 ```
 
+### 3.6. Вход по SSH только по ключу
+
+Сначала добавьте свой ключ (`ssh-copy-id root@room3.serdal.ru`) и проверьте вход по нему, затем:
+
+```bash
+printf "PasswordAuthentication no\nKbdInteractiveAuthentication no\nPermitRootLogin prohibit-password\n" \
+  > /etc/ssh/sshd_config.d/00-serdal-keys-only.conf    # 00 — раньше 50-cloud-init.conf, где пароль включён
+sshd -t && systemctl reload ssh
+```
+
 Лимиты участников и длительности, запись, микрофоны при входе Serdal передаёт при создании каждого занятия
 («Настройки» → «Видеосвязь» и тариф учителя) — на сервере их настраивать не нужно.
 
