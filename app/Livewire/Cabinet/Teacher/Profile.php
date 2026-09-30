@@ -39,7 +39,6 @@ class Profile extends Component
     public string $last_name = '';
     public string $first_name = '';
     public string $middle_name = '';
-    public string $password = '';
     public array $subjects = [];
     public array $directs = [];
     public array $grades = [];
@@ -80,7 +79,7 @@ class Profile extends Component
         $this->whatsup = (string) $user->whatsup;
         $this->telegram = (string) $user->telegram;
 
-        if (! in_array($this->tab, ['profile', 'prices', 'notify'], true)) {
+        if (! in_array($this->tab, ['profile', 'prices', 'notify', 'account'], true)) {
             $this->tab = 'profile';
         }
     }
@@ -153,8 +152,6 @@ class Profile extends Component
             'last_name' => ['required', 'string', 'max:255'],
             'first_name' => ['required', 'string', 'max:255'],
             'middle_name' => ['nullable', 'string', 'max:255'],
-            // Как при регистрации и сбросе: не короче 8 символов; пусто — пароль не меняем
-            'password' => ['nullable', 'string', 'min:8', 'max:255'],
             'subjects' => ['array'],
             'subjects.*' => ['integer', Rule::exists('subjects', 'id')],
             'directs' => ['array'],
@@ -169,13 +166,6 @@ class Profile extends Component
         ];
     }
 
-    protected function messages(): array
-    {
-        return [
-            'password.min' => 'Пароль — минимум 8 символов',
-        ];
-    }
-
     protected function validationAttributes(): array
     {
         return [
@@ -183,7 +173,6 @@ class Profile extends Component
             'last_name' => 'фамилия',
             'first_name' => 'имя',
             'middle_name' => 'отчество',
-            'password' => 'пароль',
             'phone' => 'телефон',
             'whatsup' => 'WhatsApp',
             'telegram' => 'Telegram',
@@ -205,7 +194,6 @@ class Profile extends Component
             'last_name' => $this->last_name,
             'first_name' => $this->first_name,
             'middle_name' => $this->middle_name !== '' ? $this->middle_name : null,
-            'password' => $this->password,
             'subjects' => $this->subjects,
             'directs' => $this->directs,
             'grade' => $this->grades,
@@ -227,7 +215,7 @@ class Profile extends Component
 
         app(TeacherProfileService::class)->update($user, $data);
 
-        $this->reset('password', 'photo', 'removePhoto');
+        $this->reset('photo', 'removePhoto');
         $this->saved = true;
     }
 

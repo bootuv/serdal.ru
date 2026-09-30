@@ -21,7 +21,7 @@
     </div>
 
     <div class="flex flex-col gap-6">
-        <x-ui.tabs :items="['profile' => 'Профиль', 'prices' => 'Цены на занятия', 'notify' => 'Уведомления']" model="tab" :active="$tab" />
+        <x-ui.tabs :items="['profile' => 'Профиль', 'prices' => 'Цены на занятия', 'notify' => 'Уведомления', 'account' => 'Почта и пароль']" model="tab" :active="$tab" />
 
         @if ($tab === 'profile')
             <div class="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
@@ -86,47 +86,38 @@
                 </div>
 
                 <div class="flex min-w-0 flex-col gap-6">
-                    {{-- Карточка каталога — как на публичном сайте (partials/specialist-item, телефон) --}}
+                    {{-- Превью — как верх вашей страницы на сайте (tutor.blade.php): всё по центру, столбиком --}}
                     <x-ui.card focus aria-labelledby="p-prev">
                         <x-ui.card-head id="p-prev" title="Так вас видят в каталоге" />
-                        <div class="flex gap-4 rounded-lg bg-white px-4 py-6">
+                        <div class="flex flex-col items-center gap-3 rounded-lg bg-white px-4 py-6 text-center">
                             @if ($photo && ! $errors->has('photo') && $photo->isPreviewable())
-                                <img src="{{ $photo->temporaryUrl() }}" alt="" class="size-16 shrink-0 self-start rounded-lg object-cover">
+                                <img src="{{ $photo->temporaryUrl() }}" alt="" class="size-20 shrink-0 rounded-xl object-cover">
                             @elseif ($user->avatar && ! $removePhoto)
-                                <img src="{{ $user->avatar_thumb_url }}" alt="" class="size-16 shrink-0 self-start rounded-lg object-cover">
+                                <img src="{{ $user->avatar_thumb_url }}" alt="" class="size-20 shrink-0 rounded-xl object-cover">
                             @else
-                                <x-ui.avatar :name="trim($first_name . ' ' . $last_name) ?: $user->name" :id="$user->id" size="lg" class="self-start" />
+                                <x-ui.avatar :name="trim($first_name . ' ' . $last_name) ?: $user->name" :id="$user->id" size="xl" />
                             @endif
-                            <div class="flex min-w-0 flex-col gap-3">
-                                <div class="flex flex-col items-start gap-3">
-                                    <span class="break-words text-h2">{{ $preview['name'] }}</span>
-                                    @if ($preview['directs']->isNotEmpty())
-                                        <div class="flex flex-wrap gap-1">
-                                            @foreach ($preview['directs'] as $name)
-                                                <span class="rounded-full px-2 text-t2 text-muted shadow-outline">{{ $name }}</span>
-                                            @endforeach
-                                        </div>
-                                    @endif
-                                    <div class="flex items-center gap-2 text-t2 text-muted">
-                                        @if ($preview['rating'])
-                                            <span class="inline-flex items-center gap-1 font-semibold text-ink"><x-ui.icon name="star" size="s" class="fill-star text-star" />{{ $preview['rating'] }}</span>
-                                            <span aria-hidden="true">·</span>
-                                            <span>{{ plural_ru($preview['reviews'], 'отзыв', 'отзыва', 'отзывов') }}</span>
-                                        @else
-                                            <span>Пока нет отзывов</span>
-                                        @endif
-                                    </div>
+                            <span class="break-words text-h2">{{ $preview['name'] }}</span>
+                            <span class="inline-flex items-center gap-1 rounded-full px-3 py-1 text-t2 text-muted shadow-outline">
+                                @if ($preview['rating'])
+                                    <x-ui.icon name="star" size="s" class="fill-star text-star" /><span class="font-semibold text-ink">{{ $preview['rating'] }}</span>
+                                    <span aria-hidden="true">·</span>{{ plural_ru($preview['reviews'], 'отзыв', 'отзыва', 'отзывов') }}
+                                @else
+                                    Пока нет отзывов
+                                @endif
+                            </span>
+                            @if ($preview['subjects'])<span class="text-t1">{{ $preview['subjects'] }}</span>@endif
+                            @if ($preview['directs']->isNotEmpty())
+                                <div class="flex flex-wrap justify-center gap-1">
+                                    @foreach ($preview['directs'] as $name)
+                                        <span class="rounded-full px-2 text-t2 text-muted shadow-outline">{{ $name }}</span>
+                                    @endforeach
                                 </div>
-                                <div class="flex flex-col items-start gap-3 text-muted">
-                                    @if ($preview['price'])
-                                        <span class="inline-flex items-baseline gap-2 whitespace-nowrap"><span class="text-h2 font-medium text-ink">{{ $preview['price'] }}</span><span class="text-t2">за занятие</span></span>
-                                    @endif
-                                    <div class="flex flex-col gap-2">
-                                        @if ($preview['subjects'])<span class="text-t1">{{ $preview['subjects'] }}</span>@endif
-                                        <span class="text-t2">{{ $preview['grades'] ?: 'Классы не указаны' }}</span>
-                                    </div>
-                                </div>
-                            </div>
+                            @endif
+                            <span class="text-t2">{{ $preview['grades'] ?: 'Классы не указаны' }}</span>
+                            @if ($preview['price'])
+                                <span class="inline-flex items-baseline gap-2 whitespace-nowrap text-muted"><span class="text-h2 font-medium text-ink">{{ $preview['price'] }}</span><span class="text-t2">за занятие</span></span>
+                            @endif
                         </div>
                         @if ($preview['url'])
                             <div class="flex flex-wrap items-center justify-between gap-2">
@@ -136,18 +127,6 @@
                         @endif
                     </x-ui.card>
 
-                    {{-- Вход в кабинет --}}
-                    <x-ui.card aria-labelledby="p-login">
-                        <x-ui.card-head id="p-login" title="Вход в кабинет" />
-                        <x-ui.field label="Почта" name="email" type="email" :value="$user->email" disabled class="disabled:bg-soft disabled:text-muted disabled:shadow-none"
-                                    hint="Сменить почту можно через поддержку" />
-                        <x-ui.field label="Новый пароль" name="password" type="password" wire:model="password" autocomplete="new-password"
-                                    placeholder="Оставьте пустым, чтобы не менять" hint="Минимум 8 символов" />
-                        <form method="POST" action="{{ route('logout') }}">
-                            @csrf
-                            <button type="submit" class="link inline-flex items-center gap-2 text-t2"><x-ui.icon name="logout" size="s" />Выйти из кабинета</button>
-                        </form>
-                    </x-ui.card>
 
                     {{-- Отзыв о платформе: оставить, посмотреть статус, изменить (PlatformReview) --}}
                     <livewire:cabinet.teacher.platform-review />
@@ -208,7 +187,7 @@
                     <p class="text-t2 text-muted">После срока ученик получает напоминание. Если после срока он побывал ещё на <x-ui.em>{{ plural_ru($blockAfter, 'вашем занятии', 'ваших занятиях', 'ваших занятиях') }}</x-ui.em>, вход в ваши занятия закроется. Он откроется, когда вы подтвердите или отметите оплату, продлите срок или нажмёте «Не требовать оплату».</p>
                 </x-ui.card>
             </div>
-        @else
+        @elseif ($tab === 'notify')
             <div class="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
                 <div class="flex min-w-0 flex-col gap-6 lg:col-span-2">
                     <x-ui.card focus>
@@ -234,6 +213,9 @@
                     </x-ui.card>
                 </div>
             </div>
+        @elseif ($tab === 'account')
+            {{-- Почта и пароль — тот же экран, что /cabinet/account, без своей шапки --}}
+            <livewire:cabinet.account embedded key="tab-account" />
         @endif
     </div>
 

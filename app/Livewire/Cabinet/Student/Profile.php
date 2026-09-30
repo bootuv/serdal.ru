@@ -10,7 +10,7 @@ use Livewire\Attributes\Layout;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 
-/** Профиль ученика. Макет: «Ученик · Профиль» (docs/design/BRAND.md). Учителя и отзывы — на главной. */
+/** Профиль ученика. Макет: «Ученик · Профиль» (docs/design/BRAND.md). Учителя и отзывы — на главной, почта и пароль — Cabinet\Account. */
 #[Layout('components.layouts.cabinet', ['title' => 'Профиль', 'active' => null])]
 class Profile extends Component
 {
@@ -20,10 +20,8 @@ class Profile extends Component
     public string $last_name = '';
     public string $first_name = '';
     public string $middle_name = '';
-    public string $email = '';
     public string $phone = '';
     public string $grade = '';
-    public string $password = '';
     public $photo = null;
     public bool $removePhoto = false;
 
@@ -42,14 +40,13 @@ class Profile extends Component
         if ($this->last_name === '' && $this->first_name === '' && $user->name) {
             [$this->last_name, $this->first_name] = array_pad(preg_split('/\s+/u', trim($user->name), 2), 2, '');
         }
-        $this->email = (string) $user->email;
         $this->phone = (string) $user->phone;
         $this->grade = (string) StudentProfileService::gradeForForm($user->grade);
     }
 
     public function updated(string $property): void
     {
-        if (in_array($property, ['last_name', 'first_name', 'middle_name', 'email', 'phone', 'grade', 'password', 'photo'], true)) {
+        if (in_array($property, ['last_name', 'first_name', 'middle_name', 'phone', 'grade', 'photo'], true)) {
             $this->saved = false;
         }
 
@@ -72,19 +69,9 @@ class Profile extends Component
             'last_name' => ['required', 'string', 'max:255'],
             'first_name' => ['required', 'string', 'max:255'],
             'middle_name' => ['nullable', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore(auth()->id())],
             'phone' => ['nullable', 'string', 'max:255', 'regex:/^[+]*[(]{0,1}[0-9]{1,4}[)]{0,1}[-\s\.\/0-9]*$/'],
             'grade' => ['nullable', Rule::in(array_keys(StudentProfileService::GRADES))],
-            // Как при регистрации и сбросе: не короче 8 символов; пусто — пароль не меняем
-            'password' => ['nullable', 'string', 'min:8', 'max:255'],
             'photo' => ['nullable', 'image'],
-        ];
-    }
-
-    protected function messages(): array
-    {
-        return [
-            'password.min' => 'Пароль — минимум 8 символов',
         ];
     }
 
@@ -94,10 +81,8 @@ class Profile extends Component
             'last_name' => 'фамилия',
             'first_name' => 'имя',
             'middle_name' => 'отчество',
-            'email' => 'почта',
             'phone' => 'телефон',
             'grade' => 'класс',
-            'password' => 'пароль',
             'photo' => 'фото',
         ];
     }
@@ -110,10 +95,8 @@ class Profile extends Component
             'last_name' => trim($this->last_name),
             'first_name' => trim($this->first_name),
             'middle_name' => trim($this->middle_name) !== '' ? trim($this->middle_name) : null,
-            'email' => $this->email,
             'phone' => $this->phone !== '' ? $this->phone : null,
             'grade' => StudentProfileService::gradeForStorage($this->grade),
-            'password' => $this->password,
         ];
 
         if ($this->photo) {
@@ -124,7 +107,7 @@ class Profile extends Component
 
         app(StudentProfileService::class)->update(auth()->user(), $data);
 
-        $this->reset('password', 'photo', 'removePhoto');
+        $this->reset('photo', 'removePhoto');
         $this->saved = true;
     }
 

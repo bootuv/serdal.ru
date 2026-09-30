@@ -51,49 +51,8 @@
             <p class="text-t1 text-muted">Отправили код из 6 цифр на <x-ui.em>{{ $email }}</x-ui.em>. Письма нет — загляните в «Спам».</p>
         </div>
 
-        <form wire:submit="verifyAndRegister" class="flex flex-col gap-6" novalidate
-              x-data="{
-                  d: ['', '', '', '', '', ''],
-                  focus(i) { const el = this.$refs['c' + Math.max(0, Math.min(5, i))]; el.focus(); el.select(); },
-                  sync() { this.$wire.verification_code = this.d.join(''); },
-                  put(i, value) {
-                      const digits = String(value).replace(/\D/g, '').split('');
-                      if (digits.length === 0) { this.d[i] = ''; this.sync(); return; }
-                      const start = digits.length >= 6 ? 0 : i;
-                      digits.slice(0, 6 - start).forEach((c, k) => this.d[start + k] = c);
-                      this.sync();
-                      this.focus(start + digits.length);
-                  },
-                  erase(i, e) {
-                      if (this.d[i] !== '' || i === 0) return;
-                      e.preventDefault();
-                      this.d[i - 1] = '';
-                      this.sync();
-                      this.focus(i - 1);
-                  },
-              }"
-              x-init="$nextTick(() => focus(0))">
-            <div class="flex flex-col gap-2">
-                <label for="code-0" class="text-t2 font-medium">Код из письма</label>
-                <div class="flex gap-2" wire:ignore>
-                    @for ($i = 0; $i < 6; $i++)
-                        <input id="code-{{ $i }}" x-ref="c{{ $i }}" type="text" inputmode="numeric" autocomplete="{{ $i === 0 ? 'one-time-code' : 'off' }}" aria-label="Цифра {{ $i + 1 }}"
-                               x-bind:value="d[{{ $i }}]"
-                               x-on:input="put({{ $i }}, $event.target.value); $event.target.value = d[{{ $i }}]"
-                               x-on:paste.prevent="put({{ $i }}, $event.clipboardData.getData('text'))"
-                               x-on:keydown.backspace="erase({{ $i }}, $event)"
-                               x-on:keydown.arrow-left.prevent="focus({{ $i - 1 }})"
-                               x-on:keydown.arrow-right.prevent="focus({{ $i + 1 }})"
-                               x-on:focus="$event.target.select()"
-                               class="field size-13 min-w-0 shrink px-0 text-center text-num font-medium">
-                    @endfor
-                </div>
-                @if ($errors->has('verification_code'))
-                    <span class="text-t2 font-medium text-danger-fg">{{ $errors->first('verification_code') }}</span>
-                @else
-                    <span class="text-t3 text-muted">Код действует {{ plural_ru($ttl, 'минуту', 'минуты', 'минут') }}</span>
-                @endif
-            </div>
+        <form wire:submit="verifyAndRegister" class="flex flex-col gap-6" novalidate>
+            <x-ui.code-input :hint="'Код действует ' . plural_ru($ttl, 'минуту', 'минуты', 'минут')" />
 
             <x-ui.btn type="submit" variant="primary" size="l" class="w-full" wire:loading.attr="disabled" wire:target="verifyAndRegister">Подтвердить и создать аккаунт</x-ui.btn>
 

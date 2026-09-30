@@ -5,8 +5,8 @@
 @php
     $user = auth()->user();
     $isStudent = $user?->role === \App\Models\User::ROLE_STUDENT;
-    // Админка — та же раскладка со своим меню (экраны cabinet.admin.*)
-    $isAdmin = $user?->role === \App\Models\User::ROLE_ADMIN && request()->routeIs('cabinet.admin.*');
+    // Админка — та же раскладка со своим меню (экраны cabinet.admin.* и общий экран «Почта и пароль»)
+    $isAdmin = $user?->role === \App\Models\User::ROLE_ADMIN && request()->routeIs('cabinet.admin.*', 'cabinet.account');
     $unread = $user?->unreadNotifications()->count() ?? 0;
     $unreadMessages = $user ? app(\App\Services\MessengerService::class)->unreadCount($user) : 0;
     $unreadNews = app(\App\Services\AnnouncementService::class)->unreadCount($user);
@@ -73,6 +73,20 @@
     // Тариф и лимиты учитель видит карточкой на «Сегодня» (x-ui.tariff), в сайдбаре — только ссылка
     $profileSub = $isAdmin ? 'Администратор' : ($isStudent ? 'Профиль' : 'Профиль и тариф');
 
+    // Меню под именем в сайдбаре: вкладки профиля, тариф и выход (выход — отдельной формой внизу меню)
+    $profileMenu = match (true) {
+        $isAdmin, $isStudent => [['label' => 'Профиль', 'icon' => 'user', 'href' => $profileHref]],
+        default => [
+            ['label' => 'Профиль', 'icon' => 'user', 'href' => $profileHref],
+            ['label' => 'Цены на занятия', 'icon' => 'wallet', 'href' => $profileHref . '?tab=prices'],
+            ['label' => 'Уведомления', 'icon' => 'bell', 'href' => $profileHref . '?tab=notify'],
+            ['label' => 'Тариф и платежи', 'icon' => 'tasks', 'href' => $to('cabinet.teacher.subscription', '/tutor/subscription')],
+        ],
+    };
+    // У учителя почта и пароль — вкладка профиля, у остальных — отдельная страница
+    $accountHref = $user?->role === \App\Models\User::ROLE_TUTOR ? $profileHref . '?tab=account' : route('cabinet.account');
+    $profileMenu[] = ['label' => 'Почта и пароль', 'icon' => 'lock', 'href' => $accountHref];
+
     // «Ещё» на телефоне: разделы, которых нет на нижней панели, + поддержка, партнёрка, профиль
     $moreItems = array_values(array_filter($nav, fn ($i) => empty($i['sep']) && ! in_array($i, $mobileTabs, true)));
     if (! $isStudent && ! $isAdmin && \App\Services\ReferralService::enabled() && \Illuminate\Support\Facades\Route::has('cabinet.teacher.referrals')) {
@@ -88,6 +102,7 @@
         $moreItems[] = ['key' => 'support', 'label' => 'Поддержка', 'icon' => 'help', 'href' => $supportHref];
         $moreItems[] = ['key' => 'profile', 'label' => $isStudent ? 'Профиль' : 'Профиль и тариф', 'icon' => 'user', 'href' => $profileHref];
     }
+    $moreItems[] = ['key' => 'account', 'label' => 'Почта и пароль', 'icon' => 'lock', 'href' => $accountHref];
     $moreActive = $active === null || in_array($active, array_column($moreItems, 'key'), true);
 @endphp
 <!DOCTYPE html>
@@ -169,13 +184,28 @@
                     </button>
                 </div>
             @endif
-            <a href="{{ $profileHref }}" data-tour="nav-profile" class="flex items-center gap-3 border-t border-line px-3 pt-4">
-                <x-ui.avatar :user="$user" />
-                <span class="flex min-w-0 flex-col gap-1">
-                    <span class="truncate text-t2 font-medium">{{ $user?->name }}</span>
-                    <span class="truncate text-t3 text-muted">{{ $profileSub }}</span>
-                </span>
-            </a>
+            {{-- Профиль: по клику — меню вверх с разделами профиля и выходом. Тур подсвечивает его целиком (nav-profile). --}}
+            <div class="relative border-t border-line pt-3" data-tour="nav-profile" x-data="{ open: false }" x-on:click.outside="open = false" x-on:keydown.escape="open = false">
+                <div x-show="open" x-cloak role="menu" aria-label="Профиль" class="absolute inset-x-0 bottom-full z-10 mb-1 flex flex-col rounded border border-line bg-white p-1 shadow-card">
+                    @foreach ($profileMenu as $item)
+                        <a href="{{ $item['href'] }}" role="menuitem" class="flex h-11 items-center gap-3 rounded-sm px-3 text-t1-s font-medium text-ink hover:bg-soft-hover"><x-ui.icon :name="$item['icon']" />{{ $item['label'] }}</a>
+                    @endforeach
+                    <span class="mx-3 my-1 h-px bg-line" aria-hidden="true"></span>
+                    <form method="POST" action="{{ route('logout') }}">
+                        @csrf
+                        <button type="submit" role="menuitem" class="flex h-11 w-full items-center gap-3 rounded-sm px-3 text-t1-s font-medium text-ink hover:bg-soft-hover"><x-ui.icon name="logout" />Выйти из кабинета</button>
+                    </form>
+                </div>
+                <button type="button" x-on:click="open = ! open" x-bind:aria-expanded="open" aria-haspopup="menu"
+                        class="flex w-full items-center gap-3 rounded py-2 pl-2 pr-3 text-left hover:bg-soft-hover" x-bind:class="open && 'bg-soft-hover'">
+                    <x-ui.avatar :user="$user" />
+                    <span class="flex min-w-0 flex-1 flex-col gap-1">
+                        <span class="truncate text-t2 font-medium">{{ $user?->name }}</span>
+                        <span class="truncate text-t3 text-muted">{{ $profileSub }}</span>
+                    </span>
+                    <x-ui.icon name="chevron-down" size="s" class="shrink-0 text-muted transition-transform" x-bind:class="open && 'rotate-180'" />
+                </button>
+            </div>
         </div>
     </aside>
 
@@ -227,6 +257,10 @@
                         @if (! empty($item['count']))<x-ui.count :value="$item['count']" class="ml-auto" />@endif
                     </a>
                 @endforeach
+                <form method="POST" action="{{ route('logout') }}" class="mt-1 border-t border-line pt-2">
+                    @csrf
+                    <button type="submit" class="flex h-11 w-full items-center gap-3 rounded px-3 text-t1-s font-medium text-muted hover:bg-soft-hover hover:text-ink"><x-ui.icon name="logout" />Выйти из кабинета</button>
+                </form>
             </nav>
         </div>
     </div>

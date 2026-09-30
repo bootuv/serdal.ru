@@ -27,6 +27,9 @@ class VideoServers extends Component
     /** Секретный ключ: у существующего сервера пустое поле — ключ не меняется. */
     public string $secret = '';
 
+    /** У открытого сервера ключ уже сохранён — в поле показываем точки. */
+    public bool $hasSecret = false;
+
     public string $capacity = '100';
 
     public bool $enabled = true;
@@ -49,6 +52,7 @@ class VideoServers extends Component
         $this->name = (string) $server?->name;
         $this->url = (string) $server?->url;
         $this->secret = '';
+        $this->hasSecret = filled($server?->secret);
         $this->capacity = (string) ($server?->capacity ?? 100);
         $this->enabled = $server?->is_enabled ?? true;
     }
@@ -96,6 +100,19 @@ class VideoServers extends Component
         $this->dispatch('toast', ...$server->is_online
             ? ['message' => 'Сервер сохранён и на связи' . ($server->version ? ' · версия ' . $server->version : '')]
             : ['message' => 'Сервер сохранён, но проверка не прошла: ' . mb_strtolower($server->error ?? 'сервер не отвечает'), 'tone' => 'danger']);
+    }
+
+    /** Переключатель в строке списка: сервер принимает или не принимает новые занятия. */
+    public function toggleEnabled(int $id): void
+    {
+        $this->authorizeAdmin();
+
+        $server = BbbServer::findOrFail($id);
+        $server->update(['is_enabled' => ! $server->is_enabled]);
+
+        $this->dispatch('toast', message: $server->is_enabled
+            ? 'Сервер «' . $server->name . '» снова принимает занятия'
+            : 'Сервер «' . $server->name . '» больше не принимает новые занятия');
     }
 
     public function askDelete(int $id): void

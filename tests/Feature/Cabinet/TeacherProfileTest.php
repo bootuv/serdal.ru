@@ -9,7 +9,6 @@ use App\Models\Subject;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -90,7 +89,6 @@ class TeacherProfileTest extends TestCase
             ->set('extra_info', '<p>МПГУ, 2016</p><p>CELTA<script>alert(1)</script></p>')
             ->set('whatsup', '+7 916 245-18-73')
             ->set('telegram', '@sokolova')
-            ->set('password', 'new-secret-1')
             ->set('photo', UploadedFile::fake()->image('me.jpg'))
             ->call('save')
             ->assertHasNoErrors()
@@ -108,7 +106,6 @@ class TeacherProfileTest extends TestCase
         // «Обо мне» не меняли — оформление сохранено
         $this->assertSame('<ul><li>списки</li></ul>', $teacher->about);
         $this->assertSame('sokolova', $teacher->telegram);
-        $this->assertTrue(Hash::check('new-secret-1', $teacher->password));
         $this->assertNotNull($teacher->avatar);
         Storage::disk('s3')->assertExists($teacher->avatar);
     }
@@ -122,23 +119,6 @@ class TeacherProfileTest extends TestCase
             ->set('phone', 'позвоните мне')
             ->call('save')
             ->assertHasErrors(['first_name' => 'required', 'phone' => 'regex']);
-    }
-
-    public function test_new_password_needs_eight_characters_and_empty_keeps_old(): void
-    {
-        $teacher = $this->user(User::ROLE_TUTOR, ['password' => Hash::make('old-secret')]);
-
-        Livewire::actingAs($teacher)->test(Profile::class)
-            ->set('password', '1234567')
-            ->call('save')
-            ->assertHasErrors(['password' => 'min'])
-            ->assertSee('Пароль — минимум 8 символов')
-            ->set('password', '')
-            ->call('save')
-            ->assertHasNoErrors()
-            ->assertSet('saved', true);
-
-        $this->assertTrue(Hash::check('old-secret', $teacher->fresh()->password));
     }
 
     public function test_prices_crud_one_per_type(): void

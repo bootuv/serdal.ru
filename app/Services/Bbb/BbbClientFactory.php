@@ -92,8 +92,9 @@ class BbbClientFactory
         $response = $this->api($server)->getApiVersion();
         $xml = $response->getRawXml();
 
-        // bbbVersion — полная версия (2.6+), version — версия API у старых
-        $version = trim((string) ($xml->bbbVersion ?? '')) ?: trim((string) ($xml->version ?? ''));
+        // Только bbbVersion — версия самого BBB. Поле version — версия API («2.0» у всех версий BBB),
+        // её не показываем: сервер 4.0 оставляет bbbVersion пустым, и в админке было бы «версия 2.0»
+        $version = trim((string) ($xml->bbbVersion ?? ''));
 
         return $version !== '' ? $version : null;
     }

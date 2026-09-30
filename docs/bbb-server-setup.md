@@ -4,42 +4,50 @@
 между серверами по нагрузке (см. раздел «Серверы видеосвязи» в `CLAUDE.md`), но от настроек самого
 сервера зависят записи в облаке и учёт посещаемости — поэтому каждый сервер настраивается одинаково.
 
-Текущий сервер (проверен 30.09.2026): `room.serdal.ru`, Ubuntu 22.04, 8 ядер, 31 ГБ памяти, 433 ГБ диска,
-**BigBlueButton 3.1.0-beta.2**, установлены `bbb-webhooks` и `bbb-playback-video`, записи — только формат «видео»,
-TURN (coturn) на этом же сервере, свой скрипт удаления исходников записи, `bbb-conf --check` без замечаний.
+Серверы (на 30.09.2026):
+
+| Сервер | Версия BBB | Машина |
+|---|---|---|
+| `room.serdal.ru` | 3.1.0-beta.2 (Ubuntu 22.04) | 8 ядер, 31 ГБ, 433 ГБ |
+| `room2.serdal.ru` | **4.0.0-rc.3** (Ubuntu 24.04), поставлен по этой инструкции | Core i3-12100 (4 ядра / 8 потоков), 15 ГБ, NVMe 451 ГБ |
+
+Линия «3.1» в BigBlueButton переименована в **4.0** — новые серверы ставим на 4.0.
+Стабильного 4.0 на 30.09.2026 ещё нет (последний — кандидат в релиз 4.0.0-rc.3); когда выйдет — обновить оба сервера.
 
 ## 1. Что нужно заранее
 
-- Отдельная машина с **Ubuntu 22.04** (BBB 3.0 и 3.1), 64 бит, от **8 ядер и 16 ГБ** памяти, от 100 ГБ диска
-  (записи занимают место, пока не выгружены в облако).
-- Публичный IP и **поддомен** с записью A на этот IP, например `room2.serdal.ru`.
-- Открытые порты: **80, 443 TCP**, **3478** (TURN) и **16384–32768 UDP** (звук и видео). Никакого другого веб-сервера на машине.
-- Почта для сертификата Let's Encrypt.
+- Отдельная машина с **Ubuntu 24.04** (BBB 4.0 ставится только на неё), 64 бит, от **8 потоков и 16 ГБ** памяти,
+  от 100 ГБ диска (записи занимают место, пока не выгружены в облако).
+- Публичный IP и **поддомен** с записью A на этот IP, например `room3.serdal.ru`. Запись должна появиться **до** установки:
+  без неё не выдадут сертификат. Проверка: `dig +short room3.serdal.ru @8.8.8.8`.
+- Открытые порты: **80, 443 TCP**, **3478** (TURN) и **16384–32768 UDP** (звук и видео) — установщик с `-w` откроет их сам.
+  Никакого другого веб-сервера на машине.
+- Почта для сертификата Let's Encrypt — всегда **elberd06@gmail.com** (туда приходят предупреждения об истечении сертификата).
 
-## 2. Установка
+## 2. Установка (≈15 минут)
 
-Ставьте ту же ветку, что на текущем сервере, — **3.1** (на текущем бета-версия 3.1.0-beta.2; если вышел
-стабильный выпуск 3.1 — берите его). Официальный установщик
-[bbb-install](https://github.com/bigbluebutton/bbb-install): ветка `v3.1.x-release`, версия `jammy-310`
-(сверьте названия ветки и флаги в репозитории — `bbb-install.sh -h`):
+Официальный установщик [bbb-install](https://github.com/bigbluebutton/bbb-install), ветка `v4.0.x-release`, версия `noble-400`,
+**без Greenlight** (флаг `-g` не ставим: занятия создаёт Serdal), `-w` — межсетевой экран:
 
 ```bash
-wget -qO- https://raw.githubusercontent.com/bigbluebutton/bbb-install/v3.1.x-release/bbb-install.sh \
-  | bash -s -- -w -v jammy-310 -s room2.serdal.ru -e admin@serdal.ru
+wget -qO /root/bbb-install.sh https://raw.githubusercontent.com/bigbluebutton/bbb-install/v4.0.x-release/bbb-install.sh
+bash /root/bbb-install.sh -w -v noble-400 -s room3.serdal.ru -e elberd06@gmail.com 2>&1 | tee /root/bbb-install.log
 ```
 
-Серверы разных версий (3.0 и 3.1) Serdal обслуживает одинаково, но одна версия на всех серверах — меньше сюрпризов
-у учителей: класс выглядит и ведёт себя одинаково, на какой бы сервер ни попало занятие.
+Что было при установке `room2.serdal.ru` и что это значит:
 
-`-w` — включить межсетевой экран с нужными портами. Greenlight (`-g`) не ставим: занятия создаёт Serdal.
-
-**TURN.** На текущем сервере TURN-сервер (coturn) стоит там же, где BBB: `turn:room.serdal.ru:3478` и
-`turns:room.serdal.ru:443`. Он нужен ученикам за строгими сетями (школьный, офисный интернет) — без него у них
-нет звука и видео. После установки проверьте, что coturn работает (`systemctl is-active coturn`) и что
-в `/etc/bigbluebutton/turn-stun-servers.xml` указан **домен нового сервера**. Если установщик TURN не поставил —
-настройте его по [документации BBB](https://docs.bigbluebutton.org/administration/turn-server/).
+- `Job for freeswitch.service failed` в середине установки — FreeSWITCH поднялся со второй попытки, проверьте
+  `bbb-conf --status` после установки: все службы должны быть `✔`.
+- `curl: Could not resolve host` в финальной проверке — сервер закэшировал «домена нет», если имя проверяли
+  до появления записи. Лечится `resolvectl flush-caches`.
+- Отдельной службы `bbb-html5` в 4.0 нет — это нормально.
+- В 4.0 звук и видео идут через **LiveKit** (`livekit-server`), TURN — пакет `bbb-coturn` (служба `coturn`,
+  `realm` = домен сервера в `/etc/turnserver.conf`). Файла `turn-stun-servers.xml`, как в 3.x, больше нет.
+  TURN нужен ученикам за строгими сетями (школьный, офисный интернет) — проверьте `systemctl is-active coturn`.
 
 ## 3. Обязательно для Serdal
+
+Установщик 4.0 **не ставит** ни вебхуки, ни видеоформат записей — пункты 3.1 и 3.2 обязательны.
 
 ### 3.1. Вебхуки — посещаемость, завершение занятий, записи
 
@@ -76,8 +84,9 @@ steps:
 заполнится исходниками (десятки гигабайт в неделю):
 
 ```bash
-# на текущем сервере
-scp /usr/local/bigbluebutton/core/scripts/post_publish/zz_delete_raw.rb root@room2.serdal.ru:/usr/local/bigbluebutton/core/scripts/post_publish/
+# со своего компьютера (ключ SSH есть на обоих серверах)
+ssh root@room.serdal.ru cat /usr/local/bigbluebutton/core/scripts/post_publish/zz_delete_raw.rb \
+  | ssh root@room3.serdal.ru 'cat > /usr/local/bigbluebutton/core/scripts/post_publish/zz_delete_raw.rb && chmod 755 /usr/local/bigbluebutton/core/scripts/post_publish/zz_delete_raw.rb'
 ```
 
 Исходники занятий **без записи** BBB удаляет сам через 14 дней (`/etc/cron.daily/bigbluebutton`, `unrecorded_days=14`) —
@@ -110,16 +119,38 @@ defaultWelcomeMessageFooter=Вы находитесь в конференц-си
 (в самом файле текст записан как `\u…` — проще скопировать строки из файла текущего сервера целиком.
 `defaultWelcomeMessage` тоже есть, но Serdal передаёт приветствие при создании каждого занятия, так что оно не показывается.)
 
-`/etc/bigbluebutton/bbb-html5.yml` — лимит пометок на доске; адреса в этом файле установщик пишет под свой домен,
-**не копируйте** строки с `room.serdal.ru`:
+`/etc/bigbluebutton/bbb-html5.yml` — лимит пометок на доске (по умолчанию 300); адреса в этом файле установщик
+пишет под свой домен, **не копируйте** строки с `room.serdal.ru`. Дописать в конец файла (раздел `public:` там уже есть,
+`yq` на сервере 4.0 нет):
 
-```yaml
-public:
-  whiteboard:
-    maxNumberOfAnnotations: 10000
+```bash
+printf "  whiteboard:\n    maxNumberOfAnnotations: 10000\n" >> /etc/bigbluebutton/bbb-html5.yml
 ```
 
 `/etc/bigbluebutton/recording/recording.yml` — из пункта 3.2.
+
+### 3.5. Процессор — только для выделенного сервера
+
+На выделенной машине (не виртуальной) Ubuntu держит процессор в режиме `powersave` — частота поднимается с запаздыванием,
+живому звуку и видео это вредит. Режим `performance` с сохранением после перезагрузки (так сделано на `room2.serdal.ru`):
+
+```bash
+cat > /etc/systemd/system/cpu-performance.service <<'UNIT'
+[Unit]
+Description=CPU governor performance (Serdal BBB: steady latency for audio/video)
+After=multi-user.target
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c "for g in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do echo performance > $g; done"
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+systemctl daemon-reload && systemctl enable --now cpu-performance.service
+cat /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor | sort | uniq -c   # везде performance
+```
 
 Лимиты участников и длительности, запись, микрофоны при входе Serdal передаёт при создании каждого занятия
 («Настройки» → «Видеосвязь» и тариф учителя) — на сервере их настраивать не нужно.
@@ -127,11 +158,13 @@ public:
 ## 4. Проверка на сервере
 
 ```bash
+sudo bbb-conf --status         # все службы ✔
 sudo bbb-conf --check          # ошибки и предупреждения установки — после «Potential problems» должно быть пусто
 sudo bbb-conf --secret         # адрес API и секретный ключ — понадобятся в админке
 dpkg -l | grep -E 'bbb-webhooks|bbb-playback-video'   # оба пакета установлены
 systemctl is-active bbb-webhooks coturn                # обе службы active
 ls /usr/local/bigbluebutton/core/scripts/post_publish/ # есть zz_delete_raw.rb
+curl -s https://room3.serdal.ru/bigbluebutton/api       # снаружи: <returncode>SUCCESS</returncode>
 ```
 
 ## 5. Подключение к Serdal
@@ -140,8 +173,9 @@ ls /usr/local/bigbluebutton/core/scripts/post_publish/ # есть zz_delete_raw.
 2. Название, адрес (`URL` из `bbb-conf --secret`), секретный ключ (`Secret`).
 3. **Вместимость** — сколько человек сервер выдерживает одновременно. По ней делится нагрузка:
    сервер с вместимостью 200 получает вдвое больше занятий, чем со 100. Начните осторожно
-   (для 8 ядер — около 100–150) и поправьте по опыту.
-4. «Сохранить» — Serdal сразу проверит сервер: в списке появится версия и нагрузка, без пометки «Не отвечает».
+   (для 8 ядер — около 100–150, для 4 ядер / 8 потоков — около 60–80) и поправьте по опыту.
+4. «Сохранить» — Serdal сразу проверит сервер: в списке появится нагрузка, без пометки «Не отвечает».
+   Версию BBB 4.0 в ответе API не сообщает — у таких серверов версия в списке не показывается.
    Алгоритм подписи запросов подбирается сам.
 
 ## 6. Проверка тестовым занятием

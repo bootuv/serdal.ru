@@ -16,6 +16,9 @@ Route::middleware(['auth', \App\Http\Middleware\CheckUserActive::class])
 
         Route::get('/student', \App\Livewire\Cabinet\Student\Home::class)->name('student.home')->middleware(\App\Http\Middleware\EnsureCabinetRole::class . ':student');
 
+        // Почта и пароль — один экран на все роли, смена подтверждается кодом из письма
+        Route::get('/account', \App\Livewire\Cabinet\Account::class)->name('account');
+
         // Сообщения — один экран на обе роли
         Route::get('/student/messages', \App\Livewire\Cabinet\Messages::class)->name('student.messages')->middleware(\App\Http\Middleware\EnsureCabinetRole::class . ':student');
         Route::get('/teacher/messages', \App\Livewire\Cabinet\Messages::class)->name('teacher.messages')->middleware(\App\Http\Middleware\EnsureCabinetRole::class . ':teacher');

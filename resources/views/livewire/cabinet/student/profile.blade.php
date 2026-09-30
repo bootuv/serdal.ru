@@ -40,10 +40,7 @@
                     <x-ui.field label="Имя" name="first_name" wire:model="first_name" autocomplete="given-name" />
                     <x-ui.field label="Отчество" name="middle_name" wire:model="middle_name" autocomplete="additional-name" optional />
                     <x-ui.select label="Класс" name="grade" :options="$grades" placeholder="Не указан" wire:model="grade" />
-                    <x-ui.field label="Почта" name="email" type="email" wire:model="email" autocomplete="email" />
                     <x-ui.field label="Телефон" name="phone" type="tel" wire:model="phone" autocomplete="tel" />
-                    <x-ui.field label="Новый пароль" name="password" type="password" wire:model="password" autocomplete="new-password"
-                                placeholder="Оставьте пустым, если не меняете" hint="Минимум 8 символов" />
                 </div>
 
                 <div class="flex items-center gap-4 pt-2">
@@ -53,9 +50,11 @@
             </x-ui.card>
         </div>
 
-        {{-- Уведомления на этом устройстве --}}
-        <x-ui.card aria-labelledby="pf-notify">
-            <livewire:push-notification-toggle key="push-switch" />
-        </x-ui.card>
+        <div class="flex min-w-0 flex-col gap-6">
+            {{-- Уведомления на этом устройстве --}}
+            <x-ui.card aria-labelledby="pf-notify">
+                <livewire:push-notification-toggle key="push-switch" />
+            </x-ui.card>
+        </div>
     </div>
 </div>

@@ -9,18 +9,19 @@
         @else
             <x-ui.list>
                 @foreach ($servers as $s)
-                    <button type="button" wire:key="srv-{{ $s['id'] }}" wire:click="edit({{ $s['id'] }})" class="group flex items-center gap-4 border-t border-line py-4 text-left text-ink first:border-t-0 first:pt-0 last:pb-0">
-                        <span class="flex min-w-0 flex-1 flex-col gap-1">
+                    {{-- Кнопка сервера растянута на всю строку (after:inset-0), переключатель лежит поверх неё --}}
+                    <div wire:key="srv-{{ $s['id'] }}" class="group relative flex items-center gap-4 border-t border-line py-4 text-ink first:border-t-0 first:pt-0 last:pb-0">
+                        <button type="button" wire:click="edit({{ $s['id'] }})" class="flex min-w-0 flex-1 flex-col gap-1 text-left after:absolute after:inset-0">
                             <span class="flex min-w-0 flex-wrap items-center gap-2">
                                 <span @class(['truncate text-t1 font-medium group-hover:underline', 'text-muted' => ! $s['enabled']])>{{ $s['name'] }}</span>
                                 @if ($s['offline'])<x-ui.badge tone="danger">Не отвечает</x-ui.badge>@endif
-                                @unless ($s['enabled'])<x-ui.badge>Не принимает занятия</x-ui.badge>@endunless
                             </span>
                             <span class="truncate text-t2 text-muted">{{ $s['sub'] }}</span>
                             <span class="text-t2 text-muted">{{ $s['load'] }}</span>
-                        </span>
+                        </button>
+                        <x-ui.switch :checked="$s['enabled']" label="Принимает новые занятия" wire:click="toggleEnabled({{ $s['id'] }})" class="z-10" />
                         <x-ui.icon name="chevron-right" class="text-faint group-hover:text-ink" />
-                    </button>
+                    </div>
                 @endforeach
             </x-ui.list>
             <span class="border-t border-line pt-4 text-t2 text-muted">Новое занятие начинается на сервере, где меньше всего занятых мест. Состояние обновляется раз в минуту.</span>
@@ -31,7 +32,7 @@
         <x-ui.modal :title="$serverId ? 'Сервер видеосвязи' : 'Новый сервер'" :sub="$editing?->user ? 'Только для учителя ' . $editing->user->name : 'Занятия делятся между серверами по нагрузке'" close="close">
             <x-ui.field label="Название" name="name" placeholder="Основной" wire:model="name" />
             <x-ui.field label="Адрес сервера" name="url" type="url" hint="Целиком, как его показывает команда установки сервера" wire:model="url" />
-            <x-ui.password label="Секретный ключ" name="secret" wire:model="secret" autocomplete="off" :hint="$serverId ? 'Оставьте пустым, чтобы не менять' : null" />
+            <x-ui.password label="Секретный ключ" name="secret" wire:model="secret" autocomplete="off" :placeholder="$hasSecret ? '••••••••••••••••' : null" :hint="$hasSecret ? 'Ключ сохранён. Введите новый, только если хотите заменить' : null" />
             <x-ui.unit-field label="Вместимость" name="capacity" unit="участников" hint="Сколько человек сервер выдерживает одновременно — по ней делится нагрузка" wire:model="capacity" />
             <div class="flex items-start justify-between gap-4 rounded-lg p-4 shadow-line">
                 <div class="flex min-w-0 flex-col gap-1">
