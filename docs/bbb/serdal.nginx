@@ -11,3 +11,10 @@ location ^~ /serdal/ {
     alias /etc/bigbluebutton/serdal/public/;
     add_header Cache-Control "public, max-age=604800";
 }
+# Шрифты клиента: вместо штатного fonts.css (Source Sans Pro, только латиница) — наш: Inter под тем же именем.
+# Штатные объявления иначе подключаются позже нашего customStyleUrl и перебивают его
+location = /html5client/stylesheets/fonts.css {
+    alias /etc/bigbluebutton/serdal/public/serdal.css;
+    default_type text/css;
+    add_header Cache-Control "no-cache";
+}
