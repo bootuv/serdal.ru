@@ -14,11 +14,11 @@
                 <x-ui.field label="Телефон" name="phone" type="tel" size="l" optional autocomplete="tel" inputmode="tel" placeholder="+7 900 000-00-00" wire:model="phone" />
             </div>
 
-            {{-- Почта и пароль — отдельным блоком с пояснением: ученики путают его с паролем от почты --}}
+            {{-- Почта и пароль — отдельным блоком «Вход в Serdal»: ученики путали пароль с паролем от почты --}}
             <div class="flex flex-col gap-4">
                 <div class="flex flex-col gap-1">
                     <h2 class="text-t1 font-medium">Вход в Serdal</h2>
-                    <p class="text-t2 text-muted">Почта будет логином. Пароль придумайте новый — вводить пароль от почты не нужно.</p>
+                    <p class="text-t2 text-muted">С этой почтой и паролем вы будете входить в личный кабинет</p>
                 </div>
                 <div class="flex flex-col gap-2">
                     <x-ui.field label="Почта" name="email" type="email" size="l" autocomplete="email" inputmode="email" placeholder="name@mail.ru" hint="Пришлём на неё код подтверждения" wire:model="email" />
@@ -29,7 +29,7 @@
                         <x-ui.password label="Придумайте пароль" name="password" size="l" autocomplete="new-password" wire:model="password" />
                         <x-ui.password label="Повторите его" name="password_confirmation" size="l" autocomplete="new-password" wire:model="password_confirmation" />
                     </div>
-                    @unless ($errors->has('password'))<span class="text-t3 text-muted">Новый пароль для Serdal, не от почты. Минимум 8 символов</span>@endunless
+                    @unless ($errors->has('password'))<span class="text-t3 text-muted">Минимум 8 символов</span>@endunless
                 </div>
             </div>
 
