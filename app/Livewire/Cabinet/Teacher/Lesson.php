@@ -275,7 +275,7 @@ class Lesson extends Component
         $default = now()->addHour()->startOfHour();
 
         $this->resetValidation();
-        $this->rsScheduleId = $occurrence['schedule']?->id;
+        $this->rsScheduleId = ($occurrence['schedule'] ?? null)?->id;
         $this->rsAt = $occurrence ? self::atKey($occurrence['original']) : '';
         $this->rsScope = 'one';
         $this->rsNotify = true;
@@ -324,6 +324,11 @@ class Lesson extends Component
 
     public function saveReschedule(): void
     {
+        // Повторное нажатие «Сохранить»: окно уже закрыто первым
+        if (! $this->rescheduleOpen) {
+            return;
+        }
+
         $room = $this->room();
         abort_if($room->trashed(), 403);
         $teacher = auth()->user();
@@ -357,6 +362,14 @@ class Lesson extends Component
         $start = Carbon::parse($this->rsDate . ' ' . $this->rsTime);
         if ($mode === 'one' && $start->copy()->addMinutes($this->rsDuration)->isPast()) {
             $this->addError('rsDate', 'Это время уже прошло');
+
+            return;
+        }
+
+        if ($mode !== 'one' && $service->clashes($room,
+            TeacherLessonService::scheduleAttributes($weekly ? 'weekly' : 'once', $this->rsDate, $this->rsTime, $this->rsDuration, $this->rsDays),
+            $occurrence ? $occurrence['schedule']->id : null)) {
+            $this->addError('rsTime', 'В это время у занятия уже есть расписание');
 
             return;
         }

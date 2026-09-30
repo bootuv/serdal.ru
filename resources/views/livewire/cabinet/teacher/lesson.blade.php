@@ -355,7 +355,7 @@
             <x-slot:note>@if ($rsNew)Новое время: <x-ui.em>{{ $rsNew }}</x-ui.em>@endif</x-slot:note>
             <x-slot:footer>
                 <x-ui.btn wire:click="closeReschedule">Отмена</x-ui.btn>
-                <x-ui.btn variant="primary" wire:click="saveReschedule">{{ $rsMode === 'new' ? 'Сохранить' : 'Перенести' }}</x-ui.btn>
+                <x-ui.btn variant="primary" wire:click="saveReschedule" wire:loading.attr="disabled" wire:target="saveReschedule">{{ $rsMode === 'new' ? 'Сохранить' : 'Перенести' }}</x-ui.btn>
             </x-slot:footer>
         </x-ui.modal>
     @endif

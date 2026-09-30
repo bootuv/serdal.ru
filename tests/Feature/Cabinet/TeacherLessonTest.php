@@ -817,4 +817,66 @@ class TeacherLessonTest extends TestCase
             ->assertDontSee('/tutor/homework/', false)
             ->assertDontSee('/tutor/students/', false);
     }
+
+    public function test_reschedule_following_rejects_time_of_another_rule_of_same_lesson(): void
+    {
+        $teacher = $this->teacher();
+        $room = $this->room($teacher, [$this->studentOf($teacher)]);
+        $this->weeklyAt($room, [4], '16:00');
+        $this->weeklyAt($room, [5], '17:30');
+
+        Livewire::actingAs($teacher)
+            ->test(Lesson::class, ['room' => $room->id])
+            ->call('openReschedule')
+            ->set('rsScope', 'following')
+            ->call('toggleRsDay', 4)
+            ->call('toggleRsDay', 5)
+            ->set('rsDate', '2026-09-25')
+            ->set('rsTime', '17:30')
+            ->call('saveReschedule')
+            ->assertHasErrors('rsTime')
+            ->assertSet('rescheduleOpen', true);
+
+        $this->assertSame(2, $room->schedules()->count());
+    }
+
+    public function test_second_save_of_new_time_does_not_add_second_rule(): void
+    {
+        $teacher = $this->teacher();
+        $room = $this->room($teacher, [$this->studentOf($teacher)]);
+
+        Livewire::actingAs($teacher)
+            ->test(Lesson::class, ['room' => $room->id])
+            ->call('openReschedule')
+            ->set('rsDate', '2026-09-28')
+            ->set('rsTime', '16:00')
+            ->set('rsDays', [1, 3])
+            ->call('saveReschedule')
+            ->assertHasNoErrors()
+            ->call('saveReschedule');
+
+        $this->assertSame(1, $room->schedules()->count());
+    }
+
+    public function test_dedupe_command_removes_repeating_rules_only_with_apply(): void
+    {
+        $teacher = $this->teacher();
+        $room = $this->room($teacher, [$this->studentOf($teacher)]);
+        $first = $this->weeklyAt($room, [1, 3], '16:00');
+        $same = $this->weeklyAt($room, [1, 3], '16:00');
+        $partial = $this->weeklyAt($room, [3, 6], '16:00');
+        $other = $this->weeklyAt($room, [1], '18:00');
+
+        $this->artisan('schedules:dedupe')->assertSuccessful();
+        $this->assertSame(4, $room->schedules()->count());
+        $this->assertSame([3, 6], $partial->fresh()->recurrence_days);
+
+        $this->artisan('schedules:dedupe', ['--apply' => true])->assertSuccessful();
+
+        $this->assertNull(RoomSchedule::find($same->id));
+        $this->assertSame([1, 3], $first->fresh()->recurrence_days);
+        $this->assertSame([6], $partial->fresh()->recurrence_days);
+        $this->assertSame([1], $other->fresh()->recurrence_days);
+        Notification::assertNothingSent();
+    }
 }

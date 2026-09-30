@@ -1,7 +1,7 @@
 {{-- Строка занятия учителя (Сегодня, Расписание): время, [аватар], название, статус; у ближайшего — белая подсветка и главная кнопка.
-     row — см. Concerns\LessonRows::row(); afterFocus — строка сразу после подсвеченной (без линии сверху). --}}
+     row — см. Concerns\LessonRows::row(); afterFocus — строка сразу после подсвеченной (без линии сверху; подсвеченная — с отступом от предыдущей). --}}
 @if ($row['focus'])
-    <div class="-mx-4 flex flex-col gap-3 rounded-lg bg-white p-4 shadow-card lg:flex-row lg:items-center lg:gap-4" wire:key="row-{{ $row['key'] }}">
+    <div @class(['-mx-4 flex flex-col gap-3 rounded-lg bg-white p-4 shadow-card lg:flex-row lg:items-center lg:gap-4', 'mt-2' => $afterFocus ?? false]) wire:key="row-{{ $row['key'] }}">
         <div class="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
             <div class="flex w-13 shrink-0 flex-col gap-1 sm:w-16">
                 <span class="text-t1 font-semibold">{{ $row['time'] }}</span>

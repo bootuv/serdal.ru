@@ -239,6 +239,22 @@ class TeacherLessonService
         return true;
     }
 
+    /**
+     * Совпадает ли правило по времени с другим расписанием этого же занятия (в ближайшие восемь недель с начала правила).
+     *
+     * @param  array  $attributes  атрибуты RoomSchedule (см. scheduleAttributes())
+     */
+    public function clashes(Room $room, array $attributes, ?int $exceptScheduleId = null): bool
+    {
+        $from = Carbon::parse($attributes['start_date'])->startOfDay()->max(today());
+        $to = $from->copy()->addWeeks(8);
+        $starts = array_flip(array_map(fn (Carbon $at) => $at->timestamp, (new RoomSchedule($attributes))->rawOccurrences($from, $to)));
+
+        return $room->schedules()->where('is_active', true)->get()
+            ->reject(fn (RoomSchedule $s) => $s->id === $exceptScheduleId)
+            ->contains(fn (RoomSchedule $s) => collect($s->rawOccurrences($from, $to))->contains(fn (Carbon $at) => isset($starts[$at->timestamp])));
+    }
+
     /** Добавить правило расписания занятию (время ещё не назначено). */
     public function addSchedule(Room $room, array $attributes, User $teacher, bool $notify = true): RoomSchedule
     {

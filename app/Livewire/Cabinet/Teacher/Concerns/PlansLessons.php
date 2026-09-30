@@ -185,6 +185,19 @@ trait PlansLessons
 
         $schedules = [];
         if ($weekly) {
+            // «Другое время» не повторяет уже выбранные день и время — иначе в расписании два одинаковых занятия
+            $taken = [];
+            foreach ([['days' => $this->planDays, 'time' => $this->planTime], ...$this->planSlots] as $i => $slot) {
+                foreach (array_unique(array_map('intval', $slot['days'])) as $day) {
+                    if (isset($taken[$day . ' ' . $slot['time']])) {
+                        $this->addError($i ? 'planSlots.' . ($i - 1) . '.days' : 'planDays', 'Этот день и время уже выбраны выше');
+
+                        return null;
+                    }
+                    $taken[$day . ' ' . $slot['time']] = true;
+                }
+            }
+
             foreach ([['days' => $this->planDays, 'time' => $this->planTime], ...$this->planSlots] as $slot) {
                 $schedules[] = TeacherLessonService::scheduleAttributes('weekly', $this->planDate, $slot['time'], $this->planDuration, $slot['days'], $this->planUntil ?: null);
             }

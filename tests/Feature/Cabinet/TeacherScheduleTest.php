@@ -348,4 +348,28 @@ class TeacherScheduleTest extends TestCase
         $this->assertSame('once', $schedule->type);
         $this->assertSame('2026-09-27 11:00', $schedule->scheduled_at->format('Y-m-d H:i'));
     }
+
+    public function test_plan_rejects_other_time_repeating_same_day_and_time(): void
+    {
+        $teacher = $this->teacher();
+        $student = $this->studentOf($teacher);
+
+        Livewire::actingAs($teacher)
+            ->test(Schedule::class)
+            ->call('openPlan')
+            ->set('planStudentId', (string) $student->id)
+            ->set('planName', 'Литература')
+            ->set('planDate', '2026-09-28')
+            ->set('planTime', '18:00')
+            ->set('planDays', [5])
+            ->call('addPlanSlot')
+            ->call('togglePlanDay', 5, 0)
+            ->call('togglePlanDay', 6, 0)
+            ->set('planSlots.0.time', '18:00')
+            ->call('savePlan')
+            ->assertHasErrors('planSlots.0.days')
+            ->assertSee('Этот день и время уже выбраны выше');
+
+        $this->assertNull(Room::where('name', 'Литература')->first());
+    }
 }
