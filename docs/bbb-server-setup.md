@@ -212,10 +212,12 @@ ssh $H /usr/local/sbin/serdal-bbb-restart-if-idle        # сейчас, есл�
 # или ночью: ssh $H 'systemd-run --on-calendar="2026-10-02 04:00" /usr/local/sbin/serdal-bbb-restart-if-idle'
 ```
 
-**Шрифт — Inter, как на сайте и в кабинетах.** Клиент BBB везде задаёт шрифт «Source Sans Pro» (и поставляет его только
-с латиницей — русские буквы выходили системным шрифтом). `docs/bbb/public/serdal.css` подменяет само семейство
-«Source Sans Pro» на Inter — латиница и кириллица, все толщины; файлы шрифта лежат на самом сервере (`/serdal/fonts/`).
-Шрифты доски и значки не меняются. Inter чуть шире — если где-то подписи стали обрезаться, это отсюда.
+**Шрифт — Inter, как на сайте и в кабинетах.** Клиент BBB задаёт шрифт «Source Sans Pro» (только латиница — русские
+буквы выходили системным шрифтом). Nginx (`serdal.nginx`) отдаёт вместо штатного `/html5client/stylesheets/fonts.css` наш
+`docs/bbb/public/serdal.css`: семейство «Source Sans Pro» = Inter, латиница и кириллица, все толщины, файлы — на сервере
+(`/serdal/fonts/`). Страница клиента `/html5client/` — наша копия `index.html` (собирает `serdal-bbb-branding`): без
+предзагрузки 8 файлов Source Sans Pro (~1,1 МБ на каждый вход) и сразу с заголовком Serdal. Шрифты доски и значки не меняются.
+В DevTools поле font-family покажет «Source Sans Pro» — смотрите блок Rendered Fonts внизу вкладки Computed: там Inter.
 
 **Перевод.** В штатном русском переводе BBB 4.0 есть строки с неверными шаблонами («Загрузка {0} {1}», пропавшие счётчики
 «({count})») — исправлены в `ru-overrides.json` вместе с недостающими строками. Проверка после обновления BBB — сравнить

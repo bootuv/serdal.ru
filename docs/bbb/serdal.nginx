@@ -18,3 +18,16 @@ location = /html5client/stylesheets/fonts.css {
     default_type text/css;
     add_header Cache-Control "no-cache";
 }
+# Страница клиента: своя копия index.html (serdal-bbb-branding) — без предзагрузки Source Sans Pro, с заголовком Serdal
+location = /html5client/ {
+    root /etc/bigbluebutton/serdal;
+    try_files /index.html =404;
+    default_type text/html;
+    add_header Cache-Control "no-cache";
+}
+location = /html5client/index.html {
+    root /etc/bigbluebutton/serdal;
+    try_files /index.html =404;
+    default_type text/html;
+    add_header Cache-Control "no-cache";
+}

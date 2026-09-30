@@ -18,6 +18,16 @@ jq -s ".[0] * .[1]" "$SRC" "$D/ru-overrides.json" > "$D/ru.json.tmp"
 mv "$D/ru.json.tmp" "$D/ru.json"
 chmod 644 "$D/ru.json"
 
+# Своя копия index.html клиента (отдаёт nginx, см. serdal.nginx): без предзагрузки Source Sans Pro — шрифт заменён на Inter,
+# а 8 файлов (~1,1 МБ) иначе качались бы при каждом входе впустую, — и сразу с заголовком Serdal (без мелькания BigBlueButton)
+IDX=/usr/share/bigbluebutton/html5-client/index.html
+if [ -f "$IDX" ]; then
+    sed -e 's#<link rel="preload" href="fonts/SourceSansPro/[^"]*"[^>]*>##g' \
+        -e 's#<title>BigBlueButton</title>#<title>Serdal</title>#' "$IDX" > "$D/index.html.tmp"
+    mv "$D/index.html.tmp" "$D/index.html"
+    chmod 644 "$D/index.html"
+fi
+
 BUILD=$(sed -n 's/^ *html5ClientBuild: *//p' "$SETTINGS" | head -1)
 HASH=$(md5sum "$D/ru.json" | cut -c1-8)
 

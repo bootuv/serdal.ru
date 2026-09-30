@@ -7,23 +7,29 @@
         </div>
 
         <form wire:submit="register" class="flex flex-col gap-6" novalidate>
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <x-ui.field label="Фамилия" name="last_name" size="l" autocomplete="family-name" wire:model="last_name" />
+                <x-ui.field label="Имя" name="first_name" size="l" autocomplete="given-name" wire:model="first_name" />
+                <x-ui.field label="Отчество" name="middle_name" size="l" optional autocomplete="additional-name" wire:model="middle_name" />
+                <x-ui.field label="Телефон" name="phone" type="tel" size="l" optional autocomplete="tel" inputmode="tel" placeholder="+7 900 000-00-00" wire:model="phone" />
+            </div>
+
+            {{-- Почта и пароль — отдельным блоком с пояснением: ученики путают его с паролем от почты --}}
             <div class="flex flex-col gap-4">
-                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <x-ui.field label="Фамилия" name="last_name" size="l" autocomplete="family-name" wire:model="last_name" />
-                    <x-ui.field label="Имя" name="first_name" size="l" autocomplete="given-name" wire:model="first_name" />
-                    <x-ui.field label="Отчество" name="middle_name" size="l" optional autocomplete="additional-name" wire:model="middle_name" />
-                    <x-ui.field label="Телефон" name="phone" type="tel" size="l" optional autocomplete="tel" inputmode="tel" placeholder="+7 900 000-00-00" wire:model="phone" />
+                <div class="flex flex-col gap-1">
+                    <h2 class="text-t1 font-medium">Вход в Serdal</h2>
+                    <p class="text-t2 text-muted">Почта будет логином. Пароль придумайте новый — вводить пароль от почты не нужно.</p>
                 </div>
                 <div class="flex flex-col gap-2">
-                    <x-ui.field label="Почта" name="email" type="email" size="l" autocomplete="email" inputmode="email" placeholder="Ваша почта" wire:model="email" />
+                    <x-ui.field label="Почта" name="email" type="email" size="l" autocomplete="email" inputmode="email" placeholder="name@mail.ru" hint="Пришлём на неё код подтверждения" wire:model="email" />
                     @if ($emailTaken)<a href="{{ $loginUrl ?: route('login') }}" class="link self-start text-t2">Войти с этой почтой</a>@endif
                 </div>
                 <div class="flex flex-col gap-2">
                     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                        <x-ui.password label="Пароль" name="password" size="l" autocomplete="new-password" wire:model="password" />
-                        <x-ui.password label="Повторите пароль" name="password_confirmation" size="l" autocomplete="new-password" wire:model="password_confirmation" />
+                        <x-ui.password label="Придумайте пароль" name="password" size="l" autocomplete="new-password" wire:model="password" />
+                        <x-ui.password label="Повторите его" name="password_confirmation" size="l" autocomplete="new-password" wire:model="password_confirmation" />
                     </div>
-                    @unless ($errors->has('password'))<span class="text-t3 text-muted">Минимум 8 символов</span>@endunless
+                    @unless ($errors->has('password'))<span class="text-t3 text-muted">Новый пароль для Serdal, не от почты. Минимум 8 символов</span>@endunless
                 </div>
             </div>
 

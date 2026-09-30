@@ -127,7 +127,7 @@ class RegisterInvitedStudent extends Component
             'email.required' => 'Укажите почту',
             'email.email' => 'Проверьте адрес — в нём ошибка',
             'phone.max' => 'Слишком длинный номер',
-            'password.required' => 'Придумайте пароль',
+            'password.required' => 'Придумайте пароль для Serdal',
             'password.min' => 'Пароль — минимум 8 символов',
             'password.confirmed' => 'Пароли не совпадают',
             'agree.accepted' => 'Отметьте согласие, чтобы продолжить',
