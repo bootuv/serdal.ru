@@ -5,7 +5,7 @@
 # Клиент грузит перевод по адресу locales/ru.json?v=<html5ClientBuild>, и браузер кэширует его на дни. Чтобы браузеры
 # забрали новый перевод, к номеру сборки дописывается отпечаток перевода (public.app.html5ClientBuild в bbb-html5.yml).
 # Там же — название вкладки «Serdal» (public.app.clientTitle) и свой стиль (public.app.customStyleUrl → /serdal/serdal.css:
-# кириллица для шрифта клиента; файлы — /etc/bigbluebutton/serdal/public, раздаёт nginx, см. serdal.nginx).
+# шрифт Inter, как на сайте; файлы — /etc/bigbluebutton/serdal/public, раздаёт nginx, см. serdal.nginx).
 # bbb-apps-akka читает bbb-html5.yml только при запуске: изменения начнут действовать после bbb-conf --restart.
 set -e
 D=/etc/bigbluebutton/serdal
@@ -32,6 +32,8 @@ set_app() {
     fi
 }
 set_app clientTitle Serdal
+# После окончания занятия — сразу в Serdal (адрес выхода /session/{id}/logout), без экрана «Этот сеанс был завершён»
+set_app skipMeetingEnded true
 set_app html5ClientBuild "${BUILD}-s${HASH}"
 if [ -f "$D/public/serdal.css" ]; then
     set_app customStyleUrl "/serdal/serdal.css?v=$(md5sum "$D/public/serdal.css" | cut -c1-8)"

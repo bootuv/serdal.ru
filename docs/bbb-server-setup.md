@@ -196,7 +196,7 @@ cat /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor | sort | uniq -c   # �
 H=root@room3.serdal.ru
 ssh $H mkdir -p /etc/bigbluebutton/serdal
 scp docs/bbb/ru-overrides.json $H:/etc/bigbluebutton/serdal/
-scp -r docs/bbb/public $H:/etc/bigbluebutton/serdal/      # стиль и кириллица для шрифта клиента
+scp -r docs/bbb/public $H:/etc/bigbluebutton/serdal/      # стиль и шрифт Inter для клиента
 scp docs/bbb/serdal-bbb-branding $H:/usr/local/sbin/
 scp docs/bbb/serdal.nginx $H:/etc/bigbluebutton/nginx/
 ssh $H 'set -e
@@ -205,21 +205,24 @@ curl -sf -o /etc/bigbluebutton/serdal/favicon.ico https://serdal.ru/images/favic
 echo "DPkg::Post-Invoke { \"if [ -x /usr/local/sbin/serdal-bbb-branding ]; then /usr/local/sbin/serdal-bbb-branding || true; fi\"; };" > /etc/apt/apt.conf.d/99serdal-bbb-branding
 /usr/local/sbin/serdal-bbb-branding
 nginx -t && systemctl reload nginx'
-# Затем перезапуск BBB (bbb-conf --restart) — ТОЛЬКО когда на сервере нет занятий: он их закрывает.
-# Проверка: S=$(bbb-conf --secret | sed -n "s/.*Secret: //p"); curl -s "https://room3.serdal.ru/bigbluebutton/api/getMeetings?checksum=$(printf "getMeetings%s" "$S" | sha256sum | cut -d" " -f1)"
-# → в ответе должно быть noMeetings.
+# Затем перезапуск BBB — ТОЛЬКО когда на сервере нет занятий (перезапуск их закрывает). Скрипт сам проверяет getMeetings
+# и перезапускает только пустой сервер:
+scp docs/bbb/serdal-bbb-restart-if-idle $H:/usr/local/sbin/ && ssh $H 'chmod 755 /usr/local/sbin/serdal-bbb-restart-if-idle'
+ssh $H /usr/local/sbin/serdal-bbb-restart-if-idle        # сейчас, если пусто (код 75 — идут занятия, ничего не сделано)
+# или ночью: ssh $H 'systemd-run --on-calendar="2026-10-02 04:00" /usr/local/sbin/serdal-bbb-restart-if-idle'
 ```
 
-**Шрифт.** Клиент BBB поставляет шрифт Source Sans Pro только с латиницей — русские буквы браузер рисует системным
-шрифтом, и текст выглядит «кривовато». `docs/bbb/public/serdal.css` добавляет к тому же семейству кириллицу Source Sans 3
-(файлы шрифта лежат на самом сервере, `/serdal/fonts/`), шрифты доски и значки не меняются.
+**Шрифт — Inter, как на сайте и в кабинетах.** Клиент BBB везде задаёт шрифт «Source Sans Pro» (и поставляет его только
+с латиницей — русские буквы выходили системным шрифтом). `docs/bbb/public/serdal.css` подменяет само семейство
+«Source Sans Pro» на Inter — латиница и кириллица, все толщины; файлы шрифта лежат на самом сервере (`/serdal/fonts/`).
+Шрифты доски и значки не меняются. Inter чуть шире — если где-то подписи стали обрезаться, это отсюда.
 
 **Перевод.** В штатном русском переводе BBB 4.0 есть строки с неверными шаблонами («Загрузка {0} {1}», пропавшие счётчики
 «({count})») — исправлены в `ru-overrides.json` вместе с недостающими строками. Проверка после обновления BBB — сравнить
 шаблоны `{…}` в `en.json` и в собранном `/etc/bigbluebutton/serdal/ru.json`.
 
 Скрипт `serdal-bbb-branding` собирает русский перевод и сам ведёт раздел `app:` в `/etc/bigbluebutton/bbb-html5.yml`:
-название вкладки `clientTitle: Serdal`, свой стиль `customStyleUrl` и номер сборки `html5ClientBuild` с отпечатком перевода. Второй раздел `app:` вручную
+название вкладки `clientTitle: Serdal`, свой стиль `customStyleUrl`, `skipMeetingEnded: true` (после занятия — сразу в Serdal, без экрана «Этот сеанс был завершён») и номер сборки `html5ClientBuild` с отпечатком перевода. Второй раздел `app:` вручную
 **не дописывайте** — с повторяющимся ключом BBB не запустится.
 
 Зачем отпечаток: клиент грузит перевод по адресу `locales/ru.json?v=<html5ClientBuild>`, и браузер хранит ответ до нескольких

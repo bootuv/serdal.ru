@@ -1,0 +1,15 @@
+#!/bin/sh
+# Serdal: перезапустить BBB (применить настройки из /etc/bigbluebutton), только если на сервере нет ни одного занятия.
+# Перезапуск закрывает идущие занятия — поэтому сначала getMeetings. Идут занятия — ничего не делаем (код 75).
+S=$(bbb-conf --secret | sed -n 's/.*Secret: //p')
+U=$(bbb-conf --secret | sed -n 's/.*URL: //p')
+C=$(printf 'getMeetings%s' "$S" | sha256sum | cut -d' ' -f1)
+R=$(curl -s --max-time 20 "${U}api/getMeetings?checksum=$C")
+if ! echo "$R" | grep -q '<returncode>SUCCESS'; then
+    logger -t serdal-bbb "перезапуск отменён: сервер не ответил на getMeetings"; exit 1
+fi
+if ! echo "$R" | grep -q 'noMeetings'; then
+    logger -t serdal-bbb "перезапуск отменён: идут занятия"; exit 75
+fi
+logger -t serdal-bbb "занятий нет — перезапускаю BBB"
+bbb-conf --restart >/var/log/serdal-bbb-restart.log 2>&1
