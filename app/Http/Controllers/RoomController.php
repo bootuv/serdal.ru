@@ -330,6 +330,17 @@ class RoomController extends Controller
                 return redirect()->route('rooms.join', $room);
             }
 
+            // Места в классе: лимит участников BBB считает всех. Заполнено — в BBB не отправляем
+            // (там человек увидел бы служебную страницу), показываем свой экран и сообщаем учителю
+            if ($room->user_id !== auth()->id()) {
+                $capacity = app(\App\Services\RoomCapacityService::class);
+                if ($max = $capacity->fullLimit($room, $userID)) {
+                    $capacity->refused($room, $userID, $userName, $max);
+
+                    return redirect()->route('rooms.join', $room)->with(\App\Services\RoomCapacityService::SESSION_KEY, $max);
+                }
+            }
+
             // Note: logoutURL is set at meeting creation time (in start method)
             // The redirect is the same for all users of this meeting
             return redirect()->to(
@@ -339,6 +350,8 @@ class RoomController extends Controller
                     'password' => $password,
                     'userID' => $userID,
                     'avatarURL' => $avatarURL,
+                    // Отказ BBB (место заняли в ту же секунду и т. п.) вернёт человека к нам, а не на служебную страницу
+                    'errorRedirectUrl' => route('rooms.join-failed', $room),
                 ])
             );
         } catch (\Exception $e) {
@@ -350,6 +363,30 @@ class RoomController extends Controller
             return redirect(auth()->check() ? \App\Http\Middleware\EnsureCabinetRole::homeFor(auth()->user()) : route('rooms.join', $room))
                 ->with('error', 'Не удалось подключиться к занятию. Попробуйте через минуту.');
         }
+    }
+
+    /**
+     * Сюда BBB возвращает человека, если не пустил в класс (errorRedirectUrl при входе).
+     * Код ошибки BBB дописывает к адресу; места кончились — maxParticipantsReached.
+     */
+    public function joinFailed(Request $request, Room $room)
+    {
+        if (! str_contains((string) $request->getQueryString(), 'maxParticipantsReached')) {
+            return redirect()->route('rooms.join', $room)->with('error', 'Не удалось подключиться к занятию. Попробуйте через минуту.');
+        }
+
+        $capacity = app(\App\Services\RoomCapacityService::class);
+        $max = $capacity->limitOf($room);
+
+        if ($room->user_id !== auth()->id()) {
+            [$userID, $userName] = auth()->check()
+                ? [(string) auth()->id(), auth()->user()->name]
+                : ['guest_' . substr(session()->getId(), 0, 10), (string) session('guest_name', 'Гость')];
+
+            $capacity->refused($room, $userID, $userName, $max);
+        }
+
+        return redirect()->route('rooms.join', $room)->with(\App\Services\RoomCapacityService::SESSION_KEY, $max ?? 0);
     }
 
     public function stop(Room $room)

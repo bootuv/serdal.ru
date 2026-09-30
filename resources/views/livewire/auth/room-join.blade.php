@@ -34,6 +34,24 @@
                 @if ($materialsUrl)<x-ui.btn icon="folder" :href="$materialsUrl">Материалы</x-ui.btn>@endif
             </div>
         @endif
+    @elseif ($full !== null)
+        {{-- Лимит участников занятия набран: в BBB не пустили, учителю ушло уведомление --}}
+        <div class="flex flex-col gap-6">
+            <div class="flex items-start gap-3 rounded-lg bg-danger-bg p-4 text-danger-fg">
+                <x-ui.icon name="users" />
+                <div class="flex flex-col gap-1">
+                    <span class="text-t1-s font-medium">В классе нет свободных мест</span>
+                    <span class="text-t2">
+                        @if ($full > 0)В этом занятии может быть до {{ plural_ru($full, 'участника', 'участников', 'участников') }}, считая учителя, — все места заняты.@elseВсе места в этом занятии заняты.@endif
+                        Мы сообщили учителю. Войти получится, когда место освободится.
+                    </span>
+                </div>
+            </div>
+            <div class="flex flex-col gap-3">
+                <x-ui.btn size="l" icon="repeat" :href="route('rooms.connect', $room)" class="w-full">Попробовать ещё раз</x-ui.btn>
+                @if ($chatUrl)<x-ui.btn size="l" icon="chat" :href="$chatUrl" class="w-full">Написать учителю</x-ui.btn>@endif
+            </div>
+        </div>
     @else
         <div class="flex flex-col gap-6">
             <div class="flex items-center gap-3 rounded-lg bg-ok-bg p-4 text-ok-fg">

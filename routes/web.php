@@ -106,5 +106,6 @@ Route::get('/{username}', [PageController::class, 'tutorPage'])->name('tutors.sh
 // Public Room Access
 Route::get('/rooms/{room}/join', \App\Livewire\GuestJoinRoom::class)->name('rooms.join');
 Route::get('/rooms/{room}/connect', [RoomController::class, 'connect'])->name('rooms.connect');
+Route::get('/rooms/{room}/join-failed', [RoomController::class, 'joinFailed'])->name('rooms.join-failed');
 Route::post('/rooms/{room}/join/guest', [RoomController::class, 'joinAsGuest'])->name('rooms.join.guest');
 

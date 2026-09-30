@@ -28,6 +28,10 @@ class GuestJoinRoom extends Component
     /** Имя гостя (для вошедших не нужно). */
     public string $name = '';
 
+    /** Вход не удался: в классе нет свободных мест. Лимит участников (0 — неизвестен). */
+    #[Locked]
+    public ?int $full = null;
+
     public function mount(Room $room)
     {
         $this->room = $room;
@@ -35,6 +39,11 @@ class GuestJoinRoom extends Component
         // Учитель своего занятия сюда не ходит — занятие он начинает из кабинета
         if (auth()->id() === $room->user_id) {
             return redirect(Route::has('cabinet.teacher.lesson') ? route('cabinet.teacher.lesson', $room) : url('/'));
+        }
+
+        if (session()->has(\App\Services\RoomCapacityService::SESSION_KEY)) {
+            $this->full = (int) session(\App\Services\RoomCapacityService::SESSION_KEY);
+            $this->name = (string) session('guest_name', '');
         }
 
         $this->checkRoomStatus();
