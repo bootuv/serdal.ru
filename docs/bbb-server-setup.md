@@ -187,9 +187,18 @@ chmod 755 /usr/local/sbin/serdal-bbb-branding
 curl -sf -o /etc/bigbluebutton/serdal/favicon.ico https://serdal.ru/images/favicon.ico
 echo "DPkg::Post-Invoke { \"if [ -x /usr/local/sbin/serdal-bbb-branding ]; then /usr/local/sbin/serdal-bbb-branding || true; fi\"; };" > /etc/apt/apt.conf.d/99serdal-bbb-branding
 /usr/local/sbin/serdal-bbb-branding
-printf "  app:\n    clientTitle: Serdal\n" >> /etc/bigbluebutton/bbb-html5.yml
-nginx -t && systemctl reload nginx && bbb-conf --restart'
+nginx -t && systemctl reload nginx'
+# Затем перезапуск BBB (bbb-conf --restart) — ТОЛЬКО когда на сервере нет занятий: он их закрывает.
+# Проверка: S=$(bbb-conf --secret | sed -n "s/.*Secret: //p"); curl -s "https://room3.serdal.ru/bigbluebutton/api/getMeetings?checksum=$(printf "getMeetings%s" "$S" | sha256sum | cut -d" " -f1)"
+# → в ответе должно быть noMeetings.
 ```
+
+Скрипт `serdal-bbb-branding` собирает русский перевод и сам ведёт раздел `app:` в `/etc/bigbluebutton/bbb-html5.yml`:
+название вкладки `clientTitle: Serdal` и номер сборки `html5ClientBuild` с отпечатком перевода. Второй раздел `app:` вручную
+**не дописывайте** — с повторяющимся ключом BBB не запустится.
+
+Зачем отпечаток: клиент грузит перевод по адресу `locales/ru.json?v=<html5ClientBuild>`, и браузер хранит ответ до нескольких
+суток, не спрашивая сервер. Поменялся перевод — поменялся адрес — браузеры скачают новый. Действует после перезапуска BBB.
 
 Проверка: `curl -s https://room3.serdal.ru/html5client/locales/ru.json | grep '"app.mediaSharing.modal.slides"'` → «Слайды».
 Новые непереведённые строки после обновления BBB: сравните ключи `en.json` и `ru.json` в

@@ -1,10 +1,34 @@
 #!/bin/sh
 # Serdal: русский перевод клиента BBB = штатный ru.json + наши дополнения (/etc/bigbluebutton/serdal/ru-overrides.json).
 # Запускается после каждого обновления пакетов (apt hook 99serdal-bbb-branding): новые штатные строки подхватываются сами.
+#
+# Клиент грузит перевод по адресу locales/ru.json?v=<html5ClientBuild>, и браузер кэширует его на дни. Чтобы браузеры
+# забрали новый перевод, к номеру сборки дописывается отпечаток перевода (public.app.html5ClientBuild в bbb-html5.yml).
+# Там же — название вкладки «Serdal» (public.app.clientTitle).
+# bbb-apps-akka читает bbb-html5.yml только при запуске: изменения начнут действовать после bbb-conf --restart.
 set -e
 D=/etc/bigbluebutton/serdal
 SRC=/usr/share/bigbluebutton/html5-client/locales/ru.json
+SETTINGS=/usr/share/bigbluebutton/html5-client/private/config/settings.yml
+YML=/etc/bigbluebutton/bbb-html5.yml
 [ -f "$SRC" ] || exit 0
+
 jq -s ".[0] * .[1]" "$SRC" "$D/ru-overrides.json" > "$D/ru.json.tmp"
 mv "$D/ru.json.tmp" "$D/ru.json"
 chmod 644 "$D/ru.json"
+
+BUILD=$(sed -n 's/^ *html5ClientBuild: *//p' "$SETTINGS" | head -1)
+HASH=$(md5sum "$D/ru.json" | cut -c1-8)
+
+# Раздел public.app в bbb-html5.yml: название вкладки и номер сборки с отпечатком перевода.
+# Второй раздел app: не создаём — с повторяющимся ключом bbb-apps-akka не запускается.
+grep -q '^  app:' "$YML" || printf '  app:\n' >> "$YML"
+set_app() {
+    if grep -q "^    $1:" "$YML"; then
+        sed -i "s|^    $1:.*|    $1: $2|" "$YML"
+    else
+        sed -i "/^  app:/a\\    $1: $2" "$YML"
+    fi
+}
+set_app clientTitle Serdal
+set_app html5ClientBuild "${BUILD}-s${HASH}"
