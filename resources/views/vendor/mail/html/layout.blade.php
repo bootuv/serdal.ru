@@ -1,24 +1,45 @@
+{{-- Каркас писем Serdal: серый фон, логотип, белая карточка, подвал. Стили — themes/default.css. --}}
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="ru">
 <head>
-<title>{{ config('app.name') }}</title>
+<title>{{ \App\Support\Seo::SITE_NAME }}</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 <meta name="color-scheme" content="light">
 <meta name="supported-color-schemes" content="light">
 <style>
 @media only screen and (max-width: 600px) {
-.inner-body {
+.inner-body,
+.header-inner,
+.footer {
 width: 100% !important;
 }
 
-.footer {
-width: 100% !important;
+.content-cell {
+padding: 24px !important;
+}
+
+.footer .content-cell {
+padding: 24px 8px 32px !important;
+}
+
+.header {
+padding: 24px 8px 16px !important;
+}
+
+h1 {
+font-size: 24px !important;
+line-height: 32px !important;
 }
 }
 
 @media only screen and (max-width: 500px) {
 .button {
+display: block !important;
+text-align: center !important;
+}
+
+.action table {
 width: 100% !important;
 }
 }
@@ -26,6 +47,9 @@ width: 100% !important;
 {!! $head ?? '' !!}
 </head>
 <body>
+@if (filled($preheader ?? null))
+<div class="preheader">{{ $preheader }}</div>
+@endif
 
 <table class="wrapper" width="100%" cellpadding="0" cellspacing="0" role="presentation">
 <tr>

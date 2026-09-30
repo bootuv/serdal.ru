@@ -23,11 +23,7 @@ class EmailVerificationCode extends Notification
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
-            ->subject('Код подтверждения регистрации')
-            ->greeting('Здравствуйте!')
-            ->line('Ваш код подтверждения для регистрации:')
-            ->line(new \Illuminate\Support\HtmlString('<strong style="font-size: 24px; letter-spacing: 4px;">' . $this->code . '</strong>'))
-            ->line('Этот код действителен в течение 30 минут.')
-            ->salutation('С уважением, Serdal.ru');
+            ->subject('Код подтверждения: ' . $this->code . ' — ' . \App\Support\Seo::SITE_NAME)
+            ->markdown('emails.verification-code', ['code' => $this->code]);
     }
 }

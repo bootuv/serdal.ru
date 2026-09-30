@@ -1,20 +1,17 @@
-<!DOCTYPE html>
-<html>
+<x-mail::message>
+<x-slot:preheader>К сожалению, сейчас мы не можем одобрить заявку</x-slot:preheader>
+# Заявка отклонена
 
-<head>
-    <title>Статус заявки</title>
-</head>
+К сожалению, сейчас мы не можем одобрить вашу заявку на кабинет учителя в {{ \App\Support\Seo::SITE_NAME }}.
 
-<body>
-    <h1>Здравствуйте.</h1>
-    <p>К сожалению, ваша заявка на регистрацию в качестве учителя на платформе Serdal.ru была отклонена администратором.
-    </p>
-    @if (! empty($reason))
-        <p><strong>Причина:</strong> {{ $reason }}</p>
-    @endif
-    <p>Если у вас есть вопросы, вы можете связаться с нами через форму обратной связи на сайте.</p>
-    <br>
-    <p>С уважением,<br>Команда Serdal.ru</p>
-</body>
+@if (! empty($reason))
+<x-mail::panel>
+**Причина:** {{ $reason }}
+</x-mail::panel>
+@endif
 
-</html>
+@php $support = \App\Support\OfferSettings::legal()['legal_email'] ?? null; @endphp
+@if ($support)
+Если остались вопросы, напишите нам: [{{ $support }}](mailto:{{ $support }}).
+@endif
+</x-mail::message>

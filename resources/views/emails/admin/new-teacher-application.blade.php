@@ -1,16 +1,14 @@
 <x-mail::message>
-    # Новая заявка от учителя
+<x-slot:preheader>{{ $application->full_name }} хочет вести занятия</x-slot:preheader>
+# Новая заявка учителя
 
-    **Имя:** {{ $application->full_name }}
+<x-mail::rows :rows="array_values(array_filter([
+    ['label' => 'Имя', 'value' => $application->full_name],
+    ['label' => 'Почта', 'value' => $application->email],
+    $application->phone ? ['label' => 'Телефон', 'value' => $application->phone] : null,
+]))" />
 
-    **Email:** {{ $application->email }}
-
-    **Телефон:** {{ $application->phone }}
-
-    <x-mail::button :url="route('cabinet.admin.applications')">
-        Посмотреть заявки
-    </x-mail::button>
-
-    С уважением,
-    {{ config('app.name') }}
+<x-mail::button :url="route('cabinet.admin.applications')">
+Открыть заявки
+</x-mail::button>
 </x-mail::message>

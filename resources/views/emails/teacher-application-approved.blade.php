@@ -1,22 +1,17 @@
-<!DOCTYPE html>
-<html>
+<x-mail::message>
+<x-slot:preheader>Кабинет учителя готов — данные для входа в письме</x-slot:preheader>
+# Заявка одобрена
 
-<head>
-    <title>Заявка одобрена</title>
-</head>
+{{ trim($user->first_name . ' ' . $user->middle_name) ?: 'Здравствуйте' }}, добро пожаловать в {{ \App\Support\Seo::SITE_NAME }}! Мы создали для вас кабинет учителя.
 
-<body>
-    <h1>Здравствуйте, {{ $user->first_name }} {{ $user->middle_name }}!</h1>
-    <p>Поздравляем! Ваша заявка на роль учителя в Serdal.ru была одобрена администратором.</p>
-    <p>Мы создали для вас личный кабинет. Ваши данные для входа:</p>
-    <ul>
-        <li><strong>Email:</strong> {{ $user->email }}</li>
-        <li><strong>Пароль:</strong> {{ $password }}</li>
-    </ul>
-    <p>Вы можете войти по ссылке: <a href="{{ url('/login') }}">{{ url('/login') }}</a></p>
-    <p>Пожалуйста, смените пароль после первого входа в настройках профиля.</p>
-    <br>
-    <p>С уважением,<br>Команда Serdal.ru</p>
-</body>
+<x-mail::rows title="Данные для входа" :rows="[
+    ['label' => 'Почта', 'value' => $user->email],
+    ['label' => 'Пароль', 'value' => $password],
+]" />
 
-</html>
+<x-mail::button :url="route('login')">
+Войти в кабинет
+</x-mail::button>
+
+После первого входа смените пароль в профиле.
+</x-mail::message>

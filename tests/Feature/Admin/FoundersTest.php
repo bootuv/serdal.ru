@@ -166,10 +166,11 @@ class FoundersTest extends TestCase
         $mail = (new FounderContributionReminder($c, 'today', Carbon::parse('2026-10-05'), 9100, FounderExpense::where('is_active', true)->get()))->toMail($ivan);
 
         $this->assertStringContainsString('5 460 ₽', $mail->subject);
-        $text = implode("\n", $mail->introLines);
-        $this->assertStringContainsString('ваша доля 60 %', $text);
-        $this->assertStringContainsString('ежемесячный взнос: 5 460 ₽ (от 9 100 ₽ в месяц)', $text);
-        $this->assertStringContainsString('Домен: 1 200 ₽ в год (100 ₽ в месяц)', $text);
+        $html = (string) $mail->render();
+        $this->assertStringContainsString('Сегодня сбор на расходы', $html);
+        $this->assertStringContainsString('Доля 60 % от 9 100 ₽ в месяц · до 5 октября', $html);
+        $this->assertStringContainsString('1 200 ₽ в год', $html);
+        $this->assertStringContainsString('Домен', $html);
     }
 
     public function test_history_debts_and_mark_all(): void

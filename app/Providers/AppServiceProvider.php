@@ -23,6 +23,18 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Письмо «Восстановление пароля» — в общем оформлении писем и без канцелярита
+        \Illuminate\Auth\Notifications\ResetPassword::toMailUsing(function (object $notifiable, string $token) {
+            $minutes = (int) config('auth.passwords.' . config('auth.defaults.passwords') . '.expire', 60);
+
+            return (new \Illuminate\Notifications\Messages\MailMessage)
+                ->subject('Восстановление пароля — ' . \App\Support\Seo::SITE_NAME)
+                ->greeting('Восстановление пароля')
+                ->line('Нажмите кнопку и задайте новый пароль. Ссылка действует ' . plural_ru($minutes, 'минуту', 'минуты', 'минут') . '.')
+                ->action('Задать новый пароль', route('password.reset', ['token' => $token, 'email' => $notifiable->getEmailForPasswordReset()]))
+                ->line('Если вы не просили восстановить пароль, ничего делать не нужно — он останется прежним.');
+        });
+
         // SEO-настройки читаются один раз за запрос; после изменения в админке сбрасываем их и кэш sitemap/llms
         \App\Models\Setting::saved(fn () => \App\Support\SeoSettings::flush());
         \App\Models\Setting::deleted(fn () => \App\Support\SeoSettings::flush());

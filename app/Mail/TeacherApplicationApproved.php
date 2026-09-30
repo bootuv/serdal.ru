@@ -27,7 +27,7 @@ class TeacherApplicationApproved extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Добро пожаловать в Serdal.ru! Ваша заявка одобрена',
+            subject: 'Заявка одобрена — добро пожаловать в ' . \App\Support\Seo::SITE_NAME,
         );
     }
 
@@ -37,7 +37,7 @@ class TeacherApplicationApproved extends Mailable
     public function content(): Content
     {
         return new Content(
-            view: 'emails.teacher-application-approved',
+            markdown: 'emails.teacher-application-approved',
         );
     }
 

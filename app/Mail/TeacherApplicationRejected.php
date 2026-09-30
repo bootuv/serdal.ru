@@ -27,7 +27,7 @@ class TeacherApplicationRejected extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Статус вашей заявки на Serdal.ru',
+            subject: 'Заявка отклонена — ' . \App\Support\Seo::SITE_NAME,
         );
     }
 
@@ -37,7 +37,7 @@ class TeacherApplicationRejected extends Mailable
     public function content(): Content
     {
         return new Content(
-            view: 'emails.teacher-application-rejected',
+            markdown: 'emails.teacher-application-rejected',
         );
     }
 

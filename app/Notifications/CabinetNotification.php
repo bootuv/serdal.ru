@@ -44,18 +44,22 @@ abstract class CabinetNotification extends Notification implements ShouldBroadca
         return $channels;
     }
 
+    /** Письмо: заголовок уведомления — заголовком письма, текст, кнопка со ссылкой в кабинет. */
     public function toMail(object $notifiable): MailMessage
     {
         $data = $this->toDatabase($notifiable);
-        $name = trim((string) ($notifiable->first_name ?? ''));
+        $body = trim((string) ($data['body'] ?? ''));
 
         $mail = (new MailMessage)
             ->subject($data['title'] . ' — ' . Seo::SITE_NAME)
-            ->greeting($name !== '' ? "Здравствуйте, {$name}!" : 'Здравствуйте!')
-            ->line((string) $data['body']);
+            ->greeting($data['title']);
+
+        if ($body !== '') {
+            $mail->line($body);
+        }
 
         if ($url = CabinetMessage::urlOf($data)) {
-            $mail->action($data['action'] ?? 'Открыть', $url);
+            $mail->action($data['action'] ?? 'Открыть кабинет', $url);
         }
 
         return $mail->salutation('Команда ' . Seo::SITE_NAME);

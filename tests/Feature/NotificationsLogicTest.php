@@ -36,7 +36,8 @@ class NotificationsLogicTest extends TestCase
     {
         foreach (glob(app_path('Notifications/*.php')) as $file) {
             $class = 'App\\Notifications\\' . basename($file, '.php');
-            if (in_array($class, [CabinetNotification::class, \App\Notifications\EmailVerificationCode::class], true)) {
+            // Только почта, не уведомления кабинета: код подтверждения и напоминание основателям (у них может не быть кабинета)
+            if (in_array($class, [CabinetNotification::class, \App\Notifications\EmailVerificationCode::class, \App\Notifications\FounderContributionReminder::class], true)) {
                 continue;
             }
             $this->assertTrue(is_subclass_of($class, CabinetNotification::class), $class . ' — уведомление кабинета');
@@ -62,7 +63,8 @@ class NotificationsLogicTest extends TestCase
 
         $mail = $paid->toMail($teacher);
         $this->assertSame('Тариф оплачен — Serdal', $mail->subject);
-        $this->assertSame('Здравствуйте, Мария!', $mail->greeting);
+        // Заголовок письма — само событие, а не приветствие
+        $this->assertSame('Тариф оплачен', $mail->greeting);
         $this->assertSame('Тариф и платежи', $mail->actionText);
         $this->assertSame(route('cabinet.teacher.subscription'), $mail->actionUrl);
     }
