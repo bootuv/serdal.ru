@@ -281,4 +281,40 @@ class FoundersTest extends TestCase
         $this->assertNotNull(FounderContribution::where('title', 'Лицензия')->first()->paid_at);
         $this->assertCount(3, $service->sync(Carbon::parse('2026-11-01')));
     }
+
+    public function test_manual_reminder(): void
+    {
+        $admin = $this->user(User::ROLE_ADMIN);
+        $this->actingAs($admin);
+        Notification::fake();
+        [$ivan, $petr] = $this->seedData();
+        $noMail = Founder::create(['name' => 'Анна', 'share' => 0.5]);
+        // Авто-напоминания выключены — ручная отправка всё равно работает
+        FounderService::saveSettings(5, 3, false);
+        Carbon::setTestNow('2026-10-04 12:00');
+
+        $component = Livewire::test(Founders::class)
+            ->assertSee('Напомнить на почту')
+            ->call('openRemind', '2026-10')
+            ->assertSet('remindIds', [(string) $ivan->id, (string) $petr->id])
+            ->assertSee('Напомнить о взносе за октябрь')->assertSee('почта не указана')
+            ->set('remindIds', [(string) $petr->id])
+            ->call('sendRemind')
+            ->assertSet('remindMonth', null);
+
+        Notification::assertSentTo($petr, FounderContributionReminder::class, fn ($n) => $n->kind === 'soon' && $n->amount() === 3640.0);
+        Notification::assertNotSentTo($ivan, FounderContributionReminder::class);
+        Notification::assertNotSentTo($noMail, FounderContributionReminder::class);
+
+        // Повторно в тот же день — уходит; внёсшим — нет
+        $service = app(FounderService::class);
+        $service->setPaid(FounderContribution::where('founder_id', $petr->id)->first(), true, $admin);
+        $this->assertSame(1, $service->remindNow(Carbon::parse('2026-10-01'), [$ivan->id, $petr->id, $noMail->id]));
+        $component->call('openRemind', '2026-10')->assertSee('напоминали сегодня в 12:00');
+
+        // После срока — письмо о просрочке
+        Carbon::setTestNow('2026-10-09 12:00');
+        $service->remindNow(Carbon::parse('2026-10-01'), [$ivan->id]);
+        Notification::assertSentTo($ivan, FounderContributionReminder::class, fn ($n) => $n->kind === 'overdue');
+    }
 }

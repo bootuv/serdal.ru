@@ -62,6 +62,10 @@ class Founders extends Component
     public string $remindDays = '';
     public bool $reminders = true;
 
+    /* Окно «Напомнить на почту»: месяц («2026-10») и отмеченные основатели. */
+    public ?string $remindMonth = null;
+    public array $remindIds = [];
+
     public function mount(): void
     {
         $this->authorizeAdmin();
@@ -102,6 +106,44 @@ class Founders extends Component
         $period = \Illuminate\Support\Carbon::createFromFormat('Y-m-d', $month . '-01')->startOfDay();
         $n = $this->service()->markAllPaid($period, auth()->user());
         $this->dispatch('toast', message: $n ? 'За ' . HumanDate::month($period) . ' все внесли' : 'За этот месяц уже всё отмечено');
+    }
+
+    /* ---------- Напомнить вручную ---------- */
+
+    /** Окно «Напомнить на почту» за месяц (ключ «2026-10»): отмечены все, кто не внёс и у кого есть почта. */
+    public function openRemind(string $month): void
+    {
+        $this->authorizeAdmin();
+        $period = $this->periodOf($month);
+        $this->remindMonth = $month;
+        $this->remindIds = $this->service()->unpaidByFounder($period)
+            ->filter(fn (array $r) => $r['founder']->email)->map(fn (array $r) => (string) $r['founder']->id)->values()->all();
+    }
+
+    public function closeRemind(): void
+    {
+        $this->remindMonth = null;
+    }
+
+    public function sendRemind(): void
+    {
+        $this->authorizeAdmin();
+        if (! $this->remindMonth) {
+            return;
+        }
+
+        $sent = $this->service()->remindNow($this->periodOf($this->remindMonth), $this->remindIds);
+        $this->remindMonth = null;
+        $this->dispatch('toast', message: $sent
+            ? 'Отправлено: ' . plural_ru($sent, 'напоминание', 'напоминания', 'напоминаний')
+            : 'Никому не отправлено — отметьте получателей');
+    }
+
+    private function periodOf(string $month): \Illuminate\Support\Carbon
+    {
+        abort_unless(preg_match('/^\d{4}-\d{2}$/', $month), 404);
+
+        return \Illuminate\Support\Carbon::createFromFormat('Y-m-d', $month . '-01')->startOfDay();
     }
 
     public function updatedHistoryFilter(): void
@@ -309,6 +351,30 @@ class Founders extends Component
         return $options;
     }
 
+    /** Окно «Напомнить на почту»: кто не внёс за месяц, сколько с него и когда напоминали. */
+    private function remindView(): ?array
+    {
+        if (! $this->remindMonth) {
+            return null;
+        }
+
+        $period = $this->periodOf($this->remindMonth);
+
+        return [
+            'title' => 'Напомнить о взносе за ' . HumanDate::month($period),
+            'rows' => $this->service()->unpaidByFounder($period)->map(fn (array $r) => [
+                'id' => (string) $r['founder']->id,
+                'name' => $r['founder']->name,
+                'email' => (bool) $r['founder']->email,
+                'sub' => implode(' · ', array_filter([
+                    FounderService::money($r['amount']),
+                    $r['founder']->email ?: 'почта не указана',
+                    $r['remindedAt'] ? 'напоминали ' . HumanDate::at($r['remindedAt']) : null,
+                ])),
+            ]),
+        ];
+    }
+
     /** Вкладка «История»: итоги по основателям и месяцы с отметками. */
     private function historyView(\Illuminate\Support\Carbon $current): array
     {
@@ -387,6 +453,9 @@ class Founders extends Component
             'periodSub' => ($overdue ? 'Срок прошёл ' : 'Сбор ') . HumanDate::day($due) . ' · ' . $money((float) $contributions->sum('amount'))
                 . ' · ' . ($unpaidFounders ? 'не внесли ' . $unpaidFounders . ' из ' . $founders->count() : 'все внесли'),
             'hasOneOffs' => $contributions->contains(fn ($c) => $c->isOneOff()),
+            'periodKey' => $period->format('Y-m'),
+            'canRemind' => $unpaidFounders > 0,
+            'remind' => $this->remindView(),
             'overdue' => $overdue,
             'contributions' => $contributions->map(fn (FounderContribution $c) => [
                 'id' => $c->id,

@@ -47,6 +47,9 @@
                         @endunless
                         <span class="text-t2 text-muted">{{ $remindLine }}</span>
                     </div>
+                    @if ($canRemind)
+                        <x-ui.btn icon="mail" class="self-start" wire:click="openRemind('{{ $periodKey }}')">Напомнить на почту</x-ui.btn>
+                    @endif
                 </x-ui.card>
 
                 <x-ui.card class="min-w-0" aria-labelledby="f-debts">
@@ -95,7 +98,10 @@
                                             <span class="text-t2 text-muted">{{ $m['sub'] }} · @if ($m['unpaid'])<x-ui.em :danger="$m['overdue']">{{ $m['status'] }}</x-ui.em>@else{{ $m['status'] }}@endif</span>
                                         </div>
                                         @if ($m['unpaid'])
-                                            <x-ui.btn size="s" icon="check" wire:click="markAllPaid('{{ $m['key'] }}')">Все внесли</x-ui.btn>
+                                            <div class="flex flex-wrap items-center gap-2">
+                                                <x-ui.btn size="s" icon="mail" wire:click="openRemind('{{ $m['key'] }}')">Напомнить</x-ui.btn>
+                                                <x-ui.btn size="s" icon="check" wire:click="markAllPaid('{{ $m['key'] }}')">Все внесли</x-ui.btn>
+                                            </div>
                                         @endif
                                     </div>
                                     <div class="flex flex-col">
@@ -284,6 +290,32 @@
             <x-slot:footer>
                 <x-ui.btn wire:click="cancelDelete">Отмена</x-ui.btn>
                 <x-ui.btn variant="dark" wire:click="confirmDelete">Удалить</x-ui.btn>
+            </x-slot:footer>
+        </x-ui.modal>
+    @endif
+
+    @if ($remind)
+        <x-ui.modal :title="$remind['title']" sub="Письмо с суммой, сроком и списком расходов" close="closeRemind">
+            @if ($remind['rows']->isEmpty())
+                <p class="text-t1-s">Напоминать некому — за этот месяц все внесли.</p>
+            @else
+                <div class="flex flex-col gap-2">
+                    @foreach ($remind['rows'] as $r)
+                        @if ($r['email'])
+                            <x-ui.option :title="$r['name']" :sub="$r['sub']" value="{{ $r['id'] }}" wire:model="remindIds" wire:key="rm-{{ $r['id'] }}" />
+                        @else
+                            <div wire:key="rm-{{ $r['id'] }}" class="flex flex-col gap-1 rounded-lg px-4 py-3 shadow-line">
+                                <span class="truncate text-t1-s font-medium text-muted">{{ $r['name'] }}</span>
+                                <span class="text-t2 text-muted">{{ $r['sub'] }} — добавьте её на вкладке «Доли»</span>
+                            </div>
+                        @endif
+                    @endforeach
+                </div>
+            @endif
+            <x-slot:note>Письмо уйдёт сразу, даже если сегодня уже напоминали</x-slot:note>
+            <x-slot:footer>
+                <x-ui.btn wire:click="closeRemind">Отмена</x-ui.btn>
+                <x-ui.btn variant="primary" icon="send" wire:click="sendRemind" wire:loading.attr="disabled">Отправить</x-ui.btn>
             </x-slot:footer>
         </x-ui.modal>
     @endif

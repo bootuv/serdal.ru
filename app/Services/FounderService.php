@@ -302,24 +302,71 @@ class FounderService
     public function sendReminders(?Carbon $today = null): int
     {
         $sent = 0;
-        $expenses = FounderExpense::where('is_active', true)->where('period', '!=', FounderExpense::PERIOD_ONCE)->orderBy('sort')->orderBy('id')->get();
-        $total = $this->monthlyTotal();
-
         foreach ($this->remindersDue($today) as ['period' => $period, 'kind' => $kind]) {
-            $byFounder = $this->sync($period)->groupBy('founder_id');
-            foreach ($byFounder as $items) {
-                $founder = $items->first()->founder;
-                $unpaid = $items->filter(fn (FounderContribution $c) => ! $c->paid_at && (float) $c->amount > 0)->values();
-                if ($unpaid->isEmpty() || ! $founder->email || $unpaid->contains(fn ($c) => $c->reminded_at?->isToday())) {
+            foreach ($this->unpaidByFounder($period) as $row) {
+                if ($row['remindedAt']?->isToday()) {
                     continue;
                 }
-
-                $founder->notify(new FounderContributionReminder($unpaid, $kind, $this->dueDate($period), $total, $expenses));
-                FounderContribution::whereKey($unpaid->pluck('id')->all())->update(['reminded_at' => now()]);
-                $sent++;
+                $sent += (int) $this->notifyFounder($row, $period, $kind);
             }
         }
 
         return $sent;
+    }
+
+    /**
+     * Кто ещё не внёс за месяц: основатель, его невнесённые строки, сумма и когда напоминали в последний раз.
+     *
+     * @return Collection<int, array{founder: Founder, items: Collection, amount: float, remindedAt: ?Carbon}>
+     */
+    public function unpaidByFounder(Carbon $period): Collection
+    {
+        return $this->sync($period)
+            ->filter(fn (FounderContribution $c) => ! $c->paid_at && (float) $c->amount > 0)
+            ->groupBy('founder_id')
+            ->map(fn (Collection $items) => [
+                'founder' => $items->first()->founder,
+                'items' => $items->values(),
+                'amount' => (float) $items->sum('amount'),
+                'remindedAt' => $items->max('reminded_at'),
+            ])
+            ->values();
+    }
+
+    /**
+     * Напомнить вручную (кнопка в админке): тем из founderIds, кто не внёс за месяц и у кого есть почта.
+     * Не зависит от выключателя напоминаний и от того, напоминали ли сегодня. Возвращает число писем.
+     */
+    public function remindNow(Carbon $period, array $founderIds): int
+    {
+        $due = $this->dueDate($period);
+        $kind = match (true) {
+            today()->lt($due) => 'soon',
+            today()->equalTo($due) => 'today',
+            default => 'overdue',
+        };
+
+        $sent = 0;
+        foreach ($this->unpaidByFounder($period) as $row) {
+            if (in_array($row['founder']->id, array_map('intval', $founderIds), true)) {
+                $sent += (int) $this->notifyFounder($row, $period, $kind);
+            }
+        }
+
+        return $sent;
+    }
+
+    /** Письмо одному основателю о его невнесённых строках; без почты — не отправляем. */
+    private function notifyFounder(array $row, Carbon $period, string $kind): bool
+    {
+        if (! $row['founder']->email) {
+            return false;
+        }
+
+        $expenses = FounderExpense::where('is_active', true)->where('period', '!=', FounderExpense::PERIOD_ONCE)->orderBy('sort')->orderBy('id')->get();
+        $row['founder']->notify(new FounderContributionReminder($row['items'], $kind, $this->dueDate($period), $this->monthlyTotal(), $expenses));
+        FounderContribution::whereKey($row['items']->pluck('id')->all())->update(['reminded_at' => now()]);
+
+        return true;
     }
 }
