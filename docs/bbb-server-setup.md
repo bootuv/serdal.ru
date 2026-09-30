@@ -152,7 +152,33 @@ systemctl daemon-reload && systemctl enable --now cpu-performance.service
 cat /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor | sort | uniq -c   # везде performance
 ```
 
-### 3.6. Вход по SSH только по ключу
+### 3.6. Оформление: название Serdal, иконка сайта, русский перевод
+
+Штатный клиент BBB 4.0 называет вкладку «BigBlueButton», показывает иконку BBB, а в русском переводе
+не хватает ~300 строк («Media Sharing», «Slides», «Play video from link»…). Файлы — в `docs/bbb/` репозитория;
+всё лежит в `/etc` и переживает обновления BBB: русский файл пересобирается автоматически после каждого `apt`.
+
+```bash
+# со своего компьютера, из папки проекта serdal.ru
+H=root@room3.serdal.ru
+ssh $H mkdir -p /etc/bigbluebutton/serdal
+scp docs/bbb/ru-overrides.json $H:/etc/bigbluebutton/serdal/
+scp docs/bbb/serdal-bbb-branding $H:/usr/local/sbin/
+scp docs/bbb/serdal.nginx $H:/etc/bigbluebutton/nginx/
+ssh $H 'set -e
+chmod 755 /usr/local/sbin/serdal-bbb-branding
+curl -sf -o /etc/bigbluebutton/serdal/favicon.ico https://serdal.ru/images/favicon.ico
+echo "DPkg::Post-Invoke { \"if [ -x /usr/local/sbin/serdal-bbb-branding ]; then /usr/local/sbin/serdal-bbb-branding || true; fi\"; };" > /etc/apt/apt.conf.d/99serdal-bbb-branding
+/usr/local/sbin/serdal-bbb-branding
+printf "  app:\n    clientTitle: Serdal\n" >> /etc/bigbluebutton/bbb-html5.yml
+nginx -t && systemctl reload nginx && bbb-conf --restart'
+```
+
+Проверка: `curl -s https://room3.serdal.ru/html5client/locales/ru.json | grep '"app.mediaSharing.modal.slides"'` → «Слайды».
+Новые непереведённые строки после обновления BBB: сравните ключи `en.json` и `ru.json` в
+`/usr/share/bigbluebutton/html5-client/locales/` и допишите перевод в `docs/bbb/ru-overrides.json`.
+
+### 3.7. Вход по SSH только по ключу
 
 Сначала добавьте свой ключ (`ssh-copy-id root@room3.serdal.ru`) и проверьте вход по нему, затем:
 

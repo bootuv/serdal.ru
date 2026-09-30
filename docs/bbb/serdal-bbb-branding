@@ -1,0 +1,10 @@
+#!/bin/sh
+# Serdal: русский перевод клиента BBB = штатный ru.json + наши дополнения (/etc/bigbluebutton/serdal/ru-overrides.json).
+# Запускается после каждого обновления пакетов (apt hook 99serdal-bbb-branding): новые штатные строки подхватываются сами.
+set -e
+D=/etc/bigbluebutton/serdal
+SRC=/usr/share/bigbluebutton/html5-client/locales/ru.json
+[ -f "$SRC" ] || exit 0
+jq -s ".[0] * .[1]" "$SRC" "$D/ru-overrides.json" > "$D/ru.json.tmp"
+mv "$D/ru.json.tmp" "$D/ru.json"
+chmod 644 "$D/ru.json"

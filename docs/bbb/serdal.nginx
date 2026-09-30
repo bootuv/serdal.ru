@@ -1,0 +1,8 @@
+# Serdal: своя иконка и русский перевод клиента (файлы в /etc/bigbluebutton/serdal, переживают обновления BBB)
+location = /favicon.ico {
+    alias /etc/bigbluebutton/serdal/favicon.ico;
+}
+location = /html5client/locales/ru.json {
+    alias /etc/bigbluebutton/serdal/ru.json;
+    add_header Cache-Control "no-cache";
+}
