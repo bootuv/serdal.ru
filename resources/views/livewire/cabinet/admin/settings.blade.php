@@ -15,11 +15,7 @@
         @if ($tab === 'video')
             <div class="grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
                 <div class="flex min-w-0 flex-col gap-6">
-                    <x-ui.card aria-labelledby="h-srv">
-                        <x-ui.card-head id="h-srv" title="Сервер видеосвязи" />
-                        <x-ui.field label="Адрес сервера" name="video.bbb_url" type="url" wire:model="video.bbb_url" hint="Косая черта в конце обязательна" />
-                        <x-ui.password label="Секретный ключ" name="video.bbb_secret" wire:model="video.bbb_secret" autocomplete="off" />
-                    </x-ui.card>
+                    <livewire:cabinet.admin.video-servers />
                     <x-ui.card aria-labelledby="h-lim">
                         <x-ui.card-head id="h-lim" title="Ограничения" />
                         <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">

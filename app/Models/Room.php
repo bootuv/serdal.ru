@@ -72,6 +72,7 @@ class Room extends Model
         'logout_url',
         'next_start',
         'base_price',
+        'bbb_server_id',
     ];
 
     /**
@@ -94,6 +95,12 @@ class Room extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /** Сервер видеосвязи, на котором идёт (или шло последним) занятие. */
+    public function bbbServer(): BelongsTo
+    {
+        return $this->belongsTo(BbbServer::class);
     }
 
     public function schedules()

@@ -24,6 +24,7 @@ class MeetingSession extends Model
         'pricing_snapshot',
         'deletion_requested_at',
         'deletion_reason',
+        'bbb_server_id',
     ];
 
     protected $casts = [

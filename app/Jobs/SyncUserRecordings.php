@@ -2,17 +2,19 @@
 
 namespace App\Jobs;
 
+use App\Models\BbbServer;
 use App\Models\Recording;
 use App\Models\Room;
 use App\Models\Setting;
 use App\Models\User;
+use App\Services\Bbb\BbbClientFactory;
+use App\Services\Bbb\BbbServerPool;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
-use JoisarJignesh\Bigbluebutton\Facades\Bigbluebutton;
 
 class SyncUserRecordings implements ShouldQueue
 {
@@ -33,142 +35,132 @@ class SyncUserRecordings implements ShouldQueue
      */
     public function handle(): void
     {
-        try {
-            // Configure BBB based on User custom settings
-            if ($this->user->bbb_url && $this->user->bbb_secret) {
-                config([
-                    'bigbluebutton.BBB_SERVER_BASE_URL' => $this->user->bbb_url,
-                    'bigbluebutton.BBB_SECURITY_SALT' => $this->user->bbb_secret,
-                ]);
-            } else {
-                // Fallback to global
-                $globalUrl = Setting::where('key', 'bbb_url')->value('value');
-                $globalSecret = Setting::where('key', 'bbb_secret')->value('value');
-                if ($globalUrl && $globalSecret) {
-                    config([
-                        'bigbluebutton.BBB_SERVER_BASE_URL' => $globalUrl,
-                        'bigbluebutton.BBB_SECURITY_SALT' => $globalSecret,
-                    ]);
+        // Get User's Room Meeting IDs
+        $userRoomIds = Room::where('user_id', $this->user->id)->pluck('meeting_id')->filter()->toArray();
+
+        if (empty($userRoomIds)) {
+            return;
+        }
+
+        // Записи лежат на тех серверах, где шли занятия: обходим каждый. Сбой одного сервера
+        // не мешает остальным и не удаляет его записи у нас
+        foreach (app(BbbServerPool::class)->forTeacher($this->user) as $server) {
+            try {
+                $this->syncServer($server, $userRoomIds);
+            } catch (\Throwable $e) {
+                Log::error('SyncUserRecordings Error: ' . $e->getMessage(), ['user_id' => $this->user->id, 'server' => $server->host()]);
+            }
+        }
+    }
+
+    /** Записи занятий учителя с одного сервера. */
+    private function syncServer(BbbServer $server, array $userRoomIds): void
+    {
+        // Get 'published' and 'processing' recordings from BBB.
+        // Exclude 'deleted' and 'unpublished' so they don't reappear after being removed.
+        $recs = collect(app(BbbClientFactory::class)->recordings($server, ['state' => 'published,processing']));
+
+        Log::info('SyncUserRecordings: Raw response count', ['count' => $recs->count(), 'user_id' => $this->user->id]);
+
+        // Collect BBB record IDs for cleanup comparison
+        $bbbRecordIds = [];
+
+        foreach ($recs as $rec) {
+            $r = (array) $rec;
+            
+            $meetingID = trim((string) $r['meetingID']);
+            $recordID = trim((string) $r['recordID']);
+            $name = trim((string) $r['name']);
+            $publishedStr = trim((string) ($r['published'] ?? 'false'));
+            $state = trim((string) ($r['state'] ?? 'unknown'));
+            $startTimeRaw = trim((string) ($r['startTime'] ?? ''));
+            $endTimeRaw = trim((string) ($r['endTime'] ?? ''));
+
+            // Only import if it belongs to one of our rooms
+            if (in_array($meetingID, $userRoomIds)) {
+                $isPublished = ($publishedStr === 'true' || $publishedStr === '1');
+                $startTime = $startTimeRaw ? \Carbon\Carbon::createFromTimestamp($startTimeRaw / 1000) : null;
+
+                // Filter out "zombie" recordings:
+                // 1. If state is 'deleted' or 'unpublished'
+                // 2. If not published AND older than 24 hours (stuck processing)
+                if (in_array($state, ['deleted', 'unpublished']) || (!$isPublished && (!$startTime || $startTime->lt(now()->subHours(24))))) {
+                    continue;
                 }
-            }
 
-            // Get User's Room Meeting IDs
-            $userRoomIds = Room::where('user_id', $this->user->id)->pluck('meeting_id')->filter()->toArray();
+                $bbbRecordIds[] = $recordID;
 
-            if (empty($userRoomIds)) {
-                return;
-            }
+                // Determine best playback URL (prefer video if mp4 exists)
+                $playbackUrl = $this->getBestPlaybackUrl($r['playback'] ?? []);
 
-            // Get 'published' and 'processing' recordings from BBB.
-            // Exclude 'deleted' and 'unpublished' so they don't reappear after being removed.
-            $response = Bigbluebutton::getRecordings(['state' => 'published,processing']);
-            $recs = collect($response);
-
-            Log::info('SyncUserRecordings: Raw response count', ['count' => $recs->count(), 'user_id' => $this->user->id]);
-
-            // Collect BBB record IDs for cleanup comparison
-            $bbbRecordIds = [];
-
-            foreach ($recs as $rec) {
-                $r = (array) $rec;
+                Log::info('SyncUserRecordings: Searching DB for record', ['record_id' => $recordID]);
                 
-                $meetingID = trim((string) $r['meetingID']);
-                $recordID = trim((string) $r['recordID']);
-                $name = trim((string) $r['name']);
-                $publishedStr = trim((string) ($r['published'] ?? 'false'));
-                $state = trim((string) ($r['state'] ?? 'unknown'));
-                $startTimeRaw = trim((string) ($r['startTime'] ?? ''));
-                $endTimeRaw = trim((string) ($r['endTime'] ?? ''));
+                $recording = Recording::withTrashed()->where('record_id', $recordID)->first();
 
-                // Only import if it belongs to one of our rooms
-                if (in_array($meetingID, $userRoomIds)) {
-                    $isPublished = ($publishedStr === 'true' || $publishedStr === '1');
-                    $startTime = $startTimeRaw ? \Carbon\Carbon::createFromTimestamp($startTimeRaw / 1000) : null;
-
-                    // Filter out "zombie" recordings:
-                    // 1. If state is 'deleted' or 'unpublished'
-                    // 2. If not published AND older than 24 hours (stuck processing)
-                    if (in_array($state, ['deleted', 'unpublished']) || (!$isPublished && (!$startTime || $startTime->lt(now()->subHours(24))))) {
+                if ($recording) {
+                    Log::info('SyncUserRecordings: Found existing record in DB', [
+                        'id' => $recording->id, 
+                        'trashed' => $recording->trashed()
+                    ]);
+                    if ($recording->trashed()) {
+                        Log::info('SyncUserRecordings: Skipping softly deleted record', ['record_id' => $recordID]);
                         continue;
                     }
+                } else {
+                    Log::warning('SyncUserRecordings: Not found in DB, attempting to insert new', ['record_id' => $recordID]);
+                    $recording = new Recording(['record_id' => $recordID]);
+                }
 
-                    $bbbRecordIds[] = $recordID;
-
-                    // Determine best playback URL (prefer video if mp4 exists)
-                    $playbackUrl = $this->getBestPlaybackUrl($r['playback'] ?? []);
-
-                    Log::info('SyncUserRecordings: Searching DB for record', ['record_id' => $recordID]);
-                    
-                    $recording = Recording::withTrashed()->where('record_id', $recordID)->first();
-
-                    if ($recording) {
-                        Log::info('SyncUserRecordings: Found existing record in DB', [
-                            'id' => $recording->id, 
-                            'trashed' => $recording->trashed()
-                        ]);
-                        if ($recording->trashed()) {
-                            Log::info('SyncUserRecordings: Skipping softly deleted record', ['record_id' => $recordID]);
-                            continue;
-                        }
-                    } else {
-                        Log::warning('SyncUserRecordings: Not found in DB, attempting to insert new', ['record_id' => $recordID]);
-                        $recording = new Recording(['record_id' => $recordID]);
-                    }
-
-                    $recording->fill([
-                        'meeting_id' => $meetingID,
-                        'name' => $name,
-                        'published' => $isPublished,
-                        'start_time' => $startTime,
-                        'end_time' => $endTimeRaw ? \Carbon\Carbon::createFromTimestamp($endTimeRaw / 1000) : null,
-                        'participants' => (int) trim((string) ($r['participants'] ?? '0')),
-                        'url' => $playbackUrl ? trim($playbackUrl) : null,
-                        // Ensure raw_data is a clean array without SimpleXMLElements for JSON cast
-                        'raw_data' => json_decode(json_encode($r), true),
+                $recording->fill([
+                    'bbb_server_id' => $server->id,
+                    'meeting_id' => $meetingID,
+                    'name' => $name,
+                    'published' => $isPublished,
+                    'start_time' => $startTime,
+                    'end_time' => $endTimeRaw ? \Carbon\Carbon::createFromTimestamp($endTimeRaw / 1000) : null,
+                    'participants' => (int) trim((string) ($r['participants'] ?? '0')),
+                    'url' => $playbackUrl ? trim($playbackUrl) : null,
+                    // Ensure raw_data is a clean array without SimpleXMLElements for JSON cast
+                    'raw_data' => json_decode(json_encode($r), true),
+                ]);
+                
+                try {
+                    Log::info('SyncUserRecordings: Saving record', ['record_id' => $recordID, 'exists' => $recording->exists]);
+                    $recording->save();
+                } catch (\Exception $e) {
+                    Log::error('SyncUserRecordings: Save failed', [
+                        'record_id' => $recordID,
+                        'error' => $e->getMessage()
                     ]);
-                    
-                    try {
-                        Log::info('SyncUserRecordings: Saving record', ['record_id' => $recordID, 'exists' => $recording->exists]);
-                        $recording->save();
-                    } catch (\Exception $e) {
-                        Log::error('SyncUserRecordings: Save failed', [
-                            'record_id' => $recordID,
-                            'error' => $e->getMessage()
-                        ]);
-                        throw $e;
-                    }
+                    throw $e;
+                }
 
-                    // Cleanup placeholder if exists
-                    Recording::where('meeting_id', $r['meetingID'])
-                        ->where('record_id', 'like', '%-placeholder-%')
-                        ->delete();
+                // Cleanup placeholder if exists
+                Recording::where('meeting_id', $r['meetingID'])
+                    ->where('record_id', 'like', '%-placeholder-%')
+                    ->delete();
 
-                    // Dispatch S3 upload if enabled and not yet uploaded
-                    $autoUpload = Setting::where('key', 'recording_auto_upload')->value('value') === '1';
-                    $isRecent = $recording->start_time && \Carbon\Carbon::parse($recording->start_time)->gt(now()->subHours(2));
+                // Dispatch S3 upload if enabled and not yet uploaded
+                $autoUpload = Setting::where('key', 'recording_auto_upload')->value('value') === '1';
+                $isRecent = $recording->start_time && \Carbon\Carbon::parse($recording->start_time)->gt(now()->subHours(2));
 
-                    if ($autoUpload && !$recording->s3_url && $recording->url && $isRecent) {
-                        $room = Room::where('meeting_id', $r['meetingID'])->first();
-                        if ($room && $room->user) {
-                            UploadRecordingToStorage::dispatch($recording, $room->user);
-                        }
+                if ($autoUpload && !$recording->s3_url && $recording->url && $isRecent) {
+                    $room = Room::where('meeting_id', $r['meetingID'])->first();
+                    if ($room && $room->user) {
+                        UploadRecordingToStorage::dispatch($recording, $room->user);
                     }
                 }
             }
-
-            // Delete local recordings that no longer exist on BBB
-            // But preserve S3-uploaded ones and recent placeholders
-            Recording::whereIn('meeting_id', $userRoomIds)
-                ->whereNotIn('record_id', $bbbRecordIds)
-                ->whereNull('s3_url')
-                ->where('record_id', 'not like', '%-placeholder-%')
-                ->delete();
-
-        } catch (\Throwable $e) {
-            Log::error('SyncUserRecordings Error: ' . $e->getMessage(), ['user_id' => $this->user->id]);
-            // Re-throw to allow retry? Or just log? 
-            // Usually sync jobs can just fail and run again later.
         }
+
+        // Delete local recordings that no longer exist on BBB
+        // But preserve S3-uploaded ones and recent placeholders
+        Recording::whereIn('meeting_id', $userRoomIds)
+            ->when($server->exists, fn ($q) => $q->where('bbb_server_id', $server->id), fn ($q) => $q->whereNull('bbb_server_id'))
+            ->whereNotIn('record_id', $bbbRecordIds)
+            ->whereNull('s3_url')
+            ->where('record_id', 'not like', '%-placeholder-%')
+            ->delete();
     }
 
     /**

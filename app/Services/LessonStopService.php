@@ -2,13 +2,13 @@
 
 namespace App\Services;
 
+use App\Models\BbbServer;
 use App\Models\MeetingSession;
 use App\Models\Room;
-use App\Models\Setting;
 use App\Models\User;
 use App\Notifications\LessonStoppedByAdmin;
+use App\Services\Bbb\BbbServerPool;
 use Illuminate\Support\Facades\Log;
-use JoisarJignesh\Bigbluebutton\Facades\Bigbluebutton;
 
 /**
  * Завершение идущего занятия: снимок участников с сервера видеосвязи, закрытие класса,
@@ -23,12 +23,12 @@ class LessonStopService
      */
     public function stop(Room $room): ?MeetingSession
     {
-        self::configureServer($room->user);
+        $server = app(BbbServerPool::class)->forRoom($room);
 
-        [$participantCount, $analyticsData] = $this->captureAnalytics($room);
+        [$participantCount, $analyticsData] = $server ? $this->captureAnalytics($server, $room) : [0, null];
 
         try {
-            Bigbluebutton::close([
+            $server?->client()->close([
                 'meetingID' => $room->meeting_id,
                 'moderatorPW' => $room->moderator_pw,
             ]);
@@ -76,41 +76,18 @@ class LessonStopService
             ->first();
     }
 
-    /** Сервер видеосвязи: свой у учителя, если задан, иначе общий из настроек. */
-    public static function configureServer(?User $owner): void
-    {
-        if ($owner && $owner->bbb_url && $owner->bbb_secret) {
-            config([
-                'bigbluebutton.BBB_SERVER_BASE_URL' => $owner->bbb_url,
-                'bigbluebutton.BBB_SECURITY_SALT' => $owner->bbb_secret,
-            ]);
-
-            return;
-        }
-
-        $globalUrl = Setting::where('key', 'bbb_url')->value('value');
-        $globalSecret = Setting::where('key', 'bbb_secret')->value('value');
-
-        if ($globalUrl && $globalSecret) {
-            config([
-                'bigbluebutton.BBB_SERVER_BASE_URL' => $globalUrl,
-                'bigbluebutton.BBB_SECURITY_SALT' => $globalSecret,
-            ]);
-        }
-    }
-
     /**
      * Число участников и сведения о них перед закрытием класса (getMeetingInfo).
      *
      * @return array{0:int, 1:?array}
      */
-    private function captureAnalytics(Room $room): array
+    private function captureAnalytics(BbbServer $server, Room $room): array
     {
         $participantCount = 0;
         $analyticsData = null;
 
         try {
-            $info = Bigbluebutton::getMeetingInfo(['meetingID' => $room->meeting_id]);
+            $info = $server->client()->getMeetingInfo(['meetingID' => $room->meeting_id]);
 
             if ($info && isset($info['participantCount'])) {
                 // participantCount уже включает всех (ведущих и слушателей)

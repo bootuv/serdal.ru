@@ -4,10 +4,10 @@ namespace App\Livewire;
 
 use App\Models\Room;
 use App\Models\User;
+use App\Services\Bbb\BbbServerPool;
 use App\Services\MessengerService;
 use App\Support\HumanDate;
 use Illuminate\Support\Facades\Route;
-use JoisarJignesh\Bigbluebutton\Facades\Bigbluebutton;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Locked;
 use Livewire\Component;
@@ -49,37 +49,17 @@ class GuestJoinRoom extends Component
         $this->checkRoomStatus();
     }
 
-    private function configureBbb(): void
-    {
-        $owner = $this->room->user;
-        if ($owner && $owner->bbb_url && $owner->bbb_secret) {
-            config([
-                'bigbluebutton.BBB_SERVER_BASE_URL' => $owner->bbb_url,
-                'bigbluebutton.BBB_SECURITY_SALT' => $owner->bbb_secret,
-            ]);
-
-            return;
-        }
-
-        $globalUrl = \App\Models\Setting::where('key', 'bbb_url')->value('value');
-        $globalSecret = \App\Models\Setting::where('key', 'bbb_secret')->value('value');
-        if ($globalUrl && $globalSecret) {
-            config([
-                'bigbluebutton.BBB_SERVER_BASE_URL' => $globalUrl,
-                'bigbluebutton.BBB_SECURITY_SALT' => $globalSecret,
-            ]);
-        }
-    }
-
     public function checkRoomStatus(): void
     {
-        $this->configureBbb();
+        // Свежая комната: пока страница открыта, учитель мог начать занятие на другом сервере
+        $room = $this->room->fresh() ?? $this->room;
+        $server = app(BbbServerPool::class)->forRoom($room);
 
         try {
-            $this->isRoomRunning = (bool) Bigbluebutton::isMeetingRunning(['meetingID' => $this->room->meeting_id]);
+            $this->isRoomRunning = (bool) $server?->client()->isMeetingRunning(['meetingID' => $room->meeting_id]);
         } catch (\Throwable $e) {
             // Нет связи с сервером видеосвязи — считаем по нашей отметке
-            $this->isRoomRunning = (bool) $this->room->fresh()?->is_running;
+            $this->isRoomRunning = (bool) $room->is_running;
         }
     }
 

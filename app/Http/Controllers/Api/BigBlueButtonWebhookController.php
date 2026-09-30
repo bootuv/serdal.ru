@@ -227,10 +227,15 @@ class BigBlueButtonWebhookController extends Controller
             return;
         }
 
+        // Сервер записи: record_id записи — внутренний номер занятия на сервере, где оно шло
+        // (комната с тех пор могла переехать на другой сервер)
+        $serverId = \App\Models\MeetingSession::where('internal_meeting_id', $recordId)->value('bbb_server_id') ?? $room->bbb_server_id;
+
         // Create or update the recording in our database
         $recording = \App\Models\Recording::updateOrCreate(
             ['record_id' => $recordId],
             [
+                'bbb_server_id' => $serverId,
                 'room_id' => $room->id,
                 'meeting_id' => $meetingId,
                 'name' => $meetingName,

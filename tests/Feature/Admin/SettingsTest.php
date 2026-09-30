@@ -50,7 +50,7 @@ class SettingsTest extends TestCase
         $this->actingAs($this->user(User::ROLE_TUTOR))->get($url)->assertRedirect(route('cabinet.teacher.today'));
         $this->actingAs($this->user(User::ROLE_STUDENT))->get($url)->assertRedirect(route('cabinet.student.home'));
         $this->actingAs($this->user(User::ROLE_ADMIN))->get($url)->assertOk()
-            ->assertSee('Настройки')->assertSee('Видеосвязь')->assertSee('Справочники')->assertSee('Сервер видеосвязи');
+            ->assertSee('Настройки')->assertSee('Видеосвязь')->assertSee('Справочники')->assertSee('Серверы видеосвязи');
     }
 
     public function test_every_tab_renders(): void
@@ -65,8 +65,6 @@ class SettingsTest extends TestCase
     public function test_video_tab_saves_only_its_keys(): void
     {
         Livewire::actingAs($this->user(User::ROLE_ADMIN))->test(Settings::class)
-            ->set('video.bbb_url', 'https://video.serdal.ru/bigbluebutton/')
-            ->set('video.bbb_secret', 'secret')
             ->call('flip', 'video', 'record')
             ->call('flip', 'video', 'unknown')
             ->set('video.duration', 90)
@@ -80,8 +78,6 @@ class SettingsTest extends TestCase
             ->assertSet('saved.video', true)
             ->assertSee('Сохранено');
 
-        $this->assertSame('https://video.serdal.ru/bigbluebutton/', $this->setting('bbb_url'));
-        $this->assertSame('secret', $this->setting('bbb_secret'));
         $this->assertSame('1', $this->setting('bbb_record'));
         $this->assertSame('90', $this->setting('bbb_duration'));
         // Другие вкладки не сохранялись
@@ -92,9 +88,9 @@ class SettingsTest extends TestCase
     public function test_validation_per_tab(): void
     {
         Livewire::actingAs($this->user(User::ROLE_ADMIN))->test(Settings::class)
-            ->set('video.bbb_url', 'не адрес')
+            ->set('video.duration', -1)
             ->call('save')
-            ->assertHasErrors(['video.bbb_url'])
+            ->assertHasErrors(['video.duration'])
             ->set('tab', 'b2b')
             ->set('b2b.b2b_email', 'почта')
             ->call('save')

@@ -4,12 +4,11 @@ namespace App\Services;
 
 use App\Jobs\SyncUserRecordings;
 use App\Models\Recording;
-use App\Models\Setting;
 use App\Models\User;
+use App\Services\Bbb\BbbServerPool;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
-use JoisarJignesh\Bigbluebutton\Facades\Bigbluebutton;
 
 /**
  * Записи занятий учителя: синхронизация с сервером занятий и удаление.
@@ -32,27 +31,23 @@ class TeacherRecordingsService
     }
 
     /**
-     * Удалить запись на сервере занятий (BBB). Ошибки не мешают локальному удалению.
+     * Удалить запись на сервере видеосвязи, где она лежит. Ошибки не мешают локальному удалению.
      * Файл в хранилище удаляет сама модель (Recording::booted, событие deleted).
      */
     public function deleteFromServer(Recording $recording): void
     {
         try {
-            $globalUrl = Setting::where('key', 'bbb_url')->value('value');
-            $globalSecret = Setting::where('key', 'bbb_secret')->value('value');
-            if ($globalUrl && $globalSecret) {
-                config([
-                    'bigbluebutton.BBB_SERVER_BASE_URL' => $globalUrl,
-                    'bigbluebutton.BBB_SECURITY_SALT' => $globalSecret,
-                ]);
+            $server = app(BbbServerPool::class)->forRecording($recording);
+            if (! $server) {
+                return;
             }
 
             Log::info('Attempting to delete recording from BBB', [
                 'record_id' => $recording->record_id,
-                'bbb_url' => config('bigbluebutton.BBB_SERVER_BASE_URL'),
+                'server' => $server->host(),
             ]);
 
-            $response = Bigbluebutton::deleteRecordings(['recordID' => $recording->record_id]);
+            $response = $server->client()->deleteRecordings(['recordID' => $recording->record_id]);
             Log::info('BBB Delete Recording Response', ['record_id' => $recording->record_id, 'response' => $response]);
         } catch (\Exception $e) {
             Log::error('BBB Delete Recording Error', ['record_id' => $recording->record_id, 'error' => $e->getMessage()]);

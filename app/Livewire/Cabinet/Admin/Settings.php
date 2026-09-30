@@ -161,8 +161,6 @@ class Settings extends Component
     {
         return match ($this->tab) {
             'video' => [
-                'video.bbb_url' => ['nullable', 'url', 'max:255'],
-                'video.bbb_secret' => ['nullable', 'string', 'max:255'],
                 'video.max_participants' => ['required', 'integer', 'min:0'],
                 'video.duration' => ['required', 'integer', 'min:0'],
             ],
@@ -223,7 +221,6 @@ class Settings extends Component
     protected function messages(): array
     {
         return [
-            'video.bbb_url.url' => 'Введите адрес целиком, вместе с https://',
             '*.*.required' => 'Заполните поле',
             '*.*.integer' => 'Введите целое число',
             '*.*.min' => 'Слишком маленькое число',

@@ -13,7 +13,6 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use App\Models\Setting;
-use JoisarJignesh\Bigbluebutton\Facades\Bigbluebutton;
 
 class UploadRecordingToStorage implements ShouldQueue, ShouldBeUnique
 {
@@ -120,20 +119,16 @@ class UploadRecordingToStorage implements ShouldQueue, ShouldBeUnique
         // Delete from BBB if enabled
         if (Setting::where('key', 'recording_delete_after_upload')->value('value') === '1') {
             try {
-                $globalUrl = Setting::where('key', 'bbb_url')->value('value');
-                $globalSecret = Setting::where('key', 'bbb_secret')->value('value');
-                if ($globalUrl && $globalSecret) {
-                    config([
-                        'bigbluebutton.BBB_SERVER_BASE_URL' => $globalUrl,
-                        'bigbluebutton.BBB_SECURITY_SALT' => $globalSecret,
-                    ]);
+                $server = app(\App\Services\Bbb\BbbServerPool::class)->forRecording($this->recording);
+                if (! $server) {
+                    return;
                 }
 
                 Log::info('S3 Recording: Deleting from BBB', [
                     'record_id' => $this->recording->record_id,
                 ]);
 
-                $deleteResponse = Bigbluebutton::deleteRecordings(['recordID' => $this->recording->record_id]);
+                $deleteResponse = $server->client()->deleteRecordings(['recordID' => $this->recording->record_id]);
                 Log::info('S3 Recording: BBB delete response', ['response' => $deleteResponse]);
             } catch (\Exception $e) {
                 Log::error('S3 Recording: Failed to delete from BBB', [

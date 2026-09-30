@@ -45,8 +45,6 @@ class SiteSettingsService
     public function video(): array
     {
         return [
-            'bbb_url' => (string) $this->get('bbb_url'),
-            'bbb_secret' => (string) $this->get('bbb_secret'),
             'record' => $this->get('bbb_record') === '1',
             'auto_start_recording' => $this->get('bbb_auto_start_recording') === '1',
             'allow_start_stop_recording' => $this->get('bbb_allow_start_stop_recording') !== '0',
@@ -59,8 +57,6 @@ class SiteSettingsService
 
     public function saveVideo(array $d): void
     {
-        $this->put('bbb_url', trim((string) ($d['bbb_url'] ?? '')));
-        $this->put('bbb_secret', trim((string) ($d['bbb_secret'] ?? '')));
         $this->put('bbb_record', $this->flag(! empty($d['record'])));
         $this->put('bbb_auto_start_recording', $this->flag(! empty($d['auto_start_recording'])));
         $this->put('bbb_allow_start_stop_recording', $this->flag(! empty($d['allow_start_stop_recording'])));

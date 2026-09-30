@@ -2,11 +2,11 @@
 
 namespace App\Services;
 
+use App\Models\BbbServer;
 use App\Models\Room;
 use App\Notifications\RoomFullRefused;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
-use JoisarJignesh\Bigbluebutton\Facades\Bigbluebutton;
 
 /**
  * Места в классе. Лимит участников (тариф учителя или общая настройка) при создании занятия передаётся
@@ -26,12 +26,12 @@ class RoomCapacityService
     /**
      * Лимит участников, если класс заполнен и человека с этим userID в нём ещё нет (переподключение пускаем).
      * null — места есть, лимита нет или сервер не ответил (тогда решает сам BBB).
-     * BBB уже должен быть настроен на сервер владельца комнаты.
+     * $server — сервер, на котором идёт занятие.
      */
-    public function fullLimit(Room $room, string $userId): ?int
+    public function fullLimit(BbbServer $server, Room $room, string $userId): ?int
     {
         try {
-            $info = Bigbluebutton::getMeetingInfo(['meetingID' => $room->meeting_id]);
+            $info = $server->client()->getMeetingInfo(['meetingID' => $room->meeting_id]);
         } catch (\Throwable $e) {
             Log::warning('BBB getMeetingInfo failed before join', ['room_id' => $room->id, 'error' => $e->getMessage()]);
 

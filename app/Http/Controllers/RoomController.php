@@ -3,8 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\Room;
+use App\Services\Bbb\BbbServerPool;
+use App\Services\Bbb\NoBbbServerException;
 use Illuminate\Http\Request;
-use JoisarJignesh\Bigbluebutton\Facades\Bigbluebutton;
 
 class RoomController extends Controller
 {
@@ -33,29 +34,27 @@ class RoomController extends Controller
             return back(fallback: route('cabinet.teacher.subscription'))->with('error', $limitError);
         }
 
-        // Apply Custom BBB Settings if available
         $user = auth()->user();
-        if ($user->bbb_url && $user->bbb_secret) {
-            config([
-                'bigbluebutton.BBB_SERVER_BASE_URL' => $user->bbb_url,
-                'bigbluebutton.BBB_SECURITY_SALT' => $user->bbb_secret,
-            ]);
-        } else {
-            // Check Global Admin Settings
-            $globalUrl = \App\Models\Setting::where('key', 'bbb_url')->value('value');
-            $globalSecret = \App\Models\Setting::where('key', 'bbb_secret')->value('value');
-
-            if ($globalUrl && $globalSecret) {
-                config([
-                    'bigbluebutton.BBB_SERVER_BASE_URL' => $globalUrl,
-                    'bigbluebutton.BBB_SECURITY_SALT' => $globalSecret,
-                ]);
-            }
-        }
+        $pool = app(BbbServerPool::class);
 
         try {
-            // Check if meeting is running
-            if (!Bigbluebutton::isMeetingRunning(['meetingID' => $room->meeting_id])) {
+            // Сервер, на котором занятие уже идёт (повторный вход учителя). Не отвечает, а занятие
+            // у нас не отмечено идущим — просто начинаем заново на другом сервере
+            $server = $room->is_running || $room->bbb_server_id ? $pool->forRoom($room) : null;
+            $running = false;
+            if ($server) {
+                try {
+                    $running = $server->client()->isMeetingRunning(['meetingID' => $room->meeting_id]);
+                } catch (\Throwable $e) {
+                    if ($room->is_running) {
+                        throw $e;
+                    }
+                }
+            }
+
+            if (! $running) {
+                // Новое занятие — на наименее загруженный сервер (или личный сервер учителя)
+                $server = $pool->pick($room);
 
                 // Prepare presentations (will be used on production only)
                 $presentationFiles = [];
@@ -118,6 +117,7 @@ class RoomController extends Controller
                 $meetingSession = \App\Models\MeetingSession::create([
                     'user_id' => auth()->id(),
                     'room_id' => $room->id,
+                    'bbb_server_id' => $server->id,
                     'meeting_id' => $room->meeting_id,
                     'internal_meeting_id' => null, // Will be updated after BBB create
                     'started_at' => now(),
@@ -197,7 +197,32 @@ class RoomController extends Controller
                     ]);
                 }
 
-                $response = Bigbluebutton::create($createParams);
+                // Сервер упал между проверками — помечаем его и создаём занятие на следующем по нагрузке
+                $failed = [];
+                while (true) {
+                    try {
+                        $response = $server->client()->create($createParams);
+                        if (! is_iterable($response)) {
+                            throw new \RuntimeException('BBB create failed: ' . $response);
+                        }
+                        break;
+                    } catch (\Throwable $e) {
+                        \Illuminate\Support\Facades\Log::warning('BBB: не удалось создать занятие на сервере', ['server' => $server->host(), 'error' => $e->getMessage()]);
+                        if (! $server->exists) {
+                            $meetingSession->delete();
+                            throw $e;
+                        }
+                        $server->update(['is_online' => false, 'error' => 'Сервер не отвечает', 'checked_at' => now()]);
+                        $failed[] = $server->id;
+                        try {
+                            $server = $pool->pick($room, $failed);
+                        } catch (NoBbbServerException) {
+                            $meetingSession->delete();
+                            throw $e;
+                        }
+                        $meetingSession->update(['bbb_server_id' => $server->id]);
+                    }
+                }
                 $internalMeetingId = $response['internalMeetingID'] ?? null;
 
                 // Update session with internalMeetingId
@@ -206,7 +231,7 @@ class RoomController extends Controller
                     'settings_snapshot' => $createParams, // Update with final params including logoutURL
                 ]);
 
-                $room->update(['is_running' => true]);
+                $room->update(['is_running' => true, 'bbb_server_id' => $server->id]);
                 \App\Events\RoomStatusUpdated::dispatch();
 
                 // Notify assigned students about lesson start
@@ -223,7 +248,7 @@ class RoomController extends Controller
                     if (str_contains($appUrl, '127.0.0.1') || str_contains($appUrl, 'localhost')) {
                         \Illuminate\Support\Facades\Log::warning('BBB Webhook: Skipping registration on localhost.', ['url' => $webhookUrl]);
                     } else {
-                        Bigbluebutton::hooksCreate([
+                        $server->client()->hooksCreate([
                             'meetingID' => $room->meeting_id,
                             'callbackURL' => $webhookUrl,
                             'getRaw' => false, // Use processed format with external-meeting-id
@@ -244,7 +269,7 @@ class RoomController extends Controller
             // Note: logoutURL is set at meeting creation time, not per-user join
             // The redirect will go to the session report for all users
             return redirect()->to(
-                Bigbluebutton::join([
+                $server->client()->join([
                     'meetingID' => $room->meeting_id,
                     'userName' => auth()->user()->name,
                     'password' => $room->moderator_pw, // Owner is moderator
@@ -252,7 +277,11 @@ class RoomController extends Controller
                     'avatarURL' => auth()->user()->avatar ? asset('storage/' . auth()->user()->avatar) : null,
                 ])
             );
-        } catch (\Exception $e) {
+        } catch (NoBbbServerException $e) {
+            \Illuminate\Support\Facades\Log::error('BBB: нет серверов для нового занятия', ['room_id' => $room->id]);
+
+            return back()->with('error', 'Не удалось начать занятие: сервер видеосвязи не настроен. Напишите в поддержку.');
+        } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::error('BBB Error in start()', [
                 'room_id' => $room->id,
                 'error' => $e->getMessage(),
@@ -287,28 +316,14 @@ class RoomController extends Controller
                 ->with('error', "Вход закрыт: есть занятия у учителя {$room->user?->name}, не оплаченные в срок. Доступ откроется, когда учитель отметит оплату.");
         }
 
-        // Apply Custom BBB Settings if available (from Room owner)
-        $owner = $room->user;
-        if ($owner && $owner->bbb_url && $owner->bbb_secret) {
-            config([
-                'bigbluebutton.BBB_SERVER_BASE_URL' => $owner->bbb_url,
-                'bigbluebutton.BBB_SECURITY_SALT' => $owner->bbb_secret,
-            ]);
-        } else {
-            // Check Global Admin Settings
-            $globalUrl = \App\Models\Setting::where('key', 'bbb_url')->value('value');
-            $globalSecret = \App\Models\Setting::where('key', 'bbb_secret')->value('value');
-
-            if ($globalUrl && $globalSecret) {
-                config([
-                    'bigbluebutton.BBB_SERVER_BASE_URL' => $globalUrl,
-                    'bigbluebutton.BBB_SECURITY_SALT' => $globalSecret,
-                ]);
-            }
+        // Сервер, на котором идёт занятие этой комнаты
+        $server = app(BbbServerPool::class)->forRoom($room);
+        if (! $server) {
+            return redirect()->route('rooms.join', $room);
         }
 
         try {
-            if (!Bigbluebutton::isMeetingRunning(['meetingID' => $room->meeting_id])) {
+            if (! $server->client()->isMeetingRunning(['meetingID' => $room->meeting_id])) {
                 // If meeting not running, redirect to the Livewire join page
                 return redirect()->route('rooms.join', $room);
             }
@@ -334,7 +349,7 @@ class RoomController extends Controller
             // (там человек увидел бы служебную страницу), показываем свой экран и сообщаем учителю
             if ($room->user_id !== auth()->id()) {
                 $capacity = app(\App\Services\RoomCapacityService::class);
-                if ($max = $capacity->fullLimit($room, $userID)) {
+                if ($max = $capacity->fullLimit($server, $room, $userID)) {
                     $capacity->refused($room, $userID, $userName, $max);
 
                     return redirect()->route('rooms.join', $room)->with(\App\Services\RoomCapacityService::SESSION_KEY, $max);
@@ -344,7 +359,7 @@ class RoomController extends Controller
             // Note: logoutURL is set at meeting creation time (in start method)
             // The redirect is the same for all users of this meeting
             return redirect()->to(
-                Bigbluebutton::join([
+                $server->client()->join([
                     'meetingID' => $room->meeting_id,
                     'userName' => $userName,
                     'password' => $password,

@@ -2,36 +2,53 @@
 
 namespace App\Services;
 
+use App\Models\BbbServer;
 use App\Models\Recording;
-use App\Models\Setting;
+use App\Services\Bbb\BbbClientFactory;
+use App\Services\Bbb\BbbServerPool;
 use Illuminate\Support\Carbon;
-use JoisarJignesh\Bigbluebutton\Facades\Bigbluebutton;
 
 /**
- * Синхронизация всех записей с общего сервера видеосвязи («Обновить с сервера» в админке,
- * «Синхронизировать» в старой админке RecordingResource). Удалённые у нас записи не возвращаются.
+ * Синхронизация всех записей со всех серверов видеосвязи («Обновить с сервера» в админке).
+ * Удалённые у нас записи не возвращаются.
  */
 class RecordingSyncService
 {
     /**
-     * Подтянуть опубликованные и обрабатываемые записи. Ошибки сервера пробрасываются — экран показывает их сам.
+     * Подтянуть опубликованные и обрабатываемые записи со всех серверов. Сбой одного сервера не мешает
+     * остальным; если не ответил ни один — ошибка пробрасывается, экран показывает её сам.
      *
      * @return int сколько записей обновлено или добавлено
      */
     public function syncAll(): int
     {
-        $globalUrl = Setting::where('key', 'bbb_url')->value('value');
-        $globalSecret = Setting::where('key', 'bbb_secret')->value('value');
-        if ($globalUrl && $globalSecret) {
-            config([
-                'bigbluebutton.BBB_SERVER_BASE_URL' => $globalUrl,
-                'bigbluebutton.BBB_SECURITY_SALT' => $globalSecret,
-            ]);
+        $servers = app(BbbServerPool::class)->all();
+        $count = 0;
+        $error = null;
+        $answered = 0;
+
+        foreach ($servers as $server) {
+            try {
+                $count += $this->syncServer($server);
+                $answered++;
+            } catch (\Throwable $e) {
+                $error = $e;
+                report($e);
+            }
         }
 
+        if ($error && $answered === 0) {
+            throw $error;
+        }
+
+        return $count;
+    }
+
+    private function syncServer(BbbServer $server): int
+    {
         $count = 0;
 
-        foreach (collect(Bigbluebutton::getRecordings(['state' => 'published,processing'])) as $rec) {
+        foreach (app(BbbClientFactory::class)->recordings($server, ['state' => 'published,processing']) as $rec) {
             $r = (array) $rec;
 
             $meetingID = trim((string) ($r['meetingID'] ?? ''));
@@ -63,6 +80,7 @@ class RecordingSyncService
             $url = $format['url'] ?? ($format[0]['url'] ?? null);
 
             $recording->fill([
+                'bbb_server_id' => $server->id,
                 'meeting_id' => $meetingID,
                 'name' => trim((string) ($r['name'] ?? '')),
                 'published' => $isPublished,

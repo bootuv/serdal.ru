@@ -25,6 +25,7 @@ class Recording extends Model
         'raw_data',
         's3_url',
         's3_uploaded_at',
+        'bbb_server_id',
     ];
 
     protected $casts = [
