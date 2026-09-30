@@ -130,6 +130,7 @@ sudo systemctl restart bbb-rap-resque-worker
 
 ```properties
 maxNumPages=500
+maxFileSizeUpload=200000000
 defaultWelcomeMessageFooter=Вы находитесь в конференц-системе образовательной платформы <a href="https://serdal.ru" target="_blank"><u>serdal.ru</u></a>.
 ```
 
@@ -143,6 +144,21 @@ defaultWelcomeMessageFooter=Вы находитесь в конференц-си
 ```bash
 printf "  whiteboard:\n    maxNumberOfAnnotations: 10000\n" >> /etc/bigbluebutton/bbb-html5.yml
 ```
+
+**Размер презентаций — 200 МБ, как обещает Serdal** (окно загрузки и справка). По умолчанию BBB принимает 30 МБ и 200 страниц:
+большая презентация молча не появится в классе. Реальный лимит — `maxFileSizeUpload` в `bbb-web.properties` (строка выше);
+клиенту нужна его копия для подсказок — в `bbb-html5.yml`:
+
+```yaml
+  presentation:
+    mirroredFromBBBCore:
+      uploadSizeMax: 200000000
+      uploadPagesMax: 500
+```
+
+Меняйте лимиты только в файлах из `/etc/bigbluebutton/` — файлы в `/usr/share/…` перезаписывает обновление BBB
+(на `room.serdal.ru` 200 МБ сначала были прописаны именно там). Дописывая строку в конец файла, проверьте, что последняя строка
+заканчивается переводом строки (`tail -c1 файл | od -c` → `\n`), иначе строки склеятся.
 
 `/etc/bigbluebutton/recording/recording.yml` — из пункта 3.2.
 
