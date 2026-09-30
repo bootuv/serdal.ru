@@ -196,6 +196,7 @@ cat /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor | sort | uniq -c   # �
 H=root@room3.serdal.ru
 ssh $H mkdir -p /etc/bigbluebutton/serdal
 scp docs/bbb/ru-overrides.json $H:/etc/bigbluebutton/serdal/
+scp -r docs/bbb/public $H:/etc/bigbluebutton/serdal/      # стиль и кириллица для шрифта клиента
 scp docs/bbb/serdal-bbb-branding $H:/usr/local/sbin/
 scp docs/bbb/serdal.nginx $H:/etc/bigbluebutton/nginx/
 ssh $H 'set -e
@@ -209,8 +210,16 @@ nginx -t && systemctl reload nginx'
 # → в ответе должно быть noMeetings.
 ```
 
+**Шрифт.** Клиент BBB поставляет шрифт Source Sans Pro только с латиницей — русские буквы браузер рисует системным
+шрифтом, и текст выглядит «кривовато». `docs/bbb/public/serdal.css` добавляет к тому же семейству кириллицу Source Sans 3
+(файлы шрифта лежат на самом сервере, `/serdal/fonts/`), шрифты доски и значки не меняются.
+
+**Перевод.** В штатном русском переводе BBB 4.0 есть строки с неверными шаблонами («Загрузка {0} {1}», пропавшие счётчики
+«({count})») — исправлены в `ru-overrides.json` вместе с недостающими строками. Проверка после обновления BBB — сравнить
+шаблоны `{…}` в `en.json` и в собранном `/etc/bigbluebutton/serdal/ru.json`.
+
 Скрипт `serdal-bbb-branding` собирает русский перевод и сам ведёт раздел `app:` в `/etc/bigbluebutton/bbb-html5.yml`:
-название вкладки `clientTitle: Serdal` и номер сборки `html5ClientBuild` с отпечатком перевода. Второй раздел `app:` вручную
+название вкладки `clientTitle: Serdal`, свой стиль `customStyleUrl` и номер сборки `html5ClientBuild` с отпечатком перевода. Второй раздел `app:` вручную
 **не дописывайте** — с повторяющимся ключом BBB не запустится.
 
 Зачем отпечаток: клиент грузит перевод по адресу `locales/ru.json?v=<html5ClientBuild>`, и браузер хранит ответ до нескольких

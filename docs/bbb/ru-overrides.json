@@ -294,5 +294,15 @@
   "app.learningDashboard.help.activityScore.maxMetricPointsLabel": "2 балла",
   "app.learningDashboard.help.activityScore.maxPointsLabel": "10 баллов",
   "app.learningDashboard.help.activityScore.sumLabel": "Сумма всех показателей выше",
-  "app.learningDashboard.help.activityScore.moderatorWarning": "Модераторы всегда получают 0 баллов и не участвуют в расчёте."
+  "app.learningDashboard.help.activityScore.moderatorWarning": "Модераторы всегда получают 0 баллов и не участвуют в расчёте.",
+  "app.chat.titlePrivate": "Личный чат",
+  "app.presentationUploder.uploading": "Загружаем 1 файл",
+  "app.statusNotifier.lowerHandDescOneUser": "Опустить руку",
+  "app.statusNotifier.raisedHandsTitle": "Поднятые руки ({count})",
+  "app.userList.guest.allowAllAuthenticated": "Пустить всех с аккаунтом ({count})",
+  "app.userList.guest.allowAllGuests": "Пустить всех гостей ({count})",
+  "app.userList.guest.allowEveryone": "Пустить всех ({count})",
+  "app.userList.guest.denyEveryone": "Отклонить всех ({count})",
+  "app.shortcut-help.fingerTap": "Касание {fingerCount} пальцами",
+  "app.guest-policy.feedbackMessage": "Правило входа гостей: {policy}"
 }
