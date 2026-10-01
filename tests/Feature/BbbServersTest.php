@@ -294,6 +294,54 @@ class BbbServersTest extends TestCase
         $this->assertTrue($room->fresh()->is_running);
     }
 
+    public function test_admins_are_told_once_when_server_stops_answering_and_when_it_is_back(): void
+    {
+        \Illuminate\Support\Facades\Notification::fake();
+        $admin = User::factory()->create(['role' => User::ROLE_ADMIN, 'username' => 'a' . uniqid()]);
+        $down = $this->server('down');
+        $this->server('reserve');
+        $monitor = app(BbbServerMonitor::class);
+        $this->api->down[] = 'down';
+
+        // Один сбой связи — не тревога
+        $monitor->check($down);
+        \Illuminate\Support\Facades\Notification::assertNothingSent();
+
+        // Второй подряд — «не отвечает», с запасным сервером
+        $monitor->check($down);
+        \Illuminate\Support\Facades\Notification::assertSentTo($admin, \App\Notifications\BbbServerDown::class, function ($n) use ($admin) {
+            $data = $n->toDatabase($admin);
+
+            return $n->hasReserve && str_contains($data['body'], 'Новые занятия идут на другие серверы')
+                && in_array('mail', $n->via($admin), true);
+        });
+
+        // Пока лежит — не повторяем
+        $monitor->check($down);
+        \Illuminate\Support\Facades\Notification::assertSentToTimes($admin, \App\Notifications\BbbServerDown::class, 1);
+
+        // Ответил — «снова работает»
+        $this->api->down = [];
+        $monitor->check($down);
+        \Illuminate\Support\Facades\Notification::assertSentTo($admin, \App\Notifications\BbbServerRecovered::class, fn ($n) => str_contains($n->toDatabase($admin)['body'], 'снова на связи'));
+        $this->assertTrue($down->fresh()->is_online);
+    }
+
+    public function test_down_message_warns_when_there_is_no_reserve(): void
+    {
+        \Illuminate\Support\Facades\Notification::fake();
+        $admin = User::factory()->create(['role' => User::ROLE_ADMIN, 'username' => 'a' . uniqid()]);
+        $down = $this->server('only');
+        $this->server('disabled', ['is_enabled' => false]);
+        $this->api->down[] = 'only';
+
+        app(BbbServerMonitor::class)->check($down);
+        app(BbbServerMonitor::class)->check($down);
+
+        \Illuminate\Support\Facades\Notification::assertSentTo($admin, \App\Notifications\BbbServerDown::class,
+            fn ($n) => str_contains($n->toDatabase($admin)['body'], 'новые занятия не начнутся'));
+    }
+
     public function test_recordings_sync_keeps_recordings_of_unreachable_server(): void
     {
         $a = $this->server('a');

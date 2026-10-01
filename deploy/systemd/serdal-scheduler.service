@@ -8,4 +8,8 @@ User=www-data
 Group=www-data
 WorkingDirectory=/var/www/serdal.ru
 ExecStart=/usr/bin/php8.4 artisan schedule:run
+# Фоновые задачи (runInBackground: проверка серверов видеосвязи, очистка записей, резервная копия базы) должны доживать
+# до конца. По умолчанию systemd убивает их вместе с завершившимся schedule:run, а withoutOverlapping остаётся
+# заблокированным на сутки — так с 18.09 по 01.10.2026 не сохранялись резервные копии базы
+KillMode=process
 SyslogIdentifier=serdal-scheduler
