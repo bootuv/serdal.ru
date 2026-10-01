@@ -3,6 +3,7 @@
 namespace App\Services\Bbb;
 
 use App\Events\RoomStatusUpdated;
+use App\Jobs\SendAdminTelegramMessage;
 use App\Models\BbbServer;
 use App\Models\MeetingSession;
 use App\Models\Room;
@@ -18,7 +19,8 @@ use Illuminate\Support\Facades\Log;
  * занятий (BbbServerPool). Заодно сверка: занятие, которого на сервере уже нет, отмечается завершённым
  * (если вебхук о завершении потерялся), а идущее — идущим.
  *
- * Сервер не ответил на NOTIFY_AFTER_FAILURES проверок подряд — администраторам уведомление (и письмо) «не отвечает»,
+ * Сервер не ответил на NOTIFY_AFTER_FAILURES проверок подряд — администраторам уведомление (письмо, пуш) и сообщение
+ * в Telegram-чат техслужбы «не отвечает»,
  * один раз до восстановления; ответил снова — «снова работает».
  */
 class BbbServerMonitor
@@ -123,7 +125,15 @@ class BbbServerMonitor
 
             $hasReserve = BbbServer::shared()->where('is_enabled', true)->where('is_online', true)
                 ->whereKeyNot($server->id)->exists();
-            $this->notifyAdmins(new BbbServerDown($server, $error, $server->user_id ? false : $hasReserve));
+            $hasReserve = $server->user_id ? false : $hasReserve;
+            $this->notifyAdmins(new BbbServerDown($server, $error, $hasReserve));
+            SendAdminTelegramMessage::dispatch(implode("\n", [
+                '🔴 <b>Сервер видеосвязи не отвечает</b>',
+                e("«{$server->name}» ({$server->host()}): " . mb_strtolower($error)),
+                $hasReserve ? 'Новые занятия идут на другие серверы, но занятия на этом прервались.' : '<b>Других серверов на связи нет — новые занятия не начнутся.</b>',
+                '',
+                '<a href="' . e(route('cabinet.admin.settings', ['tab' => 'video'])) . '">Серверы видеосвязи</a>',
+            ]));
             Log::error('Сервер видеосвязи не отвечает — администраторы уведомлены', ['server' => $server->host(), 'error' => $error]);
         }
 
@@ -146,6 +156,10 @@ class BbbServerMonitor
                 ? plural_ru($minutes, 'минуту', 'минуты', 'минут')
                 : plural_ru(intdiv($minutes, 60), 'час', 'часа', 'часов') . ($minutes % 60 ? ' ' . plural_ru($minutes % 60, 'минуту', 'минуты', 'минут') : '');
             $this->notifyAdmins(new BbbServerRecovered($server, $downFor));
+            SendAdminTelegramMessage::dispatch(implode("\n", [
+                '🟢 <b>Сервер видеосвязи снова работает</b>',
+                e("«{$server->name}» ({$server->host()}) снова на связи, не отвечал {$downFor}."),
+            ]));
         }
     }
 

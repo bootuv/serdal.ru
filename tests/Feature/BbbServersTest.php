@@ -297,6 +297,7 @@ class BbbServersTest extends TestCase
     public function test_admins_are_told_once_when_server_stops_answering_and_when_it_is_back(): void
     {
         \Illuminate\Support\Facades\Notification::fake();
+        \Illuminate\Support\Facades\Bus::fake([\App\Jobs\SendAdminTelegramMessage::class]);
         $admin = User::factory()->create(['role' => User::ROLE_ADMIN, 'username' => 'a' . uniqid()]);
         $down = $this->server('down');
         $this->server('reserve');
@@ -316,15 +317,37 @@ class BbbServersTest extends TestCase
                 && in_array('mail', $n->via($admin), true);
         });
 
+        \Illuminate\Support\Facades\Bus::assertDispatched(\App\Jobs\SendAdminTelegramMessage::class,
+            fn ($job) => str_contains($job->text, 'Сервер видеосвязи не отвечает') && str_contains($job->text, 'down.test'));
+
         // Пока лежит — не повторяем
         $monitor->check($down);
         \Illuminate\Support\Facades\Notification::assertSentToTimes($admin, \App\Notifications\BbbServerDown::class, 1);
+        \Illuminate\Support\Facades\Bus::assertDispatchedTimes(\App\Jobs\SendAdminTelegramMessage::class, 1);
 
         // Ответил — «снова работает»
         $this->api->down = [];
         $monitor->check($down);
         \Illuminate\Support\Facades\Notification::assertSentTo($admin, \App\Notifications\BbbServerRecovered::class, fn ($n) => str_contains($n->toDatabase($admin)['body'], 'снова на связи'));
         $this->assertTrue($down->fresh()->is_online);
+        \Illuminate\Support\Facades\Bus::assertDispatched(\App\Jobs\SendAdminTelegramMessage::class,
+            fn ($job) => str_contains($job->text, 'снова работает'));
+    }
+
+    public function test_telegram_message_goes_to_support_chat_through_configured_relay(): void
+    {
+        config(['services.telegram.bot_token' => 'T0KEN', 'services.telegram.admin_chat_id' => '-100500', 'services.telegram.api_base' => 'https://relay.test']);
+        \Illuminate\Support\Facades\Http::fake(['relay.test/*' => \Illuminate\Support\Facades\Http::response(['ok' => true])]);
+
+        (new \App\Jobs\SendAdminTelegramMessage('🔴 <b>Сервер</b>'))->handle();
+
+        \Illuminate\Support\Facades\Http::assertSent(fn ($r) => $r->url() === 'https://relay.test/botT0KEN/sendMessage'
+            && $r['chat_id'] === '-100500' && $r['parse_mode'] === 'HTML' && $r['text'] === '🔴 <b>Сервер</b>');
+
+        // Бот не настроен — тихо ничего не делаем
+        config(['services.telegram.bot_token' => null]);
+        (new \App\Jobs\SendAdminTelegramMessage('x'))->handle();
+        \Illuminate\Support\Facades\Http::assertSentCount(1);
     }
 
     public function test_down_message_warns_when_there_is_no_reserve(): void
