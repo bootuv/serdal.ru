@@ -73,7 +73,7 @@ class User extends Component
     public string $note = '';
 
     // Окно «Добавить занятия»
-    public $grantLessons = 1;
+    public $grantCount = 1;
     public string $grantNote = '';
 
     // Профиль
@@ -289,7 +289,7 @@ class User extends Component
     {
         abort_unless($this->isTeacher(), 404);
         $this->resetValidation();
-        $this->grantLessons = 1;
+        $this->grantCount = 1;
         $this->grantNote = '';
         $this->modal = 'lessons';
     }
@@ -298,11 +298,11 @@ class User extends Component
     {
         abort_unless($this->isTeacher(), 404);
         $this->validate([
-            'grantLessons' => ['required', 'integer', 'min:1', 'max:100'],
+            'grantCount' => ['required', 'integer', 'min:1', 'max:100'],
             'grantNote' => ['nullable', 'string', 'max:200'],
-        ], ['grantLessons.required' => 'Укажите, сколько занятий добавить'], ['grantLessons' => 'количество', 'grantNote' => 'комментарий']);
+        ], ['grantCount.required' => 'Укажите, сколько занятий добавить'], ['grantCount' => 'количество', 'grantNote' => 'комментарий']);
 
-        $n = (int) $this->grantLessons;
+        $n = (int) $this->grantCount;
         SubscriptionService::grantLessonsByAdmin($this->person, $n, auth()->user(), $this->grantNote);
         $this->person->refresh();
 

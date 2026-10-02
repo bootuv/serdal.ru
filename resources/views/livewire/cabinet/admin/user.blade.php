@@ -483,8 +483,8 @@
         <x-ui.modal title="Добавить занятия" :sub="$u->name . ' · на балансе ' . plural_ru((int) $u->extra_lessons_balance, 'занятие', 'занятия', 'занятий')" close="closeModal" width="s">
             <div class="flex flex-col gap-2">
                 <label for="gl-n" class="text-t2 font-medium">Сколько занятий</label>
-                <input id="gl-n" type="number" min="1" max="100" wire:model="grantLessons" class="field w-40">
-                @error('grantLessons')<span class="text-t2 font-medium text-danger-fg">{{ $message }}</span>@enderror
+                <input id="gl-n" type="number" min="1" max="100" wire:model="grantCount" class="field w-40">
+                @error('grantCount')<span class="text-t2 font-medium text-danger-fg">{{ $message }}</span>@enderror
             </div>
             <x-ui.field label="Комментарий" name="grantNote" wire:model="grantNote" optional placeholder="Например: тариф продлит вечером" hint="Виден только администраторам" />
             <p class="text-t2 text-muted">
