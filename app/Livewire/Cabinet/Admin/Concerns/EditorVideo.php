@@ -43,10 +43,16 @@ trait EditorVideo
         return $result;
     }
 
-    /** Редактор спрашивает, готово ли видео: ready, pending или failed. */
-    public function mediaStatus(string $url): string
+    /**
+     * Редактор спрашивает, готово ли видео: status — ready, pending или failed; progress — сколько процентов обработано.
+     *
+     * @return array{status: string, progress: int}
+     */
+    public function mediaStatus(string $url): array
     {
-        return app(MediaService::class)->status($url);
+        $media = app(MediaService::class);
+
+        return ['status' => $media->status($url), 'progress' => $media->progress($url)];
     }
 
     /** GIF — в беззвучное зацикленное видео (в разы легче); null — не GIF или ffmpeg нет, грузим картинкой. */

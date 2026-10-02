@@ -80,13 +80,16 @@
         @endif
 
         @if ($editable)
-            <label class="flex flex-col gap-2">
-                <span class="sr-only">Заголовок</span>
-                <textarea name="title" rows="1" wire:model.live.debounce.500ms="title" placeholder="Заголовок"
-                          x-data x-init="$nextTick(() => { $el.style.height = $el.scrollHeight + 'px' })" x-on:input="$el.style.height = 'auto'; $el.style.height = $el.scrollHeight + 'px'"
+            {{-- wire:ignore: высоту поля под длинный заголовок задает скрипт, перерисовка Livewire (автосохранение) сбрасывала ее --}}
+            <div class="flex flex-col gap-2">
+                <label wire:ignore class="flex flex-col">
+                    <span class="sr-only">Заголовок</span>
+                    <textarea name="title" rows="1" wire:model.live.debounce.500ms="title" placeholder="Заголовок"
+                          x-data x-init="$nextTick(() => { $el.style.height = $el.scrollHeight + 'px' })" x-on:input="$el.style.height = 'auto'; $el.style.height = $el.scrollHeight + 'px'" x-on:resize.window="$el.style.height = 'auto'; $el.style.height = $el.scrollHeight + 'px'"
                           class="w-full resize-none overflow-hidden bg-transparent text-h1-m font-medium text-ink outline-none placeholder:text-faint lg:text-h1"></textarea>
+                </label>
                 @error('title')<span class="text-t2 font-medium text-danger-fg">{{ $message }}</span>@enderror
-            </label>
+            </div>
             <x-ui.block-editor label="Текст статьи" name="body" wire:model="body" upload-model="image" upload-method="storeImage" video-model="video" video-method="storeVideo" />
         @else
             <h1 class="text-h1-m font-medium lg:text-h1">{{ $title }}</h1>

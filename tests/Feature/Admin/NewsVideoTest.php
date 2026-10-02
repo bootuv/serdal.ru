@@ -64,7 +64,9 @@ class NewsVideoTest extends TestCase
         $this->assertStringEndsWith('.jpg', $result['poster']);
         $this->assertFalse($result['loop']);
         Queue::assertPushed(ConvertVideo::class);
-        $this->assertSame('pending', $page->instance()->mediaStatus($result['src']));
+        $this->assertSame(['status' => 'pending', 'progress' => 0], $page->instance()->mediaStatus($result['src']));
+        // Размер ролика известен сразу — редактор рисует заглушку в его пропорциях
+        $this->assertSame([1280, 720], [$result['width'], $result['height']]);
 
         // Пока видео сжимается — не публикуем
         $body = '<p>Смотрите</p><video src="' . $result['src'] . '" poster="' . $result['poster'] . '" controls></video>';
@@ -76,7 +78,7 @@ class NewsVideoTest extends TestCase
         $job->handle(app(MediaService::class));
         $video = 'news/' . basename($result['src']);
         Storage::disk('s3')->assertExists([$video, 'news/' . basename($result['poster'])]);
-        $this->assertSame('ready', $page->instance()->mediaStatus($result['src']));
+        $this->assertSame('ready', $page->instance()->mediaStatus($result['src'])['status']);
         $this->assertFileDoesNotExist($job->source);
 
         $local = tempnam(sys_get_temp_dir(), 'v');

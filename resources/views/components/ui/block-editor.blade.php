@@ -3,7 +3,7 @@
      Markdown-сокращения, картинки вставкой и перетаскиванием. Привязка — wire:model (HTML), на сервере — RichText::clean().
      Картинка грузится во временное свойство (upload-model, WithFileUploads), метод upload-method кладёт её на CDN и возвращает адрес.
      video-model / video-method (новости) — еще и пункт «Видео»: метод возвращает адреса ролика и обложки, ролик сжимается в очереди
-     (MediaService), редактор пишет «Видео обрабатывается…» и спрашивает готовность методом компонента mediaStatus. --}}
+     (MediaService): на месте ролика заглушка с процентом обработки, готовность — метод компонента mediaStatus. --}}
 @props(['label', 'name', 'uploadModel', 'uploadMethod', 'videoModel' => null, 'videoMethod' => null, 'placeholder' => null, 'hint' => null])
 @php $model = $attributes->wire('model')->value(); @endphp
 <div class="flex flex-col gap-2">
@@ -53,7 +53,6 @@
                    x-on:change="uploadVideo($event.target.files[0]); $event.target.value = ''">
         @endif
         <span x-show="uploading" x-cloak class="text-t3 text-muted" x-text="uploadingText"></span>
-        <span x-show="! uploading && processing" x-cloak class="text-t3 text-muted">Видео обрабатывается — обычно минута-две</span>
     </div>
     @error($name)<span class="text-t2 font-medium text-danger-fg">{{ $message }}</span>@enderror
     @if ($hint && ! $errors->has($name))<span class="text-t3 text-muted">{{ $hint }}</span>@endif

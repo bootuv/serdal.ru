@@ -6,7 +6,7 @@
 import { Editor, Node, mergeAttributes } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import { Placeholder } from '@tiptap/extension-placeholder';
-import { Video, videosIn, waitVideo } from './editor-video';
+import { Video, videosIn, waitVideo, markPending } from './editor-video';
 
 const Image = Node.create({
     name: 'image',
@@ -60,7 +60,6 @@ window.blockEditor = (content, options = {}) => {
         tick: 0,
         uploading: false,
         uploadingText: 'Загружаем картинку…',
-        processing: 0,
         menu: { open: false, query: '', index: 0, from: 0, x: 0, y: 0 },
         bubble: { open: false, x: 0, y: 0 },
 
@@ -230,21 +229,18 @@ window.blockEditor = (content, options = {}) => {
             }, (event) => { this.uploadingText = `Загружаем видео… ${event.detail.progress}%`; });
         },
 
-        insertVideo({ src, poster, loop }) {
-            editor.chain().focus().insertContent({ type: 'video', attrs: { src, poster, loop: !! loop } }).run();
+        insertVideo({ src, poster, loop, width, height }) {
+            markPending(src);
+            editor.chain().focus().insertContent({ type: 'video', attrs: { src, poster, loop: !! loop, width, height } }).run();
             this.waitVideo(src);
         },
 
-        // Пока ролик сжимается — надпись под редактором; готов — перезагружаем плеер
+        // Пока ролик сжимается, на его месте заглушка с процентом (рисует узел Video); не получилось — еще и сообщение
         waitVideo(src) {
             waitVideo(this.$wire, src, (status) => {
-                if (status === 'pending') { this.processing++; return; }
-                this.processing--;
                 if (status === 'failed') {
                     window.dispatchEvent(new CustomEvent('toast', { detail: { message: 'Видео не удалось обработать — удалите его и загрузите другой файл', tone: 'danger' } }));
-                    return;
                 }
-                this.$refs.editor.querySelectorAll('video').forEach((el) => { if (el.getAttribute('src') === src) el.load(); });
             });
         },
 

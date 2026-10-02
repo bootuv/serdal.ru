@@ -56,6 +56,7 @@ Laravel 11 + Livewire 3 + Tailwind 3. Занятия идут в BigBlueButton, 
 - Сменили адрес опубликованной статьи — старый ведет 301 на новый (таблица `blog_slug_redirects`).
 - Для ИИ-агентов и агрегаторов: `/blog/rss.xml` (полный текст), `/blog/{slug}.md` (Markdown, `RichText::toMarkdown`, сам `noindex`), статьи со ссылками на .md — в `llms.txt`, полный текст 30 последних — в `llms-full.txt`.
 - Блок статей на других страницах — `blog/partials/section`: на главной «Популярное в блоге» (`BlogService::popular`, перед каталогом — после бесконечного списка не долистать), на странице учителя «Статьи в блоге» — четыре последние и «Все статьи» на `/blog/author/{username}`. Демо-статьи для оценки вида локально: `php artisan blog:demo` (адреса `demo-…`), убрать — `--remove`; на проде команда не запускается без `--force`.
+- Первые статьи от «Команды Serdal» — `database/blog/*.md` (заголовок между «---»: title, slug, excerpt, tags; текст в Markdown). `php artisan blog:starter` заводит их черновиками, уже существующие адреса пропускает; на проде запускается вручную.
 - `news.serdal.ru` (домен рассылок) переадресуется на блог nginx'ом — `deploy/server/enable-news-redirect.sh`, запускается на сервере вручную. Тесты — `tests/Feature/Admin/BlogTest.php`, статья для учителей — `database/help/tutors/11-blog.md`.
 
 ## Видео в новостях

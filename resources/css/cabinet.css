@@ -93,6 +93,15 @@
 .block-content strong, .block-content b { @apply font-semibold; }
 .block-content img { @apply max-w-full rounded-lg; }
 .block-content video { @apply w-full rounded-lg bg-soft; }
+/* Видео в редакторе, пока сжимается на сервере: заглушка в пропорциях ролика с процентом (resources/js/editor-video.js) */
+.video-wait { @apply flex w-full flex-col items-center justify-center gap-3 rounded-lg bg-ink p-6 text-center text-t2 font-medium text-white; }
+.video-wait[hidden], .video-node video[hidden] { display: none; }
+.video-wait-spinner { @apply size-8 animate-spin rounded-full border-2 border-brand border-t-transparent; }
+.video-wait-bar { @apply h-1 w-full max-w-sidebar overflow-hidden rounded-full bg-white/25; }
+.video-wait-bar > span { @apply block h-full rounded-full bg-brand transition-all; }
+.video-wait.is-failed { @apply bg-soft text-ink; }
+.video-wait.is-failed .video-wait-spinner, .video-wait.is-failed .video-wait-bar { display: none; }
+.ProseMirror-selectednode > .video-wait, .ProseMirror-selectednode > video { outline: 2px solid theme('colors.ink.DEFAULT'); }
 .block-content img.ProseMirror-selectednode, .block-content hr.ProseMirror-selectednode, .block-content video.ProseMirror-selectednode { outline: 2px solid theme('colors.ink.DEFAULT'); }
 .block-content .is-empty::before { @apply pointer-events-none float-left h-0 text-faint; content: attr(data-placeholder); }
 

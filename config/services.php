@@ -59,6 +59,7 @@ return [
     // Сжатие видео в новостях (MediaService): на сервере нужен пакет ffmpeg
     'ffmpeg' => [
         'path' => env('FFMPEG_PATH', 'ffmpeg'),
+        'ffprobe' => env('FFPROBE_PATH', 'ffprobe'),
     ],
 
 ];
