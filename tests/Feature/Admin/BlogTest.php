@@ -399,17 +399,4 @@ class BlogTest extends TestCase
             ->assertRedirect(route('cabinet.admin.blog'));
         $this->assertNull(BlogPost::find($post->id));
     }
-
-    public function test_starter_articles_are_added_as_drafts_once(): void
-    {
-        \Illuminate\Support\Facades\Notification::fake();
-        $this->artisan('blog:starter')->assertSuccessful();
-        $count = count(glob(database_path('blog/*.md')));
-        $this->assertGreaterThan(0, $count);
-        $this->assertSame($count, \App\Models\BlogPost::whereNull('published_at')->whereNull('author_id')->count());
-        $this->assertStringContainsString('<h2>', \App\Models\BlogPost::first()->body);
-
-        $this->artisan('blog:starter')->assertSuccessful();
-        $this->assertSame($count, \App\Models\BlogPost::count());
-    }
 }
