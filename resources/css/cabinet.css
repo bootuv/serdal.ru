@@ -92,6 +92,8 @@
 .block-content a { @apply font-medium underline underline-offset-4 decoration-line-strong; }
 .block-content strong, .block-content b { @apply font-semibold; }
 .block-content img { @apply max-w-full rounded-lg; }
+/* Картинки и видео отделены от текста сильнее абзацев: 12 px отступа + 12 px промежутка = 24 px, как в блоге на сайте */
+.block-content > img, .block-content > video, .block-content > .video-node { @apply my-3; }
 .block-content video { @apply w-full rounded-lg bg-soft; }
 /* Видео в редакторе, пока сжимается на сервере: заглушка в пропорциях ролика с процентом (resources/js/editor-video.js) */
 .video-wait { @apply flex w-full flex-col items-center justify-center gap-3 rounded-lg bg-ink p-6 text-center text-t2 font-medium text-white; }

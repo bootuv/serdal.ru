@@ -80,7 +80,7 @@ function registerVideoPlayer(Alpine) {
         fitStyle() {
             if (! this.fit || this.full) return '';
             const [w, h] = this.ratio.split('/').map((n) => parseFloat(n));
-            return w && h ? `max-width: calc(80svh * ${w / h} + 8px)` : '';
+            return w && h ? `max-width: calc(80svh * ${w / h})` : '';
         },
 
         // Панель видна, пока двигают мышью (касаются); через 2,5 с без движения во время просмотра прячется

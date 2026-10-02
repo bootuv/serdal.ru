@@ -1,5 +1,5 @@
 {{-- Плеер записей занятий: своё управление поверх <video> (resources/js/video-player.js).
-     Тёмная рамка вокруг видео: записи — чаще белая доска, плеер не должен сливаться со страницей.
+     Тёмная рамка вокруг видео — только у записей занятий (чаще белая доска, плеер не должен сливаться со страницей); у видео в тексте (fit) рамки нет.
      Панель — внизу поверх видео, видна при наведении (касании), на паузе и пока открыто меню скорости.
      Жёлтая кнопка «Смотреть» до начала; панель: пауза, перемотка, время, громкость, скорость 0,5–2× (запоминается), полный экран.
      Клавиши: пробел, ←/→ — 10 с, ↑/↓ — громкость, M, F. src — адрес видео, title — название (для экранного диктора).
@@ -9,10 +9,10 @@
 <div x-data="videoPlayer" {!! $fit ? 'data-fit="' . e($ratio) . '" x-bind:style="fitStyle()"' : '' !!} tabindex="0" role="region" aria-label="{{ $title ? 'Запись: ' . $title : $label }}"
      x-on:keydown="key($event)" x-on:mousemove="wake()" x-on:touchstart.passive="wake()" x-on:mouseleave="rest()" x-on:focusin="wake()"
      x-bind:class="(full ? 'justify-center ' : '') + (playing && ! hover ? 'cursor-none' : '')"
-     {{ $attributes->class(['vp-player group relative flex w-full flex-col rounded-lg bg-ink p-1 text-white shadow-card', 'mx-auto' => $fit]) }}>
+     {{ $attributes->class(['vp-player group relative flex w-full flex-col rounded-lg text-white', 'bg-ink p-1 shadow-card' => ! $fit, 'mx-auto overflow-hidden' => $fit]) }}>
     <div class="relative min-h-0" x-bind:class="full ? 'flex flex-1 items-center justify-center' : ''">
         <video x-ref="video" src="{{ $src }}" {!! $poster ? 'poster="' . e($poster) . '"' : '' !!} preload="metadata" playsinline
-               class="block w-full rounded bg-ink" x-bind:class="full ? 'h-full object-contain' : (fit ? '' : 'aspect-video')" x-bind:style="full || ! fit ? '' : `aspect-ratio: ${ratio}`"
+               class="block w-full bg-ink {{ $fit ? 'rounded-lg' : 'rounded' }}" x-bind:class="full ? 'h-full object-contain' : (fit ? '' : 'aspect-video')" x-bind:style="full || ! fit ? '' : `aspect-ratio: ${ratio}`"
                x-on:click="toggle()" x-on:dblclick="toggleFull()">Ваш браузер не поддерживает воспроизведение видео.</video>
 
         {{-- Жёлтая кнопка до первого запуска --}}
