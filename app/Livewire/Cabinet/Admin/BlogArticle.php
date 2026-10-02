@@ -406,6 +406,11 @@ class BlogArticle extends Component
         return BlogService::IMAGE_DIR;
     }
 
+    protected function mediaOwner(): ?\Illuminate\Database\Eloquent\Model
+    {
+        return $this->model();
+    }
+
     /** Обложка: загружается сразу, адрес сохранится вместе со статьей. */
     public function updatedCover(): void
     {
@@ -437,7 +442,7 @@ class BlogArticle extends Component
         $url = $this->service()->storeImage($this->{$prop});
         $this->{$prop} = null;
 
-        return $url;
+        return $this->registerMedia($url);
     }
 
     /* ---------- Вид ---------- */

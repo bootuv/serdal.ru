@@ -9,7 +9,7 @@ use Illuminate\Validation\ValidationException;
 /**
  * Видео в блочном редакторе (x-ui.block-editor с video-model="video" video-method="storeVideo"): новости и статьи блога.
  * Ролик сжимается в очереди (MediaService), редактор опрашивает mediaStatus; публиковать текст с необработанным видео нельзя.
- * Компоненту нужен WithFileUploads и mediaDir() — папка на CDN.
+ * Компоненту нужен WithFileUploads, mediaDir() — папка на CDN и mediaOwner() — сохраненный текст (для удаления файлов).
  */
 trait EditorVideo
 {
@@ -17,6 +17,25 @@ trait EditorVideo
     public $video = null;
 
     abstract protected function mediaDir(): string;
+
+    /** Сохраненная новость или статья (null — еще не сохранена). */
+    abstract protected function mediaOwner(): ?\Illuminate\Database\Eloquent\Model;
+
+    /** Кнопка «Удалить» у картинки или видео в редакторе: несохраненный файл удаляем с хранилища сразу. */
+    public function discardMedia(string $url): void
+    {
+        app(\App\Services\EditorMediaService::class)->discard($url, $this->mediaOwner(), auth()->user());
+    }
+
+    /** Картинка загружена в текст — записываем, чтобы потом не оставить ее мусором. */
+    protected function registerMedia(?string $url): ?string
+    {
+        if ($url) {
+            app(\App\Services\EditorMediaService::class)->register($url, auth()->user());
+        }
+
+        return $url;
+    }
 
     /** Видео в текст: исходник в очередь на сжатие, редактору — будущие адреса ролика и обложки. */
     public function storeVideo(): ?array

@@ -134,4 +134,21 @@ class NewsVideoTest extends TestCase
         $this->assertSame(1, substr_count((string) $html, 'x-data="videoPlayer"'));
         $this->assertStringContainsString('<video src="https://cdn.example/news/b.mp4" autoplay loop muted playsinline></video>', (string) $html);
     }
+
+    public function test_video_removed_while_compressing_is_never_uploaded(): void
+    {
+        Queue::fake();
+        $page = Livewire::actingAs($this->admin())->test(NewsItem::class, ['announcement' => 'new'])
+            ->set('video', $this->sample('mp4'));
+        $result = $page->instance()->storeVideo();
+
+        // Удалили кнопкой, пока ролик в очереди, — задача ничего не выкладывает и убирает исходник
+        $page->call('discardMedia', $result['src']);
+        $job = Queue::pushed(ConvertVideo::class)->first();
+        $job->handle(app(MediaService::class));
+
+        Storage::disk('s3')->assertMissing(['news/' . basename($result['src']), 'news/' . basename($result['poster'])]);
+        $this->assertFileDoesNotExist($job->source);
+        $this->assertSame(0, \App\Models\EditorMedia::count());
+    }
 }

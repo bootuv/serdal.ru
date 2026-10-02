@@ -84,6 +84,8 @@ class BlogService
                 DB::table('blog_slug_redirects')->updateOrInsert(['slug' => $oldSlug], ['blog_post_id' => $post->id, 'updated_at' => now(), 'created_at' => now()]);
             }
         });
+        // Картинки, видео и обложки, которых в статье больше нет, — с хранилища
+        app(EditorMediaService::class)->sync($post, [$post->body, $post->cover_url]);
         $this->refreshHotScore($post);
         $this->pingSearchEngines($post);
         $this->notifyStudents($post);
@@ -118,6 +120,7 @@ class BlogService
 
     public function delete(BlogPost $post): void
     {
+        app(EditorMediaService::class)->purgeOwner($post);
         $post->delete();
     }
 

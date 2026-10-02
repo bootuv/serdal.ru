@@ -116,6 +116,8 @@ class AnnouncementService
         }
 
         $announcement->fill($fields)->save();
+        // Картинки и видео, которых в тексте больше нет, — с хранилища
+        app(EditorMediaService::class)->sync($announcement, [$announcement->body]);
 
         $this->notify($announcement);
 
@@ -129,6 +131,7 @@ class AnnouncementService
 
     public function delete(Announcement $announcement): void
     {
+        app(EditorMediaService::class)->purgeOwner($announcement);
         $announcement->delete();
     }
 

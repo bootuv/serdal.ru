@@ -6,7 +6,7 @@
 import { Editor, Node, mergeAttributes } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import { Placeholder } from '@tiptap/extension-placeholder';
-import { Video, videosIn, waitVideo, markPending, setState } from './editor-video';
+import { Video, videosIn, waitVideo, markPending, setState, removeButton } from './editor-video';
 
 const Image = Node.create({
     name: 'image',
@@ -21,6 +21,18 @@ const Image = Node.create({
     },
     renderHTML({ HTMLAttributes }) {
         return ['img', mergeAttributes(HTMLAttributes)];
+    },
+    // В редакторе — с кнопкой «Удалить» (при наведении и выделении)
+    addNodeView() {
+        return ({ node, getPos, editor }) => {
+            const dom = document.createElement('div');
+            dom.className = 'media-node';
+            const img = document.createElement('img');
+            img.src = node.attrs.src;
+            img.alt = node.attrs.alt || '';
+            dom.append(img, removeButton(editor, getPos, node.attrs.src));
+            return { dom, ignoreMutation: () => true, stopEvent: (event) => !! event.target.closest?.('.media-remove') };
+        };
     },
 });
 
@@ -54,6 +66,7 @@ const BLOCKS = [
 
 window.blockEditor = (content, options = {}) => {
     let editor = null;
+    const cancelled = new Set(); // загрузки видео, отмененные кнопкой «Удалить»
 
     return {
         content,
@@ -92,6 +105,13 @@ window.blockEditor = (content, options = {}) => {
                 onTransaction: () => { this.tick++; this.sync(); },
                 onBlur: () => { setTimeout(() => { this.bubble.open = false; }, 150); },
             });
+
+            // Кнопка «Удалить» у картинки и видео: несохраненный файл — с хранилища (метод компонента discardMedia),
+            // видео, которое еще загружается, — отменить загрузку
+            editor.mediaRemove = (src) => {
+                if (String(src).startsWith('upload:')) { cancelled.add(src); this.$wire.cancelUpload(options.videoModel); return; }
+                if (options.videoMethod) this.$wire.call('discardMedia', src);
+            };
 
             // Черновик открыли, пока видео еще сжимается, — ждем и его
             if (options.videoMethod) videosIn(this.content).forEach((src) => this.waitVideo(src));
@@ -230,6 +250,7 @@ window.blockEditor = (content, options = {}) => {
 
             const failed = (message) => {
                 this.removeVideo(temp);
+                if (cancelled.delete(temp)) return; // сами отменили — не ошибка
                 window.dispatchEvent(new CustomEvent('toast', { detail: { message, tone: 'danger' } }));
             };
             this.$wire.upload(options.videoModel, file, async () => {

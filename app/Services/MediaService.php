@@ -38,6 +38,7 @@ class MediaService
         [$width, $height] = $this->outputSize($this->probe($path));
 
         Cache::put($this->pendingKey($key), true, now()->addHours(3));
+        app(EditorMediaService::class)->register($this->url($video), auth()->user(), [$video, $poster]);
         ConvertVideo::dispatch($path, $video, $poster, $loop);
 
         return ['src' => $this->url($video), 'poster' => $this->url($poster), 'loop' => $loop, 'width' => $width, 'height' => $height];
@@ -113,6 +114,15 @@ class MediaService
             $this->ffmpeg(['-ss', '1', '-i', $mp4, '-frames:v', '1', '-q:v', '4', $jpg], silent: true);
             if (! is_file($jpg) || filesize($jpg) === 0) {
                 $this->ffmpeg(['-i', $mp4, '-frames:v', '1', '-q:v', '4', $jpg]);
+            }
+
+            // Пока сжимали, видео удалили из редактора — результат не выкладываем
+            if (Cache::pull('media:discarded:' . $key)) {
+                Cache::forget($this->pendingKey($key));
+                Cache::forget($this->progressKey($key));
+                @unlink($source);
+
+                return;
             }
 
             $disk = Storage::disk(HelpCenterService::DISK);

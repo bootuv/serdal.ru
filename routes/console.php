@@ -11,6 +11,9 @@ Artisan::command('inspire', function () {
 // Сообщить Яндексу и Bing об изменённых публичных страницах (IndexNow); на тестовом стенде команда ничего не отправляет
 Schedule::command('seo:indexnow')->dailyAt('07:00')->withoutOverlapping();
 
+// Картинки и видео из редактора новостей и блога, брошенные без сохранения, — с хранилища (EditorMediaService)
+Schedule::command('media:cleanup')->dailyAt('04:30')->withoutOverlapping();
+
 // Update next_start date for expired lessons
 Schedule::command('room:update-next-start')->everyMinute();
 

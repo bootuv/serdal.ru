@@ -11,6 +11,28 @@ export function setState(src, state) {
     window.dispatchEvent(new CustomEvent('editor-video', { detail: { src } }));
 }
 
+// Кнопка «Удалить» у картинки и видео в редакторе: убирает блок (без отмены — файл удаляется с сервера)
+// и сообщает редактору адрес (editor.mediaRemove), чтобы несохраненный файл удалили с хранилища.
+export function removeButton(editor, getPos, src) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'media-remove';
+    button.title = 'Удалить';
+    button.setAttribute('aria-label', 'Удалить');
+    button.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
+    button.addEventListener('mousedown', (event) => event.preventDefault());
+    button.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const pos = getPos();
+        const node = typeof pos === 'number' ? editor.state.doc.nodeAt(pos) : null;
+        if (! node) return;
+        editor.view.dispatch(editor.state.tr.delete(pos, pos + node.nodeSize).setMeta('addToHistory', false));
+        editor.mediaRemove?.(src);
+    });
+    return button;
+}
+
 function playerAttrs(attrs) {
     return attrs.loop
         ? { autoplay: '', loop: '', muted: '', playsinline: '' }
@@ -41,12 +63,12 @@ export const Video = Node.create({
         return ['video', mergeAttributes(HTMLAttributes, playerAttrs(node.attrs))];
     },
     addNodeView() {
-        return ({ node }) => {
+        return ({ node, getPos, editor }) => {
             const { src, poster, width, height } = node.attrs;
             const ratio = width && height ? `${width} / ${height}` : '16 / 9';
 
             const dom = document.createElement('div');
-            dom.className = 'video-node';
+            dom.className = 'video-node media-node';
             // Высокий (вертикальный) ролик не выше 70% экрана: ширина — от высоты экрана и пропорций
             if (width && height) dom.style.maxWidth = `calc(70svh * ${width / height})`;
 
@@ -63,7 +85,7 @@ export const Video = Node.create({
             const text = wait.querySelector('.video-wait-text');
             const bar = wait.querySelector('.video-wait-bar > span');
 
-            dom.append(video, wait);
+            dom.append(video, wait, removeButton(editor, getPos, src));
 
             let wasPending = false;
             const render = () => {
@@ -96,7 +118,7 @@ export const Video = Node.create({
                 dom,
                 // Клики по плееру и заглушке не должны менять документ
                 ignoreMutation: () => true,
-                stopEvent: (event) => event.target === video && event.type !== 'dragstart',
+                stopEvent: (event) => (event.target === video && event.type !== 'dragstart') || !! event.target.closest?.('.media-remove'),
                 destroy: () => window.removeEventListener('editor-video', onState),
             };
         };

@@ -266,6 +266,11 @@ class NewsItem extends Component
         return self::IMAGE_DIR;
     }
 
+    protected function mediaOwner(): ?\Illuminate\Database\Eloquent\Model
+    {
+        return $this->model();
+    }
+
     /**
      * Картинка в текст: сжимаем до 1600 px по ширине в WebP и возвращаем адрес.
      * GIF — в беззвучное зацикленное видео (в разы легче); редактор получает массив и вставляет видео.
@@ -293,7 +298,7 @@ class NewsItem extends Component
         $url = app(HelpCenterService::class)->storeImage($this->image, self::IMAGE_DIR);
         $this->image = null;
 
-        return $url;
+        return $this->registerMedia($url);
     }
 
     public function render()
