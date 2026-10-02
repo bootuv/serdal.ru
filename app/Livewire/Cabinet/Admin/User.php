@@ -4,6 +4,7 @@ namespace App\Livewire\Cabinet\Admin;
 
 use App\Livewire\Cabinet\Admin\Concerns\AdminScreen;
 use App\Models\Direct;
+use App\Models\LessonGrant;
 use App\Models\LessonType;
 use App\Models\MeetingSession;
 use App\Models\Review;
@@ -61,7 +62,7 @@ class User extends Component
     /** Ученик: какие занятия показать в «Учителя и занятия». */
     public string $view = 'next';
 
-    /** Открытое окно: tariff | block | delete | price. */
+    /** Открытое окно: tariff | lessons | block | delete | price. */
     public ?string $modal = null;
 
     // Окно «Назначить тариф»
@@ -70,6 +71,10 @@ class User extends Component
     public $customDays = 45;
     public bool $free = false;
     public string $note = '';
+
+    // Окно «Добавить занятия»
+    public $grantLessons = 1;
+    public string $grantNote = '';
 
     // Профиль
     public $photo = null;
@@ -274,6 +279,35 @@ class User extends Component
         $this->modal = null;
         $this->tab = 'overview';
         $this->dispatch('toast', message: 'Тариф «' . $tariff->name . '» назначен. Учитель получит уведомление');
+    }
+
+    /*
+     | Занятия от администрации — на баланс, работают и без действующего тарифа
+     */
+
+    public function openLessons(): void
+    {
+        abort_unless($this->isTeacher(), 404);
+        $this->resetValidation();
+        $this->grantLessons = 1;
+        $this->grantNote = '';
+        $this->modal = 'lessons';
+    }
+
+    public function grantLessons(): void
+    {
+        abort_unless($this->isTeacher(), 404);
+        $this->validate([
+            'grantLessons' => ['required', 'integer', 'min:1', 'max:100'],
+            'grantNote' => ['nullable', 'string', 'max:200'],
+        ], ['grantLessons.required' => 'Укажите, сколько занятий добавить'], ['grantLessons' => 'количество', 'grantNote' => 'комментарий']);
+
+        $n = (int) $this->grantLessons;
+        SubscriptionService::grantLessonsByAdmin($this->person, $n, auth()->user(), $this->grantNote);
+        $this->person->refresh();
+
+        $this->modal = null;
+        $this->dispatch('toast', message: '+' . plural_ru($n, 'занятие', 'занятия', 'занятий') . ' на балансе учителя. Учитель получит уведомление');
     }
 
     /*
@@ -567,8 +601,23 @@ class User extends Component
                 ];
             });
 
+        // Докупленные и начисленные администрацией — одним списком, новые сверху
         $extras = SubscriptionPayment::where('user_id', $u->id)->where('status', SubscriptionPayment::STATUS_PAID)
-            ->where('extra_lessons', '>', 0)->latest()->take(5)->get();
+            ->where('extra_lessons', '>', 0)->latest()->take(5)->get()
+            ->map(fn (SubscriptionPayment $p) => [
+                'at' => $p->paid_at ?? $p->created_at,
+                'title' => plural_ru((int) $p->extra_lessons, 'занятие', 'занятия', 'занятий'),
+                'meta' => HumanDate::date($p->paid_at ?? $p->created_at),
+                'amount' => Money::format((int) $p->amount),
+            ])
+            ->concat(LessonGrant::where('user_id', $u->id)->with('admin:id,name')->latest()->take(5)->get()
+                ->map(fn (LessonGrant $g) => [
+                    'at' => $g->created_at,
+                    'title' => plural_ru($g->lessons, 'занятие', 'занятия', 'занятий'),
+                    'meta' => HumanDate::date($g->created_at) . ' · добавил ' . ($g->admin?->name ?? 'администратор') . ($g->note ? ' · ' . $g->note : ''),
+                    'amount' => 'Бесплатно',
+                ]))
+            ->sortByDesc('at')->take(5)->values();
 
         $reviews = Review::where('teacher_id', $u->id)->where('is_rejected', false)->whereHas('user', fn ($q) => $q->where('role', UserModel::ROLE_STUDENT));
         $reviewsCount = (clone $reviews)->count();
@@ -581,11 +630,7 @@ class User extends Component
             'payments' => $payments,
             'paymentsUrl' => $this->link('payments', ['q' => $u->email, 'period' => 'all']),
             'extraBalance' => (int) $u->extra_lessons_balance,
-            'extras' => $extras->map(fn (SubscriptionPayment $p) => [
-                'title' => plural_ru((int) $p->extra_lessons, 'занятие', 'занятия', 'занятий'),
-                'meta' => HumanDate::date($p->paid_at ?? $p->created_at),
-                'amount' => Money::format((int) $p->amount),
-            ]),
+            'extras' => $extras,
             'activity' => array_values(array_filter([
                 ['Последний вход', $u->last_login_at ? HumanDate::at($u->last_login_at) : 'ещё не входил', null],
                 ['Ученики', $studentsCount ? $studentsCount . ($groups->isNotEmpty() ? ' · ' . ($groups->count() === 1 ? 'группа «' . $groups->first() . '»' : plural_ru($groups->count(), 'группа', 'группы', 'групп')) : '') : 'пока нет', null],

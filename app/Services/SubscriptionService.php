@@ -88,6 +88,34 @@ class SubscriptionService
     }
 
     /**
+     * Администратор начисляет учителю занятия на баланс (без оплаты). Расходуются как докупленные:
+     * после лимита тарифа, а без действующего тарифа — на каждое проведённое занятие.
+     * Так учитель может провести занятие, пока не продлил тариф.
+     */
+    public static function grantLessonsByAdmin(User $user, int $lessons, User $admin, ?string $note = null): \App\Models\LessonGrant
+    {
+        $note = trim((string) $note);
+
+        $grant = DB::transaction(function () use ($user, $lessons, $admin, $note) {
+            $locked = User::whereKey($user->id)->lockForUpdate()->first();
+            $locked->update(['extra_lessons_balance' => (int) $locked->extra_lessons_balance + $lessons]);
+
+            return \App\Models\LessonGrant::create([
+                'user_id' => $user->id,
+                'admin_id' => $admin->id,
+                'lessons' => $lessons,
+                'note' => $note !== '' ? $note : null,
+            ]);
+        });
+
+        unset(self::$canStartCache[$user->id]);
+        $user->refresh();
+        $user->notify(new \App\Notifications\LessonsGranted($lessons, (int) $user->extra_lessons_balance, ! $user->activeSubscription()));
+
+        return $grant;
+    }
+
+    /**
      * Планирует переключение на тариф после окончания текущего оплаченного
      * периода. До даты $startsAt действуют условия текущей подписки —
      * оплаченные лимиты не сгорают при даунгрейде.
@@ -530,6 +558,12 @@ class SubscriptionService
         $subscription = $user->activeSubscription();
 
         if (!$subscription) {
+            // Тариф закончился, но на балансе есть занятия (например, начислил администратор,
+            // пока учитель не продлил тариф) — занятие можно провести за их счёт
+            if ((int) $user->extra_lessons_balance > 0) {
+                return null;
+            }
+
             $last = $user->subscriptions()->with('tariff')->latest('starts_at')->first();
 
             return $last
@@ -567,7 +601,9 @@ class SubscriptionService
      */
     public static function meetingLimits(User $user): array
     {
-        $tariff = $user->activeSubscription()?->tariff;
+        // Без действующего тарифа (занятие за счёт баланса) — условия последнего тарифа учителя
+        $tariff = $user->activeSubscription()?->tariff
+            ?? $user->subscriptions()->with('tariff')->latest('starts_at')->first()?->tariff;
 
         return [
             'max_participants' => $tariff?->max_participants,
@@ -663,7 +699,11 @@ class SubscriptionService
         $url = \Illuminate\Support\Facades\Route::has('cabinet.teacher.subscription') ? route('cabinet.teacher.subscription') : url('/tutor/subscription');
         $subscription = $user->activeSubscription();
         if (! $subscription?->tariff) {
-            return ['name' => null, 'url' => $url, 'warning' => 'Выберите тариф, чтобы проводить занятия'];
+            $extra = (int) $user->extra_lessons_balance;
+
+            return ['name' => null, 'url' => $url, 'extra' => $extra, 'warning' => $extra > 0
+                ? 'Тарифа нет, но можно провести ещё ' . plural_ru($extra, 'занятие', 'занятия', 'занятий') . '. Продлите тариф, когда будет удобно'
+                : 'Выберите тариф, чтобы проводить занятия'];
         }
 
         $tariff = $subscription->tariff;
@@ -849,15 +889,23 @@ class SubscriptionService
         }
 
         $user = $session->user;
-        $tariff = $user?->activeSubscription()?->tariff;
-
-        if (!$user || !$tariff || $tariff->lessons_per_month === null) {
+        if (!$user) {
             return false;
         }
 
-        // Сессия ещё не помечена, поэтому входит в счётчик лимита
-        if (self::lessonsUsedThisPeriod($user) <= $tariff->lessons_per_month) {
-            return false;
+        $subscription = $user->activeSubscription();
+        $tariff = $subscription?->tariff;
+
+        // Без действующего тарифа каждое проведённое занятие идёт с баланса
+        if ($subscription) {
+            if (!$tariff || $tariff->lessons_per_month === null) {
+                return false;
+            }
+
+            // Сессия ещё не помечена, поэтому входит в счётчик лимита
+            if (self::lessonsUsedThisPeriod($user) <= $tariff->lessons_per_month) {
+                return false;
+            }
         }
 
         $consumed = DB::transaction(function () use ($user, $session) {

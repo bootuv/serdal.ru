@@ -83,10 +83,10 @@
                         </div>
                         <span class="text-t2 text-muted">
                             @if ($expired->ends_at)Действовал до {{ HumanDate::date($expired->ends_at) }}. @endif
-                            Продлите подписку, чтобы продолжить проводить занятия.
+                            {{ $extraBalance > 0 ? 'Продлите подписку, когда будет удобно.' : 'Продлите подписку, чтобы продолжить проводить занятия.' }}
                         </span>
                         @if ($extraBalance > 0)
-                            <span class="text-t2 text-muted">Докупленных занятий на балансе: <x-ui.em>{{ $extraBalance }}</x-ui.em> — они сохранятся и после продления</span>
+                            <span class="text-t2 text-muted">На балансе <x-ui.em>{{ plural_ru($extraBalance, 'занятие', 'занятия', 'занятий') }}</x-ui.em> — их можно провести и без тарифа, а неистраченные сохранятся после продления</span>
                         @endif
                     </div>
                     <div class="flex shrink-0 flex-col items-end gap-1 text-right">

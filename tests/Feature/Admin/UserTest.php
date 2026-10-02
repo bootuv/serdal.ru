@@ -85,6 +85,59 @@ class UserTest extends TestCase
             ->assertDontSee('Просрочено');
     }
 
+    public function test_admin_grants_lessons_to_teacher_with_expired_tariff(): void
+    {
+        Notification::fake();
+        $teacher = $this->mariya();
+        $admin = $this->admin();
+        $basic = Tariff::where('price', '>', 0)->orderBy('price')->first();
+        $sub = SubscriptionService::activate($teacher, $basic, days: 30);
+        $sub->update(['starts_at' => now()->subDays(31), 'ends_at' => now()->subDay()]);
+        SubscriptionService::flushCanStartCache();
+
+        $this->assertNull($teacher->fresh()->activeSubscription());
+        $this->assertNotNull(SubscriptionService::canStartLesson($teacher->fresh()));
+
+        Livewire::actingAs($admin)->test(UserCard::class, ['user' => $teacher->id])
+            ->assertSee('Тарифа нет')
+            ->call('openLessons')
+            ->assertSee('Тарифа сейчас нет')
+            ->set('grantLessons', 0)
+            ->call('grantLessons')
+            ->assertHasErrors('grantLessons')
+            ->set('grantLessons', 1)
+            ->set('grantNote', 'Тариф продлит вечером')
+            ->call('grantLessons')
+            ->assertHasNoErrors()
+            ->assertSet('modal', null)
+            ->assertSee('можно провести ещё 1 занятие с баланса')
+            ->assertSee('Тариф продлит вечером');
+
+        $teacher->refresh();
+        $this->assertSame(1, (int) $teacher->extra_lessons_balance);
+        $this->assertDatabaseHas('lesson_grants', ['user_id' => $teacher->id, 'admin_id' => $admin->id, 'lessons' => 1]);
+        Notification::assertSentTo($teacher, \App\Notifications\LessonsGranted::class);
+
+        // Без тарифа занятие можно начать, условия — последнего тарифа
+        SubscriptionService::flushCanStartCache();
+        $this->assertNull(SubscriptionService::canStartLesson($teacher));
+        $this->assertSame($basic->max_participants, SubscriptionService::meetingLimits($teacher)['max_participants']);
+
+        // Проведённое занятие списывается с баланса, после этого снова нельзя
+        $room = \App\Models\Room::create(['user_id' => $teacher->id, 'name' => 'Алгебра', 'meeting_id' => 'grant-' . uniqid(), 'moderator_pw' => 'mp', 'attendee_pw' => 'ap']);
+        $session = \App\Models\MeetingSession::create(['user_id' => $teacher->id, 'room_id' => $room->id, 'meeting_id' => $room->meeting_id, 'started_at' => now()->subHour(), 'status' => 'running', 'participant_count' => 0]);
+        $session->update(['status' => 'completed', 'ended_at' => now(), 'participant_count' => 2]);
+
+        $this->assertTrue($session->fresh()->extra_lesson);
+        $this->assertSame(0, (int) $teacher->fresh()->extra_lessons_balance);
+        SubscriptionService::flushCanStartCache();
+        $this->assertNotNull(SubscriptionService::canStartLesson($teacher->fresh()));
+
+        // Учитель продлил тариф — занятие за счёт баланса лимит нового периода не расходует
+        SubscriptionService::activate($teacher->fresh(), $basic, days: 30);
+        $this->assertSame(0, SubscriptionService::lessonsUsedThisPeriod($teacher->fresh()));
+    }
+
     public function test_assign_tariff_free_forever_notifies_teacher(): void
     {
         Notification::fake();

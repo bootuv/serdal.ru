@@ -113,10 +113,13 @@
                         @else
                             <div class="flex flex-col gap-1">
                                 <h2 id="o-tar" class="text-h2 font-medium">Тарифа нет</h2>
-                                <span class="text-t2 text-muted">{{ $noTariffNote }} — занятия проводить нельзя</span>
+                                <span class="text-t2 text-muted">{{ $noTariffNote }} — {{ $extraBalance > 0 ? 'можно провести ещё ' . plural_ru($extraBalance, 'занятие', 'занятия', 'занятий') . ' с баланса' : 'занятия проводить нельзя' }}</span>
                             </div>
                         @endif
-                        <x-ui.btn variant="primary" class="self-start" wire:click="openTariff">Назначить тариф</x-ui.btn>
+                        <div class="flex flex-wrap gap-2">
+                            <x-ui.btn variant="primary" wire:click="openTariff">Назначить тариф</x-ui.btn>
+                            @unless ($tar)<x-ui.btn wire:click="openLessons">Добавить занятия</x-ui.btn>@endunless
+                        </div>
                     </x-ui.card>
 
                     <x-ui.card aria-labelledby="o-pays">
@@ -143,13 +146,15 @@
 
                 <div class="flex min-w-0 flex-col gap-6">
                     <x-ui.card aria-labelledby="o-extra">
-                        <x-ui.card-head id="o-extra" title="Докупленные занятия" />
+                        <x-ui.card-head id="o-extra" title="Дополнительные занятия">
+                            <x-slot:action><button type="button" class="link text-t2" wire:click="openLessons">Добавить</button></x-slot:action>
+                        </x-ui.card-head>
                         @if ($extraBalance === 0 && $extras->isEmpty())
-                            <p class="text-t2 text-muted">Пока пусто — учитель не докупал занятия.</p>
+                            <p class="text-t2 text-muted">Пока пусто — учитель не докупал занятия, администрация не добавляла.</p>
                         @else
                             <div class="flex flex-col gap-1">
                                 <span class="text-num font-medium">{{ plural_ru($extraBalance, 'занятие', 'занятия', 'занятий') }}</span>
-                                <span class="text-t2 text-muted">Не сгорают. Тратятся, когда закончится лимит тарифа</span>
+                                <span class="text-t2 text-muted">Не сгорают. Тратятся, когда закончится лимит тарифа или если тарифа нет</span>
                             </div>
                             @if ($extras->isNotEmpty())
                                 <x-ui.list>
@@ -468,6 +473,31 @@
             <x-slot:footer>
                 <x-ui.btn wire:click="closeModal">Отмена</x-ui.btn>
                 <x-ui.btn variant="primary" wire:click="assignTariff" wire:loading.attr="disabled" wire:target="assignTariff">Назначить тариф</x-ui.btn>
+            </x-slot:footer>
+        </x-ui.modal>
+    @endif
+
+    {{-- Добавить занятия: на баланс, без оплаты — например, провести занятие, пока тариф не продлён --}}
+    @if ($modal === 'lessons' && $teacher)
+        @php $hasTariff = (bool) $u->activeSubscription(); @endphp
+        <x-ui.modal title="Добавить занятия" :sub="$u->name . ' · на балансе ' . plural_ru((int) $u->extra_lessons_balance, 'занятие', 'занятия', 'занятий')" close="closeModal" width="s">
+            <div class="flex flex-col gap-2">
+                <label for="gl-n" class="text-t2 font-medium">Сколько занятий</label>
+                <input id="gl-n" type="number" min="1" max="100" wire:model="grantLessons" class="field w-40">
+                @error('grantLessons')<span class="text-t2 font-medium text-danger-fg">{{ $message }}</span>@enderror
+            </div>
+            <x-ui.field label="Комментарий" name="grantNote" wire:model="grantNote" optional placeholder="Например: тариф продлит вечером" hint="Виден только администраторам" />
+            <p class="text-t2 text-muted">
+                @if ($hasTariff)
+                    Занятия добавятся к тарифу: расходуются, когда закончится его лимит, и не сгорают.
+                @else
+                    Тарифа сейчас нет — {{ $first }} сможет провести эти занятия на условиях последнего тарифа, а продлить тариф позже. Неистраченные занятия сохранятся и после продления.
+                @endif
+                Учитель получит уведомление.
+            </p>
+            <x-slot:footer>
+                <x-ui.btn wire:click="closeModal">Отмена</x-ui.btn>
+                <x-ui.btn variant="primary" wire:click="grantLessons" wire:loading.attr="disabled" wire:target="grantLessons">Добавить</x-ui.btn>
             </x-slot:footer>
         </x-ui.modal>
     @endif
