@@ -172,6 +172,42 @@ class TeacherStudentTest extends TestCase
         $this->assertSame(PaymentRecord::STATUS_UNPAID, $first->fresh()->status);
     }
 
+    public function test_undo_paid_from_history(): void
+    {
+        [$teacher, $student] = $this->pair();
+        $paid = $this->record($teacher, $student, ['status' => PaymentRecord::STATUS_PAID, 'paid_at' => now()->subDays(3)]);
+        $waived = $this->record($teacher, $student, ['status' => PaymentRecord::STATUS_CANCELLED]);
+
+        $otherTeacher = $this->user(User::ROLE_TUTOR);
+        $foreign = $this->record($otherTeacher, $student, ['status' => PaymentRecord::STATUS_PAID, 'paid_at' => now()]);
+
+        $component = Livewire::actingAs($teacher)->test(Student::class, ['student' => $student])
+            ->set('tab', 'pay')
+            ->assertSee('Отменить оплату: ', false)
+            // Чужое и «оплата не требуется» не отменяются
+            ->call('askUndoPaid', $foreign->id)
+            ->assertSet('modal', null)
+            ->call('askUndoPaid', $waived->id)
+            ->assertSet('modal', null)
+            ->call('askUndoPaid', $paid->id)
+            ->assertSet('modal', 'undo')
+            ->assertSee('Отменить оплату?')
+            ->assertSee('снова будет в долгах')
+            ->call('closeModal');
+
+        $this->assertSame(PaymentRecord::STATUS_PAID, $paid->fresh()->status);
+
+        $component->call('askUndoPaid', $paid->id)
+            ->call('confirmUndoPaid')
+            ->assertSet('modal', null)
+            ->assertDispatched('toast', message: 'Отметка оплаты отменена');
+
+        $this->assertSame(PaymentRecord::STATUS_UNPAID, $paid->fresh()->status);
+        $this->assertNull($paid->fresh()->paid_at);
+        $this->assertSame(PaymentRecord::STATUS_CANCELLED, $waived->fresh()->status);
+        $this->assertSame(PaymentRecord::STATUS_PAID, $foreign->fresh()->status);
+    }
+
     public function test_waive_and_extend(): void
     {
         [$teacher, $student] = $this->pair();

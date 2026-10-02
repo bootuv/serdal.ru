@@ -39,7 +39,7 @@ class Student extends Component
     #[Url(except: 'overview')]
     public string $tab = 'overview';
 
-    /** Открытое окно: mark | waive | extend | settings | assign | remove. */
+    /** Открытое окно: mark | waive | extend | settings | assign | remove | undo. */
     public ?string $modal = null;
 
     /** Начисления, выбранные в окнах «Отметить оплату» и «Не требовать оплату». */
@@ -56,6 +56,10 @@ class Student extends Component
 
     /** Только что отмеченные как оплаченные начисления — для «Отменить». */
     public array $justPaid = [];
+
+    /** Начисление в окне «Отменить оплату?» (из истории оплат): меняется только сервером. */
+    #[Locked]
+    public ?int $undoRecordId = null;
 
     /**
      * {student} — username ученика; у старых учеников без username — id (TeacherStudentsService::studentUrl).
@@ -121,6 +125,7 @@ class Student extends Component
     public function closeModal(): void
     {
         $this->modal = null;
+        $this->undoRecordId = null;
     }
 
     public function toggleAllRecords(): void
@@ -158,6 +163,40 @@ class Student extends Component
         $this->service()->undoPaid($this->teacher(), $this->pupil->id, $this->justPaid);
         $this->justPaid = [];
         $this->dispatch('toast', message: 'Отметка оплаты отменена');
+    }
+
+    /** «Отменить» у оплаченного занятия в истории оплат: окно подтверждения. */
+    public function askUndoPaid(int $recordId): void
+    {
+        if (! $this->paidRecord($recordId)) {
+            return;
+        }
+
+        $this->undoRecordId = $recordId;
+        $this->modal = 'undo';
+    }
+
+    /** Отметка об оплате снимается: занятие снова в долгах, срок прежний. */
+    public function confirmUndoPaid(): void
+    {
+        $id = $this->undoRecordId;
+
+        if ($id && $this->service()->undoPaid($this->teacher(), $this->pupil->id, [$id])) {
+            $this->justPaid = array_values(array_diff($this->justPaid, [$id]));
+            $this->dispatch('toast', message: 'Отметка оплаты отменена');
+        }
+
+        $this->closeModal();
+    }
+
+    private function paidRecord(?int $recordId): ?PaymentRecord
+    {
+        return $recordId ? PaymentRecord::where('id', $recordId)
+            ->where('teacher_id', $this->teacher()->id)
+            ->where('student_id', $this->pupil->id)
+            ->where('status', PaymentRecord::STATUS_PAID)
+            ->with('meetingSession.room')
+            ->first() : null;
     }
 
     public function waive(): void
@@ -519,6 +558,7 @@ class Student extends Component
                     ? 'Оплачено ' . HumanDate::date($r->paid_at) . ($r->isPaidLate() ? ', позже срока' : '')
                     : null,
                 'amount' => $r->status === PaymentRecord::STATUS_PAID && ($a = $r->amount()) ? TeacherStudentsService::rub($a) : null,
+                'canUndo' => $r->status === PaymentRecord::STATUS_PAID,
             ]);
     }
 
@@ -533,6 +573,7 @@ class Student extends Component
                     : null,
             ],
             'extend' => $this->extendData($unpaid),
+            'undo' => $this->undoData(),
             'assign' => [
                 'rooms' => $this->service()->teacherRooms($teacher)->load('schedules')->map(fn (Room $r) => [
                     'id' => $r->id,
@@ -553,6 +594,26 @@ class Student extends Component
             ],
             default => [],
         };
+    }
+
+    private function undoData(): ?array
+    {
+        $record = $this->paidRecord($this->undoRecordId);
+
+        if (! $record) {
+            return null;
+        }
+
+        $due = $record->due_date;
+
+        return [
+            'title' => $record->human_label,
+            'sub' => $record->paid_at ? 'Отмечено ' . HumanDate::date($record->paid_at) : null,
+            'amount' => ($a = $record->amount()) ? TeacherStudentsService::rub($a) : null,
+            'explain' => $due && $due->lt(today())
+                ? 'Занятие снова будет в долгах. Срок оплаты прошёл ' . HumanDate::date($due) . ' — если не продлить его, вход в занятия для ученика закроется.'
+                : 'Занятие снова будет в долгах' . ($due ? ' со сроком оплаты ' . HumanDate::day($due) : '') . '.',
+        ];
     }
 
     private function extendData(Collection $unpaid): ?array

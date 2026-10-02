@@ -173,6 +173,9 @@
                                     @elseif ($h['amount'])
                                         <span class="shrink-0 text-t1 font-medium">{{ $h['amount'] }}</span>
                                     @endif
+                                    @if ($h['canUndo'])
+                                        <button type="button" class="link shrink-0 text-t2" wire:click="askUndoPaid({{ $h['id'] }})" aria-label="Отменить оплату: {{ $h['title'] }}">Отменить</button>
+                                    @endif
                                 </x-ui.row>
                             @endforeach
                         </x-ui.list>
@@ -269,6 +272,24 @@
                 @else
                     <x-ui.btn variant="dark" wire:click="waive" wire:loading.attr="disabled" wire:target="waive" :disabled="! $modalData['total']">Не требовать оплату</x-ui.btn>
                 @endif
+            </x-slot:footer>
+        </x-ui.modal>
+    @endif
+
+    {{-- Окно «Отменить оплату?»: снять ошибочную отметку из истории оплат --}}
+    @if ($modal === 'undo' && $modalData)
+        <x-ui.modal title="Отменить оплату?" :sub="$student->name" close="closeModal" width="s">
+            <div class="flex items-center justify-between gap-4">
+                <div class="flex min-w-0 flex-col gap-1">
+                    <span class="text-t1-s font-medium">{{ $modalData['title'] }}</span>
+                    @if ($modalData['sub'])<span class="text-t2 text-muted">{{ $modalData['sub'] }}</span>@endif
+                </div>
+                @if ($modalData['amount'])<span class="shrink-0 text-t1-s font-medium">{{ $modalData['amount'] }}</span>@endif
+            </div>
+            <p class="text-t2 text-muted">{{ $modalData['explain'] }}</p>
+            <x-slot:footer>
+                <x-ui.btn wire:click="closeModal">Не отменять</x-ui.btn>
+                <x-ui.btn variant="dark" wire:click="confirmUndoPaid" wire:loading.attr="disabled" wire:target="confirmUndoPaid">Отменить оплату</x-ui.btn>
             </x-slot:footer>
         </x-ui.modal>
     @endif
