@@ -22,7 +22,8 @@
         <div class="flex w-full min-w-0 flex-col gap-6 lg:w-form lg:shrink-0">
             <x-ui.field label="Заголовок" name="title" wire:model.live.debounce.500ms="title" placeholder="Например, «Новое в расписании»" />
 
-            <x-ui.editor-media label="Текст" name="body" wire:model="body" upload-model="image" upload-method="storeImage" />
+            <x-ui.editor-media label="Текст" name="body" wire:model="body" upload-model="image" upload-method="storeImage" video-model="video" video-method="storeVideo"
+                               hint="Картинки, GIF и видео сжимаются сами. Видео — до 200 МБ" />
 
             @if ($model)
                 <div class="flex flex-wrap gap-x-6 gap-y-2">

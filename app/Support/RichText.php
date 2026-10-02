@@ -15,7 +15,7 @@ class RichText
     /** HTML из базы → безопасный HTML для блока с классом `.rich`. Пустой текст — null. */
     public static function html(?string $html): ?HtmlString
     {
-        if ($html === null || trim(strip_tags($html)) === '') {
+        if ($html === null || trim(strip_tags($html, '<img><video>')) === '') {
             return null;
         }
 
@@ -26,7 +26,7 @@ class RichText
     /** HTML из редактора → очищенный HTML для хранения (та же очистка, что при показе). Пустой — null. */
     public static function clean(?string $html): ?string
     {
-        if ($html === null || trim(strip_tags($html)) === '') {
+        if ($html === null || trim(strip_tags($html, '<img><video>')) === '') {
             return null;
         }
 
@@ -150,7 +150,7 @@ class RichText
         return $out;
     }
 
-    /** Очистка HTML: безопасные теги, относительные ссылки и картинки, class и style (правила прежнего редактора). */
+    /** Очистка HTML: безопасные теги (и video), относительные ссылки и картинки, class и style (правила прежнего редактора). */
     private static function sanitize(string $html): string
     {
         static $sanitizer = null;
@@ -161,6 +161,8 @@ class RichText
                 ->allowRelativeMedias()
                 ->allowAttribute('class', allowedElements: '*')
                 ->allowAttribute('style', allowedElements: '*')
+                // GIF в новостях хранится зацикленным беззвучным видео — без autoplay оно стоит на первом кадре
+                ->allowAttribute('autoplay', allowedElements: ['video'])
                 ->withMaxInputLength(500000),
         );
 

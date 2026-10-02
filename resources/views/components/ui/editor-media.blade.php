@@ -1,11 +1,13 @@
 {{-- Редактор текста с картинками (статьи базы знаний): как x-ui.editor + кнопка «Картинка». Привязка — wire:model (HTML).
      Картинка загружается во временное свойство компонента (upload-model, WithFileUploads), затем метод upload-method
-     кладёт файл на CDN и возвращает адрес — картинка вставляется в текст. На сервере HTML чистится RichText::clean() (img сохраняется). --}}
-@props(['label', 'name', 'uploadModel', 'uploadMethod', 'placeholder' => '', 'hint' => null])
+     кладёт файл на CDN и возвращает адрес — картинка вставляется в текст. На сервере HTML чистится RichText::clean() (img сохраняется).
+     video-model / video-method (новости) — еще и кнопка «Видео»: метод возвращает адреса ролика и обложки, ролик сжимается в очереди,
+     редактор показывает «Видео обрабатывается…» и спрашивает готовность методом mediaStatus. --}}
+@props(['label', 'name', 'uploadModel', 'uploadMethod', 'videoModel' => null, 'videoMethod' => null, 'placeholder' => '', 'hint' => null])
 @php $model = $attributes->wire('model')->value(); @endphp
 <div class="flex flex-col gap-2">
     <span id="{{ $name }}-label" class="text-t2 font-medium">{{ $label }}</span>
-    <div wire:ignore x-data="richEditor($wire.entangle('{{ $model }}'), @js($placeholder), { images: true })" x-on:livewire:navigating.window="destroy()"
+    <div wire:ignore x-data="richEditor($wire.entangle('{{ $model }}'), @js($placeholder), { images: true, videos: @js((bool) $videoMethod) })" x-on:livewire:navigating.window="destroy()"
          @class(['overflow-hidden rounded bg-white focus-within:shadow-outline-ink', 'shadow-outline-ink' => $errors->has($name), 'shadow-outline' => ! $errors->has($name)])>
         <div class="flex items-center gap-1 border-b border-line p-1" role="toolbar" aria-label="Оформление текста">
             @foreach ([['bold', 'bold', 'Жирный', 'bold'], ['italic', 'italic', 'Курсив', 'italic'], ['bulletList', 'list', 'Список', 'bullets'], ['orderedList', 'list-ordered', 'Нумерованный список', 'numbers'], ['link', 'link', 'Ссылка', 'link']] as [$mark, $icon, $title, $action])
@@ -17,7 +19,14 @@
                     class="flex size-9 items-center justify-center rounded-sm text-muted hover:bg-soft hover:text-ink disabled:opacity-50"><x-ui.icon name="image" /></button>
             <input type="file" x-ref="image" accept="image/png,image/jpeg,image/gif,image/webp" class="sr-only" tabindex="-1" aria-label="Картинка в текст"
                    x-on:change="uploadImage($event.target.files[0], @js($uploadModel), @js($uploadMethod)); $event.target.value = ''">
-            <span x-show="uploading" x-cloak class="px-2 text-t3 text-muted">Загружаем картинку…</span>
+            @if ($videoMethod)
+                <button type="button" x-on:click="$refs.video.click()" x-bind:disabled="uploading" title="Видео" aria-label="Видео"
+                        class="flex size-9 items-center justify-center rounded-sm text-muted hover:bg-soft hover:text-ink disabled:opacity-50"><x-ui.icon name="video" /></button>
+                <input type="file" x-ref="video" accept="video/*" class="sr-only" tabindex="-1" aria-label="Видео в текст"
+                       x-on:change="uploadVideo($event.target.files[0], @js($videoModel), @js($videoMethod)); $event.target.value = ''">
+            @endif
+            <span x-show="uploading" x-cloak class="px-2 text-t3 text-muted" x-text="uploadingText"></span>
+            <span x-show="! uploading && processing" x-cloak class="px-2 text-t3 text-muted">Видео обрабатывается…</span>
         </div>
         <div x-ref="editor" aria-labelledby="{{ $name }}-label"></div>
     </div>

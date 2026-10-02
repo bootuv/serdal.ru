@@ -58,6 +58,11 @@ Laravel 11 + Livewire 3 + Tailwind 3. Занятия идут в BigBlueButton, 
 - Блок статей на других страницах — `blog/partials/section`: на главной «Популярное в блоге» (`BlogService::popular`, перед каталогом — после бесконечного списка не долистать), на странице учителя «Статьи в блоге» — четыре последние и «Все статьи» на `/blog/author/{username}`. Демо-статьи для оценки вида локально: `php artisan blog:demo` (адреса `demo-…`), убрать — `--remove`; на проде команда не запускается без `--force`.
 - `news.serdal.ru` (домен рассылок) переадресуется на блог nginx'ом — `deploy/server/enable-news-redirect.sh`, запускается на сервере вручную. Тесты — `tests/Feature/Admin/BlogTest.php`, статья для учителей — `database/help/tutors/11-blog.md`.
 
+## Видео в новостях
+
+- В редакторе новости кнопка «Видео» (`x-ui.editor-media` с `video-method`): исходник уходит в очередь `ConvertVideo` (на проде — `redis-long`, воркер записей), `MediaService` сжимает ffmpeg в MP4 H.264 (длинная сторона до 1280) и делает обложку JPG на CDN. GIF, загруженный картинкой, становится беззвучным зацикленным видео (`<video autoplay loop muted>`).
+- Адреса известны сразу, редактор вставляет видео и опрашивает `mediaStatus`; опубликовать или запланировать новость с необработанным видео нельзя (`pendingIn` / `failedIn`). Состояние — в кэше `media:pending:*` / `media:failed:*`. На сервере нужен `ffmpeg`, лимиты загрузки — `deploy/server`. Тесты — `tests/Feature/Admin/NewsVideoTest.php`.
+
 ## Рассылки на внешние адреса
 
 - Админка «Рассылки» (`Mailings`, `Mailing`, `MailingList`), логика — `MailingService`, разбор таблиц (.xlsx, .csv, вставка) — `App\Support\MailingImport`; пользователей платформы (учителя по тарифу, ученики, поштучно) добавляет `MailingService::importUsers` — это снимок почты на момент добавления, `user_id` даёт `{имя}` и подпись роли. Адрес (`mailing_contacts`) один на всю систему: отписка действует на все списки навсегда, удаление списка её не снимает.

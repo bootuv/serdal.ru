@@ -56,4 +56,9 @@ return [
         'key' => env('INDEXNOW_KEY'),
     ],
 
+    // Сжатие видео в новостях (MediaService): на сервере нужен пакет ffmpeg
+    'ffmpeg' => [
+        'path' => env('FFMPEG_PATH', 'ffmpeg'),
+    ],
+
 ];

@@ -6,6 +6,7 @@ use App\Livewire\Cabinet\Admin\Concerns\AdminScreen;
 use App\Models\Announcement;
 use App\Services\AnnouncementService;
 use App\Services\HelpCenterService;
+use App\Services\MediaService;
 use App\Support\HumanDate;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -40,6 +41,9 @@ class NewsItem extends Component
 
     /** Картинка для текста (временная загрузка, см. x-ui.editor-media). */
     public $image = null;
+
+    /** Видео для текста (временная загрузка): сжимается в очереди, см. MediaService. */
+    public $video = null;
 
     public bool $confirmPublish = false;
     public bool $confirmDelete = false;
@@ -139,6 +143,7 @@ class NewsItem extends Component
     public function submit(): void
     {
         $this->validate();
+        $this->ensureMediaReady();
         $model = $this->model();
 
         if ($model?->isPublished()) {
@@ -160,6 +165,7 @@ class NewsItem extends Component
     public function publish(): void
     {
         $this->validate();
+        $this->ensureMediaReady();
         $this->confirmPublish = false;
         $this->saveAndGo(now(), 'Новость опубликована');
     }
@@ -201,13 +207,28 @@ class NewsItem extends Component
         $this->redirectRoute('cabinet.admin.news');
     }
 
-    /** Картинка в текст: кладём на CDN и возвращаем адрес (вставляет редактор). */
-    public function storeImage(): ?string
+    /** Видео еще сжимается или не сжалось — такую новость не публикуем (уведомление ушло бы с пустым плеером). */
+    private function ensureMediaReady(): void
+    {
+        $media = app(MediaService::class);
+        if ($media->pendingIn($this->body)) {
+            throw ValidationException::withMessages(['body' => 'Видео еще обрабатывается — подождите пару минут и опубликуйте снова']);
+        }
+        if ($media->failedIn($this->body)) {
+            throw ValidationException::withMessages(['body' => 'Одно из видео не удалось обработать — удалите его из текста и загрузите снова']);
+        }
+    }
+
+    /**
+     * Картинка в текст: сжимаем до 1600 px по ширине в WebP и возвращаем адрес.
+     * GIF — в беззвучное зацикленное видео (в разы легче); редактор получает массив и вставляет видео.
+     */
+    public function storeImage(): string|array|null
     {
         try {
-            $this->validateOnly('image', ['image' => ['required', 'image', 'max:5120']], [
+            $this->validateOnly('image', ['image' => ['required', 'image', 'max:20480']], [
                 'image.image' => 'Нужна картинка PNG, JPG, GIF или WebP',
-                'image.max' => 'Картинка больше 5 МБ',
+                'image.max' => 'Картинка больше 20 МБ',
             ]);
         } catch (ValidationException $e) {
             $this->image = null;
@@ -216,10 +237,49 @@ class NewsItem extends Component
             return null;
         }
 
+        $media = app(MediaService::class);
+        if (strtolower($this->image->getClientOriginalExtension()) === 'gif' && $media->available()) {
+            $result = $media->storeVideo($this->image, self::IMAGE_DIR, loop: true);
+            $this->image = null;
+
+            return $result;
+        }
+
         $url = app(HelpCenterService::class)->storeImage($this->image, self::IMAGE_DIR);
         $this->image = null;
 
         return $url;
+    }
+
+    /** Видео в текст: исходник в очередь на сжатие, редактору — будущие адреса ролика и обложки. */
+    public function storeVideo(): ?array
+    {
+        $media = app(MediaService::class);
+        try {
+            $this->validateOnly('video', ['video' => ['required', 'file', 'mimetypes:video/mp4,video/quicktime,video/webm,video/x-msvideo,video/x-matroska,video/3gpp,video/mpeg', 'max:204800']], [
+                'video.mimetypes' => 'Нужно видео MP4, MOV, WebM, AVI или MKV',
+                'video.max' => 'Видео больше 200 МБ',
+            ]);
+            if (! $media->available()) {
+                throw ValidationException::withMessages(['video' => 'На сервере не настроена обработка видео']);
+            }
+        } catch (ValidationException $e) {
+            $this->video = null;
+            $this->dispatch('toast', message: collect($e->errors())->flatten()->first() ?: 'Видео не удалось загрузить', tone: 'danger');
+
+            return null;
+        }
+
+        $result = $media->storeVideo($this->video, self::IMAGE_DIR);
+        $this->video = null;
+
+        return $result;
+    }
+
+    /** Редактор спрашивает, готово ли видео: ready, pending или failed. */
+    public function mediaStatus(string $url): string
+    {
+        return app(MediaService::class)->status($url);
     }
 
     public function render()

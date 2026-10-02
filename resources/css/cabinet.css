@@ -67,6 +67,8 @@
     .rich h2, .rich h3 { @apply text-h2 font-medium; }
     .rich img { @apply max-w-full rounded; }
     .rich img.ProseMirror-selectednode { outline: 2px solid theme('colors.ink.DEFAULT'); }
+    .rich video { @apply max-w-full rounded bg-soft; }
+    .rich video.ProseMirror-selectednode { outline: 2px solid theme('colors.ink.DEFAULT'); }
 
     /* Выбранный вариант (x-ui.option) — тёмная обводка */
     .option:has(input:checked) { @apply shadow-selected; }
