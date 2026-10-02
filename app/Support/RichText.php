@@ -42,7 +42,9 @@ class RichText
                 return '';
             }
 
-            return \Illuminate\Support\Facades\Blade::render('<x-ui.video-player :src="$src" :poster="$poster" label="Видео" />', ['src' => $src, 'poster' => $attr('poster')]);
+            $ratio = (int) $attr('width') && (int) $attr('height') ? (int) $attr('width') . ' / ' . (int) $attr('height') : null;
+
+            return \Illuminate\Support\Facades\Blade::render('<x-ui.video-player :src="$src" :poster="$poster" label="Видео" fit :ratio="$ratio" />', ['src' => $src, 'poster' => $attr('poster'), 'ratio' => $ratio]);
         }, (string) $html));
     }
 

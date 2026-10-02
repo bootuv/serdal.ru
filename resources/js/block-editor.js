@@ -6,7 +6,7 @@
 import { Editor, Node, mergeAttributes } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import { Placeholder } from '@tiptap/extension-placeholder';
-import { Video, videosIn, waitVideo, markPending } from './editor-video';
+import { Video, videosIn, waitVideo, markPending, setState } from './editor-video';
 
 const Image = Node.create({
     name: 'image',
@@ -213,20 +213,52 @@ window.blockEditor = (content, options = {}) => {
 
         /* ---------- Видео ---------- */
 
+        // Заглушка появляется сразу на месте курсора: «Загружаем видео… N%», пропорции — из самого файла
         uploadVideo(file) {
             if (! file || ! options.videoMethod) return;
-            this.uploading = true;
-            this.uploadingText = 'Загружаем видео… 0%';
-            const done = () => { this.uploading = false; };
+            const temp = 'upload:' + Math.random().toString(36).slice(2);
+            setState(temp, { status: 'uploading', progress: 0 });
+            editor.chain().focus().insertContent({ type: 'video', attrs: { src: temp } }).run();
+
+            const probe = document.createElement('video');
+            probe.preload = 'metadata';
+            probe.src = URL.createObjectURL(file);
+            probe.onloadedmetadata = () => {
+                if (probe.videoWidth && probe.videoHeight) this.updateVideo(temp, { width: probe.videoWidth, height: probe.videoHeight });
+                URL.revokeObjectURL(probe.src);
+            };
+
+            const failed = (message) => {
+                this.removeVideo(temp);
+                window.dispatchEvent(new CustomEvent('toast', { detail: { message, tone: 'danger' } }));
+            };
             this.$wire.upload(options.videoModel, file, async () => {
-                try {
-                    const result = await this.$wire.call(options.videoMethod);
-                    if (result) this.insertVideo(result);
-                } finally { done(); }
-            }, () => {
-                done();
-                window.dispatchEvent(new CustomEvent('toast', { detail: { message: 'Видео не удалось загрузить — проверьте размер (до 200 МБ)', tone: 'danger' } }));
-            }, (event) => { this.uploadingText = `Загружаем видео… ${event.detail.progress}%`; });
+                const result = await this.$wire.call(options.videoMethod);
+                if (! result) { this.removeVideo(temp); return; } // причину уже показал сервер
+                markPending(result.src);
+                this.updateVideo(temp, { src: result.src, poster: result.poster, width: result.width, height: result.height, loop: !! result.loop });
+                this.waitVideo(result.src);
+            }, () => failed('Видео не удалось загрузить — проверьте размер (до 200 МБ)'),
+            (event) => setState(temp, { status: 'uploading', progress: event.detail.progress }));
+        },
+
+        // Узел видео по адресу (в том числе временному upload:…)
+        findVideo(src) {
+            let found = null;
+            editor.state.doc.descendants((node, pos) => {
+                if (found || node.type.name !== 'video' || node.attrs.src !== src) return ! found;
+                found = { node, pos };
+                return false;
+            });
+            return found;
+        },
+        updateVideo(src, attrs) {
+            const found = this.findVideo(src);
+            if (found) editor.view.dispatch(editor.state.tr.setNodeMarkup(found.pos, undefined, { ...found.node.attrs, ...attrs }));
+        },
+        removeVideo(src) {
+            const found = this.findVideo(src);
+            if (found) editor.view.dispatch(editor.state.tr.delete(found.pos, found.pos + found.node.nodeSize));
         },
 
         insertVideo({ src, poster, loop, width, height }) {

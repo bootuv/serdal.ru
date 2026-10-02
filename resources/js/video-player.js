@@ -46,9 +46,17 @@ function registerVideoPlayer(Alpine) {
         scrubTime: 0,
         hover: false,
         hoverTimer: null,
+        // Видео в тексте (data-fit): рамка по пропорциям ролика, «ширина / высота»
+        fit: false,
+        ratio: '16 / 9',
 
         init() {
             const v = this.$refs.video;
+            if (this.$root.dataset.fit !== undefined) {
+                this.fit = true;
+                if (this.$root.dataset.fit) this.ratio = this.$root.dataset.fit;
+                v.addEventListener('loadedmetadata', () => { if (v.videoWidth && v.videoHeight) this.ratio = `${v.videoWidth} / ${v.videoHeight}`; });
+            }
             v.playbackRate = this.speed;
             v.addEventListener('loadedmetadata', () => { this.duration = v.duration || 0; v.playbackRate = this.speed; });
             v.addEventListener('durationchange', () => { this.duration = v.duration || 0; });
@@ -66,6 +74,13 @@ function registerVideoPlayer(Alpine) {
             document.addEventListener('fullscreenchange', () => { this.full = document.fullscreenElement === this.$root; });
             // Отпустили бегунок за его пределами — всё равно перематываем
             window.addEventListener('pointerup', () => { if (this.scrubbing) this.scrubEnd(this.scrubTime); });
+        },
+
+        // Высокий (вертикальный) ролик не выше 80% экрана: ширина рамки — от высоты экрана и пропорций
+        fitStyle() {
+            if (! this.fit || this.full) return '';
+            const [w, h] = this.ratio.split('/').map((n) => parseFloat(n));
+            return w && h ? `max-width: calc(80svh * ${w / h} + 8px)` : '';
         },
 
         // Панель видна, пока двигают мышью (касаются); через 2,5 с без движения во время просмотра прячется

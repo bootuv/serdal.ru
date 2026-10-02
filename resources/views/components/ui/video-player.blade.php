@@ -3,15 +3,16 @@
      Панель — внизу поверх видео, видна при наведении (касании), на паузе и пока открыто меню скорости.
      Жёлтая кнопка «Смотреть» до начала; панель: пауза, перемотка, время, громкость, скорость 0,5–2× (запоминается), полный экран.
      Клавиши: пробел, ←/→ — 10 с, ↑/↓ — громкость, M, F. src — адрес видео, title — название (для экранного диктора).
-     Видео в тексте новостей и статей (RichText::players): poster — обложка, label — «Видео», без названия. --}}
-@props(['src', 'title' => null, 'poster' => null, 'label' => 'Запись занятия'])
-<div x-data="videoPlayer" tabindex="0" role="region" aria-label="{{ $title ? 'Запись: ' . $title : $label }}"
+     Видео в тексте новостей и статей (RichText::players): poster — обложка, label — «Видео», без названия;
+     fit — рамка по пропорциям ролика (ratio «1280 / 720» из текста, иначе — когда загрузятся данные видео), высокий ролик не выше экрана. --}}
+@props(['src', 'title' => null, 'poster' => null, 'label' => 'Запись занятия', 'fit' => false, 'ratio' => null])
+<div x-data="videoPlayer" {!! $fit ? 'data-fit="' . e($ratio) . '" x-bind:style="fitStyle()"' : '' !!} tabindex="0" role="region" aria-label="{{ $title ? 'Запись: ' . $title : $label }}"
      x-on:keydown="key($event)" x-on:mousemove="wake()" x-on:touchstart.passive="wake()" x-on:mouseleave="rest()" x-on:focusin="wake()"
      x-bind:class="(full ? 'justify-center ' : '') + (playing && ! hover ? 'cursor-none' : '')"
-     {{ $attributes->class('vp-player group relative flex w-full flex-col rounded-lg bg-ink p-1 text-white shadow-card') }}>
+     {{ $attributes->class(['vp-player group relative flex w-full flex-col rounded-lg bg-ink p-1 text-white shadow-card', 'mx-auto' => $fit]) }}>
     <div class="relative min-h-0" x-bind:class="full ? 'flex flex-1 items-center justify-center' : ''">
         <video x-ref="video" src="{{ $src }}" {!! $poster ? 'poster="' . e($poster) . '"' : '' !!} preload="metadata" playsinline
-               class="block w-full rounded bg-ink" x-bind:class="full ? 'h-full object-contain' : 'aspect-video'"
+               class="block w-full rounded bg-ink" x-bind:class="full ? 'h-full object-contain' : (fit ? '' : 'aspect-video')" x-bind:style="full || ! fit ? '' : `aspect-ratio: ${ratio}`"
                x-on:click="toggle()" x-on:dblclick="toggleFull()">Ваш браузер не поддерживает воспроизведение видео.</video>
 
         {{-- Жёлтая кнопка до первого запуска --}}

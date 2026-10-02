@@ -1,11 +1,12 @@
 // Видео в тексте (новости и статьи блога, x-ui.block-editor с video-method): узел TipTap и ожидание сжатия на сервере (MediaService).
-// Пока ролик сжимается, на его месте — заглушка в пропорциях видео с процентом обработки; готово — показываем сам ролик.
+// Пока файл загружается и пока ролик сжимается, на его месте — заглушка в пропорциях видео с процентом; готово — показываем сам ролик.
 import { Node, mergeAttributes } from '@tiptap/core';
 
-// Состояние роликов по адресу: { status: pending|ready|failed, progress }. Узлы перерисовываются по событию editor-video.
+// Состояние роликов по адресу: { status: uploading|pending|ready|failed, progress }. Узлы перерисовываются по событию editor-video.
+// Пока файл загружается, у узла временный адрес upload:… — после загрузки его заменяет настоящий.
 const states = new Map();
 
-function setState(src, state) {
+export function setState(src, state) {
     states.set(src, state);
     window.dispatchEvent(new CustomEvent('editor-video', { detail: { src } }));
 }
@@ -46,9 +47,12 @@ export const Video = Node.create({
 
             const dom = document.createElement('div');
             dom.className = 'video-node';
+            // Высокий (вертикальный) ролик не выше 70% экрана: ширина — от высоты экрана и пропорций
+            if (width && height) dom.style.maxWidth = `calc(70svh * ${width / height})`;
 
             const video = document.createElement('video');
-            Object.entries({ src, ...(poster ? { poster } : {}), ...playerAttrs(node.attrs) }).forEach(([k, v]) => video.setAttribute(k, v));
+            const real = ! String(src).startsWith('upload:');
+            Object.entries({ ...(real ? { src } : {}), ...(poster ? { poster } : {}), ...playerAttrs(node.attrs) }).forEach(([k, v]) => video.setAttribute(k, v));
             if (node.attrs.loop) video.muted = true;
             video.style.aspectRatio = ratio;
 
@@ -64,12 +68,16 @@ export const Video = Node.create({
             let wasPending = false;
             const render = () => {
                 const state = states.get(src) || { status: 'ready', progress: 0 };
-                const pending = state.status === 'pending';
+                const uploading = state.status === 'uploading';
+                const pending = uploading || state.status === 'pending';
                 const failed = state.status === 'failed';
                 video.hidden = pending || failed;
                 wait.hidden = ! pending && ! failed;
                 wait.classList.toggle('is-failed', failed);
-                if (pending) {
+                if (uploading) {
+                    text.textContent = `Загружаем видео… ${state.progress}%`;
+                    bar.style.width = `${Math.max(state.progress, 2)}%`;
+                } else if (pending) {
                     text.textContent = state.progress > 0 ? `Обрабатываем видео… ${state.progress}%` : 'Видео в очереди на обработку…';
                     bar.style.width = `${Math.max(state.progress, 2)}%`;
                     wasPending = true;

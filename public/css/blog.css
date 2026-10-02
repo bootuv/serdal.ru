@@ -492,7 +492,7 @@
 }
 
 .blog-body .vp-player {
-  margin: 24px 0;
+  margin: 24px auto;
 }
 
 .blog-body .vp-player video {

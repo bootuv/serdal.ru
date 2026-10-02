@@ -18,8 +18,9 @@ class BlogCommentAdded extends CabinetNotification
         $post = $this->comment->post;
         $who = $this->comment->user?->name ?: 'Кто-то';
 
-        return CabinetMessage::make($this->reply ? $who . ' ответил на ваш комментарий' : 'Новый комментарий к статье')
-            ->body(($this->reply ? '' : $who . ' · «' . $post->title . '»: ') . Str::limit((string) $this->comment->body, 120))
+        // Без рода в тексте («ответил(а)»): кто — в начале текста уведомления
+        return CabinetMessage::make($this->reply ? 'Ответ на ваш комментарий' : 'Новый комментарий к вашей статье')
+            ->body($who . ' · «' . $post->title . '»: ' . Str::limit((string) $this->comment->body, 120))
             ->icon('chat')
             ->action('Открыть обсуждение', route('blog.show', $post->slug) . '#comment-' . $this->comment->id)
             ->toArray();

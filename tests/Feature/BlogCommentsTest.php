@@ -358,4 +358,35 @@ class BlogCommentsTest extends TestCase
         $this->assertGreaterThan(BlogService::hotScore(5, 5, $now->copy()->subDays(10)), BlogService::hotScore(5, 5, $now->copy()->subDay()));
         $this->assertSame(0.0, BlogService::hotScore(10, 10, null));
     }
+
+    public function test_comment_notifications_reach_article_author_and_whoever_was_answered(): void
+    {
+        $teacher = User::factory()->create(['role' => User::ROLE_TUTOR, 'username' => 't' . uniqid(), 'is_active' => true, 'is_blocked' => false]);
+        $colleague = User::factory()->create(['role' => User::ROLE_TUTOR, 'username' => 'c' . uniqid(), 'is_active' => true, 'is_blocked' => false]);
+        $student = User::factory()->create(['role' => User::ROLE_STUDENT, 'username' => 's' . uniqid(), 'is_active' => true, 'is_blocked' => false]);
+        $other = User::factory()->create(['role' => User::ROLE_STUDENT, 'username' => 'o' . uniqid(), 'is_active' => true, 'is_blocked' => false]);
+        $post = app(BlogService::class)->save(null, ['title' => 'Статья учителя', 'body' => '<p>Текст</p>', 'author_id' => $teacher->id, 'published_at' => now()->subHour()]);
+        $service = app(\App\Services\BlogCommentService::class);
+
+        // Ученик комментирует — учителю «Новый комментарий к вашей статье»
+        $root = $service->add($post, $student, 'Вопрос к автору');
+        Notification::assertSentTo($teacher, BlogCommentAdded::class, fn ($n) => ! $n->reply && $n->comment->is($root));
+        $this->assertSame('Новый комментарий к вашей статье', (new BlogCommentAdded($root, false))->toDatabase($teacher)['title']);
+
+        // Другой ученик отвечает ученику — ученику «Ответ на ваш комментарий», учителю — о новом комментарии под статьей
+        $reply = $service->add($post, $other, 'Я тоже хотел спросить', $root);
+        Notification::assertSentTo($student, BlogCommentAdded::class, fn ($n) => $n->reply && $n->comment->is($reply));
+        Notification::assertSentTo($teacher, BlogCommentAdded::class, fn ($n) => ! $n->reply && $n->comment->is($reply));
+
+        // Учитель пишет под чужой статьей, ему отвечают — учителю «Ответ на ваш комментарий»
+        $foreign = app(BlogService::class)->save(null, ['title' => 'Статья коллеги', 'body' => '<p>Текст</p>', 'author_id' => $colleague->id, 'published_at' => now()->subHour()]);
+        $mine = $service->add($foreign, $teacher, 'Согласен с коллегой');
+        $answer = $service->add($foreign, $student, 'А как у вас?', $mine);
+        Notification::assertSentTo($teacher, BlogCommentAdded::class, fn ($n) => $n->reply && $n->comment->is($answer));
+
+        // Себе — ничего: автор отвечает в своей статье, уведомление только ученику
+        $own = $service->add($post, $teacher, 'Отвечаю', $root);
+        Notification::assertNotSentTo($teacher, BlogCommentAdded::class, fn ($n) => $n->comment->is($own));
+        Notification::assertSentTo($student, BlogCommentAdded::class, fn ($n) => $n->reply && $n->comment->is($own));
+    }
 }
