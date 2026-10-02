@@ -91,6 +91,7 @@
                     <div class="blog-author-card-text">
                         <div class="blog-meta">Автор статьи</div>
                         <div class="blog-author-card-name">{{ $post->author->name }}</div>
+                        @if($post->isPublished())<livewire:blog.follow-button :author-id="$post->author->id" :return-url="$post->url" />@endif
                         <div class="blog-author-card-links">
                             @if($authorFeed)<a href="{{ $authorFeed }}">Все статьи автора</a>@endif
                             @if($authorProfile)<a href="{{ $authorProfile }}">Записаться на занятие</a>@endif

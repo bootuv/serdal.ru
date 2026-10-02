@@ -62,6 +62,13 @@
     @endif
 @endpush
 
+@if($author)
+    @section('livewire', '1')
+    @if($posts->total() === 0)
+        @section('robots', 'noindex, nofollow')
+    @endif
+@endif
+
 @section('styles')
     <link href="/css/blog.css?v={{ filemtime(public_path('css/blog.css')) }}" rel="stylesheet" type="text/css">
 @endsection
@@ -78,10 +85,20 @@
             @endif
             @if($author)
                 <div class="blog-author-head">
-                    @include('partials.userpic', ['user' => $author, 'class' => 'blog-author-head-photo', 'thumb' => false, 'alt' => $author->name])
-                    <div>
+                    @include('partials.userpic', ['user' => $author, 'class' => 'blog-author-head-photo blog-author-head-photo--big', 'thumb' => false, 'alt' => $author->name])
+                    <div class="blog-author-head-text">
                         <h1 class="blog-title">{{ $author->name }}</h1>
-                        <div class="blog-meta">{{ plural_ru($posts->total(), 'статья', 'статьи', 'статей') }} в блоге@if($authorProfile) · <a href="{{ $authorProfile }}">Страница учителя</a>@endif</div>
+                        {{-- Факты одной строкой, ниже — только действия --}}
+                        @php($followers = app(\App\Services\BlogService::class)->followersCount($author))
+                        <div class="blog-author-head-meta">
+                            <span>{{ plural_ru($posts->total(), 'статья', 'статьи', 'статей') }}</span>
+                            <span x-data="{ label: @js(plural_ru($followers, 'подписчик', 'подписчика', 'подписчиков')) }" x-on:blog-followers.window="label = $event.detail.label" x-text="label">{{ plural_ru($followers, 'подписчик', 'подписчика', 'подписчиков') }}</span>
+                            @if($authorProfile)<span><a href="{{ $authorProfile }}">Страница учителя</a></span>@endif
+                        </div>
+                        {{-- Свой блог: «Написать статью» и «Мои статьи и черновики» — в личной карточке справа --}}
+                        @unless(auth()->id() === $author->id)
+                            <livewire:blog.follow-button :author-id="$author->id" :return-url="url($base)" />
+                        @endunless
                     </div>
                 </div>
             @else
@@ -92,15 +109,19 @@
             @endif
         </div>
 
+        {{-- Есть подписки — «Моя лента» первая; по умолчанию открывается она, если в ней есть свежее, иначе «Популярные» --}}
         <nav class="blog-tabs" aria-label="Порядок статей">
-            <a href="{{ url($base) }}" @class(['active' => $sort === 'popular']) {!! $sort === 'popular' ? 'aria-current="page"' : '' !!}>Популярные</a>
+            @if($hasFeed)
+                <a href="{{ url($base) }}{{ $defaultSort === 'feed' ? '' : '?sort=feed' }}" @class(['active' => $sort === 'feed']) {!! $sort === 'feed' ? 'aria-current="page"' : '' !!}>Моя лента</a>
+            @endif
+            <a href="{{ url($base) }}{{ $defaultSort === 'popular' ? '' : '?sort=popular' }}" @class(['active' => $sort === 'popular']) {!! $sort === 'popular' ? 'aria-current="page"' : '' !!}>Популярные</a>
             <a href="{{ url($base) }}?sort=new" @class(['active' => $sort === 'new']) {!! $sort === 'new' ? 'aria-current="page"' : '' !!}>Новые</a>
         </nav>
 
         <div class="blog-layout">
             <div class="blog-main">
                 @if($posts->isEmpty())
-                    <p class="blog-empty">Скоро здесь появятся первые статьи.</p>
+                    <p class="blog-empty">{{ ($author && auth()->id() === $author->id) ? 'У вас пока нет опубликованных статей. Напишите первую — после проверки она появится здесь.' : ($sort === 'feed' ? 'Авторы, на которых вы подписаны, пока ничего не опубликовали. Загляните в «Популярные».' : 'Скоро здесь появятся первые статьи.') }}</p>
                 @else
                     <div class="blog-grid">
                         @foreach($posts as $post)

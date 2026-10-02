@@ -232,7 +232,7 @@
       z-index: 50;
       display: flex;
       flex-flow: column;
-      min-width: 240px;
+      min-width: 280px;
       padding: 6px;
       border: 1px solid var(--line-light);
       border-radius: 16px;
@@ -261,6 +261,7 @@
       font-size: 14px;
       line-height: 20px;
     }
+
 
     .site-user-menu a,
     .site-user-menu button {
@@ -314,30 +315,19 @@
 
 <body class="body" x-data="{ mobileMenuOpen: false }">
   @php
-    // Вошедший пользователь: вместо «Войти» — аватар и меню (кабинет, профиль, блог учителя, выход)
+    // Вошедший пользователь: вместо «Войти» — аватар и короткое меню. Учителю — его страница и блог на сайте;
+    // «Написать статью» — на странице его блога, профиль — в личном кабинете
     $siteUser = auth()->user();
     $siteUserMenu = [];
     if ($siteUser) {
         $role = $siteUser->role;
-        $cabinetUrl = \App\Http\Middleware\EnsureCabinetRole::homeFor($siteUser);
-        $siteUserMenu[] = ['Кабинет', $cabinetUrl];
-        $profileRoute = match ($role) {
-            \App\Models\User::ROLE_STUDENT => 'cabinet.student.profile',
-            \App\Models\User::ROLE_TUTOR => 'cabinet.teacher.profile',
-            default => null,
-        };
-        if ($profileRoute && Route::has($profileRoute)) {
-            $siteUserMenu[] = ['Профиль', route($profileRoute)];
-        }
         if ($role === \App\Models\User::ROLE_TUTOR && $siteUser->username) {
-            $siteUserMenu[] = ['Моя страница', route('tutors.show', $siteUser)];
+            if (app(\App\Services\TutorCatalogService::class)->publicTutorsQuery()->whereKey($siteUser->id)->exists()) {
+                $siteUserMenu[] = ['Моя страница', route('tutors.show', $siteUser)];
+            }
+            $siteUserMenu[] = ['Мой блог', route('blog.author', $siteUser->username)];
         }
-        if ($role === \App\Models\User::ROLE_TUTOR && Route::has('cabinet.teacher.blog')) {
-            $siteUserMenu[] = ['Мои статьи', route('cabinet.teacher.blog')];
-        }
-        if ($role === \App\Models\User::ROLE_ADMIN && Route::has('cabinet.admin.blog')) {
-            $siteUserMenu[] = ['Блог в админке', route('cabinet.admin.blog')];
-        }
+        $siteUserMenu[] = ['Личный кабинет', \App\Http\Middleware\EnsureCabinetRole::homeFor($siteUser)];
         $siteUserRole = match ($role) { \App\Models\User::ROLE_TUTOR => 'Учитель', \App\Models\User::ROLE_STUDENT => 'Ученик', \App\Models\User::ROLE_ADMIN => 'Администратор', default => '' };
     }
   @endphp

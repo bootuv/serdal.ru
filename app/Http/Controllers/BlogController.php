@@ -27,19 +27,39 @@ class BlogController extends Controller
 
     public function author(string $username, BlogService $blog)
     {
-        $author = User::where('username', $username)->whereHas('blogPosts', fn ($q) => $q->published())->firstOrFail();
+        // Чужим страница автора видна, когда у него есть статьи; сам учитель открывает свою и пустой («Мой блог» в меню)
+        $author = User::where('username', $username)
+            ->where(fn ($q) => $q->whereHas('blogPosts', fn ($q) => $q->published())
+                ->orWhere(fn ($q) => $q->whereKey(auth()->id() ?? 0)->where('role', User::ROLE_TUTOR)))
+            ->firstOrFail();
 
         return $this->feed($blog, author: $author);
     }
 
     /** Лента: «Популярные» (по умолчанию — вес из лайков, комментариев и возраста, BlogService::hotScore) или «Новые» (?sort=new). */
+    /**
+     * «Моя лента» (?sort=feed) — статьи авторов, на которых подписан вошедший; на главной блога она первая и открывается
+     * по умолчанию, если подписки есть. Гости и поисковики видят «Популярные» — у них подписок нет.
+     */
     private function feed(BlogService $blog, ?BlogTag $tag = null, ?User $author = null)
     {
-        $sort = request('sort') === 'new' ? 'new' : 'popular';
+        $followed = ! $tag && ! $author ? $blog->followedIds(auth()->user()) : [];
+        $hasFeed = $followed !== [];
+        // Лента открывается сама, только если в ней есть свежее (за FEED_FRESH_DAYS), — иначе по умолчанию «Популярные»
+        $feedIsFresh = $hasFeed && BlogPost::published()->whereIn('author_id', $followed)
+            ->where('published_at', '>=', now()->subDays(BlogService::FEED_FRESH_DAYS))->exists();
+        $defaultSort = $feedIsFresh ? 'feed' : 'popular';
+        $sort = match (request('sort')) {
+            'new' => 'new',
+            'popular' => 'popular',
+            'feed' => $hasFeed ? 'feed' : 'popular',
+            default => $defaultSort,
+        };
         $posts = BlogPost::published()
             ->with('author')
             ->when($tag, fn ($q) => $q->whereHas('tags', fn ($t) => $t->whereKey($tag->id)))
             ->when($author, fn ($q) => $q->where('author_id', $author->id))
+            ->when($sort === 'feed', fn ($q) => $q->whereIn('author_id', $followed))
             ->when($sort === 'popular', fn ($q) => $q->orderByDesc('hot_score'))
             ->latest('published_at')
             ->paginate(BlogService::PER_PAGE)
@@ -48,11 +68,14 @@ class BlogController extends Controller
         return view('blog.index', [
             'posts' => $posts,
             'sort' => $sort,
+            'hasFeed' => $hasFeed,
+            'defaultSort' => $defaultSort,
             'tag' => $tag,
             'author' => $author,
             'authorProfile' => $author && $this->isPublicTutor($author) ? route('tutors.show', $author) : null,
-            'popularTags' => $blog->popularTags(),
-            'activeAuthors' => $blog->activeAuthors(),
+            // На странице автора — его темы и без списка других авторов
+            'popularTags' => $author ? $blog->authorTags($author) : $blog->popularTags(),
+            'activeAuthors' => $author ? collect() : $blog->activeAuthors(),
         ]);
     }
 

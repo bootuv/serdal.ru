@@ -1,8 +1,10 @@
 {{-- Боковая колонка ленты: популярные теги и самые активные авторы --}}
 <aside class="blog-sidebar" aria-label="Темы и авторы">
+    @include('blog.partials.me')
+
     @if($popularTags->isNotEmpty())
         <section class="blog-side-block" aria-labelledby="blog-side-tags">
-            <h2 id="blog-side-tags" class="blog-side-title">Популярные темы</h2>
+            <h2 id="blog-side-tags" class="blog-side-title">{{ ($author ?? null) ? 'Темы автора' : 'Популярные темы' }}</h2>
             <div class="blog-tags">
                 @foreach($popularTags as $item)
                     <a href="{{ $item->url }}" @class(['blog-tag', 'active' => ($tag ?? null)?->id === $item->id])>{{ $item->name }}<span>{{ $item->published_count }}</span></a>

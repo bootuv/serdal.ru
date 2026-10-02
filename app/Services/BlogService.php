@@ -30,6 +30,9 @@ class BlogService
 
     public const PER_PAGE = 15;
 
+    /** «Моя лента» открывается по умолчанию, если у авторов из подписок вышла статья за столько дней. */
+    public const FEED_FRESH_DAYS = 14;
+
     /** Страница темы попадает в поиск и карту сайта, только если в теме столько статей (иначе она повторяет статью). */
     public const TAG_MIN_POSTS = 2;
 
@@ -149,7 +152,9 @@ class BlogService
     }
 
     /**
-     * Ученики учителя-автора узнают о вышедшей статье — один раз (students_notified_at), даже если статью снимут и вернут.
+     * Статья вышла — сообщить читателям автора один раз (students_notified_at), даже если статью снимут и вернут:
+     * ученикам учителя («Новая статья вашего учителя») и подписчикам автора («Новая статья в вашей ленте»).
+     * Ученик, который еще и подписан, получает одно уведомление. Заблокированным и самому автору — нет.
      * Вызывается после публикации и командой blog:notify раз в минуту (для статей по расписанию).
      */
     public function notifyStudents(BlogPost $post): bool
@@ -163,11 +168,53 @@ class BlogService
         }
 
         $post->loadMissing('author');
-        $post->author?->students()
-            ->where(fn ($q) => $q->where('is_blocked', false)->orWhereNull('is_blocked'))
-            ->chunkById(200, fn ($students) => \Illuminate\Support\Facades\Notification::send($students, new \App\Notifications\TeacherPublishedBlogPost($post)), 'users.id', 'id');
+        $author = $post->author;
+        if (! $author) {
+            return true;
+        }
+        $active = fn ($q) => $q->where(fn ($q) => $q->where('is_blocked', false)->orWhereNull('is_blocked'))->whereKeyNot($author->id);
+
+        $studentIds = [];
+        $author->students()->where($active)->chunkById(200, function ($students) use ($post, &$studentIds) {
+            $studentIds = [...$studentIds, ...$students->pluck('id')->all()];
+            \Illuminate\Support\Facades\Notification::send($students, new \App\Notifications\TeacherPublishedBlogPost($post, follower: false));
+        }, 'users.id', 'id');
+
+        $author->blogFollowers()->where($active)->whereNotIn('users.id', $studentIds ?: [0])
+            ->chunkById(200, fn ($followers) => \Illuminate\Support\Facades\Notification::send($followers, new \App\Notifications\TeacherPublishedBlogPost($post, follower: true)), 'users.id', 'id');
 
         return true;
+    }
+
+    /* ---------- Подписки на авторов ---------- */
+
+    /** Подписаться или отписаться. Возвращает, подписан ли теперь. На себя и на не-авторов подписаться нельзя. */
+    public function toggleFollow(User $author, User $follower): bool
+    {
+        abort_if($author->id === $follower->id || $author->role !== User::ROLE_TUTOR, 422);
+
+        $removed = DB::table('blog_author_follows')->where(['follower_id' => $follower->id, 'author_id' => $author->id])->delete();
+        if (! $removed) {
+            DB::table('blog_author_follows')->insert(['follower_id' => $follower->id, 'author_id' => $author->id, 'created_at' => now()]);
+        }
+
+        return ! $removed;
+    }
+
+    public function isFollowing(User $author, ?User $follower): bool
+    {
+        return $follower && DB::table('blog_author_follows')->where(['follower_id' => $follower->id, 'author_id' => $author->id])->exists();
+    }
+
+    public function followersCount(User $author): int
+    {
+        return DB::table('blog_author_follows')->where('author_id', $author->id)->count();
+    }
+
+    /** id авторов, на которых подписан человек (для «Моей ленты»). */
+    public function followedIds(?User $user): array
+    {
+        return $user ? DB::table('blog_author_follows')->where('follower_id', $user->id)->pluck('author_id')->all() : [];
     }
 
     /** Статьи учителей, время которых пришло, а ученики еще не знают (команда blog:notify). */
@@ -237,6 +284,17 @@ class BlogService
     {
         return BlogTag::whereHas('posts', fn ($q) => $q->published())
             ->withCount(['posts as published_count' => fn ($q) => $q->published()])
+            ->orderByDesc('published_count')->orderBy('name')
+            ->limit($limit)->get();
+    }
+
+    /** Темы автора: теги его опубликованных статей, самые частые первыми (боковая колонка на странице автора). */
+    public function authorTags(User $author, int $limit = 20): Collection
+    {
+        $mine = fn ($q) => $q->published()->where('author_id', $author->id);
+
+        return BlogTag::whereHas('posts', $mine)
+            ->withCount(['posts as published_count' => $mine])
             ->orderByDesc('published_count')->orderBy('name')
             ->limit($limit)->get();
     }

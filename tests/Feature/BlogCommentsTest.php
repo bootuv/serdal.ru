@@ -237,13 +237,20 @@ class BlogCommentsTest extends TestCase
             ->assertSee('Меню профиля')
             ->assertSee('Зарема Хашагульгова')
             ->assertSee('Учитель')
-            ->assertSee(route('cabinet.teacher.blog'), false)
-            ->assertSee('Мои статьи')
+            ->assertSee(route('blog.author', $teacher->username), false)
+            ->assertSee('Мой блог')->assertSee('Личный кабинет')
             ->assertSee('Выйти')
             ->assertSee('Перейти в кабинет');
 
         $student = $this->user(User::ROLE_STUDENT);
-        $this->actingAs($student)->get('/blog')->assertOk()->assertSee('Ученик')->assertDontSee('Мои статьи');
+        $this->actingAs($student)->get('/blog')->assertOk()->assertSee('Ученик')->assertSee('Личный кабинет')->assertDontSee('>Мой блог</a>', false);
+
+        // «Мой блог» учителя без статей открывается ему самому — с «Написать статью»; чужим — нет такой страницы
+        $this->actingAs($teacher)->get('/blog/author/' . $teacher->username)->assertOk()
+            ->assertSee('Написать статью')->assertSee(route('cabinet.teacher.blog-article', ['post' => 'new']), false)
+            ->assertSee('У вас пока нет опубликованных статей')
+            ->assertSee('noindex, nofollow', false);
+        $this->actingAs($student)->get('/blog/author/' . $teacher->username)->assertNotFound();
     }
 
     public function test_comment_actions_menu_and_emoji(): void
@@ -259,6 +266,87 @@ class BlogCommentsTest extends TestCase
             ->assertSee('Эмодзи')
             ->set('body', 'Супер 🔥🎉')->call('send')
             ->assertSee('Супер 🔥🎉');
+    }
+
+    public function test_follow_authors_feed_and_notifications(): void
+    {
+        $teacher = $this->user(User::ROLE_TUTOR, ['name' => 'Евлоева Мадина Ахмедовна']);
+        $other = $this->user(User::ROLE_TUTOR);
+        $reader = $this->user(User::ROLE_STUDENT);
+        $colleague = $this->user(User::ROLE_TUTOR);
+        $mineStudent = $this->user(User::ROLE_STUDENT);
+        $teacher->students()->attach($mineStudent->id);
+
+        $old = $this->article($teacher, ['title' => 'Старая статья Мадины', 'published_at' => now()->subDays(3)]);
+        $this->article($other, ['title' => 'Чужая статья', 'published_at' => now()->subDay()]);
+
+        // Гостя кнопка ведет на вход
+        Livewire::test(\App\Livewire\Blog\FollowButton::class, ['authorId' => $teacher->id, 'returnUrl' => '/blog'])->call('toggle')->assertRedirect();
+
+        // Без подписок — «Моей ленты» нет, по умолчанию «Популярные»
+        $this->actingAs($reader)->get('/blog')->assertOk()->assertDontSee('Моя лента');
+
+        // Подписка — со страницы автора; гостя ведем на вход; на себя подписаться нельзя
+        Livewire::actingAs($teacher)->test(\App\Livewire\Blog\FollowButton::class, ['authorId' => $teacher->id])->assertDontSee('Подписаться');
+        Livewire::actingAs($reader)->test(\App\Livewire\Blog\FollowButton::class, ['authorId' => $teacher->id, 'showCount' => true])
+            ->assertSee('Подписаться')->assertSee('0 подписчиков')
+            ->call('toggle')->assertSee('Вы подписаны')->assertSee('1 подписчик');
+        Livewire::actingAs($colleague)->test(\App\Livewire\Blog\FollowButton::class, ['authorId' => $teacher->id])->call('toggle');
+        Livewire::actingAs($mineStudent)->test(\App\Livewire\Blog\FollowButton::class, ['authorId' => $teacher->id])->call('toggle');
+        auth()->logout();
+        $this->get('/blog/author/' . $teacher->username)->assertOk()->assertSee('3 подписчика');
+
+        // «Моя лента» первая и по умолчанию: только статьи авторов из подписок
+        $this->actingAs($reader)->get('/blog')->assertOk()
+            ->assertSeeInOrder(['Моя лента', 'Популярные', 'Новые'])
+            ->assertSee('Старая статья Мадины')->assertDontSee('Чужая статья');
+        $this->actingAs($reader)->get('/blog?sort=popular')->assertOk()->assertSee('Чужая статья');
+
+        // Новая статья — подписчикам «в вашей ленте», ученику-подписчику — одно уведомление как ученику
+        $new = $this->article($teacher, ['title' => 'Новая статья Мадины']);
+        Notification::assertSentTo($reader, \App\Notifications\TeacherPublishedBlogPost::class, fn ($n) => $n->follower && $n->post->is($new));
+        Notification::assertSentTo($colleague, \App\Notifications\TeacherPublishedBlogPost::class, fn ($n) => $n->follower);
+        $this->assertCount(1, Notification::sent($mineStudent, \App\Notifications\TeacherPublishedBlogPost::class)->filter(fn ($n) => $n->post->is($new)));
+        Notification::assertSentTo($mineStudent, \App\Notifications\TeacherPublishedBlogPost::class, fn ($n) => ! $n->follower);
+        Notification::assertNotSentTo($teacher, \App\Notifications\TeacherPublishedBlogPost::class);
+
+        // В кабинете учителя видно подписчиков
+        $this->actingAs($teacher)->get('/cabinet/teacher/blog')->assertOk()->assertSee('3 подписчика');
+
+        // Личный блок в колонке блога: у учителя — статьи, подписчики, «Написать статью»; у читателя — его подписки
+        $this->actingAs($teacher)->get('/blog')->assertOk()
+            ->assertSee('Написать статью')->assertSee('<b>3</b><span>подписчика</span>', false)->assertSee(route('cabinet.teacher.blog-article', ['post' => 'new']), false);
+        $this->actingAs($reader)->get('/blog')->assertOk()
+            ->assertSee('<b>1</b><span>подписка</span>', false)->assertDontSee('<span>подписчик', false)->assertDontSee('Написать статью');
+
+        // Отписка — лента пропадает
+        Livewire::actingAs($reader)->test(\App\Livewire\Blog\FollowButton::class, ['authorId' => $teacher->id])->call('toggle')->assertSee('Подписаться');
+        $this->actingAs($reader)->get('/blog')->assertDontSee('Моя лента');
+    }
+
+    public function test_author_page_sidebar_and_feed_default(): void
+    {
+        $teacher = $this->user(User::ROLE_TUTOR);
+        $other = $this->user(User::ROLE_TUTOR, ['name' => 'Другой Автор']);
+        $this->article($teacher, ['title' => 'Про ЕГЭ', 'tags' => ['ЕГЭ'], 'published_at' => now()->subDays(30)]);
+        $this->article($other, ['title' => 'Про химию', 'tags' => ['химия']]);
+
+        // На странице автора — его темы и без чужих авторов
+        $this->get('/blog/author/' . $teacher->username)->assertOk()
+            ->assertSee('Темы автора')->assertSee('/blog/tag/ege', false)->assertDontSee('/blog/tag/himiya', false)
+            ->assertDontSee('Другой Автор');
+        $this->get('/blog')->assertSee('Популярные темы')->assertSee('Другой Автор');
+
+        // Подписан, но у автора давно ничего — по умолчанию «Популярные», «Моя лента» — вкладкой
+        $reader = $this->user(User::ROLE_STUDENT);
+        app(BlogService::class)->toggleFollow($teacher, $reader);
+        $this->actingAs($reader)->get('/blog')->assertOk()
+            ->assertSee('Моя лента')->assertSee('Про химию')
+            ->assertSee('href="' . url('/blog') . '?sort=feed"', false);
+
+        // Вышла свежая статья — лента открывается сама
+        $this->article($teacher, ['title' => 'Свежая про ОГЭ']);
+        $this->actingAs($reader)->get('/blog')->assertOk()->assertSee('Свежая про ОГЭ')->assertDontSee('Про химию');
     }
 
     public function test_hot_score_formula(): void

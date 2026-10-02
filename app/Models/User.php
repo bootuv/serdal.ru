@@ -473,6 +473,18 @@ class User extends Authenticatable
         }
     }
 
+    /** Авторы блога, на которых подписан пользователь («Моя лента»). */
+    public function followedAuthors()
+    {
+        return $this->belongsToMany(User::class, 'blog_author_follows', 'follower_id', 'author_id')->withPivot('created_at');
+    }
+
+    /** Подписчики автора блога. */
+    public function blogFollowers()
+    {
+        return $this->belongsToMany(User::class, 'blog_author_follows', 'author_id', 'follower_id')->withPivot('created_at');
+    }
+
     /** Статьи блога, где пользователь — автор (учитель). */
     public function blogPosts()
     {

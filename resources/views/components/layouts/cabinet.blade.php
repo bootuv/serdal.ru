@@ -199,7 +199,7 @@
             <div class="relative border-t border-line pt-3" data-tour="nav-profile" x-data="{ open: false }" x-on:click.outside="open = false" x-on:keydown.escape="open = false">
                 <div x-show="open" x-cloak role="menu" aria-label="Профиль" class="absolute inset-x-0 bottom-full z-10 mb-1 flex flex-col rounded border border-line bg-white p-1 shadow-card">
                     @foreach ($profileMenu as $item)
-                        <a href="{{ $item['href'] }}" @if (! empty($item['external'])) target="_blank" rel="noopener" @endif role="menuitem" class="flex h-11 items-center gap-3 rounded-sm px-3 text-t1-s font-medium text-ink hover:bg-soft-hover"><x-ui.icon :name="$item['icon']" />{{ $item['label'] }}@if (! empty($item['external']))<x-ui.icon name="external" size="s" class="ml-auto text-faint" />@endif</a>
+                        <a href="{{ $item['href'] }}" {!! ! empty($item['external']) ? 'target="_blank" rel="noopener"' : '' !!} role="menuitem" class="flex h-11 items-center gap-3 rounded-sm px-3 text-t1-s font-medium text-ink hover:bg-soft-hover"><x-ui.icon :name="$item['icon']" />{{ $item['label'] }}@if (! empty($item['external']))<x-ui.icon name="external" size="s" class="ml-auto text-faint" />@endif</a>
                     @endforeach
                     <span class="mx-3 my-1 h-px bg-line" aria-hidden="true"></span>
                     <form method="POST" action="{{ route('logout') }}">
@@ -259,7 +259,7 @@
                 </div>
 
                 @foreach ($moreItems as $item)
-                    <a href="{{ $item['href'] }}" @if (! empty($item['external'])) target="_blank" rel="noopener" @endif @class([
+                    <a href="{{ $item['href'] }}" {!! ! empty($item['external']) ? 'target="_blank" rel="noopener"' : '' !!} @class([
                         'flex h-11 items-center gap-3 rounded px-3 text-t1-s font-medium',
                         'bg-mint font-semibold text-ink' => $active === $item['key'],
                         'text-muted hover:bg-soft-hover hover:text-ink' => $active !== $item['key'],

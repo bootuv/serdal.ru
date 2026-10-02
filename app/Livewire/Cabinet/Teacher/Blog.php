@@ -45,7 +45,10 @@ class Blog extends Component
 
         return view('livewire.cabinet.teacher.blog', [
             'items' => $items,
-            'facts' => $published ? plural_ru($published, 'статья на сайте', 'статьи на сайте', 'статей на сайте') : null,
+            'facts' => implode(' · ', array_filter([
+                $published ? plural_ru($published, 'статья на сайте', 'статьи на сайте', 'статей на сайте') : null,
+                ($followers = $blog->followersCount($teacher)) ? plural_ru($followers, 'подписчик', 'подписчика', 'подписчиков') : null,
+            ])) ?: null,
             'authorUrl' => $published && $teacher->username ? route('blog.author', $teacher->username) : null,
         ]);
     }
