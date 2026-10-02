@@ -23,6 +23,29 @@ class RichText
         return new HtmlString(preg_replace('/<a(?=\s)/i', '<a target="_blank" rel="noopener"', self::sanitize($html)));
     }
 
+    /**
+     * Видео в тексте (новости, статьи блога) → наш плеер записей (x-ui.video-player). Бывшие GIF (loop) остаются
+     * беззвучным зацикленным <video>. Принимает уже очищенный HTML (результат html()).
+     */
+    public static function players(?HtmlString $html): ?HtmlString
+    {
+        if ($html === null || ! str_contains((string) $html, '<video')) {
+            return $html;
+        }
+
+        return new HtmlString(preg_replace_callback('~<video\b([^>]*)>.*?</video>~is', function (array $m) {
+            if (preg_match('~\sloop\b~i', $m[1])) {
+                return $m[0];
+            }
+            $attr = fn (string $name) => preg_match('~\s' . $name . '="([^"]*)"~i', $m[1], $a) ? html_entity_decode($a[1]) : null;
+            if (! $src = $attr('src')) {
+                return '';
+            }
+
+            return \Illuminate\Support\Facades\Blade::render('<x-ui.video-player :src="$src" :poster="$poster" label="Видео" />', ['src' => $src, 'poster' => $attr('poster')]);
+        }, (string) $html));
+    }
+
     /** HTML из редактора → очищенный HTML для хранения (та же очистка, что при показе). Пустой — null. */
     public static function clean(?string $html): ?string
     {

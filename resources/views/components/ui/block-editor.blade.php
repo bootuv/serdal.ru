@@ -1,13 +1,15 @@
 {{-- Блочный редактор в духе Notion (статьи блога): «/» в пустой строке — меню блоков (заголовок, подзаголовок, списки, цитата,
      выделенный блок, разделитель, картинка), выделение текста — тёмная панель «жирный, курсив, ссылка, заголовки»,
      Markdown-сокращения, картинки вставкой и перетаскиванием. Привязка — wire:model (HTML), на сервере — RichText::clean().
-     Картинка грузится во временное свойство (upload-model, WithFileUploads), метод upload-method кладёт её на CDN и возвращает адрес. --}}
-@props(['label', 'name', 'uploadModel', 'uploadMethod', 'placeholder' => null, 'hint' => null])
+     Картинка грузится во временное свойство (upload-model, WithFileUploads), метод upload-method кладёт её на CDN и возвращает адрес.
+     video-model / video-method (новости) — еще и пункт «Видео»: метод возвращает адреса ролика и обложки, ролик сжимается в очереди
+     (MediaService), редактор пишет «Видео обрабатывается…» и спрашивает готовность методом компонента mediaStatus. --}}
+@props(['label', 'name', 'uploadModel', 'uploadMethod', 'videoModel' => null, 'videoMethod' => null, 'placeholder' => null, 'hint' => null])
 @php $model = $attributes->wire('model')->value(); @endphp
 <div class="flex flex-col gap-2">
     <span id="{{ $name }}-label" class="sr-only">{{ $label }}</span>
     <div wire:ignore class="relative"
-         x-data="blockEditor($wire.entangle('{{ $model }}'), { placeholder: @js($placeholder), uploadModel: @js($uploadModel), uploadMethod: @js($uploadMethod) })"
+         x-data="blockEditor($wire.entangle('{{ $model }}'), { placeholder: @js($placeholder), uploadModel: @js($uploadModel), uploadMethod: @js($uploadMethod), videoModel: @js($videoModel), videoMethod: @js($videoMethod) })"
          x-on:livewire:navigating.window="destroy()">
         <div x-ref="editor" aria-labelledby="{{ $name }}-label"></div>
 
@@ -17,7 +19,7 @@
             @foreach ([
                 ['text', 'text', 'Текст', ''], ['h2', 'heading-2', 'Заголовок', '##'], ['h3', 'heading-3', 'Подзаголовок', '###'],
                 ['ul', 'list', 'Список', '-'], ['ol', 'list-ordered', 'Нумерованный список', '1.'], ['quote', 'quote', 'Цитата', '>'],
-                ['callout', 'callout', 'Выделенный блок', ''], ['hr', 'divider', 'Разделитель', '---'], ['image', 'image', 'Картинка', ''],
+                ['callout', 'callout', 'Выделенный блок', ''], ['hr', 'divider', 'Разделитель', '---'], ['image', 'image', 'Картинка', ''], ['video', 'video', 'Видео', ''],
             ] as [$id, $icon, $title, $hint])
                 <button type="button" role="option" x-show="shows('{{ $id }}')" x-bind:aria-selected="current('{{ $id }}')"
                         x-on:mousedown.prevent="pick('{{ $id }}')" x-on:mouseenter="hover('{{ $id }}')" x-bind:class="current('{{ $id }}') ? 'bg-soft text-ink' : 'text-muted'"
@@ -46,7 +48,12 @@
 
         <input type="file" x-ref="image" accept="image/png,image/jpeg,image/gif,image/webp" class="sr-only" tabindex="-1" aria-label="Картинка в текст"
                x-on:change="uploadImage($event.target.files[0]); $event.target.value = ''">
-        <span x-show="uploading" x-cloak class="text-t3 text-muted">Загружаем картинку…</span>
+        @if ($videoMethod)
+            <input type="file" x-ref="video" accept="video/*" class="sr-only" tabindex="-1" aria-label="Видео в текст"
+                   x-on:change="uploadVideo($event.target.files[0]); $event.target.value = ''">
+        @endif
+        <span x-show="uploading" x-cloak class="text-t3 text-muted" x-text="uploadingText"></span>
+        <span x-show="! uploading && processing" x-cloak class="text-t3 text-muted">Видео обрабатывается — обычно минута-две</span>
     </div>
     @error($name)<span class="text-t2 font-medium text-danger-fg">{{ $message }}</span>@enderror
     @if ($hint && ! $errors->has($name))<span class="text-t3 text-muted">{{ $hint }}</span>@endif

@@ -2,19 +2,20 @@
      Тёмная рамка вокруг видео: записи — чаще белая доска, плеер не должен сливаться со страницей.
      Панель — внизу поверх видео, видна при наведении (касании), на паузе и пока открыто меню скорости.
      Жёлтая кнопка «Смотреть» до начала; панель: пауза, перемотка, время, громкость, скорость 0,5–2× (запоминается), полный экран.
-     Клавиши: пробел, ←/→ — 10 с, ↑/↓ — громкость, M, F. src — адрес видео, title — название (для экранного диктора). --}}
-@props(['src', 'title' => null])
-<div x-data="videoPlayer" tabindex="0" role="region" aria-label="{{ $title ? 'Запись: ' . $title : 'Запись занятия' }}"
+     Клавиши: пробел, ←/→ — 10 с, ↑/↓ — громкость, M, F. src — адрес видео, title — название (для экранного диктора).
+     Видео в тексте новостей и статей (RichText::players): poster — обложка, label — «Видео», без названия. --}}
+@props(['src', 'title' => null, 'poster' => null, 'label' => 'Запись занятия'])
+<div x-data="videoPlayer" tabindex="0" role="region" aria-label="{{ $title ? 'Запись: ' . $title : $label }}"
      x-on:keydown="key($event)" x-on:mousemove="wake()" x-on:touchstart.passive="wake()" x-on:mouseleave="rest()" x-on:focusin="wake()"
      x-bind:class="(full ? 'justify-center ' : '') + (playing && ! hover ? 'cursor-none' : '')"
-     {{ $attributes->class('group relative flex w-full flex-col rounded-lg bg-ink p-1 text-white shadow-card') }}>
+     {{ $attributes->class('vp-player group relative flex w-full flex-col rounded-lg bg-ink p-1 text-white shadow-card') }}>
     <div class="relative min-h-0" x-bind:class="full ? 'flex flex-1 items-center justify-center' : ''">
-        <video x-ref="video" src="{{ $src }}" preload="metadata" playsinline
+        <video x-ref="video" src="{{ $src }}" {!! $poster ? 'poster="' . e($poster) . '"' : '' !!} preload="metadata" playsinline
                class="block w-full rounded bg-ink" x-bind:class="full ? 'h-full object-contain' : 'aspect-video'"
                x-on:click="toggle()" x-on:dblclick="toggleFull()">Ваш браузер не поддерживает воспроизведение видео.</video>
 
         {{-- Жёлтая кнопка до первого запуска --}}
-        <button type="button" x-show="! started" x-on:click="toggle()" aria-label="Смотреть запись"
+        <button type="button" x-show="! started" x-on:click="toggle()" aria-label="{{ $label === 'Запись занятия' ? 'Смотреть запись' : 'Смотреть видео' }}"
                 class="absolute left-1/2 top-1/2 flex size-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-brand text-ink shadow-modal hover:bg-brand-hover">
             <x-ui.icon name="play" />
         </button>

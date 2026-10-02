@@ -1,10 +1,12 @@
 // Блочный редактор в духе Notion для статей блога (<x-ui.block-editor>):
 // «/» в пустой строке открывает меню блоков, выделение текста — панель «жирный, курсив, ссылка»,
 // Markdown-сокращения («## », «- », «1. », «> », «---»), картинки — из меню, вставкой и перетаскиванием.
+// options.videoMethod (новости) — еще и видео: пункт «Видео» в меню, ролик сжимается на сервере, GIF приходит зацикленным видео.
 // Экземпляр Tiptap держим в замыкании, а не в реактивных данных Alpine (иначе Proxy ломает редактор).
 import { Editor, Node, mergeAttributes } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import { Placeholder } from '@tiptap/extension-placeholder';
+import { Video, videosIn, waitVideo } from './editor-video';
 
 const Image = Node.create({
     name: 'image',
@@ -46,7 +48,8 @@ const BLOCKS = [
     { id: 'quote', title: 'Цитата', hint: '> ', words: 'цитата', run: (c) => c.setBlockquote() },
     { id: 'callout', title: 'Выделенный блок', hint: '', words: 'выделенный блок совет важно вывод', run: (c) => c.setNode('callout') },
     { id: 'hr', title: 'Разделитель', hint: '---', words: 'разделитель линия', run: (c) => c.setHorizontalRule() },
-    { id: 'image', title: 'Картинка', hint: '', words: 'картинка изображение фото', run: null },
+    { id: 'image', title: 'Картинка', hint: '', words: 'картинка изображение фото гиф gif', run: null },
+    { id: 'video', title: 'Видео', hint: '', words: 'видео ролик клип', run: null },
 ];
 
 window.blockEditor = (content, options = {}) => {
@@ -56,6 +59,8 @@ window.blockEditor = (content, options = {}) => {
         content,
         tick: 0,
         uploading: false,
+        uploadingText: 'Загружаем картинку…',
+        processing: 0,
         menu: { open: false, query: '', index: 0, from: 0, x: 0, y: 0 },
         bubble: { open: false, x: 0, y: 0 },
 
@@ -75,6 +80,7 @@ window.blockEditor = (content, options = {}) => {
                     }),
                     Image,
                     Callout,
+                    ...(options.videoMethod ? [Video] : []),
                 ],
                 content: this.content || '',
                 editorProps: {
@@ -87,6 +93,9 @@ window.blockEditor = (content, options = {}) => {
                 onTransaction: () => { this.tick++; this.sync(); },
                 onBlur: () => { setTimeout(() => { this.bubble.open = false; }, 150); },
             });
+
+            // Черновик открыли, пока видео еще сжимается, — ждем и его
+            if (options.videoMethod) videosIn(this.content).forEach((src) => this.waitVideo(src));
 
             this.$watch('content', (value) => {
                 const current = editor.isEmpty ? '' : editor.getHTML();
@@ -132,7 +141,7 @@ window.blockEditor = (content, options = {}) => {
         items() {
             this.tick;
             const q = this.menu.query;
-            return BLOCKS.filter((b) => q === '' || b.title.toLowerCase().includes(q) || b.words.includes(q));
+            return BLOCKS.filter((b) => (b.id !== 'video' || options.videoMethod) && (q === '' || b.title.toLowerCase().includes(q) || b.words.includes(q)));
         },
 
         onKey(event) {
@@ -151,9 +160,9 @@ window.blockEditor = (content, options = {}) => {
             const to = editor.state.selection.from;
             const chain = editor.chain().focus().deleteRange({ from: this.menu.from, to });
             this.menu.open = false;
-            if (id === 'image') {
+            if (id === 'image' || id === 'video') {
                 chain.run();
-                this.$refs.image.click();
+                this.$refs[id].click();
                 return;
             }
             block.run(chain).run();
@@ -173,27 +182,69 @@ window.blockEditor = (content, options = {}) => {
 
         /* ---------- Картинки ---------- */
 
-        // Вставка и перетаскивание файлов: картинки загружаем, остальное — как обычно
+        // Вставка и перетаскивание файлов: картинки (и видео, если можно) загружаем, остальное — как обычно
         dropFiles(files) {
-            const images = Array.from(files || []).filter((f) => f.type.startsWith('image/'));
-            if (! images.length) return false;
+            const list = Array.from(files || []);
+            const images = list.filter((f) => f.type.startsWith('image/'));
+            const videos = options.videoMethod ? list.filter((f) => f.type.startsWith('video/')) : [];
+            if (! images.length && ! videos.length) return false;
             images.forEach((file) => this.uploadImage(file));
+            videos.forEach((file) => this.uploadVideo(file));
             return true;
         },
 
         // Файл — во временное свойство Livewire (uploadModel), метод компонента (uploadMethod) кладёт его на CDN и возвращает адрес
+        // Метод может вернуть и видео — в новостях GIF становится зацикленным видео
         uploadImage(file) {
             if (! file) return;
             this.uploading = true;
+            this.uploadingText = 'Загружаем картинку…';
             const done = () => { this.uploading = false; };
             this.$wire.upload(options.uploadModel, file, async () => {
                 try {
-                    const url = await this.$wire.call(options.uploadMethod);
-                    if (url) editor.chain().focus().insertContent({ type: 'image', attrs: { src: url, alt: '' } }).run();
+                    const result = await this.$wire.call(options.uploadMethod);
+                    if (result && typeof result === 'object') this.insertVideo(result);
+                    else if (result) editor.chain().focus().insertContent({ type: 'image', attrs: { src: result, alt: '' } }).run();
                 } finally { done(); }
             }, () => {
                 done();
                 window.dispatchEvent(new CustomEvent('toast', { detail: { message: 'Картинку не удалось загрузить — попробуйте файл поменьше', tone: 'danger' } }));
+            });
+        },
+
+        /* ---------- Видео ---------- */
+
+        uploadVideo(file) {
+            if (! file || ! options.videoMethod) return;
+            this.uploading = true;
+            this.uploadingText = 'Загружаем видео… 0%';
+            const done = () => { this.uploading = false; };
+            this.$wire.upload(options.videoModel, file, async () => {
+                try {
+                    const result = await this.$wire.call(options.videoMethod);
+                    if (result) this.insertVideo(result);
+                } finally { done(); }
+            }, () => {
+                done();
+                window.dispatchEvent(new CustomEvent('toast', { detail: { message: 'Видео не удалось загрузить — проверьте размер (до 200 МБ)', tone: 'danger' } }));
+            }, (event) => { this.uploadingText = `Загружаем видео… ${event.detail.progress}%`; });
+        },
+
+        insertVideo({ src, poster, loop }) {
+            editor.chain().focus().insertContent({ type: 'video', attrs: { src, poster, loop: !! loop } }).run();
+            this.waitVideo(src);
+        },
+
+        // Пока ролик сжимается — надпись под редактором; готов — перезагружаем плеер
+        waitVideo(src) {
+            waitVideo(this.$wire, src, (status) => {
+                if (status === 'pending') { this.processing++; return; }
+                this.processing--;
+                if (status === 'failed') {
+                    window.dispatchEvent(new CustomEvent('toast', { detail: { message: 'Видео не удалось обработать — удалите его и загрузите другой файл', tone: 'danger' } }));
+                    return;
+                }
+                this.$refs.editor.querySelectorAll('video').forEach((el) => { if (el.getAttribute('src') === src) el.load(); });
             });
         },
 

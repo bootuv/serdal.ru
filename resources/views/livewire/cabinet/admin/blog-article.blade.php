@@ -87,7 +87,7 @@
                           class="w-full resize-none overflow-hidden bg-transparent text-h1-m font-medium text-ink outline-none placeholder:text-faint lg:text-h1"></textarea>
                 @error('title')<span class="text-t2 font-medium text-danger-fg">{{ $message }}</span>@enderror
             </label>
-            <x-ui.block-editor label="Текст статьи" name="body" wire:model="body" upload-model="image" upload-method="storeImage" />
+            <x-ui.block-editor label="Текст статьи" name="body" wire:model="body" upload-model="image" upload-method="storeImage" video-model="video" video-method="storeVideo" />
         @else
             <h1 class="text-h1-m font-medium lg:text-h1">{{ $title }}</h1>
             @if ($body)<div class="block-content">{!! \App\Support\RichText::html($body) !!}</div>@endif

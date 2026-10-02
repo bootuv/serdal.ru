@@ -119,4 +119,17 @@ class NewsVideoTest extends TestCase
         $this->assertNotNull(RichText::clean($gif));
         $this->assertNotNull(RichText::html('<video src="https://cdn.example/news/a.mp4" controls></video>'));
     }
+
+    public function test_video_is_shown_in_our_player_and_gif_stays_looping(): void
+    {
+        $html = RichText::players(RichText::html('<p>Смотрите</p><video src="https://cdn.example/news/a.mp4" poster="https://cdn.example/news/a.jpg" controls preload="metadata"></video>'
+            . '<video src="https://cdn.example/news/b.mp4" autoplay loop muted playsinline></video>'));
+
+        $this->assertStringContainsString('x-data="videoPlayer"', (string) $html);
+        $this->assertStringContainsString('src="https://cdn.example/news/a.mp4"', (string) $html);
+        $this->assertStringContainsString('poster="https://cdn.example/news/a.jpg"', (string) $html);
+        $this->assertStringContainsString('aria-label="Смотреть видео"', (string) $html);
+        $this->assertSame(1, substr_count((string) $html, 'x-data="videoPlayer"'));
+        $this->assertStringContainsString('<video src="https://cdn.example/news/b.mp4" autoplay loop muted playsinline></video>', (string) $html);
+    }
 }

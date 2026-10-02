@@ -67,8 +67,6 @@
     .rich h2, .rich h3 { @apply text-h2 font-medium; }
     .rich img { @apply max-w-full rounded; }
     .rich img.ProseMirror-selectednode { outline: 2px solid theme('colors.ink.DEFAULT'); }
-    .rich video { @apply max-w-full rounded bg-soft; }
-    .rich video.ProseMirror-selectednode { outline: 2px solid theme('colors.ink.DEFAULT'); }
 
     /* Выбранный вариант (x-ui.option) — тёмная обводка */
     .option:has(input:checked) { @apply shadow-selected; }
@@ -94,7 +92,8 @@
 .block-content a { @apply font-medium underline underline-offset-4 decoration-line-strong; }
 .block-content strong, .block-content b { @apply font-semibold; }
 .block-content img { @apply max-w-full rounded-lg; }
-.block-content img.ProseMirror-selectednode, .block-content hr.ProseMirror-selectednode { outline: 2px solid theme('colors.ink.DEFAULT'); }
+.block-content video { @apply w-full rounded-lg bg-soft; }
+.block-content img.ProseMirror-selectednode, .block-content hr.ProseMirror-selectednode, .block-content video.ProseMirror-selectednode { outline: 2px solid theme('colors.ink.DEFAULT'); }
 .block-content .is-empty::before { @apply pointer-events-none float-left h-0 text-faint; content: attr(data-placeholder); }
 
 /* Редактор (x-ui.editor): без собственной обводки фокуса, плейсхолдер пустого документа */

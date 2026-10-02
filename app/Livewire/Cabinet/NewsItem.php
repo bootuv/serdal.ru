@@ -42,7 +42,7 @@ class NewsItem extends Component
         return view('livewire.cabinet.news-item', [
             'title' => $a->title,
             'when' => HumanDate::at($a->published_at),
-            'body' => RichText::html($a->body),
+            'body' => RichText::players(RichText::html($a->body)),
             'backUrl' => AnnouncementService::listUrl(auth()->user()),
         ]);
     }

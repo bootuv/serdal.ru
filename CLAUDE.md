@@ -60,7 +60,9 @@ Laravel 11 + Livewire 3 + Tailwind 3. Занятия идут в BigBlueButton, 
 
 ## Видео в новостях
 
-- В редакторе новости кнопка «Видео» (`x-ui.editor-media` с `video-method`): исходник уходит в очередь `ConvertVideo` (на проде — `redis-long`, воркер записей), `MediaService` сжимает ffmpeg в MP4 H.264 (длинная сторона до 1280) и делает обложку JPG на CDN. GIF, загруженный картинкой, становится беззвучным зацикленным видео (`<video autoplay loop muted>`).
+- Экран новости (`Admin\NewsItem`) устроен как статья блога: чистый лист с `x-ui.block-editor`, настройки (кому, когда, как показать) — в панели справа (событие `news-settings`), в кабинетах текст новости — `.block-content`.
+- В блочном редакторе пункт «Видео» в меню «/» (`video-method`, код — `resources/js/editor-video.js`): исходник уходит в очередь `ConvertVideo` (на проде — `redis-long`, воркер записей), `MediaService` сжимает ffmpeg в MP4 H.264 (длинная сторона до 1280) и делает обложку JPG на CDN. GIF, загруженный картинкой, становится беззвучным зацикленным видео (`<video autoplay loop muted>`).
+- Видео есть и в статьях блога (тот же редактор, трейт `Admin\Concerns\EditorVideo`). При показе `RichText::players` превращает `<video controls>` в наш плеер записей `x-ui.video-player`, бывшие GIF остаются `<video loop>`; на сайте плееру нужны `resources/css/player.css` + `resources/js/player.js` (подключаются в `blog/show`, если в тексте есть видео).
 - Адреса известны сразу, редактор вставляет видео и опрашивает `mediaStatus`; опубликовать или запланировать новость с необработанным видео нельзя (`pendingIn` / `failedIn`). Состояние — в кэше `media:pending:*` / `media:failed:*`. На сервере нужен `ffmpeg`, лимиты загрузки — `deploy/server`. Тесты — `tests/Feature/Admin/NewsVideoTest.php`.
 
 ## Рассылки на внешние адреса

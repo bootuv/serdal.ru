@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Cabinet\Admin;
 
+use App\Livewire\Cabinet\Admin\Concerns\EditorVideo;
 use App\Models\BlogPost;
 use App\Models\User;
 use App\Services\AnnouncementService;
@@ -25,6 +26,7 @@ use Livewire\WithFileUploads;
 class BlogArticle extends Component
 {
     use WithFileUploads;
+    use EditorVideo;
 
     public ?int $postId = null;
 
@@ -225,6 +227,7 @@ class BlogArticle extends Component
     public function submit(): void
     {
         $this->validate();
+        $this->ensureMediaReady($this->body);
         $model = $this->model();
 
         if ($this->isTeacher()) {
@@ -270,6 +273,7 @@ class BlogArticle extends Component
     {
         abort_if($this->isTeacher(), 403);
         $this->validate();
+        $this->ensureMediaReady($this->body);
         $this->publishAndGo(now(), 'Статья опубликована');
     }
 
@@ -385,10 +389,21 @@ class BlogArticle extends Component
 
     /* ---------- Картинки ---------- */
 
-    /** Картинка в текст: на CDN, адрес вставляет редактор. */
-    public function storeImage(): ?string
+    /** Картинка в текст: на CDN, адрес вставляет редактор. GIF — зацикленным видео (редактор получает массив). */
+    public function storeImage(): string|array|null
     {
+        if ($this->image instanceof \Illuminate\Http\UploadedFile && ($video = $this->gifAsVideo($this->image))) {
+            $this->image = null;
+
+            return $video;
+        }
+
         return $this->upload('image');
+    }
+
+    protected function mediaDir(): string
+    {
+        return BlogService::IMAGE_DIR;
     }
 
     /** Обложка: загружается сразу, адрес сохранится вместе со статьей. */

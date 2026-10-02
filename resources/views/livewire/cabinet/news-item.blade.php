@@ -3,7 +3,7 @@
 
     <x-ui.card as="article" class="max-w-text" aria-label="{{ $title }}">
         @if ($body)
-            <div class="rich">{{ $body }}</div>
+            <div class="block-content">{{ $body }}</div>
         @else
             <p class="text-t2 text-muted">Текста нет — вся новость в заголовке</p>
         @endif

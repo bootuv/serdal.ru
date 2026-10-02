@@ -41,7 +41,7 @@ class NewsTest extends TestCase
         $this->actingAs($this->user(User::ROLE_ADMIN))->get('/cabinet/admin/news')->assertOk()
             ->assertSee('Написать новость')
             ->assertSee('Пока ничего не опубликовано');
-        $this->get('/cabinet/admin/news/new')->assertOk()->assertSee('Новая новость')->assertSee('Сохранить черновик');
+        $this->get('/cabinet/admin/news/new')->assertOk()->assertSee('Настройки новости')->assertSee('Сохранить как черновик');
     }
 
     public function test_draft_is_not_visible_and_not_sent(): void
@@ -173,5 +173,29 @@ class NewsTest extends TestCase
             ->assertRedirect(route('cabinet.admin.news'));
         $this->assertDatabaseCount('announcements', 0);
         $this->assertDatabaseCount('announcement_reads', 0);
+    }
+
+    public function test_autosave_creates_and_updates_draft_without_sending(): void
+    {
+        $page = Livewire::actingAs($this->user(User::ROLE_ADMIN))->test(NewsItem::class, ['announcement' => 'new']);
+
+        // Пустую не создаем
+        $page->call('autosave');
+        $this->assertSame(0, Announcement::count());
+
+        $page->set('title', 'Запустили блог')->set('body', '<p>Текст</p>')->call('autosave')->assertSet('savedAt', now()->format('H:i'));
+        $news = Announcement::sole();
+        $this->assertNull($news->published_at);
+        $this->assertSame($news->id, $page->get('announcementId'));
+
+        $page->set('body', '<p>Новый текст</p>')->call('autosave');
+        $this->assertSame(1, Announcement::count());
+        $this->assertSame('<p>Новый текст</p>', $news->fresh()->body);
+        Notification::assertNothingSent();
+
+        // Опубликованную автосохранение не трогает
+        $page->call('publish');
+        $page->set('body', '<p>Правка</p>')->call('autosave');
+        $this->assertSame('<p>Новый текст</p>', $news->fresh()->body);
     }
 }

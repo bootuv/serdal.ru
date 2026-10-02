@@ -3,10 +3,10 @@
 namespace App\Livewire\Cabinet\Admin;
 
 use App\Livewire\Cabinet\Admin\Concerns\AdminScreen;
+use App\Livewire\Cabinet\Admin\Concerns\EditorVideo;
 use App\Models\Announcement;
 use App\Services\AnnouncementService;
 use App\Services\HelpCenterService;
-use App\Services\MediaService;
 use App\Support\HumanDate;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -16,12 +16,15 @@ use Livewire\WithFileUploads;
 
 /**
  * Новость: новая (/cabinet/admin/news/new) или существующая. Черновик → публикация сразу или по времени.
+ * Экран как у статьи блога: чистый лист с блочным редактором (видео и GIF — MediaService), настройки — в панели справа.
+ * Новая и черновик сохраняются сами (autosave), запланированная и опубликованная — только кнопкой.
  * Уведомление уходит один раз, когда новость выходит; после этого «Кому» и «Письмо на почту» не меняются.
  */
 #[Layout('components.layouts.cabinet', ['title' => 'Новость', 'active' => 'news'])]
 class NewsItem extends Component
 {
     use AdminScreen;
+    use EditorVideo;
     use WithFileUploads;
 
     public const IMAGE_DIR = 'news';
@@ -42,8 +45,9 @@ class NewsItem extends Component
     /** Картинка для текста (временная загрузка, см. x-ui.editor-media). */
     public $image = null;
 
-    /** Видео для текста (временная загрузка): сжимается в очереди, см. MediaService. */
-    public $video = null;
+    /** Автосохранение: что уже в базе (хеш полей) и во сколько сохранили. */
+    public string $savedHash = '';
+    public ?string $savedAt = null;
 
     public bool $confirmPublish = false;
     public bool $confirmDelete = false;
@@ -53,6 +57,8 @@ class NewsItem extends Component
         $this->authorizeAdmin();
 
         if ($announcement === 'new') {
+            $this->savedHash = $this->hash();
+
             return;
         }
 
@@ -70,6 +76,36 @@ class NewsItem extends Component
             $this->when = 'later';
             $this->publishAt = $model->published_at->format('Y-m-d\TH:i');
         }
+        $this->savedHash = $this->hash();
+    }
+
+    private function hash(): string
+    {
+        return md5(json_encode([$this->title, $this->body, $this->audience, $this->important, $this->pinned, $this->sendMail]));
+    }
+
+    /** Раз в 5 секунд (wire:poll): новую — создаем черновиком, черновик — обновляем. */
+    public function autosave(): void
+    {
+        $model = $this->model();
+        if (($model && ($model->isPublished() || $model->isScheduled())) || $this->hash() === $this->savedHash) {
+            return;
+        }
+        if (! $model && trim($this->title) === '' && trim(strip_tags($this->body, '<img><video>')) === '') {
+            return;
+        }
+        if (mb_strlen($this->title) > 255) {
+            return; // ошибку покажем при нажатии кнопки
+        }
+
+        $announcement = $this->service()->save($model, $this->data(null), auth()->user());
+        if (! $model) {
+            // Новая новость получила адрес — меняем его в строке браузера без перезагрузки
+            $this->announcementId = $announcement->id;
+            $this->js('history.replaceState(null, "", ' . json_encode(route('cabinet.admin.news-item', ['announcement' => $announcement->id])) . ')');
+        }
+        $this->savedHash = $this->hash();
+        $this->savedAt = now()->format('H:i');
     }
 
     private function model(): ?Announcement
@@ -113,6 +149,10 @@ class NewsItem extends Component
     private function scheduledTime(): \Carbon\CarbonInterface
     {
         $at = AnnouncementService::parseTime($this->publishAt);
+        // Поле времени — в панели «Настройки»: открываем ее, чтобы ошибку было видно
+        if (! $at || $at->isPast()) {
+            $this->dispatch('news-settings');
+        }
         if (! $at) {
             throw ValidationException::withMessages(['publishAt' => 'Выберите дату и время публикации']);
         }
@@ -143,7 +183,7 @@ class NewsItem extends Component
     public function submit(): void
     {
         $this->validate();
-        $this->ensureMediaReady();
+        $this->ensureMediaReady($this->body);
         $model = $this->model();
 
         if ($model?->isPublished()) {
@@ -162,10 +202,24 @@ class NewsItem extends Component
         $this->confirmPublish = true;
     }
 
+    /** Из списка под главной кнопкой: опубликовать сразу (с подтверждением), даже если было выбрано «По времени». */
+    public function publishNow(): void
+    {
+        $this->when = 'now';
+        $this->submit();
+    }
+
+    /** Из списка под главной кнопкой: выбрать время — в панели настроек. */
+    public function planLater(): void
+    {
+        $this->when = 'later';
+        $this->dispatch('news-settings');
+    }
+
     public function publish(): void
     {
         $this->validate();
-        $this->ensureMediaReady();
+        $this->ensureMediaReady($this->body);
         $this->confirmPublish = false;
         $this->saveAndGo(now(), 'Новость опубликована');
     }
@@ -207,16 +261,9 @@ class NewsItem extends Component
         $this->redirectRoute('cabinet.admin.news');
     }
 
-    /** Видео еще сжимается или не сжалось — такую новость не публикуем (уведомление ушло бы с пустым плеером). */
-    private function ensureMediaReady(): void
+    protected function mediaDir(): string
     {
-        $media = app(MediaService::class);
-        if ($media->pendingIn($this->body)) {
-            throw ValidationException::withMessages(['body' => 'Видео еще обрабатывается — подождите пару минут и опубликуйте снова']);
-        }
-        if ($media->failedIn($this->body)) {
-            throw ValidationException::withMessages(['body' => 'Одно из видео не удалось обработать — удалите его из текста и загрузите снова']);
-        }
+        return self::IMAGE_DIR;
     }
 
     /**
@@ -237,49 +284,16 @@ class NewsItem extends Component
             return null;
         }
 
-        $media = app(MediaService::class);
-        if (strtolower($this->image->getClientOriginalExtension()) === 'gif' && $media->available()) {
-            $result = $media->storeVideo($this->image, self::IMAGE_DIR, loop: true);
+        if ($video = $this->gifAsVideo($this->image)) {
             $this->image = null;
 
-            return $result;
+            return $video;
         }
 
         $url = app(HelpCenterService::class)->storeImage($this->image, self::IMAGE_DIR);
         $this->image = null;
 
         return $url;
-    }
-
-    /** Видео в текст: исходник в очередь на сжатие, редактору — будущие адреса ролика и обложки. */
-    public function storeVideo(): ?array
-    {
-        $media = app(MediaService::class);
-        try {
-            $this->validateOnly('video', ['video' => ['required', 'file', 'mimetypes:video/mp4,video/quicktime,video/webm,video/x-msvideo,video/x-matroska,video/3gpp,video/mpeg', 'max:204800']], [
-                'video.mimetypes' => 'Нужно видео MP4, MOV, WebM, AVI или MKV',
-                'video.max' => 'Видео больше 200 МБ',
-            ]);
-            if (! $media->available()) {
-                throw ValidationException::withMessages(['video' => 'На сервере не настроена обработка видео']);
-            }
-        } catch (ValidationException $e) {
-            $this->video = null;
-            $this->dispatch('toast', message: collect($e->errors())->flatten()->first() ?: 'Видео не удалось загрузить', tone: 'danger');
-
-            return null;
-        }
-
-        $result = $media->storeVideo($this->video, self::IMAGE_DIR);
-        $this->video = null;
-
-        return $result;
-    }
-
-    /** Редактор спрашивает, готово ли видео: ready, pending или failed. */
-    public function mediaStatus(string $url): string
-    {
-        return app(MediaService::class)->status($url);
     }
 
     public function render()

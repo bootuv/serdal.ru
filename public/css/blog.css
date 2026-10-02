@@ -483,6 +483,23 @@
   border-radius: 16px;
 }
 
+/* Видео: обычное — наш плеер записей (.vp-player), бывший GIF — беззвучный зацикленный <video> */
+.blog-body video {
+  display: block;
+  width: 100%;
+  margin: 24px 0;
+  border-radius: 16px;
+}
+
+.blog-body .vp-player {
+  margin: 24px 0;
+}
+
+.blog-body .vp-player video {
+  margin: 0;
+  border-radius: 8px;
+}
+
 .blog-body blockquote {
   margin: 24px 0;
   padding: 4px 0 4px 20px;

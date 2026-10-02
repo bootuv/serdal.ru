@@ -52,6 +52,10 @@
 
 @section('styles')
     <link href="/css/blog.css?v={{ filemtime(public_path('css/blog.css')) }}" rel="stylesheet" type="text/css">
+    {{-- Видео в статье — наш плеер записей (RichText::players): его стили и скрипт --}}
+    @if(str_contains((string) $post->body, '<video'))
+        @vite(['resources/css/player.css', 'resources/js/player.js'])
+    @endif
 @endsection
 
 @section('content')
@@ -70,7 +74,7 @@
                 <img src="{{ $post->cover_url }}" alt="{{ $post->title }}" class="blog-article-cover">
             @endif
             @if($post->body)
-                <div class="blog-body">{!! \App\Support\RichText::html($post->body) !!}</div>
+                <div class="blog-body">{!! \App\Support\RichText::players(\App\Support\RichText::html($post->body)) !!}</div>
             @endif
 
             @if($post->tags->isNotEmpty())
