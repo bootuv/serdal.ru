@@ -1,6 +1,9 @@
 /* Плеер записей на публичных страницах (видео в статьях блога, x-ui.video-player). Подключается вместе с resources/js/player.js. */
 @config "../../tailwind.player.config.js";
 
+/* base без preflight (выключен в конфиге): только служебные переменные Tailwind (--tw-translate-*, --tw-ring-* …) —
+   без них не работают translate, shadow и ring, кнопка «Смотреть» съезжала с центра */
+@tailwind base;
 @tailwind utilities;
 
 /* Те же правила, что у плеера в resources/css/cabinet.css (.ic, .vp-*) — меняйте вместе */
