@@ -184,6 +184,7 @@ class IndexController extends Controller
         // Направления в ленте под обложкой ведут на страницы каталога (/napravleniya/…)
         return view('index', [
             'catalog'       => app(TutorCatalogService::class)->catalog(),
+            'blogPosts'     => app(\App\Services\BlogService::class)->popular(4),
             'specialists'   => $specialists,
             'lessonFormats' => $lessonFormats,
             'totalCount'    => $totalCount,

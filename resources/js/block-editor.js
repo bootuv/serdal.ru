@@ -38,15 +38,15 @@ const Callout = Node.create({
 
 // Блоки меню «/»: подпись, подсказка (Markdown-сокращение), слова для поиска, команда
 const BLOCKS = [
-    { id: 'text', title: 'Текст', hint: 'обычный абзац', words: 'текст абзац параграф', run: (c) => c.setParagraph() },
+    { id: 'text', title: 'Текст', hint: '', words: 'текст абзац параграф', run: (c) => c.setParagraph() },
     { id: 'h2', title: 'Заголовок', hint: '## ', words: 'заголовок раздел h2', run: (c) => c.setHeading({ level: 2 }) },
     { id: 'h3', title: 'Подзаголовок', hint: '### ', words: 'подзаголовок h3', run: (c) => c.setHeading({ level: 3 }) },
     { id: 'ul', title: 'Список', hint: '- ', words: 'список маркированный пункты', run: (c) => c.toggleBulletList() },
     { id: 'ol', title: 'Нумерованный список', hint: '1. ', words: 'нумерованный список шаги', run: (c) => c.toggleOrderedList() },
     { id: 'quote', title: 'Цитата', hint: '> ', words: 'цитата', run: (c) => c.setBlockquote() },
-    { id: 'callout', title: 'Выделенный блок', hint: 'совет, вывод', words: 'выделенный блок совет важно вывод', run: (c) => c.setNode('callout') },
+    { id: 'callout', title: 'Выделенный блок', hint: '', words: 'выделенный блок совет важно вывод', run: (c) => c.setNode('callout') },
     { id: 'hr', title: 'Разделитель', hint: '---', words: 'разделитель линия', run: (c) => c.setHorizontalRule() },
-    { id: 'image', title: 'Картинка', hint: 'с компьютера', words: 'картинка изображение фото', run: null },
+    { id: 'image', title: 'Картинка', hint: '', words: 'картинка изображение фото', run: null },
 ];
 
 window.blockEditor = (content, options = {}) => {
@@ -123,6 +123,11 @@ window.blockEditor = (content, options = {}) => {
                 this.bubble.open = false;
             }
         },
+
+        // Пункт меню виден / выбран (меню рисует Blade с иконками, фильтрует и подсвечивает Alpine)
+        shows(id) { return this.items().some((b) => b.id === id); },
+        current(id) { return this.items()[this.menu.index]?.id === id; },
+        hover(id) { this.menu.index = Math.max(0, this.items().findIndex((b) => b.id === id)); },
 
         items() {
             this.tick;

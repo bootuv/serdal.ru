@@ -91,6 +91,65 @@ class RichText
         return trim(preg_replace("/\n{3,}/", "\n\n", $text));
     }
 
+    /**
+     * HTML → Markdown для ИИ-агентов и llms-full.txt (статьи блога): заголовки, абзацы, списки, цитаты, ссылки,
+     * картинки, жирный и курсив. Относительные ссылки становятся абсолютными ($base — адрес сайта).
+     */
+    public static function toMarkdown(?string $html, string $base = ''): string
+    {
+        if (! trim((string) $html)) {
+            return '';
+        }
+
+        $doc = new \DOMDocument;
+        libxml_use_internal_errors(true);
+        $doc->loadHTML('<?xml encoding="utf-8"?><div>' . $html . '</div>', LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD);
+        libxml_clear_errors();
+
+        $md = self::mdChildren($doc->documentElement, rtrim($base, '/'));
+
+        return trim(preg_replace("/\n{3,}/", "\n\n", $md));
+    }
+
+    private static function mdChildren(\DOMNode $node, string $base, string $list = ''): string
+    {
+        $out = '';
+        $n = 0;
+        foreach ($node->childNodes as $child) {
+            if ($child instanceof \DOMText) {
+                $out .= preg_replace('/\s+/u', ' ', $child->textContent);
+
+                continue;
+            }
+            if (! $child instanceof \DOMElement) {
+                continue;
+            }
+            $inner = fn () => self::mdChildren($child, $base);
+            $abs = fn (string $url) => str_starts_with($url, '/') && ! str_starts_with($url, '//') ? $base . $url : $url;
+            $out .= match (strtolower($child->nodeName)) {
+                'h1', 'h2' => "\n\n## " . trim($inner()) . "\n\n",
+                'h3' => "\n\n### " . trim($inner()) . "\n\n",
+                'h4', 'h5', 'h6' => "\n\n#### " . trim($inner()) . "\n\n",
+                'p', 'div', 'figure', 'section' => "\n\n" . trim($inner()) . "\n\n",
+                'br' => "  \n",
+                'hr' => "\n\n---\n\n",
+                'strong', 'b' => ($t = trim($inner())) !== '' ? '**' . $t . '**' : '',
+                'em', 'i' => ($t = trim($inner())) !== '' ? '*' . $t . '*' : '',
+                'code' => '`' . $child->textContent . '`',
+                'a' => ($href = $child->getAttribute('href')) ? '[' . trim($inner()) . '](' . $abs($href) . ')' : $inner(),
+                'img' => $child->getAttribute('src') ? "\n\n![" . $child->getAttribute('alt') . '](' . $abs($child->getAttribute('src')) . ")\n\n" : '',
+                'ul' => "\n\n" . self::mdChildren($child, $base, 'ul') . "\n\n",
+                'ol' => "\n\n" . self::mdChildren($child, $base, 'ol') . "\n\n",
+                'li' => ($list === 'ol' ? (++$n) . '. ' : '- ') . trim(preg_replace("/\n{2,}/", "\n", $inner())) . "\n",
+                'blockquote' => "\n\n" . preg_replace('/^/m', '> ', trim($inner())) . "\n\n",
+                'script', 'style' => '',
+                default => $inner(),
+            };
+        }
+
+        return $out;
+    }
+
     /** Очистка HTML: безопасные теги, относительные ссылки и картинки, class и style (правила прежнего редактора). */
     private static function sanitize(string $html): string
     {

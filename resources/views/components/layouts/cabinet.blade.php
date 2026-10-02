@@ -34,6 +34,7 @@
             ['key' => 'materials', 'label' => 'Материалы', 'icon' => 'folder', 'href' => $to('cabinet.teacher.materials', '/tutor/materials')],
             ['key' => 'recordings', 'label' => 'Записи', 'icon' => 'video', 'href' => $to('cabinet.teacher.recordings', '/tutor/recordings')],
             ['key' => 'reviews', 'label' => 'Отзывы', 'icon' => 'star', 'href' => $to('cabinet.teacher.reviews', '/tutor/reviews'), 'count' => app(\App\Services\TeacherReviewsService::class)->unreadCount($user)],
+            ['key' => 'blog', 'label' => 'Мои статьи', 'icon' => 'pencil', 'href' => $to('cabinet.teacher.blog', '/cabinet/teacher')],
             ['key' => 'news', 'label' => 'Новости', 'icon' => 'news', 'href' => $to('cabinet.teacher.news', '/cabinet/teacher'), 'count' => $unreadNews],
         ];
     if ($isAdmin) {
@@ -56,7 +57,7 @@
             ['key' => 'founders', 'label' => 'Основатели', 'icon' => 'lock', 'href' => $a('founders')],
             ['sep' => true],
             ['key' => 'news', 'label' => 'Новости', 'icon' => 'news', 'href' => $a('news')],
-            ['key' => 'blog', 'label' => 'Блог', 'icon' => 'pencil', 'href' => $a('blog')],
+            ['key' => 'blog', 'label' => 'Блог', 'icon' => 'pencil', 'href' => $a('blog'), 'count' => $inbox['blog']],
             ['key' => 'mailings', 'label' => 'Рассылки', 'icon' => 'mail', 'href' => $a('mailings')],
             ['key' => 'help', 'label' => 'База знаний', 'icon' => 'help', 'href' => $a('help')],
             ['sep' => true],
@@ -90,6 +91,11 @@
     // У учителя почта и пароль — вкладка профиля, у остальных — отдельная страница
     $accountHref = $user?->role === \App\Models\User::ROLE_TUTOR ? $profileHref . '?tab=account' : route('cabinet.account');
     $profileMenu[] = ['label' => 'Почта и пароль', 'icon' => 'lock', 'href' => $accountHref];
+    // Публичная страница учителя в каталоге — открывается в новой вкладке (пока учитель не активен, её нет)
+    $publicHref = ! $isAdmin && ! $isStudent && $user?->is_active && $user->username ? route('tutors.show', ['username' => $user->username]) : null;
+    if ($publicHref) {
+        array_splice($profileMenu, 1, 0, [['label' => 'Моя страница', 'icon' => 'eye', 'href' => $publicHref, 'external' => true]]);
+    }
 
     // «Ещё» на телефоне: разделы, которых нет на нижней панели, + поддержка, партнёрка, профиль
     $moreItems = array_values(array_filter($nav, fn ($i) => empty($i['sep']) && ! in_array($i, $mobileTabs, true)));
@@ -104,6 +110,9 @@
         }
         $moreItems[] = ['key' => 'support', 'label' => 'Поддержка', 'icon' => 'help', 'href' => $supportHref];
         $moreItems[] = ['key' => 'profile', 'label' => $isStudent ? 'Профиль' : 'Профиль и тариф', 'icon' => 'user', 'href' => $profileHref];
+        if ($publicHref) {
+            $moreItems[] = ['key' => 'public', 'label' => 'Моя страница', 'icon' => 'eye', 'href' => $publicHref, 'external' => true];
+        }
     }
     $moreItems[] = ['key' => 'account', 'label' => 'Почта и пароль', 'icon' => 'lock', 'href' => $accountHref];
     $moreActive = $active === null || in_array($active, array_column($moreItems, 'key'), true);
@@ -190,7 +199,7 @@
             <div class="relative border-t border-line pt-3" data-tour="nav-profile" x-data="{ open: false }" x-on:click.outside="open = false" x-on:keydown.escape="open = false">
                 <div x-show="open" x-cloak role="menu" aria-label="Профиль" class="absolute inset-x-0 bottom-full z-10 mb-1 flex flex-col rounded border border-line bg-white p-1 shadow-card">
                     @foreach ($profileMenu as $item)
-                        <a href="{{ $item['href'] }}" role="menuitem" class="flex h-11 items-center gap-3 rounded-sm px-3 text-t1-s font-medium text-ink hover:bg-soft-hover"><x-ui.icon :name="$item['icon']" />{{ $item['label'] }}</a>
+                        <a href="{{ $item['href'] }}" @if (! empty($item['external'])) target="_blank" rel="noopener" @endif role="menuitem" class="flex h-11 items-center gap-3 rounded-sm px-3 text-t1-s font-medium text-ink hover:bg-soft-hover"><x-ui.icon :name="$item['icon']" />{{ $item['label'] }}@if (! empty($item['external']))<x-ui.icon name="external" size="s" class="ml-auto text-faint" />@endif</a>
                     @endforeach
                     <span class="mx-3 my-1 h-px bg-line" aria-hidden="true"></span>
                     <form method="POST" action="{{ route('logout') }}">
@@ -250,13 +259,14 @@
                 </div>
 
                 @foreach ($moreItems as $item)
-                    <a href="{{ $item['href'] }}" @class([
+                    <a href="{{ $item['href'] }}" @if (! empty($item['external'])) target="_blank" rel="noopener" @endif @class([
                         'flex h-11 items-center gap-3 rounded px-3 text-t1-s font-medium',
                         'bg-mint font-semibold text-ink' => $active === $item['key'],
                         'text-muted hover:bg-soft-hover hover:text-ink' => $active !== $item['key'],
                     ])>
                         <x-ui.icon :name="$item['icon']" />{{ $item['label'] }}
                         @if (! empty($item['count']))<x-ui.count :value="$item['count']" class="ml-auto" />@endif
+                        @if (! empty($item['external']))<x-ui.icon name="external" size="s" class="ml-auto text-faint" />@endif
                     </a>
                 @endforeach
                 <form method="POST" action="{{ route('logout') }}" class="mt-1 border-t border-line pt-2">

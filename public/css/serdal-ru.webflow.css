@@ -2626,3 +2626,30 @@ a {
     padding: 32px 16px;
   }
 }
+
+/* Нет фото — инициалы на цветном блоке (partials/userpic), цвета как у аватаров в кабинете.
+   Размер шрифта — от ширины блока, поэтому подходит любому размеру аватара. */
+.userpic-initials {
+  container-type: inline-size;
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: #202323;
+  font-weight: 600;
+  line-height: 1;
+  user-select: none;
+}
+
+.userpic-initials span {
+  font-size: 32cqw;
+}
+
+.userpic-initials-1 { background-color: #ffec70; }
+.userpic-initials-2 { background-color: #c2dcff; }
+.userpic-initials-3 { background-color: #ddd0ff; }
+
+.profile-pic.userpic-initials {
+  height: auto;
+}

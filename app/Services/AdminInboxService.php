@@ -51,6 +51,7 @@ class AdminInboxService
             'applications' => $this->applicationsPending(),
             'reviews' => $this->reviewComplaints() + $this->platformReviewsPending(),
             'lessons' => $this->deletionRequests(),
+            'blog' => app(BlogService::class)->pendingCount() + app(BlogCommentService::class)->reportsCount(),
         ];
     }
 }

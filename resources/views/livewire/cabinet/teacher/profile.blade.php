@@ -121,7 +121,7 @@
                         </div>
                         @if ($preview['url'])
                             <div class="flex flex-wrap items-center justify-between gap-2">
-                                <a href="{{ $preview['url'] }}" target="_blank" rel="noopener" class="link inline-flex min-w-0 items-center gap-1 text-t2"><span class="truncate">{{ preg_replace('#^https?://#', '', $preview['url']) }}</span><x-ui.icon name="share" size="s" /></a>
+                                <a href="{{ $preview['url'] }}" target="_blank" rel="noopener" class="link inline-flex min-w-0 items-center gap-1 text-t2"><span class="truncate">{{ preg_replace('#^https?://#', '', $preview['url']) }}</span><x-ui.icon name="external" size="s" /></a>
                                 <x-ui.copy size="s" icon="share" :value="$preview['url']" message="Ссылка на профиль скопирована" />
                             </div>
                         @endif

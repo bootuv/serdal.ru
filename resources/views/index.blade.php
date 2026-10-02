@@ -84,6 +84,18 @@
           ['links' => collect($catalog['subjects'])->sortByDesc('count')->values()->all(), 'icons' => true],
       ],
   ])
+  {{-- Популярные статьи блога — до каталога: после бесконечного списка учителей до них не долистать --}}
+  @if($blogPosts->isNotEmpty())
+    @section('styles')
+      <link href="/css/blog.css?v={{ filemtime(public_path('css/blog.css')) }}" rel="stylesheet" type="text/css">
+    @endsection
+    @include('blog.partials.section', [
+      'posts' => $blogPosts,
+      'heading' => 'Популярное в блоге',
+      'id' => 'home-blog',
+      'allUrl' => route('blog.index'),
+    ])
+  @endif
   <section class="specialists">
     <h2 id="specialists" class="h2">Найти специалиста</h2>
     <div class="filters-sentinel" aria-hidden="true"></div>

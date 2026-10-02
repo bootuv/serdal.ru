@@ -107,7 +107,7 @@
 
   <section class="profile">
     <div class="profile-pic-wrapper">
-      <img src="{{ $user->avatarUrl }}" width="280" height="280" alt="{{ $tutorName }} — репетитор" sizes="280px" class="profile-pic" fetchpriority="high">
+      @include('partials.userpic', ['user' => $user, 'class' => 'profile-pic', 'thumb' => false, 'alt' => $tutorName . ' — репетитор', 'attrs' => 'width="280" height="280" sizes="280px" fetchpriority="high"'])
     </div>
     <h1 class="h3 tutor-name">{{ $tutorName }}</h1>
     @if($ratingAvg !== null)
@@ -325,6 +325,19 @@
       </div>
     </div>
   </section>
+  @if($blogPosts->isNotEmpty())
+    @section('styles')
+      <link href="/css/blog.css?v={{ filemtime(public_path('css/blog.css')) }}" rel="stylesheet" type="text/css">
+    @endsection
+    {{-- Статьи учителя в блоге: последние четыре и ссылка на все --}}
+    @include('blog.partials.section', [
+      'posts' => $blogPosts,
+      'heading' => 'Статьи в блоге',
+      'id' => 'teacher-blog',
+      'allUrl' => $user->username ? route('blog.author', $user->username) : null,
+      'allLabel' => $blogTotal > 4 ? 'Все статьи · ' . $blogTotal : 'Все статьи',
+    ])
+  @endif
   @if($reviews->isNotEmpty())
     <section class="content reviews-content">
       <h2 class="h2">Отзывы</h2>

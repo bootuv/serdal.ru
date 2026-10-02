@@ -54,6 +54,13 @@ class SitemapService
 
         $posts = BlogPost::published()->latest('published_at')->get(['slug', 'published_at', 'updated_at']);
         $add(route('blog.index', [], false), $posts->max('updated_at')?->toDateString(), 'weekly', '0.7');
+        $blog = app(\App\Services\BlogService::class);
+        foreach ($blog->popularTags(500)->where('published_count', '>=', \App\Services\BlogService::TAG_MIN_POSTS) as $tag) {
+            $add(route('blog.tag', $tag->slug, false), null, 'weekly', '0.5');
+        }
+        foreach ($blog->activeAuthors(500) as $author) {
+            $add(route('blog.author', $author->username, false), null, 'weekly', '0.5');
+        }
         foreach ($posts as $post) {
             $add(route('blog.show', $post->slug, false), $post->updated_at?->toDateString(), 'monthly', '0.6');
         }

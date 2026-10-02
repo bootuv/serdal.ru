@@ -97,7 +97,12 @@ class PageController extends Controller
 
         $reviewsHasMore = $reviewsTotal > 20;
 
-        return view('tutor', compact('user', 'lessonTypeIndividual', 'lessonTypeGroup', 'reviews', 'reviewsHasMore', 'reviewsTotal', 'ratingAvg'));
+        // Статьи учителя в блоге: последние три и ссылка на все (блог → автор)
+        $blogQuery = $user->blogPosts()->published();
+        $blogTotal = (clone $blogQuery)->count();
+        $blogPosts = $blogTotal ? $blogQuery->with('author')->latest('published_at')->take(4)->get() : collect();
+
+        return view('tutor', compact('user', 'lessonTypeIndividual', 'lessonTypeGroup', 'reviews', 'reviewsHasMore', 'reviewsTotal', 'ratingAvg', 'blogPosts', 'blogTotal'));
     }
 
     public function aboutPage()

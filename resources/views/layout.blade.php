@@ -53,7 +53,10 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;1,400&amp;display=swap" rel="stylesheet">
   <script
     type="text/javascript">!function (o, c) { var n = c.documentElement, t = " w-mod-"; n.className += t + "js", ("ontouchstart" in o || o.DocumentTouch && c instanceof DocumentTouch) && (n.className += t + "touch") }(window, document);</script>
+  {{-- Страницы с компонентами Livewire (секция livewire) получают Alpine вместе с Livewire — вторая копия ломает обе --}}
+  @unless(View::hasSection('livewire'))
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  @endunless
   <style>
     .body {
       display: flex;
@@ -119,6 +122,7 @@
 
     .footer-col a {
       font-size: 16px;
+      line-height: 22px;
       color: #d6d8d8;
       transition: color .15s ease;
     }
@@ -153,8 +157,10 @@
     }
 
     @media (max-width: 767px) {
+      /* На телефоне 100px над подвалом — пустой экран; 64px хватает, чтобы отделить его от страницы */
       .footer {
-        padding: 48px 24px 28px;
+        margin-top: 64px;
+        padding: 40px 24px 28px;
       }
 
       .footer-cols {
@@ -180,10 +186,161 @@
     .star-rating svg {
       flex-shrink: 0;
     }
+
+    /* Вошедший пользователь в шапке: аватар и меню, на одной линии с пунктами меню */
+    [x-cloak] { display: none !important; }
+
+    .main-menu,
+    .menu-wrapper {
+      align-items: center;
+    }
+
+    .site-user {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    /* Аватар 44px выше строки меню (32px): отрицательные поля — шапка не растет после входа и не наезжает на обложку */
+    .site-user-toggle {
+      display: flex;
+      margin: -6px 0;
+      padding: 0;
+      border: 0;
+      border-radius: 14px;
+      background: none;
+      cursor: pointer;
+      transition: box-shadow .15s;
+    }
+
+    .site-user-toggle:hover,
+    .site-user-toggle[aria-expanded="true"] {
+      box-shadow: 0 0 0 3px var(--bg2);
+    }
+
+    .site-user-pic {
+      width: 44px;
+      height: 44px;
+      border-radius: 14px;
+      object-fit: cover;
+    }
+
+    .site-user-menu {
+      position: absolute;
+      top: calc(100% + 8px);
+      right: 0;
+      z-index: 50;
+      display: flex;
+      flex-flow: column;
+      min-width: 240px;
+      padding: 6px;
+      border: 1px solid var(--line-light);
+      border-radius: 16px;
+      background: var(--white);
+      box-shadow: 0 12px 32px #2322151a;
+    }
+
+    .site-user-head {
+      display: flex;
+      flex-flow: column;
+      gap: 2px;
+      margin-bottom: 4px;
+      padding: 10px 12px 12px;
+      border-bottom: 1px solid var(--line-light);
+    }
+
+    .site-user-name {
+      color: var(--black);
+      font-size: 16px;
+      font-weight: 600;
+      line-height: 22px;
+    }
+
+    .site-user-role {
+      color: var(--gray);
+      font-size: 14px;
+      line-height: 20px;
+    }
+
+    .site-user-menu a,
+    .site-user-menu button {
+      display: block;
+      width: 100%;
+      padding: 10px 12px;
+      border: 0;
+      border-radius: 10px;
+      background: none;
+      color: var(--black);
+      font: inherit;
+      font-size: 16px;
+      line-height: 22px;
+      text-align: left;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    .site-user-menu a:hover,
+    .site-user-menu button:hover {
+      background-color: var(--bg1);
+    }
+
+    .site-user-menu form {
+      margin: 4px 0 0;
+      padding-top: 4px;
+      border-top: 1px solid var(--line-light);
+    }
+
+    .site-user-mobile {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 20px;
+      font-weight: 600;
+    }
+
+    .site-user-logout {
+      margin: 0;
+    }
+
+    .site-user-logout button {
+      padding: 0;
+      border: 0;
+      background: none;
+      color: inherit;
+      cursor: pointer;
+    }
   </style>
 </head>
 
 <body class="body" x-data="{ mobileMenuOpen: false }">
+  @php
+    // Вошедший пользователь: вместо «Войти» — аватар и меню (кабинет, профиль, блог учителя, выход)
+    $siteUser = auth()->user();
+    $siteUserMenu = [];
+    if ($siteUser) {
+        $role = $siteUser->role;
+        $cabinetUrl = \App\Http\Middleware\EnsureCabinetRole::homeFor($siteUser);
+        $siteUserMenu[] = ['Кабинет', $cabinetUrl];
+        $profileRoute = match ($role) {
+            \App\Models\User::ROLE_STUDENT => 'cabinet.student.profile',
+            \App\Models\User::ROLE_TUTOR => 'cabinet.teacher.profile',
+            default => null,
+        };
+        if ($profileRoute && Route::has($profileRoute)) {
+            $siteUserMenu[] = ['Профиль', route($profileRoute)];
+        }
+        if ($role === \App\Models\User::ROLE_TUTOR && $siteUser->username) {
+            $siteUserMenu[] = ['Моя страница', route('tutors.show', $siteUser)];
+        }
+        if ($role === \App\Models\User::ROLE_TUTOR && Route::has('cabinet.teacher.blog')) {
+            $siteUserMenu[] = ['Мои статьи', route('cabinet.teacher.blog')];
+        }
+        if ($role === \App\Models\User::ROLE_ADMIN && Route::has('cabinet.admin.blog')) {
+            $siteUserMenu[] = ['Блог в админке', route('cabinet.admin.blog')];
+        }
+        $siteUserRole = match ($role) { \App\Models\User::ROLE_TUTOR => 'Учитель', \App\Models\User::ROLE_STUDENT => 'Ученик', \App\Models\User::ROLE_ADMIN => 'Администратор', default => '' };
+    }
+  @endphp
   <section
     class="header {{ Request::is('/') ? 'home' : (Route::currentRouteName() == 'tutors.show' ? 'tutor-page' : 'underline') }}">
     <a href="/" class="logo-wrapper w-inline-block"><img src="/images/Logo.svg" width="Auto" height="32"
@@ -195,7 +352,28 @@
         <a href="{{ route('reviews') }}" class="p24">Отзывы</a>
         <a href="{{ route('blog.index') }}" class="p24">Блог</a>
         <a href="{{ route('help.index') }}" class="p24">Помощь</a>
-        <a href="/login" class="p24">Войти</a>
+        @if($siteUser)
+          <div class="site-user" x-data="{ open: false }" x-on:click.outside="open = false" x-on:keydown.escape="open = false">
+            <button type="button" class="site-user-toggle" x-on:click="open = ! open" x-bind:aria-expanded="open" aria-haspopup="menu" aria-label="Меню профиля">
+              @include('partials.userpic', ['user' => $siteUser, 'class' => 'site-user-pic'])
+            </button>
+            <div class="site-user-menu" x-show="open" x-cloak role="menu">
+              <div class="site-user-head">
+                <span class="site-user-name">{{ $siteUser->name }}</span>
+                @if($siteUserRole)<span class="site-user-role">{{ $siteUserRole }}</span>@endif
+              </div>
+              @foreach($siteUserMenu as [$label, $href])
+                <a href="{{ $href }}" role="menuitem">{{ $label }}</a>
+              @endforeach
+              <form method="POST" action="/logout">
+                @csrf
+                <button type="submit" role="menuitem">Выйти</button>
+              </form>
+            </div>
+          </div>
+        @else
+          <a href="/login" class="p24">Войти</a>
+        @endif
       </div>
       <div @click="mobileMenuOpen = true" class="burger-menu-wrapper"><img src="/images/burger.svg" loading="lazy"
           width="32" height="32" alt="" class="burger-menu"></div>
@@ -240,7 +418,11 @@
         <div class="footer-col">
           <div class="footer-col__title">Контакты</div>
           <a href="mailto:{{ $legalRequisites['legal_email'] }}">{{ $legalRequisites['legal_email'] }}</a>
-          <a href="/login">Войти в кабинет</a>
+          @if($siteUser)
+            <a href="{{ \App\Http\Middleware\EnsureCabinetRole::homeFor($siteUser) }}">Перейти в кабинет</a>
+          @else
+            <a href="/login">Войти в кабинет</a>
+          @endif
         </div>
       </div>
     </div>
@@ -280,7 +462,21 @@
         <a href="{{ route('reviews') }}" class="p30">Отзывы</a>
         <a href="{{ route('blog.index') }}" class="p30">Блог</a>
         <a href="{{ route('help.index') }}" class="p30">Помощь</a>
-        <a href="/login" class="p30">Войти</a>
+        @if($siteUser)
+          <div class="site-user-mobile">
+            @include('partials.userpic', ['user' => $siteUser, 'class' => 'site-user-pic'])
+            <span>{{ $siteUser->name }}</span>
+          </div>
+          @foreach($siteUserMenu as [$label, $href])
+            <a href="{{ $href }}" class="p30">{{ $label }}</a>
+          @endforeach
+          <form method="POST" action="/logout" class="site-user-logout">
+            @csrf
+            <button type="submit" class="p30">Выйти</button>
+          </form>
+        @else
+          <a href="/login" class="p30">Войти</a>
+        @endif
       </div>
     </div>
     <div class="mobile-menu-bg"></div>

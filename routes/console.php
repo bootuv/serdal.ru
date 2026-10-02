@@ -50,6 +50,11 @@ Schedule::command('founders:remind')->dailyAt('10:00')->withoutOverlapping();
 // Запланированные новости (админка «Новости»): наступило время — уведомляем учителей и учеников
 Schedule::command('news:publish')->everyMinute()->withoutOverlapping();
 
+// Блог: вес статей для «Популярных» падает с возрастом — пересчет раз в час
+Schedule::command('blog:hot')->hourly()->withoutOverlapping();
+// Статья учителя вышла (в том числе по расписанию) — ученикам автора уведомление
+Schedule::command('blog:notify')->everyMinute()->withoutOverlapping();
+
 // Рассылки на внешние адреса (админка «Рассылки»): порция писем раз в минуту, скорость — NEWSLETTER_PER_MINUTE
 Schedule::command('mailings:send')->everyMinute()->withoutOverlapping(10)->runInBackground();
 

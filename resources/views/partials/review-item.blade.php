@@ -1,7 +1,7 @@
 @php use App\Models\User; @endphp
 <div class="review-item" data-role="{{ $review->isPlatform() ? 'tutor' : 'student' }}">
     <div class="review-item-user">
-        <img src="{{ $review->user->avatarThumbUrl }}" loading="lazy" alt="" class="list-item-userpic">
+        @include('partials.userpic', ['user' => $review->user, 'class' => 'list-item-userpic'])
         <div class="list-item-name-bio">
             <div class="user-type">{{ $review->user->displayRole }}</div>
             <div class="p24-medium">{{ $review->user->name }}</div>

@@ -47,7 +47,7 @@ class BlogTest extends TestCase
         $this->actingAs($tutor)->get('/cabinet/admin/blog')->assertRedirect(EnsureCabinetRole::homeFor($tutor));
 
         $this->actingAs($this->user(User::ROLE_ADMIN))->get('/cabinet/admin/blog')->assertOk()->assertSee('Написать статью');
-        $this->get('/cabinet/admin/blog/new')->assertOk()->assertSee('Новая статья')->assertSee('Для поиска');
+        $this->get('/cabinet/admin/blog/new')->assertOk()->assertSee('Настройки статьи')->assertSee('Для поиска')->assertSee('Опубликовать');
     }
 
     public function test_write_draft_then_publish(): void
@@ -90,7 +90,7 @@ class BlogTest extends TestCase
             ->set('title', 'Позже')
             ->set('when', 'later')
             ->set('publishAt', now()->subHour()->format('Y-m-d\TH:i'))
-            ->call('submit')->assertHasErrors('publishAt')
+            ->call('submit')->assertHasErrors('publishAt')->assertDispatched('blog-settings')
             ->set('publishAt', now()->addDay()->format('Y-m-d\TH:i'))
             ->call('submit')
             ->assertRedirect();
@@ -137,6 +137,252 @@ class BlogTest extends TestCase
 
         $custom = app(BlogService::class)->save($second, ['title' => $second->title, 'slug' => 'Подготовка к ОГЭ', 'published_at' => $second->published_at]);
         $this->assertSame('podgotovka-k-oge', $custom->slug);
+    }
+
+    public function test_tags_authors_and_sidebar(): void
+    {
+        $admin = $this->user(User::ROLE_ADMIN);
+        $teacher = $this->user(User::ROLE_TUTOR);
+        $teacher->update(['name' => 'Мадина Евлоева']);
+
+        // Админ пишет статью от имени учителя, с тегами
+        Livewire::actingAs($admin)->test(BlogArticle::class, ['post' => 'new'])
+            ->set('title', 'Пробник ЕГЭ по русскому')
+            ->set('newTag', 'ЕГЭ')->call('addTag')
+            ->set('newTag', 'русский язык')->call('addTag')
+            ->set('newTag', 'егэ')->call('addTag')
+            ->assertSet('tags', ['ЕГЭ', 'русский язык'])
+            ->assertSee('Найти или добавить тег')
+            ->set('authorId', (string) $teacher->id)
+            ->call('submit');
+        $post = BlogPost::where('title', 'Пробник ЕГЭ по русскому')->sole();
+        $this->assertSame($teacher->id, $post->author_id);
+        $this->assertSame(['ЕГЭ', 'русский язык'], $post->tags->pluck('name')->all());
+        $other = $this->article(['title' => 'Без тегов от команды']);
+
+        auth()->logout();
+        $this->get('/blog')->assertOk()
+            ->assertSee('Популярные темы')->assertSee('/blog/tag/ege', false)
+            ->assertSee('Авторы')->assertSee('Мадина Евлоева')->assertSee('/blog/author/' . $teacher->username, false)
+            ->assertSee('blog-card--fill', false);
+        $this->get('/blog/tag/ege')->assertOk()->assertSee('#ЕГЭ')->assertSee('Пробник ЕГЭ по русскому')->assertDontSee('Без тегов от команды');
+        $this->get('/blog/author/' . $teacher->username)->assertOk()->assertSee('Мадина Евлоева')->assertDontSee('Без тегов от команды');
+        $this->get('/blog/tag/net')->assertNotFound();
+        $this->get('/blog/' . $post->slug)->assertOk()
+            ->assertSee('Автор статьи')->assertSee('Все статьи автора')
+            ->assertSee('"@type":"Person"', false)
+            ->assertSee('/blog/tag/russkiy-yazyk', false);
+
+        // В карту сайта — только темы, где статей не меньше BlogService::TAG_MIN_POSTS
+        $locs = collect(app(SitemapService::class)->urls())->pluck('loc');
+        $this->assertFalse($locs->contains(fn ($l) => str_ends_with($l, '/blog/tag/ege')));
+        $this->article(['title' => 'Вторая про ЕГЭ', 'tags' => ['ЕГЭ']]);
+        $locs = collect(app(SitemapService::class)->urls())->pluck('loc');
+        $this->assertTrue($locs->contains(fn ($l) => str_ends_with($l, '/blog/tag/ege')));
+        $this->assertTrue($locs->contains(fn ($l) => str_ends_with($l, '/blog/author/' . $teacher->username)));
+
+        // Крошки: Главная › Блог › тема — тема только с открытой для поиска страницей (2+ статьи), совпадает с разметкой
+        $this->get('/blog/' . $post->slug)
+            ->assertSeeInOrder(['Навигационная цепочка', 'Главная', 'Блог', 'ЕГЭ'])
+            ->assertSee('"name":"ЕГЭ","item":"' . url('/blog/tag/ege') . '"', false)
+            ->assertDontSee('"name":"русский язык","item"', false);
+
+        // Выбор из существующих: «егэ» превращается в уже известный «ЕГЭ», новое название — новый тег
+        Livewire::actingAs($admin)->test(BlogArticle::class, ['post' => 'new'])
+            ->call('addTag', 'егэ')->call('addTag', 'химия')
+            ->assertSet('tags', ['ЕГЭ', 'химия']);
+
+        // Теги в админке: переименование в существующий объединяет, удаление
+        $russian = \App\Models\BlogTag::where('slug', 'russkiy-yazyk')->sole();
+        Livewire::actingAs($admin)->test(Blog::class)->set('tab', 'tags')
+            ->assertSee('русский язык')
+            ->call('editTag', $russian->id)->set('tagName', 'ЕГЭ')->call('saveTag');
+        $this->assertSame(['ЕГЭ'], $post->fresh()->tags->pluck('name')->all());
+        $this->assertNull(\App\Models\BlogTag::find($russian->id));
+        $this->assertContains($other->cardStyle(), ['fill', 'outline', 'mint']);
+    }
+
+    public function test_tutor_public_page_shows_latest_posts(): void
+    {
+        $teacher = $this->user(User::ROLE_TUTOR);
+        $this->get('/' . $teacher->username)->assertOk()->assertDontSee('Статьи в блоге');
+
+        foreach (range(1, 5) as $n) {
+            $this->article(['title' => 'Статья учителя ' . $n, 'author_id' => $teacher->id, 'published_at' => now()->subDays($n)]);
+        }
+        $this->article(['title' => 'Черновик учителя', 'author_id' => $teacher->id, 'published_at' => null]);
+
+        $this->get('/' . $teacher->username)->assertOk()
+            ->assertSee('Статьи в блоге')
+            ->assertSee('Статья учителя 1')->assertSee('Статья учителя 4')
+            ->assertDontSee('Статья учителя 5')->assertDontSee('Черновик учителя')
+            ->assertSee('Все статьи · 5')
+            ->assertSee(route('blog.author', $teacher->username), false);
+    }
+
+    public function test_students_learn_about_their_teachers_new_post(): void
+    {
+        \Illuminate\Support\Facades\Notification::fake();
+        $teacher = $this->user(User::ROLE_TUTOR);
+        $mine = $this->user(User::ROLE_STUDENT);
+        $blocked = $this->user(User::ROLE_STUDENT);
+        $blocked->update(['is_blocked' => true]);
+        $stranger = $this->user(User::ROLE_STUDENT);
+        $teacher->students()->attach([$mine->id, $blocked->id]);
+
+        // Сразу опубликованная — ученикам учителя, кроме заблокированных; чужим — нет
+        $post = $this->article(['title' => 'Новая статья', 'author_id' => $teacher->id]);
+        \Illuminate\Support\Facades\Notification::assertSentTo($mine, \App\Notifications\TeacherPublishedBlogPost::class);
+        \Illuminate\Support\Facades\Notification::assertNotSentTo($blocked, \App\Notifications\TeacherPublishedBlogPost::class);
+        \Illuminate\Support\Facades\Notification::assertNotSentTo($stranger, \App\Notifications\TeacherPublishedBlogPost::class);
+
+        // Сняли и вернули — второй раз не шлем
+        app(BlogService::class)->unpublish($post);
+        app(BlogService::class)->save($post->fresh(), ['title' => $post->title, 'published_at' => now()]);
+        \Illuminate\Support\Facades\Notification::assertSentToTimes($mine, \App\Notifications\TeacherPublishedBlogPost::class, 1);
+
+        // По расписанию — когда время придет (blog:notify)
+        $later = $this->article(['title' => 'Позже', 'author_id' => $teacher->id, 'published_at' => now()->addHour()]);
+        $this->artisan('blog:notify')->assertSuccessful();
+        \Illuminate\Support\Facades\Notification::assertSentToTimes($mine, \App\Notifications\TeacherPublishedBlogPost::class, 1);
+        $this->travel(2)->hours();
+        $this->artisan('blog:notify')->assertSuccessful();
+        \Illuminate\Support\Facades\Notification::assertSentToTimes($mine, \App\Notifications\TeacherPublishedBlogPost::class, 2);
+
+        // Статья от команды — ученикам никто не пишет
+        $this->article(['title' => 'От команды']);
+        \Illuminate\Support\Facades\Notification::assertSentToTimes($mine, \App\Notifications\TeacherPublishedBlogPost::class, 2);
+    }
+
+    public function test_teacher_writes_and_admin_reviews(): void
+    {
+        \Illuminate\Support\Facades\Notification::fake();
+        $admin = $this->user(User::ROLE_ADMIN);
+        $teacher = $this->user(User::ROLE_TUTOR);
+        $stranger = $this->user(User::ROLE_TUTOR);
+
+        $this->actingAs($teacher)->get('/cabinet/teacher/blog')->assertOk()->assertSee('Напишите статью для блога Serdal');
+
+        // Учитель пишет и отправляет на проверку
+        Livewire::actingAs($teacher)->test(\App\Livewire\Cabinet\Teacher\BlogArticle::class, ['post' => 'new'])
+            ->assertSee('Отправить на проверку')->assertDontSee('Опубликовать сейчас')->assertDontSee('Адрес статьи')
+            ->set('title', 'Как я готовлю к ОГЭ')
+            ->set('body', '<p>Мой подход</p>')
+            ->call('submit')
+            ->assertRedirect();
+        $post = BlogPost::sole();
+        $this->assertSame($teacher->id, $post->author_id);
+        $this->assertSame(BlogPost::REVIEW_PENDING, $post->review_status);
+        $this->assertNull($post->published_at);
+
+        // Чужую статью другой учитель не видит; черновики учителей не в «Черновиках» админа
+        $this->actingAs($stranger)->get('/cabinet/teacher/blog/' . $post->id)->assertNotFound();
+        $this->actingAs($teacher)->get('/cabinet/teacher/blog')->assertSee('На проверке');
+        Livewire::actingAs($admin)->test(Blog::class)->set('tab', 'review')->assertSee('Как я готовлю к ОГЭ');
+        Livewire::actingAs($admin)->test(Blog::class)->set('tab', 'drafts')->assertDontSee('Как я готовлю к ОГЭ');
+        $this->assertSame(1, app(\App\Services\AdminInboxService::class)->counts()['blog']);
+
+        // Админ возвращает с комментарием
+        Livewire::actingAs($admin)->test(BlogArticle::class, ['post' => (string) $post->id])
+            ->assertSee('Статья учителя ждет проверки')
+            ->call('askReturn')->call('returnForRework')->assertHasErrors('returnNote')
+            ->set('returnNote', 'Добавьте пример задания')
+            ->call('returnForRework');
+        $this->assertSame(BlogPost::REVIEW_RETURNED, $post->fresh()->review_status);
+        \Illuminate\Support\Facades\Notification::assertSentTo($teacher, \App\Notifications\BlogPostReviewed::class, fn ($n) => ! $n->published);
+
+        Livewire::actingAs($teacher)->test(\App\Livewire\Cabinet\Teacher\BlogArticle::class, ['post' => (string) $post->id])
+            ->assertSee('Добавьте пример задания')
+            ->set('body', '<p>Мой подход и пример</p>')
+            ->call('submit');
+        $this->assertSame(BlogPost::REVIEW_PENDING, $post->fresh()->review_status);
+
+        // Админ публикует — учителю уведомление; править опубликованную учитель не может
+        Livewire::actingAs($admin)->test(BlogArticle::class, ['post' => (string) $post->id])->call('publishNow');
+        $this->assertTrue($post->fresh()->isPublished());
+        \Illuminate\Support\Facades\Notification::assertSentTo($teacher, \App\Notifications\BlogPostReviewed::class, fn ($n) => $n->published);
+
+        Livewire::actingAs($teacher)->test(\App\Livewire\Cabinet\Teacher\BlogArticle::class, ['post' => (string) $post->id])
+            ->assertSee('Снять с сайта и изменить')
+            ->call('submit')->assertForbidden();
+
+        Livewire::actingAs($teacher)->test(\App\Livewire\Cabinet\Teacher\BlogArticle::class, ['post' => (string) $post->id])
+            ->call('unpublish');
+        $this->assertNull($post->fresh()->published_at);
+        $this->assertSame(BlogPost::REVIEW_DRAFT, $post->fresh()->review_status);
+    }
+
+    public function test_autosave_drafts_but_not_published(): void
+    {
+        $admin = $this->user(User::ROLE_ADMIN);
+
+        $c = Livewire::actingAs($admin)->test(BlogArticle::class, ['post' => 'new'])
+            ->call('autosave');
+        $this->assertSame(0, BlogPost::count(), 'пустую новую статью не создаем');
+
+        $c->set('title', 'Черновик сам')->set('body', '<p>Пишу</p>')->call('autosave');
+        $post = BlogPost::sole();
+        $this->assertNull($post->published_at);
+        $this->assertSame('<p>Пишу</p>', $post->body);
+        $c->assertSet('postId', $post->id)->assertSee('Сохранено в');
+
+        // Без изменений — не пишем в базу
+        $updated = $post->updated_at;
+        $this->travel(1)->minutes();
+        $c->call('autosave');
+        $this->assertEquals($updated, $post->fresh()->updated_at);
+
+        // Запланированная остается запланированной
+        $at = now()->addDay()->startOfMinute();
+        $post->update(['published_at' => $at]);
+        Livewire::actingAs($admin)->test(BlogArticle::class, ['post' => (string) $post->id])
+            ->set('body', '<p>Еще</p>')->call('autosave');
+        $this->assertEquals($at, $post->fresh()->published_at);
+        $this->assertSame('<p>Еще</p>', $post->fresh()->body);
+
+        // Опубликованную сами не сохраняем — только по кнопке
+        $post->update(['published_at' => now()->subHour()]);
+        Livewire::actingAs($admin)->test(BlogArticle::class, ['post' => (string) $post->id])
+            ->set('body', '<p>Недописано</p>')->call('autosave')
+            ->assertSee('Есть несохраненные изменения');
+        $this->assertSame('<p>Еще</p>', $post->fresh()->body);
+    }
+
+    public function test_publish_menu_actions(): void
+    {
+        $admin = $this->user(User::ROLE_ADMIN);
+
+        Livewire::actingAs($admin)->test(BlogArticle::class, ['post' => 'new'])
+            ->assertSee('Опубликовать сейчас')->assertSee('Запланировать…')->assertSee('Сохранить как черновик')
+            ->call('planLater')->assertSet('when', 'later')->assertDispatched('blog-settings')
+            ->set('title', 'Сразу')
+            ->call('publishNow');
+        $post = BlogPost::sole();
+        $this->assertTrue($post->isPublished());
+
+        Livewire::actingAs($admin)->test(BlogArticle::class, ['post' => (string) $post->id])
+            ->assertSee('Снять с публикации')->assertDontSee('Опубликовать сейчас')
+            ->set('title', 'Сразу и поправлено')
+            ->call('saveDraft');
+        $this->assertNull($post->fresh()->published_at);
+        $this->assertSame('Сразу и поправлено', $post->fresh()->title);
+    }
+
+    public function test_images_are_compressed_to_full_hd_webp(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake('s3');
+        $big = \Illuminate\Http\UploadedFile::fake()->image('photo.jpg', 4000, 3000);
+
+        $url = app(BlogService::class)->storeImage($big);
+
+        $this->assertStringEndsWith('.webp', $url);
+        $files = \Illuminate\Support\Facades\Storage::disk('s3')->allFiles('blog');
+        $this->assertCount(1, $files);
+        [$w, $h] = getimagesizefromstring(\Illuminate\Support\Facades\Storage::disk('s3')->get($files[0]));
+        $this->assertSame([1920, 1440], [$w, $h]);
+
+        $gif = \Illuminate\Http\UploadedFile::fake()->image('anim.gif', 100, 100);
+        $this->assertStringEndsWith('.gif', app(BlogService::class)->storeImage($gif));
     }
 
     public function test_unpublish_and_delete(): void

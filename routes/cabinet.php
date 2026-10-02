@@ -65,6 +65,8 @@ Route::middleware(['auth', \App\Http\Middleware\CheckUserActive::class])
             'subscription' => ['/teacher/subscription', 'Subscription'],
             'payments' => ['/teacher/payments', 'Payments'],
             'referrals' => ['/teacher/referrals', 'Referrals'],
+            'blog' => ['/teacher/blog', 'Blog'],
+            'blog-article' => ['/teacher/blog/{post}', 'BlogArticle'], // {post} = id или new
             'onboarding' => ['/teacher/onboarding', 'Onboarding'],
         ];
         foreach ($teacher as $name => [$uri, $class]) {

@@ -75,8 +75,8 @@ class TourTest extends TestCase
         $this->assertSame([
             'Сегодня', 'Что сделать сегодня', 'Расписание', 'Запланировать занятие', 'Сообщения', 'Чат поддержки',
             'Ученики', 'Пригласить ученика', 'Задания', 'Выдать задание', 'Материалы', 'Загрузить',
-            'Записи', 'Записи занятий', 'Отзывы', 'Отзывы учеников',
-        ], array_slice($titles, 1, 16));
+            'Записи', 'Записи занятий', 'Отзывы', 'Отзывы учеников', 'Мои статьи', 'Написать статью',
+        ], array_slice($titles, 1, 18));
 
         $menu = $steps[3];
         $this->assertNull($menu['url']);
@@ -91,7 +91,7 @@ class TourTest extends TestCase
         $this->assertSame(['nav-materials', 'more'], $steps[11]['targets']);
 
         // Потом общее: уведомления, поддержка, профиль, сам тур
-        $rest = array_slice($titles, 17, -1);
+        $rest = array_slice($titles, 19, -1);
         $this->assertSame('Уведомления', $rest[0]);
         $this->assertSame(['Помощь', 'Профиль и тариф'], array_slice($rest, -2));
         $help = $steps[array_search('Помощь', $titles, true)];

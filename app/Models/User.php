@@ -473,6 +473,12 @@ class User extends Authenticatable
         }
     }
 
+    /** Статьи блога, где пользователь — автор (учитель). */
+    public function blogPosts()
+    {
+        return $this->hasMany(BlogPost::class, 'author_id');
+    }
+
     /**
      * Подписки пользователя (тарифные планы платформы).
      */

@@ -292,13 +292,23 @@ class SeoController extends Controller
             $out[] = '';
         }
 
-        $posts = \App\Models\BlogPost::published()->latest('published_at')->limit(100)->get(['title', 'slug', 'excerpt', 'body']);
+        $posts = \App\Models\BlogPost::published()->with(['tags', 'author'])->latest('published_at')->limit(100)->get();
         if ($posts->isNotEmpty()) {
             $out[] = '## Блог';
+            $out[] = 'Статьи репетиторов Serdal. Каждая статья есть в Markdown — тот же адрес с окончанием .md. Лента с полным текстом: ' . Seo::url(route('blog.rss', [], false));
             foreach ($posts as $post) {
-                $out[] = '- [' . $post->title . '](' . Seo::url(route('blog.show', $post->slug, false)) . '): ' . $post->description(200);
+                $out[] = '- [' . $post->title . '](' . Seo::url(route('blog.show', $post->slug, false)) . ') · [Markdown](' . Seo::url(route('blog.markdown', $post->slug, false)) . '): ' . $post->description(200);
             }
             $out[] = '';
+            // Полная версия — с текстом статей, чтобы ИИ-ассистент мог ответить по ним без перехода на сайт
+            if ($full) {
+                $blog = app(\App\Services\BlogService::class);
+                foreach ($posts->take(30) as $post) {
+                    $out[] = '---';
+                    $out[] = '';
+                    $out[] = preg_replace('/^# /', '### ', $blog->markdown($post), 1);
+                }
+            }
         }
 
         $tutors = $this->publicTutors();

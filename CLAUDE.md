@@ -42,9 +42,20 @@ Laravel 11 + Livewire 3 + Tailwind 3. Занятия идут в BigBlueButton, 
 
 ## Блог
 
-- `serdal.ru/blog` (`BlogController`, виды `resources/views/blog/*`, стили `public/css/blog.css`) — статьи для поиска; пункт «Блог» в шапке, мобильном меню и подвале сайта. Админка «Блог» (`Blog`, `BlogArticle`), логика — `BlogService`, редактор — `x-ui.block-editor` (`resources/js/block-editor.js`, TipTap). Адрес статьи — русская транслитерация (`BlogPost::toSlug`: «занятия» → zanyatiya).
-- Опубликованные статьи сами попадают в `sitemap.xml` (а значит, в IndexNow) и в `llms.txt`. Черновик видит только админ («Как на сайте», `noindex`).
-- `news.serdal.ru` (домен рассылок) переадресуется на блог nginx'ом — `deploy/server/enable-news-redirect.sh`, запускается на сервере вручную. Тесты — `tests/Feature/Admin/BlogTest.php`.
+- `serdal.ru/blog` (`BlogController`, виды `resources/views/blog/*`, стили `public/css/blog.css`) — статьи для поиска; пункт «Блог» в шапке, мобильном меню и подвале сайта. Лента — сетка карточек и боковая колонка: популярные теги и самые активные авторы. Страницы тега `/blog/tag/{slug}` и автора `/blog/author/{username}`; карточки без обложки чередуют три стиля по порядку в ленте.
+- Пишут админ (админка «Блог»: `Admin\Blog`, `Admin\BlogArticle`) и учителя (кабинет → «Мои статьи»: `Teacher\Blog`, `Teacher\BlogArticle` — наследник админского экрана с `isTeacher()`). Логика — `BlogService`, редактор — `x-ui.block-editor` (`resources/js/block-editor.js`, TipTap), черновики сохраняются сами.
+- Статья учителя проходит проверку: `review_status` draft → pending (вкладка «На проверке» и счетчик в меню админа) → опубликована или returned с `review_note`; учителю — `BlogPostReviewed`. Опубликованную учитель не правит: «Снять с сайта и изменить». Админ назначает автором любого учителя (`author_id`; null — «Команда Serdal»).
+- Обсуждения и лайки на странице статьи — Livewire на публичной странице (`App\Livewire\Blog\Comments`, `LikeButton`; секция `livewire` в виде отключает Alpine с CDN, иначе две копии Alpine). Логика — `BlogCommentService`: ответы в один уровень, правка и удаление своего (с ответами — заглушка), модерация — автор статьи в своих статьях и админ везде (удалить, закрыть обсуждение, `BlogCommentBan`), жалобы — админка «Блог» → «Жалобы», уведомления `BlogCommentAdded`, не больше 5 комментариев в минуту.
+- «Популярные» (по умолчанию) и «Новые» (`?sort=new`): `BlogService::hotScore` = (лайки + 2 × комментарии + 1) / (дней + 2)^1.5, хранится в `blog_posts.hot_score`, обновляется при лайке и комментарии и командой `blog:hot` раз в час.
+- Статья учителя вышла — его ученикам `TeacherPublishedBlogPost` (кабинет и пуш), один раз (`students_notified_at`): сразу при публикации и командой `blog:notify` раз в минуту для статей по расписанию.
+- Демо-данные локально: `php artisan blog:demo` и `php artisan demo:ingush-names` (тестовые учителя и ученики — ингушские имена, админов не трогает); фабрика пользователей тоже дает ингушские имена (`App\Support\IngushNames`).
+- В шапке публичного сайта вошедший видит аватар и меню (кабинет, профиль, блог, выход) вместо «Войти».
+- Теги (`BlogTag`) создаются из настроек статьи, без статей удаляются; переименование в существующий тег объединяет их. Адрес статьи — русская транслитерация (`BlogPost::toSlug`).
+- SEO: опубликованные статьи, авторы и темы с 2+ статьями (`BlogService::TAG_MIN_POSTS`; меньше — `noindex, follow`) — в `sitemap.xml`; статья при публикации сразу уходит в IndexNow (`BlogService::save`), остальное — утренней `seo:indexnow`. У «Новых» (`?sort=new`) канонический адрес — лента без sort. Черновик видит только админ («Как на сайте», `noindex`).
+- Сменили адрес опубликованной статьи — старый ведет 301 на новый (таблица `blog_slug_redirects`).
+- Для ИИ-агентов и агрегаторов: `/blog/rss.xml` (полный текст), `/blog/{slug}.md` (Markdown, `RichText::toMarkdown`, сам `noindex`), статьи со ссылками на .md — в `llms.txt`, полный текст 30 последних — в `llms-full.txt`.
+- Блок статей на других страницах — `blog/partials/section`: на главной «Популярное в блоге» (`BlogService::popular`, перед каталогом — после бесконечного списка не долистать), на странице учителя «Статьи в блоге» — четыре последние и «Все статьи» на `/blog/author/{username}`. Демо-статьи для оценки вида локально: `php artisan blog:demo` (адреса `demo-…`), убрать — `--remove`; на проде команда не запускается без `--force`.
+- `news.serdal.ru` (домен рассылок) переадресуется на блог nginx'ом — `deploy/server/enable-news-redirect.sh`, запускается на сервере вручную. Тесты — `tests/Feature/Admin/BlogTest.php`, статья для учителей — `database/help/tutors/11-blog.md`.
 
 ## Рассылки на внешние адреса
 

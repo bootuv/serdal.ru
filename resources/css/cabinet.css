@@ -68,31 +68,33 @@
     .rich img { @apply max-w-full rounded; }
     .rich img.ProseMirror-selectednode { outline: 2px solid theme('colors.ink.DEFAULT'); }
 
-    /* Блочный редактор (x-ui.block-editor, статьи блога): блоки как на сайте, плейсхолдер — у пустой строки под курсором */
-    .block-content { @apply flex flex-col gap-3 text-t1 text-ink; }
-    .block-content h2 { @apply mt-4 text-h2 font-medium; }
-    .block-content h3 { @apply mt-2 text-t1 font-semibold; }
-    .block-content ul { @apply flex list-disc flex-col gap-1 pl-6; }
-    .block-content ol { @apply flex list-decimal flex-col gap-1 pl-6; }
-    .block-content blockquote { @apply border-l-2 border-ink pl-4 text-muted; }
-    .block-content aside.callout { @apply rounded-lg bg-soft p-4; }
-    .block-content hr { @apply my-2 border-line; }
-    .block-content a { @apply font-medium underline underline-offset-4 decoration-line-strong; }
-    .block-content strong, .block-content b { @apply font-semibold; }
-    .block-content img { @apply max-w-full rounded-lg; }
-    .block-content img.ProseMirror-selectednode, .block-content hr.ProseMirror-selectednode { outline: 2px solid theme('colors.ink.DEFAULT'); }
-    .block-content .is-empty::before { @apply pointer-events-none float-left h-0 text-faint; content: attr(data-placeholder); }
-
-    /* Редактор (x-ui.editor): без собственной обводки фокуса, плейсхолдер пустого документа */
-    .ProseMirror { outline: none; }
-    .ProseMirror p.is-editor-empty:first-child::before { @apply pointer-events-none float-left h-0 text-faint; content: attr(data-placeholder); }
-
-    /* Поле ввода */
     /* Выбранный вариант (x-ui.option) — тёмная обводка */
     .option:has(input:checked) { @apply shadow-selected; }
 
+    /* Поле ввода */
     .field { @apply h-11 w-full rounded bg-white px-4 text-t1 text-ink shadow-outline outline-none placeholder:text-faint focus:shadow-outline-ink; }
     /* Дата и время: в iOS у родного поля своя минимальная ширина — без appearance-none оно вылезает из колонки и растягивает страницу */
     .field[type=date], .field[type=time], .field[type=datetime-local] { @apply min-w-0 appearance-none text-left; }
     .field::-webkit-date-and-time-value { @apply text-left; }
 }
+
+/* Редакторы (x-ui.editor, x-ui.block-editor) — вне @layer: классы ProseMirror, block-content, is-empty ставит TipTap
+   из JavaScript, Tailwind не находит их в шаблонах и выкинул бы правила из слоя. */
+/* Блочный редактор (x-ui.block-editor, статьи блога): блоки как на сайте, плейсхолдер — у пустой строки под курсором */
+.block-content { @apply flex flex-col gap-3 text-t1 text-ink; }
+.block-content h2 { @apply mt-4 text-h2 font-medium; }
+.block-content h3 { @apply mt-2 text-t1 font-semibold; }
+.block-content ul { @apply flex list-disc flex-col gap-1 pl-6; }
+.block-content ol { @apply flex list-decimal flex-col gap-1 pl-6; }
+.block-content blockquote { @apply border-l-2 border-ink pl-4 text-muted; }
+.block-content aside.callout { @apply rounded-lg bg-soft p-4; }
+.block-content hr { @apply my-2 border-line; }
+.block-content a { @apply font-medium underline underline-offset-4 decoration-line-strong; }
+.block-content strong, .block-content b { @apply font-semibold; }
+.block-content img { @apply max-w-full rounded-lg; }
+.block-content img.ProseMirror-selectednode, .block-content hr.ProseMirror-selectednode { outline: 2px solid theme('colors.ink.DEFAULT'); }
+.block-content .is-empty::before { @apply pointer-events-none float-left h-0 text-faint; content: attr(data-placeholder); }
+
+/* Редактор (x-ui.editor): без собственной обводки фокуса, плейсхолдер пустого документа */
+.ProseMirror { outline: none; }
+.ProseMirror p.is-editor-empty:first-child::before { @apply pointer-events-none float-left h-0 text-faint; content: attr(data-placeholder); }

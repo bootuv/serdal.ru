@@ -11,17 +11,22 @@
          x-on:livewire:navigating.window="destroy()">
         <div x-ref="editor" aria-labelledby="{{ $name }}-label"></div>
 
-        {{-- Меню «/» --}}
+        {{-- Меню «/»: пункты с иконками рисуем здесь, Alpine фильтрует по запросу и подсвечивает выбранный --}}
         <div x-show="menu.open && items().length" x-cloak x-bind:style="`left: ${menu.x}px; top: ${menu.y}px`"
-             class="absolute z-10 flex max-h-sidebar w-sidebar flex-col overflow-y-auto rounded border border-line bg-white p-1 shadow-card" role="listbox" aria-label="Блоки">
-            <template x-for="(item, i) in items()" x-bind:key="item.id">
-                <button type="button" role="option" x-bind:aria-selected="i === menu.index" x-on:mousedown.prevent="pick(item.id)" x-on:mouseenter="menu.index = i"
-                        x-bind:class="i === menu.index ? 'bg-soft' : ''"
-                        class="flex h-11 w-full shrink-0 items-center justify-between gap-3 rounded-sm px-3 text-left">
-                    <span class="truncate text-t2 font-medium text-ink" x-text="item.title"></span>
-                    <span class="shrink-0 text-t3 text-muted" x-text="item.hint"></span>
+             class="absolute z-10 flex max-h-tour w-sidebar flex-col overflow-y-auto rounded border border-line bg-white p-1 shadow-card" role="listbox" aria-label="Блоки">
+            @foreach ([
+                ['text', 'text', 'Текст', ''], ['h2', 'heading-2', 'Заголовок', '##'], ['h3', 'heading-3', 'Подзаголовок', '###'],
+                ['ul', 'list', 'Список', '-'], ['ol', 'list-ordered', 'Нумерованный список', '1.'], ['quote', 'quote', 'Цитата', '>'],
+                ['callout', 'callout', 'Выделенный блок', ''], ['hr', 'divider', 'Разделитель', '---'], ['image', 'image', 'Картинка', ''],
+            ] as [$id, $icon, $title, $hint])
+                <button type="button" role="option" x-show="shows('{{ $id }}')" x-bind:aria-selected="current('{{ $id }}')"
+                        x-on:mousedown.prevent="pick('{{ $id }}')" x-on:mouseenter="hover('{{ $id }}')" x-bind:class="current('{{ $id }}') ? 'bg-soft text-ink' : 'text-muted'"
+                        class="flex h-10 w-full shrink-0 items-center gap-3 rounded-sm px-2 text-left">
+                    <x-ui.icon :name="$icon" class="shrink-0" />
+                    <span class="min-w-0 flex-1 truncate text-t2 font-medium text-ink">{{ $title }}</span>
+                    @if ($hint)<span class="shrink-0 text-t3 text-muted">{{ $hint }}</span>@endif
                 </button>
-            </template>
+            @endforeach
         </div>
 
         {{-- Панель выделенного текста --}}
