@@ -121,6 +121,19 @@
                     </div>
                     <div class="flex items-center justify-between gap-4 border-t border-line pt-4">
                         <div class="flex min-w-0 flex-col gap-1">
+                            <span class="text-t1-s font-medium">На сайте</span>
+                            <span class="text-t2 text-muted">
+                                @if ($public && $model?->url && $status === 'published')
+                                    Видна всем: <a href="{{ $model->url }}" target="_blank" rel="noopener" class="link">{{ str_replace(['https://', 'http://'], '', $model->url) }}</a>
+                                @else
+                                    Видна всем в разделе «Новости Serdal» на сайте, не только в кабинетах
+                                @endif
+                            </span>
+                        </div>
+                        <x-ui.switch :checked="$public" label="На сайте" wire:click="$toggle('public')" />
+                    </div>
+                    <div class="flex items-center justify-between gap-4 border-t border-line pt-4">
+                        <div class="flex min-w-0 flex-col gap-1">
                             <span class="text-t1-s font-medium">Письмо на почту</span>
                             <span class="text-t2 text-muted">{{ $notified ? ($sendMail ? 'Письмо отправлено' : 'Письмо не отправляли') : 'Вместе с уведомлением в кабинете — для того, что нельзя пропустить' }}</span>
                         </div>

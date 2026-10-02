@@ -387,6 +387,7 @@
           <a href="{{ route('tariffs') }}">Тарифы</a>
           <a href="{{ route('reviews') }}">Отзывы</a>
           <a href="{{ route('blog.index') }}">Блог</a>
+          <a href="{{ route('news.index') }}">Новости Serdal</a>
           <a href="{{ route('help.index') }}">Помощь</a>
         </div>
         @php($footerSubjects = app(\App\Services\TutorCatalogService::class)->topSubjects(6))

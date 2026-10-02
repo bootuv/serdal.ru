@@ -52,6 +52,15 @@ class SitemapService
         $add(route('reviews', [], false), null, 'weekly', '0.6');
         $add(route('help.index', [], false), null, 'weekly', '0.6');
 
+        // Новости с отметкой «На сайте»
+        $news = \App\Models\Announcement::onSite()->latest('published_at')->get(['slug', 'updated_at']);
+        if ($news->isNotEmpty()) {
+            $add(route('news.index', [], false), $news->max('updated_at')?->toDateString(), 'weekly', '0.5');
+            foreach ($news as $item) {
+                $add(route('news.show', $item->slug, false), $item->updated_at?->toDateString(), 'monthly', '0.5');
+            }
+        }
+
         $posts = BlogPost::published()->latest('published_at')->get(['slug', 'published_at', 'updated_at']);
         $add(route('blog.index', [], false), $posts->max('updated_at')?->toDateString(), 'weekly', '0.7');
         $blog = app(\App\Services\BlogService::class);

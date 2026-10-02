@@ -37,6 +37,8 @@ class NewsItem extends Component
     public bool $important = false;
     public bool $pinned = false;
     public bool $sendMail = false;
+    /** Показать и на сайте — serdal.ru/news, для всех. */
+    public bool $public = false;
 
     /** Когда публиковать: now — сразу, later — в publishAt («2026-10-05T10:00»). */
     public string $when = 'now';
@@ -72,6 +74,7 @@ class NewsItem extends Component
         $this->important = $model->is_important;
         $this->pinned = $model->is_pinned;
         $this->sendMail = $model->send_mail;
+        $this->public = $model->is_public;
         if ($model->isScheduled()) {
             $this->when = 'later';
             $this->publishAt = $model->published_at->format('Y-m-d\TH:i');
@@ -81,7 +84,7 @@ class NewsItem extends Component
 
     private function hash(): string
     {
-        return md5(json_encode([$this->title, $this->body, $this->audience, $this->important, $this->pinned, $this->sendMail]));
+        return md5(json_encode([$this->title, $this->body, $this->audience, $this->important, $this->pinned, $this->sendMail, $this->public]));
     }
 
     /** Раз в 5 секунд (wire:poll): новую — создаем черновиком, черновик — обновляем. */
@@ -141,6 +144,7 @@ class NewsItem extends Component
             'is_important' => $this->important,
             'is_pinned' => $this->pinned,
             'send_mail' => $this->sendMail,
+            'is_public' => $this->public,
             'published_at' => $publishedAt,
         ];
     }

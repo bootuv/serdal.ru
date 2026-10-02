@@ -58,6 +58,10 @@ Laravel 11 + Livewire 3 + Tailwind 3. Занятия идут в BigBlueButton, 
 - Блок статей на других страницах — `blog/partials/section`: на главной «Популярное в блоге» (`BlogService::popular`, перед каталогом — после бесконечного списка не долистать), на странице учителя «Статьи в блоге» — четыре последние и «Все статьи» на `/blog/author/{username}`. Демо-статьи для оценки вида локально: `php artisan blog:demo` (адреса `demo-…`), убрать — `--remove`; на проде команда не запускается без `--force`.
 - `news.serdal.ru` (домен рассылок) переадресуется на блог nginx'ом — `deploy/server/enable-news-redirect.sh`, запускается на сервере вручную. Тесты — `tests/Feature/Admin/BlogTest.php`, статья для учителей — `database/help/tutors/11-blog.md`.
 
+## Новости на сайте
+
+- Переключатель «На сайте» в настройках новости (`announcements.is_public`): опубликованная новость видна всем на `serdal.ru/news` и `/news/{slug}` (`PublicNewsController`, виды `resources/views/news/*`, стили — `public/css/blog.css`, `.news-*`), ссылка «Новости Serdal» в подвале, адреса — в `sitemap.xml`. Адрес — транслитерация заголовка, задается при первом показе на сайте и потом не меняется (`Announcement::slugFrom`). Видео — в нашем плеере (`RichText::players`). Тест — `NewsTest::test_news_marked_for_site_is_public`.
+
 ## Видео в новостях
 
 - Экран новости (`Admin\NewsItem`) устроен как статья блога: чистый лист с `x-ui.block-editor`, настройки (кому, когда, как показать) — в панели справа (событие `news-settings`), в кабинетах текст новости — `.block-content`.

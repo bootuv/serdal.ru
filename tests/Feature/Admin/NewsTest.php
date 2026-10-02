@@ -198,4 +198,37 @@ class NewsTest extends TestCase
         $page->set('body', '<p>Правка</p>')->call('autosave');
         $this->assertSame('<p>Новый текст</p>', $news->fresh()->body);
     }
+
+    public function test_news_marked_for_site_is_public(): void
+    {
+        $admin = $this->user(User::ROLE_ADMIN);
+        $page = Livewire::actingAs($admin)->test(NewsItem::class, ['announcement' => 'new'])
+            ->set('title', 'Запустили блог')->set('body', '<p>Теперь у Serdal есть блог</p>')->set('public', true)
+            ->call('submit')->call('publish');
+        $news = Announcement::sole();
+        $this->assertTrue($news->is_public);
+        $this->assertSame('zapustili-blog', $news->slug);
+
+        // Видна всем без входа: список, страница, подвал, sitemap
+        auth()->logout();
+        $this->get('/news')->assertOk()->assertSee('Новости Serdal')->assertSee('Запустили блог')->assertSee('/news/zapustili-blog', false);
+        $this->get('/news/zapustili-blog')->assertOk()->assertSee('Теперь у Serdal есть блог')->assertSee('NewsArticle', false);
+        $this->get('/')->assertSee(route('news.index'), false);
+        \Illuminate\Support\Facades\Cache::forget('seo.sitemap');
+        $this->get('/sitemap.xml')->assertSee('/news/zapustili-blog', false);
+
+        // Новость без отметки, черновик и запланированная на сайте не видны
+        $service = app(AnnouncementService::class);
+        $service->save(null, ['title' => 'Только в кабинете', 'body' => '<p>x</p>', 'published_at' => now()->subMinute()], $admin);
+        $service->save(null, ['title' => 'Черновик на сайт', 'body' => '<p>x</p>', 'is_public' => true], $admin);
+        $later = $service->save(null, ['title' => 'Завтрашняя', 'body' => '<p>x</p>', 'is_public' => true, 'published_at' => now()->addDay()], $admin);
+        $this->get('/news')->assertDontSee('Только в кабинете')->assertDontSee('Черновик на сайт')->assertDontSee('Завтрашняя');
+        $this->get('/news/' . $later->slug)->assertNotFound();
+
+        // Убрали отметку — страница пропала; адрес при смене заголовка не меняется
+        $service->save($news, ['title' => 'Запустили большой блог', 'body' => $news->body, 'is_public' => true, 'published_at' => $news->published_at], $admin);
+        $this->assertSame('zapustili-blog', $news->fresh()->slug);
+        $service->save($news->fresh(), ['title' => 'Запустили большой блог', 'body' => $news->body, 'is_public' => false, 'published_at' => $news->published_at], $admin);
+        $this->get('/news/zapustili-blog')->assertNotFound();
+    }
 }

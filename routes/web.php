@@ -24,6 +24,8 @@ Route::get('/napravleniya/{direct}', [\App\Http\Controllers\TutorCatalogControll
 
 
 // Блог: статьи про образование (админка «Блог»)
+Route::get('/news', [\App\Http\Controllers\PublicNewsController::class, 'index'])->name('news.index');
+Route::get('/news/{slug}', [\App\Http\Controllers\PublicNewsController::class, 'show'])->name('news.show');
 Route::get('/blog', [\App\Http\Controllers\BlogController::class, 'index'])->name('blog.index');
 Route::get('/blog/tag/{slug}', [\App\Http\Controllers\BlogController::class, 'tag'])->name('blog.tag');
 Route::get('/blog/author/{username}', [\App\Http\Controllers\BlogController::class, 'author'])->name('blog.author');

@@ -96,7 +96,7 @@ class AnnouncementService
     /* ---------- Админка ---------- */
 
     /**
-     * Сохранить новость. $data: title, body, audience, is_important, is_pinned, send_mail, published_at (null — черновик).
+     * Сохранить новость. $data: title, body, audience, is_important, is_pinned, send_mail, is_public, published_at (null — черновик).
      * Кому и письмо после рассылки не меняются: уведомление уже ушло.
      */
     public function save(?Announcement $announcement, array $data, ?User $author = null): Announcement
@@ -108,11 +108,17 @@ class AnnouncementService
             'body' => RichText::clean($data['body'] ?? null),
             'is_important' => (bool) ($data['is_important'] ?? false),
             'is_pinned' => (bool) ($data['is_pinned'] ?? false),
+            'is_public' => (bool) ($data['is_public'] ?? false),
             'published_at' => $data['published_at'] ?? null,
         ];
         if (! $announcement->notified_at) {
             $fields['audience'] = $data['audience'] ?? Announcement::AUDIENCE_TEACHERS;
             $fields['send_mail'] = (bool) ($data['send_mail'] ?? false);
+        }
+
+        // Адрес на сайте: задается при первом показе на сайте и потом не меняется — ссылки не ломаются
+        if ($fields['is_public'] && ! $announcement->slug && $fields['title'] !== '') {
+            $fields['slug'] = Announcement::slugFrom($fields['title'], $announcement->id);
         }
 
         $announcement->fill($fields)->save();

@@ -8,7 +8,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 
-/** Новость от администрации для учителей, учеников или всех. Логика — App\Services\AnnouncementService. */
+/**
+ * Новость от администрации для учителей, учеников или всех. Логика — App\Services\AnnouncementService.
+ * is_public — еще и на сайте: serdal.ru/news/{slug} (PublicNewsController), ссылка «Новости Serdal» в подвале.
+ */
 class Announcement extends Model
 {
     public const AUDIENCE_TEACHERS = 'teachers';
@@ -22,13 +25,14 @@ class Announcement extends Model
     ];
 
     protected $fillable = [
-        'title', 'body', 'audience', 'is_important', 'is_pinned', 'send_mail', 'published_at', 'notified_at', 'created_by',
+        'title', 'slug', 'body', 'audience', 'is_important', 'is_pinned', 'send_mail', 'is_public', 'published_at', 'notified_at', 'created_by',
     ];
 
     protected $casts = [
         'is_important' => 'boolean',
         'is_pinned' => 'boolean',
         'send_mail' => 'boolean',
+        'is_public' => 'boolean',
         'published_at' => 'datetime',
         'notified_at' => 'datetime',
     ];
@@ -47,6 +51,31 @@ class Announcement extends Model
     public function scopePublished(Builder $query): Builder
     {
         return $query->whereNotNull('published_at')->where('published_at', '<=', now());
+    }
+
+    /** Опубликована и видна на сайте всем. */
+    public function scopeOnSite(Builder $query): Builder
+    {
+        return $query->published()->where('is_public', true)->whereNotNull('slug');
+    }
+
+    /** Адрес на сайте (только у новостей «На сайте»). */
+    public function getUrlAttribute(): ?string
+    {
+        return $this->is_public && $this->slug ? route('news.show', $this->slug) : null;
+    }
+
+    /** Свободный адрес для новости по заголовку (повтор — с номером: …-2). */
+    public static function slugFrom(string $title, ?int $ignoreId = null): string
+    {
+        $base = rtrim(BlogPost::toSlug($title), '-') ?: 'novost';
+        $slug = $base;
+        $i = 2;
+        while (static::where('slug', $slug)->when($ignoreId, fn ($q) => $q->whereKeyNot($ignoreId))->exists()) {
+            $slug = $base . '-' . $i++;
+        }
+
+        return $slug;
     }
 
     /** Роли, которым адресована новость. */
