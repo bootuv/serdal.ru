@@ -59,6 +59,8 @@
             ['key' => 'blog', 'label' => 'Блог', 'icon' => 'pencil', 'href' => $a('blog')],
             ['key' => 'mailings', 'label' => 'Рассылки', 'icon' => 'mail', 'href' => $a('mailings')],
             ['key' => 'help', 'label' => 'База знаний', 'icon' => 'help', 'href' => $a('help')],
+            ['sep' => true],
+            ['key' => 'settings', 'label' => 'Настройки', 'icon' => 'settings', 'href' => $a('settings')],
         ];
     }
     $mobileTabs = array_values(array_filter($nav, fn ($i) => in_array($i['key'] ?? null, $isAdmin ? ['today', 'support', 'lessons', 'users'] : ['home', 'today', 'schedule', 'tasks', 'messages'])));
@@ -95,7 +97,6 @@
         $moreItems[] = ['key' => 'referrals', 'label' => 'Пригласить коллег', 'icon' => 'share', 'href' => route('cabinet.teacher.referrals')];
     }
     if ($isAdmin) {
-        $moreItems[] = ['key' => 'settings', 'label' => 'Настройки', 'icon' => 'settings', 'href' => route('cabinet.admin.settings')];
         $moreItems[] = ['key' => 'profile', 'label' => 'Профиль', 'icon' => 'user', 'href' => $profileHref];
     } else {
         if ($tourHref) {
@@ -168,9 +169,7 @@
                     <a href="{{ route('cabinet.teacher.referrals') }}" data-tour="referrals" class="flex h-11 items-center gap-3 rounded px-3 text-t1-s font-medium text-muted hover:bg-soft-hover hover:text-ink"><x-ui.icon name="share" />Пригласить коллег</a>
                 @endif
             @endunless
-            @if ($isAdmin)
-                <a href="{{ route('cabinet.admin.settings') }}" @class(['flex h-11 items-center gap-3 rounded px-3 text-t1-s font-medium', 'bg-mint font-semibold text-ink' => $active === 'settings', 'text-muted hover:bg-soft-hover hover:text-ink' => $active !== 'settings'])><x-ui.icon name="settings" />Настройки</a>
-            @else
+            @unless ($isAdmin)
                 {{-- Помощь: поддержка, тур и база знаний одной строкой, список открывается вверх. Тур открывает его сам (событие tour-reveal). --}}
                 <div class="relative" data-tour="help" x-data="{ open: false }" x-on:click.outside="open = false" x-on:keydown.escape="open = false"
                      x-on:tour-reveal.window="open = $event.detail.name === 'help'">
@@ -186,7 +185,7 @@
                         <x-ui.icon name="help" />Помощь<x-ui.icon name="chevron-down" size="s" class="ml-auto transition-transform" x-bind:class="open && 'rotate-180'" />
                     </button>
                 </div>
-            @endif
+            @endunless
             {{-- Профиль: по клику — меню вверх с разделами профиля и выходом. Тур подсвечивает его целиком (nav-profile). --}}
             <div class="relative border-t border-line pt-3" data-tour="nav-profile" x-data="{ open: false }" x-on:click.outside="open = false" x-on:keydown.escape="open = false">
                 <div x-show="open" x-cloak role="menu" aria-label="Профиль" class="absolute inset-x-0 bottom-full z-10 mb-1 flex flex-col rounded border border-line bg-white p-1 shadow-card">
