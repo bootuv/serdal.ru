@@ -128,8 +128,8 @@
 <div class="flex min-h-screen">
 
     {{-- Сайдбар (компьютер) --}}
-    <aside class="sticky top-0 hidden h-screen w-sidebar shrink-0 flex-col gap-8 border-r border-line px-4 pb-4 pt-8 lg:flex">
-        <div class="flex shrink-0 items-center justify-between gap-2 pl-3">
+    <aside class="sticky top-0 hidden h-screen w-sidebar shrink-0 flex-col border-r border-line px-4 pb-4 pt-8 lg:flex">
+        <div class="mb-8 flex shrink-0 items-center justify-between gap-2 pl-3">
             <a href="{{ $nav[0]['href'] }}"><img src="{{ asset('images/Logo.svg') }}" alt="Serdal" class="h-6 w-auto"></a>
             <button type="button" x-data="{ n: {{ $unread }} }" x-on:notifications-count.window="n = $event.detail.count" x-on:click="$dispatch('notifications-open')" data-tour="bell"
                 class="relative flex size-9 items-center justify-center rounded text-muted hover:bg-soft-hover hover:text-ink" x-bind:aria-label="n ? 'Уведомления, есть новые' : 'Уведомления'" aria-label="Уведомления">
@@ -160,7 +160,7 @@
             @endforeach
         </nav>
 
-        <div class="flex shrink-0 flex-col gap-2">
+        <div class="mt-2 flex shrink-0 flex-col gap-2">
             @unless ($isStudent || $isAdmin)
                 <livewire:cabinet.referral-promo />
                 {{-- Плашку скрыли — партнёрка остаётся доступной обычной ссылкой --}}
