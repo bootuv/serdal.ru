@@ -98,7 +98,13 @@
                     </x-ui.card-head>
                     <x-ui.progress on-mint :value="$stats['sent']" :max="max(1, $stats['total'])" label="Отправлено писем" />
                     @if ($status === 'sending' && $model->error)
-                        <p class="text-t2"><x-ui.em danger>Отправка стоит:</x-ui.em> {{ $model->error }}. Повторим через минуту — или остановите отправку.</p>
+                        <p class="text-t2"><x-ui.em danger>Отправка стоит:</x-ui.em> {{ $model->error }}.
+                            @if ($model->resume_at && $model->resume_at->isFuture())
+                                Остальные письма ждут в очереди, попробуем снова {{ \App\Support\HumanDate::at($model->resume_at) }} и дальше раз в час, пока лимит не обновится.
+                            @else
+                                Повторим через минуту — или остановите отправку.
+                            @endif
+                        </p>
                     @endif
                     <dl class="grid grid-cols-2 gap-4 sm:grid-cols-4">
                         @foreach ([['Открыли', $stats['opened'], $percent($stats['opened'])], ['Перешли', $stats['clicked'], $percent($stats['clicked'])], ['Отписались', $stats['unsubscribed'], null], ['Не доставлено', $stats['failed'], null]] as [$label, $value, $share])

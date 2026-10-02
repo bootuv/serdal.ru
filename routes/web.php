@@ -23,6 +23,10 @@ Route::get('/napravleniya/{direct}', [\App\Http\Controllers\TutorCatalogControll
 
 
 
+// Блог: статьи про образование (админка «Блог»)
+Route::get('/blog', [\App\Http\Controllers\BlogController::class, 'index'])->name('blog.index');
+Route::get('/blog/{slug}', [\App\Http\Controllers\BlogController::class, 'show'])->name('blog.show');
+
 // Help Center (база знаний) — публичные страницы
 Route::get('/help', [\App\Http\Controllers\HelpController::class, 'index'])->name('help.index');
 Route::get('/help/{audience}', [\App\Http\Controllers\HelpController::class, 'section'])->name('help.section');

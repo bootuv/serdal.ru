@@ -193,6 +193,7 @@
         <a href="{{ route('about') }}" class="p24">О нас</a>
         <a href="{{ route('tariffs') }}" class="p24">Тарифы</a>
         <a href="{{ route('reviews') }}" class="p24">Отзывы</a>
+        <a href="{{ route('blog.index') }}" class="p24">Блог</a>
         <a href="{{ route('help.index') }}" class="p24">Помощь</a>
         <a href="/login" class="p24">Войти</a>
       </div>
@@ -217,6 +218,7 @@
           <a href="{{ route('about') }}">О нас</a>
           <a href="{{ route('tariffs') }}">Тарифы</a>
           <a href="{{ route('reviews') }}">Отзывы</a>
+          <a href="{{ route('blog.index') }}">Блог</a>
           <a href="{{ route('help.index') }}">Помощь</a>
         </div>
         @php($footerSubjects = app(\App\Services\TutorCatalogService::class)->topSubjects(6))
@@ -276,6 +278,7 @@
         <a href="{{ route('about') }}" class="p30">О нас</a>
         <a href="{{ route('tariffs') }}" class="p30">Тарифы</a>
         <a href="{{ route('reviews') }}" class="p30">Отзывы</a>
+        <a href="{{ route('blog.index') }}" class="p30">Блог</a>
         <a href="{{ route('help.index') }}" class="p30">Помощь</a>
         <a href="/login" class="p30">Войти</a>
       </div>

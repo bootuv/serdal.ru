@@ -17,13 +17,14 @@ class MailingCampaign extends Model
     public const STOPPED = 'stopped';
 
     protected $fillable = [
-        'subject', 'preheader', 'body', 'button_text', 'button_url', 'status', 'scheduled_at', 'started_at', 'finished_at', 'error', 'created_by',
+        'subject', 'preheader', 'body', 'button_text', 'button_url', 'status', 'scheduled_at', 'started_at', 'finished_at', 'error', 'resume_at', 'created_by',
     ];
 
     protected $casts = [
         'scheduled_at' => 'datetime',
         'started_at' => 'datetime',
         'finished_at' => 'datetime',
+        'resume_at' => 'datetime',
     ];
 
     public function lists(): BelongsToMany

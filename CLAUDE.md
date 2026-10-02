@@ -40,6 +40,12 @@ Laravel 11 + Livewire 3 + Tailwind 3. Занятия идут в BigBlueButton, 
 - Занятие, проведённое занятие и запись помнят свой сервер (`bbb_server_id`). `bbb:check-servers` раз в минуту (`BbbServerMonitor`) проверяет связь, версию, подбирает алгоритм подписи (`checksum`), считает участников и сверяет «идущие» занятия. Списки занятий и записей — через `BbbClientFactory::meetings/recordings`: они бросают исключение при сбое, а не возвращают пустой список.
 - В тестах `BbbClientFactory` привязан к `Tests\Support\FacadeBbbClientFactory` (ответы — моки фасада `Bigbluebutton`).
 
+## Блог
+
+- `serdal.ru/blog` (`BlogController`, виды `resources/views/blog/*`, стили `public/css/blog.css`) — статьи для поиска; пункт «Блог» в шапке, мобильном меню и подвале сайта. Админка «Блог» (`Blog`, `BlogArticle`), логика — `BlogService`, редактор — `x-ui.block-editor` (`resources/js/block-editor.js`, TipTap). Адрес статьи — русская транслитерация (`BlogPost::toSlug`: «занятия» → zanyatiya).
+- Опубликованные статьи сами попадают в `sitemap.xml` (а значит, в IndexNow) и в `llms.txt`. Черновик видит только админ («Как на сайте», `noindex`).
+- `news.serdal.ru` (домен рассылок) переадресуется на блог nginx'ом — `deploy/server/enable-news-redirect.sh`, запускается на сервере вручную. Тесты — `tests/Feature/Admin/BlogTest.php`.
+
 ## Рассылки на внешние адреса
 
 - Админка «Рассылки» (`Mailings`, `Mailing`, `MailingList`), логика — `MailingService`, разбор таблиц (.xlsx, .csv, вставка) — `App\Support\MailingImport`; пользователей платформы (учителя по тарифу, ученики, поштучно) добавляет `MailingService::importUsers` — это снимок почты на момент добавления, `user_id` даёт `{имя}` и подпись роли. Адрес (`mailing_contacts`) один на всю систему: отписка действует на все списки навсегда, удаление списка её не снимает.

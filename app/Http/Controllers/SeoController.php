@@ -198,6 +198,7 @@ class SeoController extends Controller
         $out[] = '- [Тарифы](' . Seo::url(route('tariffs', [], false)) . '): подписка для репетиторов и образовательных центров, порядок оплаты и возврата';
         $out[] = '- [Отзывы](' . Seo::url(route('reviews', [], false)) . '): отзывы учеников о преподавателях';
         $out[] = '- [Центр помощи](' . Seo::url(route('help.index', [], false)) . '): инструкции и видео для учеников и репетиторов';
+        $out[] = '- [Блог](' . Seo::url(route('blog.index', [], false)) . '): статьи об образовании, подготовке к экзаменам и занятиях онлайн';
         $out[] = '- [Стать преподавателем](' . Seo::url(route('become-tutor', [], false)) . '): заявка на регистрацию репетитора';
         $out[] = '- [Репетиторы по предметам](' . Seo::url(route('catalog.index', [], false)) . '): подборки учителей по предметам и направлениям подготовки';
         $out[] = '';
@@ -287,6 +288,15 @@ class SeoController extends Controller
                             . ($article->excerpt ? ': ' . Seo::text($article->excerpt, 200) : '');
                     }
                 }
+            }
+            $out[] = '';
+        }
+
+        $posts = \App\Models\BlogPost::published()->latest('published_at')->limit(100)->get(['title', 'slug', 'excerpt', 'body']);
+        if ($posts->isNotEmpty()) {
+            $out[] = '## Блог';
+            foreach ($posts as $post) {
+                $out[] = '- [' . $post->title . '](' . Seo::url(route('blog.show', $post->slug, false)) . '): ' . $post->description(200);
             }
             $out[] = '';
         }

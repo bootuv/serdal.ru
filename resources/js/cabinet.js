@@ -46,6 +46,7 @@ window.serdalShareReviewCard = async function (url) {
     return 'download';
 };
 import './rich-editor';
+import './block-editor';
 import './lightbox';
 import './video-player';
 import './photo-crop';

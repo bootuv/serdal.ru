@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\BlogPost;
 use App\Models\HelpCategory;
 use App\Models\User;
 use App\Support\Seo;
@@ -50,6 +51,12 @@ class SitemapService
         $add(route('become-tutor', [], false), null, 'monthly', '0.6');
         $add(route('reviews', [], false), null, 'weekly', '0.6');
         $add(route('help.index', [], false), null, 'weekly', '0.6');
+
+        $posts = BlogPost::published()->latest('published_at')->get(['slug', 'published_at', 'updated_at']);
+        $add(route('blog.index', [], false), $posts->max('updated_at')?->toDateString(), 'weekly', '0.7');
+        foreach ($posts as $post) {
+            $add(route('blog.show', $post->slug, false), $post->updated_at?->toDateString(), 'monthly', '0.6');
+        }
         $add(route('privacy', [], false), null, 'yearly', '0.2');
         $add(route('terms', [], false), null, 'yearly', '0.2');
         $add(route('offer', [], false), null, 'yearly', '0.2');

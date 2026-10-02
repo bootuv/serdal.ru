@@ -339,7 +339,7 @@ class MailingsTest extends TestCase
 
         $campaign->refresh();
         $this->assertSame(MailingCampaign::SENDING, $campaign->status);
-        $this->assertStringContainsString('not verified', $campaign->error);
+        $this->assertStringContainsString('не подтвержден', $campaign->error);
         $this->assertSame(4, $campaign->deliveries()->where('status', MailingDelivery::QUEUED)->count(), 'письма остаются в очереди');
     }
 
@@ -353,7 +353,70 @@ class MailingsTest extends TestCase
         $this->service()->sendDue();
 
         $this->assertSame(MailingDelivery::QUEUED, $campaign->deliveries()->sole()->status);
-        $this->assertStringContainsString('Throttling', $campaign->fresh()->error);
+        $this->assertStringContainsString('медленнее', $campaign->fresh()->error);
+    }
+
+    public function test_daily_quota_pauses_until_later(): void
+    {
+        // Первое письмо уходит, на втором Postbox сообщает, что дневной лимит исчерпан
+        $calls = new \ArrayObject();
+        Mail::extend('quota', fn () => new class($calls) extends AbstractTransport {
+            public function __construct(private \ArrayObject $calls)
+            {
+                parent::__construct();
+            }
+
+            protected function doSend(SentMessage $message): void
+            {
+                $this->calls->append(1);
+                if (count($this->calls) > 1) {
+                    throw new UnexpectedResponseException('Expected response code "250" but got code "550", with message "550 5.4.5 Daily sending quota exceeded."', 550);
+                }
+            }
+
+            public function __toString(): string
+            {
+                return 'quota://';
+            }
+        });
+        config(['mail.mailers.newsletter' => ['transport' => 'quota']]);
+        Mail::purge('newsletter');
+
+        $list = $this->list('Казань', ['a@s.ru' => [null, null], 'b@s.ru' => [null, null], 'c@s.ru' => [null, null]]);
+        $campaign = $this->campaign([$list]);
+        $this->service()->start($campaign);
+
+        $this->assertSame(1, $this->service()->sendDue());
+        $campaign->refresh();
+        $this->assertSame('исчерпан дневной лимит писем в Yandex Cloud Postbox', $campaign->error);
+        $this->assertTrue($campaign->resume_at->isFuture(), 'пауза не сбрасывается из-за письма, ушедшего до лимита');
+        $this->assertSame(2, $campaign->deliveries()->where('status', MailingDelivery::QUEUED)->count());
+        $this->assertSame(0, $campaign->deliveries()->where('status', MailingDelivery::FAILED)->count());
+
+        // Пока пауза — к серверу не обращаемся
+        $this->assertSame(0, $this->service()->sendDue());
+        $this->assertCount(2, $calls);
+
+        Livewire::actingAs($this->admin())->test(Mailing::class, ['campaign' => (string) $campaign->id])
+            ->assertSee('Отправка стоит:')
+            ->assertSee('попробуем снова');
+
+        // Через час лимит обновился
+        Mail::extend('quota', fn () => new class extends AbstractTransport {
+            protected function doSend(SentMessage $message): void {}
+
+            public function __toString(): string
+            {
+                return 'ok://';
+            }
+        });
+        Mail::purge('newsletter');
+        $this->travel(61)->minutes();
+        $this->assertSame(2, $this->service()->sendDue());
+        $campaign->refresh();
+        $this->assertSame(MailingCampaign::SENT, $campaign->status);
+        $this->assertNull($campaign->error);
+        $this->assertNull($campaign->resume_at);
     }
 
     public function test_single_bad_address_is_marked_failed(): void

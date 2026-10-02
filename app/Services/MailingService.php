@@ -46,6 +46,9 @@ class MailingService
     /** Подряд столько отказов сервера — значит, дело не в адресах (лимит, ключ, домен не подтверждён): ставим отправку на паузу. */
     private const FAILS_IN_A_ROW = 3;
 
+    /** Дневной лимит сервиса почты исчерпан — пробуем снова через столько минут (лимит Postbox считается за скользящие сутки). */
+    private const QUOTA_RETRY_MINUTES = 60;
+
     private const CHUNK = 500;
 
     /* ---------- Списки ---------- */
@@ -362,7 +365,9 @@ class MailingService
         $limit ??= max(1, (int) config('mail.newsletter.per_minute', 20));
         $sent = 0;
 
-        $campaigns = MailingCampaign::where('status', MailingCampaign::SENDING)->orderBy('started_at')->get();
+        $campaigns = MailingCampaign::where('status', MailingCampaign::SENDING)
+            ->where(fn ($q) => $q->whereNull('resume_at')->orWhere('resume_at', '<=', now()))
+            ->orderBy('started_at')->get();
         foreach ($campaigns as $campaign) {
             if ($sent >= $limit) {
                 break;
@@ -380,6 +385,7 @@ class MailingService
         $links = $campaign->links()->pluck('id', 'url')->all();
 
         $sent = 0;
+        $paused = false;
         $failedInRow = [];
         foreach ($deliveries as $delivery) {
             // Отписался уже после запуска — не пишем
@@ -393,7 +399,15 @@ class MailingService
             } catch (TransportExceptionInterface $e) {
                 $error = self::errorText($e);
 
-                // Временный сбой (сервер недоступен, лимит, неверный ключ): письмо остаётся в очереди, отправка ждёт
+                // Исчерпан дневной лимит: письма ждут в очереди, раз в час проверяем, обновился ли лимит
+                if (self::isQuotaError($e)) {
+                    MailingDelivery::whereIn('id', $failedInRow)->update(['status' => MailingDelivery::QUEUED, 'error' => null]);
+                    $campaign->update(['error' => $error, 'resume_at' => now()->addMinutes(self::QUOTA_RETRY_MINUTES)]);
+                    $paused = true;
+                    break;
+                }
+
+                // Временный сбой (сервер недоступен, слишком часто, неверный ключ): письмо остаётся в очереди, отправка ждёт
                 if (! self::isAddressError($e)) {
                     $campaign->update(['error' => $error]);
                     report($e);
@@ -416,13 +430,13 @@ class MailingService
             $sent++;
         }
 
-        if ($sent > 0 && $campaign->error) {
-            $campaign->update(['error' => null]);
+        if ($sent > 0 && ! $paused && ($campaign->error || $campaign->resume_at)) {
+            $campaign->update(['error' => null, 'resume_at' => null]);
         }
 
         if (! $campaign->deliveries()->where('status', MailingDelivery::QUEUED)->exists()) {
             MailingCampaign::whereKey($campaign->id)->where('status', MailingCampaign::SENDING)
-                ->update(['status' => MailingCampaign::SENT, 'finished_at' => now(), 'error' => null]);
+                ->update(['status' => MailingCampaign::SENT, 'finished_at' => now(), 'error' => null, 'resume_at' => null]);
         }
 
         return $sent;
@@ -436,9 +450,30 @@ class MailingService
         return in_array($code, [501, 550, 551, 552, 553], true);
     }
 
-    private static function errorText(\Throwable $e): string
+    /** Дневной лимит сервиса почты (Postbox: «550 5.4.5 Daily sending quota exceeded»). */
+    private static function isQuotaError(\Throwable $e): bool
     {
-        return mb_substr(trim(preg_replace('/\s+/', ' ', $e->getMessage())) ?: 'Сервер почты не принял письмо', 0, 500);
+        return (bool) preg_match('/quota|5\.4\.5/i', $e->getMessage());
+    }
+
+    /** Причина отказа по-русски для админки; нераспознанное — с исходным ответом сервера. */
+    public static function errorText(\Throwable $e): string
+    {
+        $raw = trim(preg_replace('/\s+/', ' ', $e->getMessage()));
+        $known = [
+            '/quota|5\.4\.5/i' => 'исчерпан дневной лимит писем в Yandex Cloud Postbox',
+            '/throttl|rate exceeded|too many/i' => 'сервис почты просит отправлять медленнее',
+            '/not verified|not authorized to send|identity/i' => 'адрес отправителя не подтвержден в Yandex Cloud Postbox — проверьте домен',
+            '/\b535\b|authentication|credentials/i' => 'сервис почты не принял ключ доступа — проверьте логин и пароль в настройках сервера',
+            '/connection|timed out|could not be established|refused/i' => 'не удалось подключиться к серверу почты',
+        ];
+        foreach ($known as $pattern => $text) {
+            if (preg_match($pattern, $raw)) {
+                return $text;
+            }
+        }
+
+        return mb_substr('сервер почты не принял письмо: ' . ($raw ?: 'без объяснения'), 0, 500);
     }
 
     /**

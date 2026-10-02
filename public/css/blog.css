@@ -1,0 +1,325 @@
+/* Блог (serdal.ru/blog): список статей и статья. Переменные цвета — из serdal-ru.webflow.css */
+
+.content.blog-content {
+  flex-flow: column;
+  align-items: stretch;
+  gap: 48px;
+  width: 100%;
+  max-width: 1080px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-bottom: 80px;
+}
+
+.blog-hero {
+  display: flex;
+  flex-flow: column;
+  gap: 12px;
+}
+
+.blog-title {
+  margin: 0;
+  font-size: 44px;
+  font-weight: 500;
+  line-height: 52px;
+  letter-spacing: -1px;
+  color: var(--black);
+}
+
+.blog-subtitle {
+  margin: 0;
+  color: var(--gray);
+}
+
+.blog-empty {
+  color: var(--gray);
+  font-size: 18px;
+}
+
+/* Карточки статей */
+.blog-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 32px 24px;
+}
+
+.blog-card {
+  display: flex;
+  flex-flow: column;
+  gap: 16px;
+  color: var(--black);
+  text-decoration: none;
+}
+
+.blog-card-cover {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  border-radius: 24px;
+  background-color: var(--bg1);
+  transition: opacity .3s;
+}
+
+.blog-card-cover--empty {
+  background-color: var(--bg2);
+}
+
+.blog-card:hover .blog-card-cover {
+  opacity: .85;
+}
+
+.blog-card-text {
+  display: flex;
+  flex-flow: column;
+  gap: 8px;
+}
+
+.blog-card-title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 500;
+  line-height: 28px;
+}
+
+.blog-card:hover .blog-card-title {
+  text-decoration: underline;
+}
+
+.blog-card-excerpt {
+  margin: 0;
+  color: var(--gray);
+  font-size: 16px;
+  line-height: 24px;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.blog-meta {
+  color: var(--gray);
+  font-size: 15px;
+  line-height: 20px;
+}
+
+.blog-pages {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  color: var(--gray);
+  font-size: 16px;
+}
+
+.blog-pages a {
+  color: var(--black);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.blog-pages a:hover {
+  text-decoration: underline;
+}
+
+/* Статья */
+.blog-article {
+  display: flex;
+  flex-flow: column;
+  gap: 16px;
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.blog-back {
+  color: var(--gray);
+  font-size: 16px;
+  text-decoration: none;
+}
+
+.blog-back:hover {
+  color: var(--black);
+}
+
+.blog-article-title {
+  margin: 0;
+  font-size: 44px;
+  font-weight: 500;
+  line-height: 52px;
+  letter-spacing: -1px;
+  color: var(--black);
+}
+
+.blog-article-cover {
+  width: 100%;
+  margin-top: 16px;
+  border-radius: 24px;
+}
+
+.blog-body {
+  margin-top: 16px;
+  color: var(--black);
+  font-size: 18px;
+  line-height: 1.7;
+}
+
+.blog-body > :first-child {
+  margin-top: 0;
+}
+
+.blog-body h2 {
+  margin: 40px 0 16px;
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 36px;
+}
+
+.blog-body h3 {
+  margin: 32px 0 12px;
+  font-size: 21px;
+  font-weight: 600;
+  line-height: 28px;
+}
+
+.blog-body p {
+  margin: 0 0 16px;
+}
+
+.blog-body ul,
+.blog-body ol {
+  margin: 8px 0 16px 24px;
+}
+
+.blog-body li {
+  margin-bottom: 8px;
+}
+
+.blog-body a {
+  color: var(--black);
+}
+
+.blog-body img {
+  display: block;
+  max-width: 100%;
+  margin: 24px 0;
+  border-radius: 16px;
+}
+
+.blog-body blockquote {
+  margin: 24px 0;
+  padding-left: 20px;
+  border-left: 3px solid var(--brand-main);
+  color: var(--gray);
+  font-size: 20px;
+}
+
+.blog-body aside.callout {
+  margin: 24px 0;
+  padding: 20px 24px;
+  border-radius: 16px;
+  background-color: var(--bg1);
+}
+
+.blog-body hr {
+  margin: 40px 0;
+  border: 0;
+  border-top: 1px solid var(--line-light);
+}
+
+/* Призыв в конце статьи */
+.blog-cta {
+  display: flex;
+  flex-flow: column;
+  align-items: flex-start;
+  gap: 12px;
+  margin-top: 48px;
+  padding: 32px;
+  border-radius: 24px;
+  background-color: var(--brand-main-light);
+}
+
+.blog-cta-title {
+  font-size: 24px;
+  font-weight: 500;
+  line-height: 32px;
+}
+
+.blog-cta p {
+  margin: 0;
+  color: var(--gray);
+  font-size: 17px;
+  line-height: 26px;
+}
+
+.blog-cta-button {
+  margin-top: 8px;
+  padding: 14px 24px;
+  border-radius: 12px;
+  background-color: var(--brand-main);
+  color: var(--black);
+  font-size: 17px;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.blog-cta-button:hover {
+  opacity: .9;
+}
+
+.blog-more {
+  display: flex;
+  flex-flow: column;
+  gap: 24px;
+  padding-top: 48px;
+  border-top: 1px solid var(--line-light);
+}
+
+.blog-more-title {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 500;
+  line-height: 36px;
+}
+
+@media screen and (max-width: 991px) {
+  .blog-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .blog-title,
+  .blog-article-title {
+    font-size: 36px;
+    line-height: 42px;
+  }
+}
+
+@media screen and (max-width: 767px) {
+  .blog-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .content.blog-content {
+    gap: 32px;
+    padding-bottom: 48px;
+  }
+
+  .blog-title,
+  .blog-article-title {
+    font-size: 30px;
+    line-height: 36px;
+    letter-spacing: -.5px;
+  }
+
+  .blog-body {
+    font-size: 17px;
+  }
+
+  .blog-body h2 {
+    font-size: 24px;
+    line-height: 30px;
+  }
+
+  .blog-cta {
+    padding: 24px;
+  }
+}

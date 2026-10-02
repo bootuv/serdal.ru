@@ -56,6 +56,7 @@
             ['key' => 'founders', 'label' => 'Основатели', 'icon' => 'lock', 'href' => $a('founders')],
             ['sep' => true],
             ['key' => 'news', 'label' => 'Новости', 'icon' => 'news', 'href' => $a('news')],
+            ['key' => 'blog', 'label' => 'Блог', 'icon' => 'pencil', 'href' => $a('blog')],
             ['key' => 'mailings', 'label' => 'Рассылки', 'icon' => 'mail', 'href' => $a('mailings')],
             ['key' => 'help', 'label' => 'База знаний', 'icon' => 'help', 'href' => $a('help')],
         ];
@@ -128,7 +129,7 @@
 
     {{-- Сайдбар (компьютер) --}}
     <aside class="sticky top-0 hidden h-screen w-sidebar shrink-0 flex-col gap-8 border-r border-line px-4 pb-4 pt-8 lg:flex">
-        <div class="flex items-center justify-between gap-2 pl-3">
+        <div class="flex shrink-0 items-center justify-between gap-2 pl-3">
             <a href="{{ $nav[0]['href'] }}"><img src="{{ asset('images/Logo.svg') }}" alt="Serdal" class="h-6 w-auto"></a>
             <button type="button" x-data="{ n: {{ $unread }} }" x-on:notifications-count.window="n = $event.detail.count" x-on:click="$dispatch('notifications-open')" data-tour="bell"
                 class="relative flex size-9 items-center justify-center rounded text-muted hover:bg-soft-hover hover:text-ink" x-bind:aria-label="n ? 'Уведомления, есть новые' : 'Уведомления'" aria-label="Уведомления">
@@ -137,14 +138,15 @@
             </button>
         </div>
 
-        <nav class="flex flex-col gap-1" aria-label="Разделы">
+        {{-- Сайдбар по высоте экрана: разделы прокручиваются внутри, логотип и низ (настройки, профиль) всегда на месте --}}
+        <nav class="scroll-thin -mx-1 flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-1" aria-label="Разделы">
             @foreach ($nav as $item)
                 @if (! empty($item['sep']))
-                    <span class="mx-3 my-2 h-px bg-line" aria-hidden="true"></span>
+                    <span class="mx-3 my-2 h-px shrink-0 bg-line" aria-hidden="true"></span>
                     @continue
                 @endif
                 <a href="{{ $item['href'] }}" data-tour="nav-{{ $item['key'] }}" @class([
-                    'flex h-11 items-center gap-3 rounded px-3 text-t1-s font-medium',
+                    'flex h-11 shrink-0 items-center gap-3 rounded px-3 text-t1-s font-medium',
                     'bg-mint font-semibold text-ink' => $active === $item['key'],
                     'text-muted hover:bg-soft-hover hover:text-ink' => $active !== $item['key'],
                 ]) {!! $active === $item['key'] ? 'aria-current="page"' : '' !!}>
@@ -158,7 +160,7 @@
             @endforeach
         </nav>
 
-        <div class="mt-auto flex flex-col gap-2">
+        <div class="flex shrink-0 flex-col gap-2">
             @unless ($isStudent || $isAdmin)
                 <livewire:cabinet.referral-promo />
                 {{-- Плашку скрыли — партнёрка остаётся доступной обычной ссылкой --}}

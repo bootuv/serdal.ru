@@ -217,7 +217,7 @@ class Mailing extends Component
             $this->service()->sendTest($campaign, $this->testEmail);
         } catch (TransportExceptionInterface $e) {
             report($e);
-            $this->dispatch('toast', message: 'Сервер почты не принял письмо: ' . mb_substr($e->getMessage(), 0, 160), tone: 'danger');
+            $this->dispatch('toast', message: 'Письмо не отправлено: ' . MailingService::errorText($e), tone: 'danger');
 
             return;
         }
