@@ -49,6 +49,19 @@ return [
             'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url(env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
         ],
 
+        // Рассылки на внешние адреса (админка «Рассылки») — отдельный канал, чтобы жалобы на рассылку не портили
+        // репутацию системных писем. Пустые NEWSLETTER_MAIL_* берутся из основных MAIL_*; без сервера — письма в лог.
+        'newsletter' => [
+            'transport' => env('NEWSLETTER_MAIL_HOST', env('MAIL_MAILER') === 'smtp' ? env('MAIL_HOST') : null) ? 'smtp' : 'log',
+            'host' => env('NEWSLETTER_MAIL_HOST', env('MAIL_HOST')),
+            'port' => env('NEWSLETTER_MAIL_PORT', env('MAIL_PORT', 587)),
+            'encryption' => env('NEWSLETTER_MAIL_ENCRYPTION', env('MAIL_ENCRYPTION', 'tls')),
+            'username' => env('NEWSLETTER_MAIL_USERNAME', env('MAIL_USERNAME')),
+            'password' => env('NEWSLETTER_MAIL_PASSWORD', env('MAIL_PASSWORD')),
+            'timeout' => 30,
+            'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url(env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
+        ],
+
         'ses' => [
             'transport' => 'ses',
         ],
@@ -111,6 +124,20 @@ return [
     'from' => [
         'address' => env('MAIL_FROM_ADDRESS', 'hello@example.com'),
         'name' => env('MAIL_FROM_NAME', 'Example'),
+    ],
+
+    /*
+    | Рассылки (App\Services\MailingService): отправитель, адрес для ответов и скорость отправки.
+    */
+
+    'newsletter' => [
+        'from' => [
+            'address' => env('NEWSLETTER_MAIL_FROM_ADDRESS', 'hello@news.serdal.ru'),
+            'name' => env('NEWSLETTER_MAIL_FROM_NAME', 'Serdal'),
+        ],
+        'reply_to' => env('NEWSLETTER_MAIL_REPLY_TO', env('NEWSLETTER_MAIL_FROM_ADDRESS', 'hello@news.serdal.ru')),
+        // Сколько писем в минуту уходит (команда mailings:send раз в минуту). 20 в минуту — 1200 в час.
+        'per_minute' => (int) env('NEWSLETTER_PER_MINUTE', 20),
     ],
 
 ];

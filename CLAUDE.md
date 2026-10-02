@@ -40,6 +40,12 @@ Laravel 11 + Livewire 3 + Tailwind 3. Занятия идут в BigBlueButton, 
 - Занятие, проведённое занятие и запись помнят свой сервер (`bbb_server_id`). `bbb:check-servers` раз в минуту (`BbbServerMonitor`) проверяет связь, версию, подбирает алгоритм подписи (`checksum`), считает участников и сверяет «идущие» занятия. Списки занятий и записей — через `BbbClientFactory::meetings/recordings`: они бросают исключение при сбое, а не возвращают пустой список.
 - В тестах `BbbClientFactory` привязан к `Tests\Support\FacadeBbbClientFactory` (ответы — моки фасада `Bigbluebutton`).
 
+## Рассылки на внешние адреса
+
+- Админка «Рассылки» (`Mailings`, `Mailing`, `MailingList`), логика — `MailingService`, разбор таблиц (.xlsx, .csv, вставка) — `App\Support\MailingImport`; пользователей платформы (учителя по тарифу, ученики, поштучно) добавляет `MailingService::importUsers` — это снимок почты на момент добавления, `user_id` даёт `{имя}` и подпись роли. Адрес (`mailing_contacts`) один на всю систему: отписка действует на все списки навсегда, удаление списка её не снимает.
+- Письма уходят не очередью, а командой `mailings:send` (раз в минуту, по `NEWSLETTER_PER_MINUTE`) через отдельный канал `newsletter` (`config/mail.php`, отправитель `hello@news.serdal.ru`, домен подтверждён в Yandex Cloud Postbox). Подряд три отказа сервера или временная ошибка — отправка на паузе (`mailing_campaigns.error`), письма остаются в очереди.
+- Открытия — картинка `/m/o/{token}`, переходы — `/m/c/{token}/{link}`, отписка — `/m/u/{token}`: GET только показывает кнопку (почтовые сканеры открывают ссылки), POST без CSRF — «отписка в один клик» (`List-Unsubscribe-Post`). Тесты — `tests/Feature/Admin/MailingsTest.php`.
+
 ## База знаний — обновляй вместе с функционалом
 
 - Статьи для учителей и учеников (публичная справка `/help`) лежат в `database/help/{tutors,students}/*.md` — один файл на раздел, формат описан в `App\Services\HelpContentImporter`. При деплое `php artisan help:sync` обновляет их на сайте; статьи, правленные в админке, не затираются.

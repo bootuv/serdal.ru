@@ -104,6 +104,14 @@ img {
     max-width: 100%;
 }
 
+/* Картинка 1×1 для учёта открытий в письмах рассылки */
+img.pixel {
+    display: block;
+    width: 1px;
+    height: 1px;
+    border: 0;
+}
+
 hr {
     border: none;
     border-top: 1px solid #DDE1E1;

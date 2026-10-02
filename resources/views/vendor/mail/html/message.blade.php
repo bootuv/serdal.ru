@@ -1,5 +1,6 @@
 {{-- Письмо Serdal: шапка с логотипом, тело, подвал с сайтом и почтой поддержки.
-     Слот preheader — строка, которую почтовая программа показывает рядом с темой. --}}
+     Слот preheader — строка, которую почтовая программа показывает рядом с темой.
+     unsubscribe — письмо рассылки: в подвале ссылка «Отписаться» вместо почты поддержки (на письмо можно ответить). --}}
 @php
     $site = rtrim((string) config('app.url'), '/');
     $support = \App\Support\OfferSettings::legal()['legal_email'] ?? null;
@@ -32,7 +33,9 @@
 <x-mail::footer>
 {{ \App\Support\Seo::SITE_NAME }} · [{{ preg_replace('#^https?://#', '', $site) }}]({{ $site }})
 
-@if ($support)
+@if (isset($unsubscribe))
+Не хотите получать такие письма? [Отписаться]({{ $unsubscribe }})
+@elseif ($support)
 Вопросы — [{{ $support }}](mailto:{{ $support }}). Отвечать на это письмо не нужно.
 @endif
 </x-mail::footer>

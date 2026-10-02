@@ -92,6 +92,9 @@ Route::middleware(['auth', \App\Http\Middleware\CheckUserActive::class])
             'founders' => ['/admin/founders', 'Founders'],        // вкладки: взносы, расходы, доли (?tab=)
             'news' => ['/admin/news', 'News'],                    // вкладки: опубликованные, запланированные, черновики (?tab=)
             'news-item' => ['/admin/news/{announcement}', 'NewsItem'], // {announcement} = id или new
+            'mailings' => ['/admin/mailings', 'Mailings'],          // вкладки: письма, списки (?tab=)
+            'mailing' => ['/admin/mailings/{campaign}', 'Mailing'],  // {campaign} = id или new
+            'mailing-list' => ['/admin/mailings/lists/{list}', 'MailingList'],
             'help' => ['/admin/help', 'Help'],
             'help-article' => ['/admin/help/articles/{article}', 'HelpArticle'], // {article} = id или new
             'settings' => ['/admin/settings', 'Settings'],        // вкладки, в т.ч. «Справочники» (предметы и направления)

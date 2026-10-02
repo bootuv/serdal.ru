@@ -50,5 +50,8 @@ Schedule::command('founders:remind')->dailyAt('10:00')->withoutOverlapping();
 // Запланированные новости (админка «Новости»): наступило время — уведомляем учителей и учеников
 Schedule::command('news:publish')->everyMinute()->withoutOverlapping();
 
+// Рассылки на внешние адреса (админка «Рассылки»): порция писем раз в минуту, скорость — NEWSLETTER_PER_MINUTE
+Schedule::command('mailings:send')->everyMinute()->withoutOverlapping(10)->runInBackground();
+
 // Ученикам после третьего занятия с учителем: предложение оставить отзыв (один раз на пару ученик–учитель)
 Schedule::command('reviews:invite')->dailyAt('18:00')->withoutOverlapping();

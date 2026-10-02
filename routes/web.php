@@ -44,6 +44,14 @@ Route::post('/payments/yookassa/callback', [\App\Http\Controllers\SubscriptionPa
     ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class])
     ->name('subscription.payment.callback');
 
+// Ссылки из писем рассылки (админка «Рассылки»): учёт открытий и переходов, отписка.
+// POST отписки — без CSRF: «отписку в один клик» присылает почтовая программа, а не страница.
+Route::get('/m/o/{token}', [\App\Http\Controllers\MailingTrackController::class, 'open'])->name('mailing.open');
+Route::get('/m/c/{token}/{link}', [\App\Http\Controllers\MailingTrackController::class, 'click'])->whereNumber('link')->name('mailing.click');
+Route::get('/m/u/{token}', [\App\Http\Controllers\MailingTrackController::class, 'unsubscribePage'])->name('mailing.unsubscribe');
+Route::post('/m/u/{token}', [\App\Http\Controllers\MailingTrackController::class, 'unsubscribe'])
+    ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class]);
+
 // Личная страница основателя: сбор на расходы. Только после входа под профилем, привязанным к основателю (админ или учитель)
 Route::get('/founder', \App\Livewire\FounderPage::class)->middleware(['auth', \App\Http\Middleware\CheckUserActive::class])->name('founders.page');
 

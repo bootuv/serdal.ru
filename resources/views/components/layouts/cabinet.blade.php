@@ -56,6 +56,7 @@
             ['key' => 'founders', 'label' => 'Основатели', 'icon' => 'lock', 'href' => $a('founders')],
             ['sep' => true],
             ['key' => 'news', 'label' => 'Новости', 'icon' => 'news', 'href' => $a('news')],
+            ['key' => 'mailings', 'label' => 'Рассылки', 'icon' => 'mail', 'href' => $a('mailings')],
             ['key' => 'help', 'label' => 'База знаний', 'icon' => 'help', 'href' => $a('help')],
         ];
     }
