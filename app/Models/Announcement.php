@@ -106,6 +106,17 @@ class Announcement extends Model
         return $this->published_at !== null && $this->published_at->isFuture();
     }
 
+    /** Первая картинка в тексте (фото или обложка видео) — для превью ссылки в соцсетях и мессенджерах; адрес полный. */
+    public function firstImage(): ?string
+    {
+        if (! preg_match('~<img\b[^>]*\ssrc="([^"]+)"|<video\b[^>]*\sposter="([^"]+)"~i', (string) $this->body, $m)) {
+            return null;
+        }
+        $src = html_entity_decode($m[1] !== '' ? $m[1] : $m[2]);
+
+        return str_starts_with($src, 'http') ? $src : url($src);
+    }
+
     /** Начало текста без разметки — для списка, карточки на главной и уведомления. */
     public function excerpt(int $limit = 160): string
     {

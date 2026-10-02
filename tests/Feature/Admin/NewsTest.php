@@ -231,4 +231,22 @@ class NewsTest extends TestCase
         $service->save($news->fresh(), ['title' => 'Запустили большой блог', 'body' => $news->body, 'is_public' => false, 'published_at' => $news->published_at], $admin);
         $this->get('/news/zapustili-blog')->assertNotFound();
     }
+
+    public function test_public_news_share_preview_uses_first_image(): void
+    {
+        $service = app(AnnouncementService::class);
+        $admin = $this->user(User::ROLE_ADMIN);
+        $withImage = $service->save(null, ['title' => 'С картинкой', 'is_public' => true, 'published_at' => now()->subMinute(),
+            'body' => '<p>Начало новости для превью</p><video src="https://cdn.example/news/v.mp4" poster="https://cdn.example/news/v.jpg" controls></video><img src="https://cdn.example/news/2.webp">'], $admin);
+        $plain = $service->save(null, ['title' => 'Без картинки', 'body' => '<p>Текст</p>', 'is_public' => true, 'published_at' => now()->subMinute()], $admin);
+
+        $this->get('/news/' . $withImage->slug)->assertOk()
+            ->assertSee('<meta property="og:title" content="С картинкой — новости Serdal">', false)
+            ->assertSee('<meta property="og:description" content="Начало новости для превью', false)
+            ->assertSee('<meta property="og:image" content="https://cdn.example/news/v.jpg">', false)
+            ->assertSee('<meta name="twitter:image" content="https://cdn.example/news/v.jpg">', false);
+
+        // Без картинок — общая картинка сайта
+        $this->get('/news/' . $plain->slug)->assertOk()->assertDontSee('cdn.example', false)->assertSee('property="og:image"', false);
+    }
 }

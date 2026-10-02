@@ -2,8 +2,12 @@
 
 {{-- Новость на сайте (PublicNewsController): текст в стилях статьи блога, видео — в нашем плеере --}}
 @section('title', $item->title . ' — новости Serdal')
-@section('description', $item->excerpt(160))
+@section('description', $item->excerpt(160) ?: 'Новости платформы Serdal')
 @section('og_type', 'article')
+{{-- Превью ссылки в соцсетях: первая картинка из текста новости (фото или обложка видео), иначе — общая картинка сайта --}}
+@if($ogImage = $item->firstImage())
+    @section('og_image', $ogImage)
+@endif
 @section('meta')
     <meta property="article:published_time" content="{{ $item->published_at->toAtomString() }}">
     <meta property="article:modified_time" content="{{ $item->updated_at->toAtomString() }}">
@@ -18,6 +22,7 @@
         '@type' => 'NewsArticle',
         'headline' => $item->title,
         'description' => $item->excerpt(200),
+        'image' => $ogImage ?: null,
         'inLanguage' => 'ru-RU',
         'datePublished' => $item->published_at->toAtomString(),
         'dateModified' => $item->updated_at->toAtomString(),
