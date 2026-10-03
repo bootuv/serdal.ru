@@ -86,9 +86,9 @@
                     <x-ui.btn wire:click="toHide">Снять с сайта</x-ui.btn>
                     <x-ui.btn variant="primary" icon="share" wire:click="toShare" class="hidden lg:inline-flex">Поделиться</x-ui.btn>
                     <x-ui.btn variant="primary" icon="share" class="lg:hidden"
-                              x-init="innerWidth < 1024 && window.serdalPrefetchReviewCard(@js($r['shareUrl']))"
-                              x-on:pointerdown="window.serdalPrefetchReviewCard(@js($r['shareUrl']))"
-                              x-on:click="window.serdalShareReviewCard(@js($r['shareUrl']), () => $wire.toShare())">Поделиться</x-ui.btn>
+                              x-init="innerWidth < 1024 && window.serdalPrefetchReviewCard({{ Js::from($r['shareUrl']) }})"
+                              x-on:pointerdown="window.serdalPrefetchReviewCard({{ Js::from($r['shareUrl']) }})"
+                              x-on:click="window.serdalShareReviewCard({{ Js::from($r['shareUrl']) }}, () => $wire.toShare())">Поделиться</x-ui.btn>
                 @elseif ($r['status'] === 'private')
                     <x-ui.btn wire:click="close">Закрыть</x-ui.btn>
                 @elseif ($r['status'] === 'reported')
@@ -98,9 +98,9 @@
                     <x-ui.btn wire:click="toHide">Скрыть отзыв</x-ui.btn>
                     <x-ui.btn variant="primary" icon="share" wire:click="toShare" class="hidden lg:inline-flex">Поделиться</x-ui.btn>
                     <x-ui.btn variant="primary" icon="share" class="lg:hidden"
-                              x-init="innerWidth < 1024 && window.serdalPrefetchReviewCard(@js($r['shareUrl']))"
-                              x-on:pointerdown="window.serdalPrefetchReviewCard(@js($r['shareUrl']))"
-                              x-on:click="window.serdalShareReviewCard(@js($r['shareUrl']), () => $wire.toShare())">Поделиться</x-ui.btn>
+                              x-init="innerWidth < 1024 && window.serdalPrefetchReviewCard({{ Js::from($r['shareUrl']) }})"
+                              x-on:pointerdown="window.serdalPrefetchReviewCard({{ Js::from($r['shareUrl']) }})"
+                              x-on:click="window.serdalShareReviewCard({{ Js::from($r['shareUrl']) }}, () => $wire.toShare())">Поделиться</x-ui.btn>
                 @else
                     <x-ui.btn wire:click="close">Закрыть</x-ui.btn>
                     <x-ui.btn variant="primary" wire:click="restore">Вернуть отзыв</x-ui.btn>
