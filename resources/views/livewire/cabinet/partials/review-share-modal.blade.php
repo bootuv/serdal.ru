@@ -6,9 +6,11 @@
 @endphp
 <x-ui.modal title="Поделиться отзывом" :sub="$shared['name'] . ' · ' . $shared['date']" width="l" :close="$close">
     <div class="flex flex-col gap-8 lg:flex-row" x-data="{ copied: false }">
-        {{-- Картинку загружаем один раз в память: её же потом отдаёт «Скачать картинку» без ожидания --}}
+        {{-- Картинку загружаем один раз в память: её же потом отдаёт «Скачать картинку» без ожидания. На телефоне
+             показываем по прямому адресу — так её надёжно сохраняет долгое нажатие (запасной путь на iOS). --}}
         <img alt="Картинка с отзывом для сторис" data-src="{{ $shared['shareUrl'] }}"
-             x-init="window.serdalPrefetchReviewCard($el.dataset.src).then(blob => $el.src = blob ? URL.createObjectURL(blob) : $el.dataset.src)"
+             x-init="const url = $el.dataset.src; if (innerWidth < 1024) $el.src = url;
+                     window.serdalPrefetchReviewCard(url).then(blob => { if (innerWidth >= 1024) $el.src = blob ? URL.createObjectURL(blob) : url })"
              class="h-auto w-full rounded-lg bg-soft shadow-outline lg:w-sidebar lg:shrink-0">
         <div class="flex min-w-0 flex-1 flex-col gap-6">
             <div class="flex flex-col gap-1">
@@ -31,7 +33,7 @@
     <x-slot:footer>
         <x-ui.btn wire:click="{{ $close }}">Отмена</x-ui.btn>
         @php
-            $deliver = "window.serdalShareReviewCard(" . Js::from($shared['shareUrl']) . ").then(r => { if (r === 'retry') return; if (r === 'download') \$dispatch('toast', { message: 'Картинка сохранена в «Загрузки»' }); {$call} })";
+            $deliver = "window.serdalShareReviewCard(" . Js::from($shared['shareUrl']) . ").then(r => { if (r === 'retry') return; if (r === 'unsupported') return \$dispatch('toast', { message: 'Чтобы сохранить картинку, нажмите на неё и удерживайте' }); if (r === 'download') \$dispatch('toast', { message: 'Картинка сохранена в «Загрузки»' }); {$call} })";
         @endphp
         <x-ui.btn variant="primary" icon="download" class="hidden lg:inline-flex" x-on:click="{{ $deliver }}">Скачать картинку</x-ui.btn>
         <x-ui.btn variant="primary" icon="share" class="lg:hidden" x-on:click="{{ $deliver }}">Поделиться</x-ui.btn>

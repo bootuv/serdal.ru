@@ -11,7 +11,11 @@ import './push-notifications';
  * картинку загружаем заранее (serdalPrefetchReviewCard — при открытии окна или касании кнопки) и держим
  * в памяти, а по нажатию отдаём её без ожидания. Если картинка к нажатию ещё не готова — дожидаемся её
  * и, когда браузер уже не даёт поделиться, просим нажать ещё раз (картинка к этому моменту в памяти).
- * Возвращает 'shared' | 'cancelled' | 'download' | 'retry'.
+ *
+ * На iPhone и iPad скачивание через ссылку не работает вовсе (iOS его молча игнорирует), а Chrome и другие
+ * браузеры на iOS могут не уметь делиться файлами. Тогда вызываем onUnsupported — кнопка открывает наше окно
+ * с картинкой, где её можно сохранить долгим нажатием.
+ * Возвращает 'shared' | 'cancelled' | 'download' | 'retry' | 'unsupported'.
  */
 const reviewCards = new Map(); // url -> { blob, promise }
 
@@ -33,10 +37,10 @@ window.serdalPrefetchReviewCard = function (url) {
     return reviewCards.get(url).promise;
 };
 
-const isMobileDevice = () =>
-    // iPad на iPadOS представляется как Macintosh — отличаем его по мультитачу
-    /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+// iPad на iPadOS представляется как Macintosh — отличаем его по мультитачу
+const isIOS = () => /iPhone|iPad|iPod/i.test(navigator.userAgent)
     || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+const isMobileDevice = () => isIOS() || /Android/i.test(navigator.userAgent);
 
 function downloadReviewCard(url, blob) {
     // Ссылка с download, без перехода страницы — переход (location.href) браузер отменял,
@@ -51,41 +55,54 @@ function downloadReviewCard(url, blob) {
     if (blob) setTimeout(() => URL.revokeObjectURL(link.href), 60000);
 }
 
-// Вызывается синхронно из клика, пока браузер считает действие пользовательским
-function deliverReviewCard(url, blob, late) {
-    if (blob && isMobileDevice() && navigator.canShare) {
-        const file = new File([blob], 'serdal-review.jpg', { type: 'image/jpeg' });
-        if (navigator.canShare({ files: [file] })) {
-            return navigator.share({ files: [file] }).then(
-                () => 'shared',
-                (error) => {
-                    if (error.name === 'AbortError') return 'cancelled'; // пользователь закрыл окно «Поделиться»
-                    if (late && error.name === 'NotAllowedError') return 'retry'; // нажатие «устарело», пока ждали картинку
-                    downloadReviewCard(url, blob);
-                    return 'download';
-                },
-            );
-        }
-    }
+// Запасной путь, когда поделиться файлом не вышло: на iOS скачивание не сработает — отдаём решение кнопке
+function fallbackReviewCard(url, blob) {
+    if (isIOS()) return 'unsupported';
     downloadReviewCard(url, blob);
-    return Promise.resolve('download');
+    return 'download';
 }
 
-window.serdalShareReviewCard = function (url) {
-    const ready = reviewCards.get(url)?.blob;
-    if (ready) return deliverReviewCard(url, ready, false);
-
-    return window.serdalPrefetchReviewCard(url).then((blob) => {
-        // На телефоне после ожидания браузер уже не покажет «Поделиться» — картинка теперь в памяти, нажатие ещё раз сработает
-        if (blob && isMobileDevice() && navigator.canShare) {
-            return deliverReviewCard(url, blob, true).then((result) => {
-                if (result === 'retry') {
-                    window.dispatchEvent(new CustomEvent('toast', { detail: { message: 'Картинка готова — нажмите «Поделиться» ещё раз' } }));
-                }
-                return result;
-            });
+// Вызывается синхронно из клика, пока браузер считает действие пользовательским
+function deliverReviewCard(url, blob, late) {
+    if (blob && isMobileDevice()) {
+        let file = null;
+        try {
+            file = new File([blob], 'serdal-review.jpg', { type: 'image/jpeg' });
+            if (!navigator.share || !navigator.canShare || !navigator.canShare({ files: [file] })) file = null;
+        } catch (error) {
+            file = null;
         }
-        return deliverReviewCard(url, blob, true);
+        if (file) {
+            try {
+                return navigator.share({ files: [file] }).then(
+                    () => 'shared',
+                    (error) => {
+                        if (error.name === 'AbortError') return 'cancelled'; // пользователь закрыл окно «Поделиться»
+                        if (late && error.name === 'NotAllowedError') return 'retry'; // нажатие «устарело», пока ждали картинку
+                        return fallbackReviewCard(url, blob);
+                    },
+                );
+            } catch (error) {
+                return Promise.resolve(fallbackReviewCard(url, blob));
+            }
+        }
+    }
+    return Promise.resolve(fallbackReviewCard(url, blob));
+}
+
+window.serdalShareReviewCard = function (url, onUnsupported = null) {
+    const ready = reviewCards.get(url)?.blob;
+    const delivered = ready
+        ? deliverReviewCard(url, ready, false)
+        : window.serdalPrefetchReviewCard(url).then((blob) => deliverReviewCard(url, blob, true));
+
+    return delivered.then((result) => {
+        if (result === 'retry') {
+            window.dispatchEvent(new CustomEvent('toast', { detail: { message: 'Картинка готова — нажмите «Поделиться» ещё раз' } }));
+        } else if (result === 'unsupported' && onUnsupported) {
+            onUnsupported();
+        }
+        return result;
     });
 };
 import './rich-editor';

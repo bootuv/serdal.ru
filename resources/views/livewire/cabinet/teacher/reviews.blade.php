@@ -79,7 +79,7 @@
                                     <x-ui.btn size="s" square icon="share" wire:click="share({{ $r['id'] }})" aria-label="Поделиться отзывом" title="Поделиться" class="hidden lg:inline-flex" />
                                     <x-ui.btn size="s" square icon="share" aria-label="Поделиться отзывом" class="lg:hidden"
                                               x-on:pointerdown="window.serdalPrefetchReviewCard(@js($r['shareUrl']))"
-                                              x-on:click="$wire.shared({{ $r['id'] }}); window.serdalShareReviewCard(@js($r['shareUrl']))" />
+                                              x-on:click="$wire.shared({{ $r['id'] }}); window.serdalShareReviewCard(@js($r['shareUrl']), () => $wire.share({{ $r['id'] }}))" />
                                 </x-ui.row>
                             @endforeach
                         </x-ui.list>
@@ -148,7 +148,7 @@
                 <x-ui.btn variant="primary" icon="share" class="lg:hidden"
                           x-init="innerWidth < 1024 && window.serdalPrefetchReviewCard(@js($opened['shareUrl']))"
                           x-on:pointerdown="window.serdalPrefetchReviewCard(@js($opened['shareUrl']))"
-                          x-on:click="window.serdalShareReviewCard(@js($opened['shareUrl']))">Поделиться</x-ui.btn>
+                          x-on:click="window.serdalShareReviewCard(@js($opened['shareUrl']), () => $wire.share({{ $opened['id'] }}))">Поделиться</x-ui.btn>
             </x-slot:footer>
         </x-ui.modal>
     @endif

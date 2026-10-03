@@ -3,5 +3,5 @@
 <x-ui.btn size="s" icon="share" wire:click="share({{ $r['id'] }})" class="hidden lg:inline-flex">Поделиться</x-ui.btn>
 <x-ui.btn size="s" icon="share" class="lg:hidden"
           x-on:pointerdown="window.serdalPrefetchReviewCard(@js($r['shareUrl']))"
-          x-on:click="$wire.shared({{ $r['id'] }}); window.serdalShareReviewCard(@js($r['shareUrl']))">Поделиться</x-ui.btn>
+          x-on:click="$wire.shared({{ $r['id'] }}); window.serdalShareReviewCard(@js($r['shareUrl']), () => $wire.share({{ $r['id'] }}))">Поделиться</x-ui.btn>
 <x-ui.copy :value="$r['caption']" message="Текст скопирован" size="s" class="lg:hidden">Скопировать текст</x-ui.copy>
