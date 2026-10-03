@@ -79,7 +79,7 @@
                                     <x-ui.btn size="s" square icon="share" wire:click="share({{ $r['id'] }})" aria-label="Поделиться отзывом" title="Поделиться" class="hidden lg:inline-flex" />
                                     <x-ui.btn size="s" square icon="share" aria-label="Поделиться отзывом" class="lg:hidden"
                                               x-on:pointerdown="window.serdalPrefetchReviewCard({{ Js::from($r['shareUrl']) }})"
-                                              x-on:click="$wire.shared({{ $r['id'] }}); window.serdalShareReviewCard({{ Js::from($r['shareUrl']) }}, () => $wire.share({{ $r['id'] }}))" />
+                                              x-on:click="window.serdalShareReviewCard({{ Js::from($r['shareUrl']) }}, () => $wire.share({{ $r['id'] }}), $el).then(r => r !== 'unsupported' && $wire.shared({{ $r['id'] }}))" />
                                 </x-ui.row>
                             @endforeach
                         </x-ui.list>
@@ -148,7 +148,7 @@
                 <x-ui.btn variant="primary" icon="share" class="lg:hidden"
                           x-init="innerWidth < 1024 && window.serdalPrefetchReviewCard({{ Js::from($opened['shareUrl']) }})"
                           x-on:pointerdown="window.serdalPrefetchReviewCard({{ Js::from($opened['shareUrl']) }})"
-                          x-on:click="window.serdalShareReviewCard({{ Js::from($opened['shareUrl']) }}, () => $wire.share({{ $opened['id'] }}))">Поделиться</x-ui.btn>
+                          x-on:click="window.serdalShareReviewCard({{ Js::from($opened['shareUrl']) }}, () => $wire.share({{ $opened['id'] }}), $el)">Поделиться</x-ui.btn>
             </x-slot:footer>
         </x-ui.modal>
     @endif

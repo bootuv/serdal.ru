@@ -15,6 +15,7 @@ import './push-notifications';
  * На iPhone и iPad скачивание через ссылку не работает вовсе (iOS его молча игнорирует), а Chrome и другие
  * браузеры на iOS могут не уметь делиться файлами. Тогда вызываем onUnsupported — кнопка открывает наше окно
  * с картинкой, где её можно сохранить долгим нажатием.
+ * button — нажатая кнопка: пока картинка генерируется, на ней крутится спиннер.
  * Возвращает 'shared' | 'cancelled' | 'download' | 'retry' | 'unsupported'.
  */
 const reviewCards = new Map(); // url -> { blob, promise }
@@ -90,11 +91,16 @@ function deliverReviewCard(url, blob, late) {
     return Promise.resolve(fallbackReviewCard(url, blob));
 }
 
-window.serdalShareReviewCard = function (url, onUnsupported = null) {
+window.serdalShareReviewCard = function (url, onUnsupported = null, button = null) {
     const ready = reviewCards.get(url)?.blob;
+    // Картинка ещё генерируется — показываем на кнопке спиннер (aria-busy, стиль в cabinet.css), иначе кажется, что кнопка не работает
+    if (!ready && button) button.setAttribute('aria-busy', 'true');
     const delivered = ready
         ? deliverReviewCard(url, ready, false)
-        : window.serdalPrefetchReviewCard(url).then((blob) => deliverReviewCard(url, blob, true));
+        : window.serdalPrefetchReviewCard(url).then((blob) => {
+            button?.removeAttribute('aria-busy');
+            return deliverReviewCard(url, blob, true);
+        });
 
     return delivered.then((result) => {
         if (result === 'retry') {
