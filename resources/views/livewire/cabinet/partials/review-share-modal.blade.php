@@ -6,7 +6,9 @@
 @endphp
 <x-ui.modal title="Поделиться отзывом" :sub="$shared['name'] . ' · ' . $shared['date']" width="l" :close="$close">
     <div class="flex flex-col gap-8 lg:flex-row" x-data="{ copied: false }">
-        <img src="{{ $shared['shareUrl'] }}" alt="Картинка с отзывом для сторис" loading="lazy"
+        {{-- Картинку загружаем один раз в память: её же потом отдаёт «Скачать картинку» без ожидания --}}
+        <img alt="Картинка с отзывом для сторис" data-src="{{ $shared['shareUrl'] }}"
+             x-init="window.serdalPrefetchReviewCard($el.dataset.src).then(blob => $el.src = blob ? URL.createObjectURL(blob) : $el.dataset.src)"
              class="h-auto w-full rounded-lg bg-soft shadow-outline lg:w-sidebar lg:shrink-0">
         <div class="flex min-w-0 flex-1 flex-col gap-6">
             <div class="flex flex-col gap-1">
@@ -28,7 +30,10 @@
     </div>
     <x-slot:footer>
         <x-ui.btn wire:click="{{ $close }}">Отмена</x-ui.btn>
-        <x-ui.btn variant="primary" icon="download"
-                  x-on:click="window.serdalShareReviewCard(@js($shared['shareUrl'])).then(r => { if (r === 'download') $dispatch('toast', { message: 'Картинка сохранена в «Загрузки»' }); {{ $call }} })">Скачать картинку</x-ui.btn>
+        @php
+            $deliver = "window.serdalShareReviewCard(" . Js::from($shared['shareUrl']) . ").then(r => { if (r === 'retry') return; if (r === 'download') \$dispatch('toast', { message: 'Картинка сохранена в «Загрузки»' }); {$call} })";
+        @endphp
+        <x-ui.btn variant="primary" icon="download" class="hidden lg:inline-flex" x-on:click="{{ $deliver }}">Скачать картинку</x-ui.btn>
+        <x-ui.btn variant="primary" icon="share" class="lg:hidden" x-on:click="{{ $deliver }}">Поделиться</x-ui.btn>
     </x-slot:footer>
 </x-ui.modal>

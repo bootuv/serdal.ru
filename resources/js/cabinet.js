@@ -5,36 +5,42 @@ import './push-notifications';
 /**
  * Шаринг-карточка отзыва (картинка для сторис): на телефоне — системное окно «Поделиться» (Web Share API),
  * на компьютере и там, где шаринг файлов не поддерживается, — обычное скачивание.
- * Возвращает 'shared' | 'cancelled' | 'download'.
+ *
+ * Картинка генерируется на сервере несколько секунд, а браузер разрешает «Поделиться» и скачивание только
+ * сразу после нажатия: если ждать загрузку внутри клика, Safari молча отменяет и то и другое. Поэтому
+ * картинку загружаем заранее (serdalPrefetchReviewCard — при открытии окна или касании кнопки) и держим
+ * в памяти, а по нажатию отдаём её без ожидания. Если картинка к нажатию ещё не готова — дожидаемся её
+ * и, когда браузер уже не даёт поделиться, просим нажать ещё раз (картинка к этому моменту в памяти).
+ * Возвращает 'shared' | 'cancelled' | 'download' | 'retry'.
  */
-window.serdalShareReviewCard = async function (url) {
+const reviewCards = new Map(); // url -> { blob, promise }
+
+window.serdalPrefetchReviewCard = function (url) {
+    if (!reviewCards.has(url)) {
+        const entry = { blob: null };
+        entry.promise = fetch(url, { credentials: 'same-origin' })
+            .then((response) => {
+                if (!response.ok) throw new Error('HTTP ' + response.status);
+                return response.blob();
+            })
+            .then((blob) => (entry.blob = blob))
+            .catch(() => {
+                reviewCards.delete(url); // следующая попытка загрузит заново
+                return null;
+            });
+        reviewCards.set(url, entry);
+    }
+    return reviewCards.get(url).promise;
+};
+
+const isMobileDevice = () =>
     // iPad на iPadOS представляется как Macintosh — отличаем его по мультитачу
-    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
-        || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+    /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+    || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
 
-    let blob = null;
-    try {
-        const response = await fetch(url, { credentials: 'same-origin' });
-        if (!response.ok) throw new Error('HTTP ' + response.status);
-        blob = await response.blob();
-    } catch (error) {
-        blob = null;
-    }
-
-    if (blob && isMobile && navigator.canShare) {
-        const file = new File([blob], 'serdal-review.jpg', { type: 'image/jpeg' });
-        try {
-            if (navigator.canShare({ files: [file] })) {
-                await navigator.share({ files: [file] });
-                return 'shared';
-            }
-        } catch (error) {
-            if (error.name === 'AbortError') return 'cancelled'; // пользователь закрыл окно «Поделиться»
-        }
-    }
-
-    // Компьютер и запасной вариант: сохраняем файл через ссылку с download, без перехода страницы —
-    // переход (location.href) браузер отменял, когда следом закрывалось окно и Livewire обновлял страницу
+function downloadReviewCard(url, blob) {
+    // Ссылка с download, без перехода страницы — переход (location.href) браузер отменял,
+    // когда следом закрывалось окно и Livewire обновлял страницу
     const link = document.createElement('a');
     link.href = blob ? URL.createObjectURL(blob) : url;
     link.download = 'serdal-review.jpg';
@@ -43,7 +49,44 @@ window.serdalShareReviewCard = async function (url) {
     link.click();
     link.remove();
     if (blob) setTimeout(() => URL.revokeObjectURL(link.href), 60000);
-    return 'download';
+}
+
+// Вызывается синхронно из клика, пока браузер считает действие пользовательским
+function deliverReviewCard(url, blob, late) {
+    if (blob && isMobileDevice() && navigator.canShare) {
+        const file = new File([blob], 'serdal-review.jpg', { type: 'image/jpeg' });
+        if (navigator.canShare({ files: [file] })) {
+            return navigator.share({ files: [file] }).then(
+                () => 'shared',
+                (error) => {
+                    if (error.name === 'AbortError') return 'cancelled'; // пользователь закрыл окно «Поделиться»
+                    if (late && error.name === 'NotAllowedError') return 'retry'; // нажатие «устарело», пока ждали картинку
+                    downloadReviewCard(url, blob);
+                    return 'download';
+                },
+            );
+        }
+    }
+    downloadReviewCard(url, blob);
+    return Promise.resolve('download');
+}
+
+window.serdalShareReviewCard = function (url) {
+    const ready = reviewCards.get(url)?.blob;
+    if (ready) return deliverReviewCard(url, ready, false);
+
+    return window.serdalPrefetchReviewCard(url).then((blob) => {
+        // На телефоне после ожидания браузер уже не покажет «Поделиться» — картинка теперь в памяти, нажатие ещё раз сработает
+        if (blob && isMobileDevice() && navigator.canShare) {
+            return deliverReviewCard(url, blob, true).then((result) => {
+                if (result === 'retry') {
+                    window.dispatchEvent(new CustomEvent('toast', { detail: { message: 'Картинка готова — нажмите «Поделиться» ещё раз' } }));
+                }
+                return result;
+            });
+        }
+        return deliverReviewCard(url, blob, true);
+    });
 };
 import './rich-editor';
 import './block-editor';
