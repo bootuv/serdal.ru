@@ -224,6 +224,10 @@ class SubscriptionService
             $subscription->ends_at,
         ));
 
+        $days = (int) ($payment->period_days ?: $subscription->tariff->period_days);
+        self::notifyAdminsAboutPayment($payment, 'тариф «' . $subscription->tariff->name . '» '
+            . ($days >= 365 ? 'на год' : 'на ' . plural_ru($days, 'день', 'дня', 'дней')));
+
         // Партнёрская программа: бонусы за первую оплату приглашённого учителя
         ReferralService::rewardForPayment($payment);
 
@@ -861,7 +865,37 @@ class SubscriptionService
             (int) $user->extra_lessons_balance,
         ));
 
+        self::notifyAdminsAboutPayment($payment, 'докупка: ' . plural_ru((int) $payment->extra_lessons, 'занятие', 'занятия', 'занятий'));
+
         return $user->activeSubscription();
+    }
+
+    /**
+     * Администраторам — уведомление в кабинете и сообщение в чат техслужбы в Telegram о прошедшей оплате учителя.
+     * $what — за что платёж («тариф «Стандарт» на 30 дней», «докупка: 5 занятий»).
+     */
+    protected static function notifyAdminsAboutPayment(SubscriptionPayment $payment, string $what): void
+    {
+        $user = $payment->user;
+        $meta = $payment->meta ?? [];
+        $note = match (true) {
+            ! empty($meta['confirmed_manually']) => 'Подтверждено вручную' . (! empty($meta['confirmed_by']) ? ' (' . $meta['confirmed_by'] . ')' : ''),
+            ! empty($meta['auto_renew']) => 'Автопродление',
+            default => null,
+        };
+
+        User::where('role', User::ROLE_ADMIN)->get()
+            ->each(fn (User $admin) => $admin->notify(new \App\Notifications\TeacherPaymentReceived($payment, $what)));
+
+        \App\Jobs\SendAdminTelegramMessage::dispatch(implode("\n", array_filter([
+            '💳 <b>Оплата от учителя: ' . e(\App\Support\Money::format($payment->amount)) . '</b>',
+            e($user->name . ($user->email ? ' (' . $user->email . ')' : '')),
+            e(\Illuminate\Support\Str::ucfirst($what)),
+            $note ? e($note) : null,
+            '',
+            '<a href="' . e(route('cabinet.admin.user', ['user' => $user->id])) . '">Карточка учителя</a> · '
+                . '<a href="' . e(route('cabinet.admin.payments')) . '">Платежи</a>',
+        ], fn ($line) => $line !== null)));
     }
 
     /**

@@ -209,6 +209,48 @@ class SubscriptionTariffsTest extends TestCase
         $this->assertEquals(0, SubscriptionService::lessonsUsedThisPeriod($tutor->fresh()));
     }
 
+    public function test_teacher_payment_notifies_admins_in_cabinet_and_telegram(): void
+    {
+        \Illuminate\Support\Facades\Notification::fake();
+        \Illuminate\Support\Facades\Bus::fake([\App\Jobs\SendAdminTelegramMessage::class]);
+
+        $admin = $this->makeAdmin();
+        $tutor = $this->makeTutor();
+        $basic = Tariff::where('slug', 'basic')->first();
+
+        $payment = \App\Models\SubscriptionPayment::create([
+            'user_id' => $tutor->id,
+            'tariff_id' => $basic->id,
+            'amount' => $basic->price,
+            'period_days' => 30,
+            'status' => \App\Models\SubscriptionPayment::STATUS_PENDING,
+            'gateway' => 'yookassa',
+        ]);
+        SubscriptionService::applyPaidPayment($payment);
+
+        \Illuminate\Support\Facades\Notification::assertSentTo($admin, \App\Notifications\TeacherPaymentReceived::class,
+            fn ($n) => $n->payment->is($payment) && str_contains($n->what, '«' . $basic->name . '» на 30 дней'));
+        \Illuminate\Support\Facades\Notification::assertNotSentTo($tutor, \App\Notifications\TeacherPaymentReceived::class);
+        \Illuminate\Support\Facades\Bus::assertDispatched(\App\Jobs\SendAdminTelegramMessage::class,
+            fn ($job) => str_contains($job->text, 'Оплата от учителя') && str_contains($job->text, e($tutor->name)));
+
+        // Докупка занятий — тоже сообщаем
+        $extra = \App\Models\SubscriptionPayment::create([
+            'user_id' => $tutor->id,
+            'tariff_id' => $basic->id,
+            'amount' => 500,
+            'period_days' => 0,
+            'extra_lessons' => 5,
+            'status' => \App\Models\SubscriptionPayment::STATUS_PENDING,
+            'gateway' => 'yookassa',
+        ]);
+        SubscriptionService::applyPaidPayment($extra);
+
+        \Illuminate\Support\Facades\Notification::assertSentTo($admin, \App\Notifications\TeacherPaymentReceived::class,
+            fn ($n) => $n->payment->is($extra) && $n->what === 'докупка: 5 занятий');
+        \Illuminate\Support\Facades\Bus::assertDispatchedTimes(\App\Jobs\SendAdminTelegramMessage::class, 2);
+    }
+
     public function test_renew_button_hidden_until_expiry_window(): void
     {
         $tutor = $this->makeTutor();
