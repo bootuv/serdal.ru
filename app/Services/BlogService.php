@@ -2,10 +2,12 @@
 
 namespace App\Services;
 
+use App\Jobs\SendAdminTelegramMessage;
 use App\Models\BlogPost;
 use App\Models\BlogTag;
 use App\Models\User;
 use App\Notifications\BlogPostReviewed;
+use App\Notifications\BlogPostSubmitted;
 use App\Support\RichText;
 use App\Support\Seo;
 use Illuminate\Database\Eloquent\Builder;
@@ -126,10 +128,24 @@ class BlogService
 
     /* ---------- Проверка статей учителей ---------- */
 
-    /** Учитель отправил статью на проверку. */
+    /** Учитель отправил статью на проверку — администраторам уведомление в кабинете и сообщение в Telegram. */
     public function submit(BlogPost $post): void
     {
+        $resubmitted = $post->review_status === BlogPost::REVIEW_RETURNED;
         $post->update(['review_status' => BlogPost::REVIEW_PENDING, 'submitted_at' => now(), 'review_note' => null]);
+
+        User::where('role', User::ROLE_ADMIN)->get()
+            ->each(fn (User $admin) => $admin->notify(new BlogPostSubmitted($post, $resubmitted)));
+
+        $author = $post->author;
+        SendAdminTelegramMessage::dispatch(implode("\n", [
+            '📝 <b>' . ($resubmitted ? 'Статья снова на проверке' : 'Статья на проверку') . '</b>',
+            e('«' . $post->title . '»'),
+            e('Автор: ' . ($author?->name ?? 'учитель') . ($author?->email ? ' (' . $author->email . ')' : '')),
+            '',
+            '<a href="' . e(route('cabinet.admin.blog-article', ['post' => $post->id])) . '">Проверить статью</a> · '
+                . '<a href="' . e(route('cabinet.admin.blog', ['tab' => 'review'])) . '">Все на проверке</a>',
+        ]));
     }
 
     /** Учитель забрал статью с проверки — снова черновик. */

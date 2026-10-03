@@ -257,6 +257,7 @@ class BlogTest extends TestCase
     public function test_teacher_writes_and_admin_reviews(): void
     {
         \Illuminate\Support\Facades\Notification::fake();
+        \Illuminate\Support\Facades\Bus::fake([\App\Jobs\SendAdminTelegramMessage::class]);
         $admin = $this->user(User::ROLE_ADMIN);
         $teacher = $this->user(User::ROLE_TUTOR);
         $stranger = $this->user(User::ROLE_TUTOR);
@@ -274,6 +275,12 @@ class BlogTest extends TestCase
         $this->assertSame($teacher->id, $post->author_id);
         $this->assertSame(BlogPost::REVIEW_PENDING, $post->review_status);
         $this->assertNull($post->published_at);
+
+        // Администраторам — уведомление в кабинете и сообщение в Telegram
+        \Illuminate\Support\Facades\Notification::assertSentTo($admin, \App\Notifications\BlogPostSubmitted::class,
+            fn ($n) => $n->post->is($post) && ! $n->resubmitted);
+        \Illuminate\Support\Facades\Bus::assertDispatched(\App\Jobs\SendAdminTelegramMessage::class,
+            fn ($job) => str_contains($job->text, 'Статья на проверку') && str_contains($job->text, e('«Как я готовлю к ОГЭ»')));
 
         // Чужую статью другой учитель не видит; черновики учителей не в «Черновиках» админа
         $this->actingAs($stranger)->get('/cabinet/teacher/blog/' . $post->id)->assertNotFound();
@@ -296,6 +303,8 @@ class BlogTest extends TestCase
             ->set('body', '<p>Мой подход и пример</p>')
             ->call('submit');
         $this->assertSame(BlogPost::REVIEW_PENDING, $post->fresh()->review_status);
+        \Illuminate\Support\Facades\Notification::assertSentTo($admin, \App\Notifications\BlogPostSubmitted::class, fn ($n) => $n->resubmitted);
+        \Illuminate\Support\Facades\Bus::assertDispatchedTimes(\App\Jobs\SendAdminTelegramMessage::class, 2);
 
         // Админ публикует — учителю уведомление; править опубликованную учитель не может
         Livewire::actingAs($admin)->test(BlogArticle::class, ['post' => (string) $post->id])->call('publishNow');
