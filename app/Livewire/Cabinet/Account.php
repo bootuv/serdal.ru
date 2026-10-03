@@ -5,6 +5,7 @@ namespace App\Livewire\Cabinet;
 use App\Models\User;
 use App\Notifications\EmailChanged;
 use App\Notifications\EmailVerificationCode;
+use App\Support\MailDelivery;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -129,7 +130,11 @@ class Account extends Component
             return;
         }
 
-        $this->deliver($this->editing, $value, $to);
+        if (! $this->deliver($this->editing, $value, $to)) {
+            $this->addError($this->editing === 'email' ? 'newEmail' : 'newPassword', MailDelivery::FAILED);
+
+            return;
+        }
         $this->reset('currentPassword', 'newPassword', 'verification_code', 'codeResent');
         $this->step = 'code';
     }
@@ -153,7 +158,11 @@ class Account extends Component
             return;
         }
 
-        $this->deliver($pending['kind'], $pending['value'], $pending['to']);
+        if (! $this->deliver($pending['kind'], $pending['value'], $pending['to'])) {
+            $this->addError('verification_code', MailDelivery::FAILED);
+
+            return;
+        }
         $this->resetErrorBag('verification_code');
         $this->codeResent = true;
     }
@@ -224,9 +233,14 @@ class Account extends Component
         $this->dispatch('toast', message: $message);
     }
 
-    private function deliver(string $kind, string $value, string $to): void
+    /** false — сервис почты отказал: в сессии остаётся прежняя смена (или ничего), прежний код в силе. */
+    private function deliver(string $kind, string $value, string $to): bool
     {
         $code = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+
+        if (! MailDelivery::attempt(fn () => Notification::route('mail', $to)->notify(new EmailVerificationCode($code, $kind)))) {
+            return false;
+        }
 
         session()->put(self::SESSION_KEY, [
             'user_id' => auth()->id(),
@@ -239,7 +253,7 @@ class Account extends Component
             'sent_at' => now()->toIso8601String(),
         ]);
 
-        Notification::route('mail', $to)->notify(new EmailVerificationCode($code, $kind));
+        return true;
     }
 
     /** Не больше 5 писем с кодом за 10 минут на аккаунт. */

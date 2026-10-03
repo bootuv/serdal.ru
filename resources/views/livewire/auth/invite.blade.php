@@ -48,6 +48,7 @@
             </label>
 
             @error('code_expired')<p class="text-t2 font-medium text-danger-fg">{{ $message }}</p>@enderror
+            @error('mail_failed')<p class="text-t2 font-medium text-danger-fg">{{ $message }}</p>@enderror
 
             <x-ui.btn type="submit" variant="primary" size="l" class="w-full" wire:loading.attr="disabled" wire:target="register">Получить код на почту</x-ui.btn>
         </form>

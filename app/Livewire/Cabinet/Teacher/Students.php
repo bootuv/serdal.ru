@@ -12,6 +12,7 @@ use App\Services\PaymentRecordService;
 use App\Services\TeacherScheduleService;
 use App\Services\TeacherStudentsService;
 use App\Support\HumanDate;
+use App\Support\MailDelivery;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
@@ -144,7 +145,11 @@ class Students extends Component
             ['inviteEmail.required' => 'Укажите почту ученика', 'inviteEmail.email' => 'Проверьте почту: похоже, в ней опечатка']
         );
 
-        $this->service()->sendInvitation($this->teacher(), $this->inviteEmail);
+        if (! MailDelivery::attempt(fn () => $this->service()->sendInvitation($this->teacher(), $this->inviteEmail))) {
+            $this->addError('inviteEmail', MailDelivery::FAILED);
+
+            return;
+        }
         $this->inviteOpen = false;
         $this->dispatch('toast', message: 'Приглашение отправлено на ' . $this->inviteEmail);
         $this->inviteEmail = '';

@@ -19,6 +19,12 @@ class AppServiceProvider extends ServiceProvider
 
         // Фото по id для аватаров — кэш на один запрос или одну задачу очереди
         $this->app->scoped(\App\Support\UserPhotos::class);
+
+        // Письма уведомлений: сбой почты не ломает страницу (см. канал)
+        $this->app->bind(
+            \Illuminate\Notifications\Channels\MailChannel::class,
+            \App\Notifications\Channels\MailChannel::class,
+        );
     }
 
     /**
@@ -26,6 +32,16 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Сервис почты отказал посреди действия в кабинете — вместо окна «Что-то пошло не так» тост
+        // с извинением, страница продолжает работать. Обычные запросы — страница errors.mail (bootstrap/app.php).
+        \Livewire\on('exception', function ($component, \Throwable $e, callable $stopPropagation) {
+            if ($e instanceof \Symfony\Component\Mailer\Exception\TransportExceptionInterface) {
+                report($e);
+                $component->dispatch('toast', message: \App\Support\MailDelivery::FAILED, tone: 'danger');
+                $stopPropagation();
+            }
+        });
+
         // Письмо «Восстановление пароля» — в общем оформлении писем и без канцелярита
         \Illuminate\Auth\Notifications\ResetPassword::toMailUsing(function (object $notifiable, string $token) {
             $minutes = (int) config('auth.passwords.' . config('auth.defaults.passwords') . '.expire', 60);
