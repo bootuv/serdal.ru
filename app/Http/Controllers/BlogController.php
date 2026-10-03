@@ -6,6 +6,7 @@ use App\Models\BlogPost;
 use App\Models\BlogTag;
 use App\Models\User;
 use App\Services\BlogService;
+use App\Services\BlogStatsService;
 use App\Services\TutorCatalogService;
 use App\Support\Seo;
 
@@ -91,10 +92,14 @@ class BlogController extends Controller
             return redirect()->route('blog.show', $moved->slug, 301);
         }
 
-        // Просмотры: один раз за сессию посетителя, администратора не считаем
+        // Просмотры: один раз за сессию посетителя; админа, автора статьи и поисковых роботов не считаем.
+        // По дням и источникам — для статистики (BlogStatsService)
         $viewed = session('blog_viewed', []);
-        if (! $isAdmin && ! in_array($post->id, $viewed, true)) {
+        $isAuthor = $post->author_id && auth()->id() === $post->author_id; // у статей команды автора нет — гость не «автор»
+        $counts = ! $isAdmin && ! $isAuthor && ! BlogStatsService::isBot(request()->userAgent());
+        if ($counts && $post->isPublished() && ! in_array($post->id, $viewed, true)) {
             $post->increment('views_count');
+            app(BlogStatsService::class)->record($post, request()->headers->get('referer'));
             session(['blog_viewed' => [...$viewed, $post->id]]);
         }
 

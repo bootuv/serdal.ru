@@ -66,6 +66,7 @@ Route::middleware(['auth', \App\Http\Middleware\CheckUserActive::class])
             'payments' => ['/teacher/payments', 'Payments'],
             'referrals' => ['/teacher/referrals', 'Referrals'],
             'blog' => ['/teacher/blog', 'Blog'],
+            'blog-stats' => ['/teacher/blog/stats', 'BlogStats'], // до blog-article: иначе stats примет за {post}
             'blog-article' => ['/teacher/blog/{post}', 'BlogArticle'], // {post} = id или new
             'onboarding' => ['/teacher/onboarding', 'Onboarding'],
         ];
@@ -95,6 +96,7 @@ Route::middleware(['auth', \App\Http\Middleware\CheckUserActive::class])
             'news' => ['/admin/news', 'News'],                    // вкладки: опубликованные, запланированные, черновики (?tab=)
             'news-item' => ['/admin/news/{announcement}', 'NewsItem'], // {announcement} = id или new
             'blog' => ['/admin/blog', 'Blog'],                      // вкладки: опубликованные, запланированные, черновики (?tab=)
+            'blog-stats' => ['/admin/blog/stats', 'BlogStats'],     // до blog-article: иначе stats примет за {post}
             'blog-article' => ['/admin/blog/{post}', 'BlogArticle'], // {post} = id или new
             'mailings' => ['/admin/mailings', 'Mailings'],          // вкладки: письма, списки (?tab=)
             'mailing' => ['/admin/mailings/{campaign}', 'Mailing'],  // {campaign} = id или new

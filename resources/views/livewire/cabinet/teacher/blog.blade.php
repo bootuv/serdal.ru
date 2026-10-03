@@ -1,7 +1,10 @@
 <div class="flex flex-col gap-6 lg:gap-8">
     <x-ui.page-head title="Мои статьи" :sub="$facts">
         <x-slot:actions>
-            @if ($authorUrl)<a href="{{ $authorUrl }}" target="_blank" rel="noopener" class="link mr-4 hidden text-t1-s lg:inline">Мои статьи на сайте</a>@endif
+            @if ($authorUrl)
+                <a href="{{ route('cabinet.teacher.blog-stats') }}" class="link mr-4 text-t1-s">Статистика</a>
+                <a href="{{ $authorUrl }}" target="_blank" rel="noopener" class="link mr-4 hidden text-t1-s lg:inline">Мои статьи на сайте</a>
+            @endif
             <x-ui.btn variant="dark" icon="plus" :href="route('cabinet.teacher.blog-article', ['post' => 'new'])">Написать статью</x-ui.btn>
         </x-slot:actions>
     </x-ui.page-head>

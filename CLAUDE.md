@@ -56,6 +56,7 @@ Laravel 11 + Livewire 3 + Tailwind 3. Занятия идут в BigBlueButton, 
 - Сменили адрес опубликованной статьи — старый ведет 301 на новый (таблица `blog_slug_redirects`).
 - Для ИИ-агентов и агрегаторов: `/blog/rss.xml` (полный текст), `/blog/{slug}.md` (Markdown, `RichText::toMarkdown`, сам `noindex`), статьи со ссылками на .md — в `llms.txt`, полный текст 30 последних — в `llms-full.txt`.
 - Блок статей на других страницах — `blog/partials/section`: на главной «Популярное в блоге» (`BlogService::popular`, перед каталогом — после бесконечного списка не долистать), на странице учителя «Статьи в блоге» — четыре последние и «Все статьи» на `/blog/author/{username}`. Демо-статьи для оценки вида локально: `php artisan blog:demo` (адреса `demo-…`), убрать — `--remove`; на проде команда не запускается без `--force`.
+- Статистика: `blog_post_stats` — просмотры по дням и источникам (поиск, соцсети, сайт, другие сайты, прямые), пишет `BlogStatsService::record` вместе с `views_count` (раз за сессию, без админа, автора и роботов). Экраны «Статистика» — `Admin\BlogStats` (весь блог, авторы) и `Teacher\BlogStats` (свои статьи), `?post=` — одна статья; график — `x-ui.bars`. Тесты — `tests/Feature/BlogStatsTest.php`.
 - `news.serdal.ru` (домен рассылок) переадресуется на блог nginx'ом — `deploy/server/enable-news-redirect.sh`, запускается на сервере вручную. Тесты — `tests/Feature/Admin/BlogTest.php`, статья для учителей — `database/help/tutors/11-blog.md`.
 
 ## Новости на сайте

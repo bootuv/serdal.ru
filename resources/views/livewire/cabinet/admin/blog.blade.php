@@ -1,6 +1,7 @@
 <div class="flex flex-col gap-6 lg:gap-8">
     <x-ui.page-head title="Блог" :sub="$facts">
         <x-slot:actions>
+            <a href="{{ route('cabinet.admin.blog-stats') }}" class="link mr-4 text-t1-s">Статистика</a>
             <a href="{{ route('blog.index') }}" target="_blank" rel="noopener" class="link mr-4 hidden text-t1-s lg:inline">Блог на сайте</a>
             <x-ui.btn variant="dark" icon="plus" :href="route('cabinet.admin.blog-article', ['post' => 'new'])">Написать статью</x-ui.btn>
         </x-slot:actions>
