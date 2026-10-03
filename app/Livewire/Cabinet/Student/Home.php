@@ -238,7 +238,7 @@ class Home extends Component
             ->whereHas('participants', fn ($q) => $q->where('users.id', $studentId))
             ->where(fn ($q) => $q->where('is_running', true)
                 ->orWhereBetween('next_start', [now()->subHours(3), now()->addDays(7)]))
-            ->with('user:id,name')
+            ->with('user:id,name,avatar')
             ->get()
             ->filter(fn (Room $r) => $r->is_running
                 || ($r->next_start && $r->next_start->copy()->addMinutes($r->duration ?: RoomSchedule::DEFAULT_DURATION)->isFuture()))
@@ -257,6 +257,7 @@ class Home extends Component
             'title' => $room->name,
             'teacher' => $room->user?->name,
             'teacherId' => $room->user_id,
+            'teacherPhoto' => $room->user?->photoThumb(),
             'running' => $running,
             'blocked' => $blocked = in_array($room->user_id, $blockedTeacherIds, true),
             // Вход закрыт до оплаты — ссылка сразу открывает «Сообщить об оплате» учителю этого занятия
@@ -288,6 +289,7 @@ class Home extends Component
         return [
             'id' => $teacher->id,
             'name' => $teacher->name,
+            'photo' => $teacher->photoThumb(),
             'sub' => 'Ваш учитель' . ($subjects !== '' ? ' · ' . $subjects : ''),
             'chatUrl' => app(StudentTeachersService::class)->chatUrl($student->id, $teacher->id),
             'telegram' => $telegram !== '' ? '@' . $telegram : null,

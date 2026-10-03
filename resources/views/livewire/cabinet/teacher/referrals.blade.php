@@ -45,7 +45,7 @@
                                 };
                             @endphp
                             <x-ui.row :chevron="false" wire:key="rf-{{ $row['state'] }}-{{ $row['id'] }}">
-                                <x-ui.avatar :name="$row['name']" :id="$row['id']" />
+                                <x-ui.avatar :name="$row['name']" :id="$row['id']" :photo="$row['photo']" />
                                 <x-ui.text :title="$row['name']" :sub="$sub" />
                                 @if ($row['state'] === 'credited' && $row['lessons'] > 0)
                                     <x-ui.badge tone="ok">+{{ $lessons($row['lessons']) }}</x-ui.badge>

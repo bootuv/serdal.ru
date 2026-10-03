@@ -21,6 +21,7 @@ use App\Services\TeacherLessonService;
 use App\Services\TeacherScheduleService;
 use App\Services\TeacherStudentsService;
 use App\Support\HumanDate;
+use App\Support\UserPhotos;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Route;
@@ -935,14 +936,17 @@ class Lesson extends Component
                 $left = $p['left_at'] ?? null;
 
                 return ! $left || ($joined && Carbon::parse($joined)->gt(Carbon::parse($left)));
-            })
-            ->map(function ($p) use ($teacher, $startedAt) {
+            });
+        $photos = app(UserPhotos::class);
+        $photos->load($present->pluck('user_id')->filter(fn ($id) => is_numeric($id)));
+        $present = $present
+            ->map(function ($p) use ($teacher, $startedAt, $photos) {
                 $id = is_numeric($p['user_id'] ?? null) ? (int) $p['user_id'] : null;
                 $at = isset($p['joined_at']) ? Carbon::parse($p['joined_at'])->timezone(config('app.timezone'))->format('H:i') : null;
 
                 return $id === $teacher->id
-                    ? ['me' => true, 'id' => $id, 'name' => 'Вы', 'avatar' => $teacher->name, 'sub' => 'Ведёте занятие' . ($startedAt ? ' с ' . $startedAt->format('H:i') : '')]
-                    : ['me' => false, 'id' => $id ?? 0, 'name' => $p['full_name'] ?? 'Гость', 'avatar' => $p['full_name'] ?? 'Гость', 'sub' => $at ? 'Подключился в ' . $at : 'В классе'];
+                    ? ['me' => true, 'id' => $id, 'name' => 'Вы', 'avatar' => $teacher->name, 'photo' => $teacher->photoThumb(), 'sub' => 'Ведёте занятие' . ($startedAt ? ' с ' . $startedAt->format('H:i') : '')]
+                    : ['me' => false, 'id' => $id ?? 0, 'name' => $p['full_name'] ?? 'Гость', 'avatar' => $p['full_name'] ?? 'Гость', 'photo' => $photos->of($id), 'sub' => $at ? 'Подключился в ' . $at : 'В классе'];
             })
             ->sortBy(fn ($p) => $p['me'] ? 1 : 0)
             ->values();
@@ -978,6 +982,7 @@ class Lesson extends Component
             return [
                 'id' => $u->id,
                 'name' => $u->name,
+                'photo' => $u->photoThumb(),
                 'since' => $since ? 'Занимается с ' . HumanDate::month($since, true) : null,
                 'url' => TeacherStudentsService::studentUrl($u),
                 'price' => $room->getEffectivePrice($u->id),
@@ -1147,7 +1152,7 @@ class Lesson extends Component
                 ['value' => (string) $chat, 'label' => plural_ru($chat, 'сообщение', 'сообщения', 'сообщений', false) . ' в чате'],
                 $polls ? ['value' => (string) $polls, 'label' => plural_ru($polls, 'голосование', 'голосования', 'голосований', false)] : null,
             ])),
-            'attendance' => $att['students']->map(fn (array $st) => $st + self::activityLine($st, $activity->get((string) $st['id']), $minutes)),
+            'attendance' => TeacherScheduleService::withPhotos($att['students'])->map(fn (array $st) => $st + self::activityLine($st, $activity->get((string) $st['id']), $minutes)),
             'teacherMinutes' => $minutes,
             'recording' => $recording ? [
                 'title' => 'Запись · ' . plural_ru($minutes, 'минута', 'минуты', 'минут'),
@@ -1272,7 +1277,7 @@ class Lesson extends Component
             $tariff = $teacher->activeSubscription()?->tariff;
 
             // Список с поиском (имя и почта); в окне — только выбранные
-            $data['editPeople'] = $options->map(fn (User $u) => ['id' => (int) $u->id, 'name' => (string) $u->name, 'email' => (string) $u->email])->values()->all();
+            $data['editPeople'] = $options->map(fn (User $u) => ['id' => (int) $u->id, 'name' => (string) $u->name, 'email' => (string) $u->email, 'photo' => $u->photoThumb()])->values()->all();
             $data['editChosen'] = $options->whereIn('id', $this->editStudents)->values();
             $data['editHint'] = match (true) {
                 $options->isEmpty() => 'Пока некого выбрать — пригласите ученика в разделе «Ученики»',

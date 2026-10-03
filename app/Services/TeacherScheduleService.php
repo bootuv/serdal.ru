@@ -8,6 +8,7 @@ use App\Models\Room;
 use App\Models\RoomSchedule;
 use App\Models\RoomScheduleException;
 use App\Support\HumanDate;
+use App\Support\UserPhotos;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -351,6 +352,24 @@ class TeacherScheduleService
      *
      * @return array{attended:int, total:int, students:Collection<int, array{id:int, name:string, attended:bool, price:?int}>}
      */
+    /** Фото учеников сразу для всего списка занятий — чтобы withPhotos() не ходил в базу на каждую строку. */
+    public static function loadPhotos(Collection $sessions): void
+    {
+        app(UserPhotos::class)->load($sessions->flatMap(fn (MeetingSession $s) => [
+            ...collect($s->pricing_snapshot['participants'] ?? [])->pluck('user_id'),
+            ...($s->room?->participants ?? collect())->pluck('id'),
+        ]));
+    }
+
+    /** Ученики из attendance() с фото для аватаров (photo — адрес или null). */
+    public static function withPhotos(Collection $students): Collection
+    {
+        $photos = app(UserPhotos::class);
+        $photos->load($students->pluck('id'));
+
+        return $students->map(fn (array $st) => $st + ['photo' => $photos->of($st['id'])]);
+    }
+
     public static function attendance(MeetingSession $session): array
     {
         $snapshot = $session->pricing_snapshot['participants'] ?? null;

@@ -40,7 +40,7 @@
                                 </div>
                                 @if ($focus['teacher'])
                                     <div class="flex items-center gap-3">
-                                        <x-ui.avatar :name="$focus['teacher']" :id="$focus['teacherId']" />
+                                        <x-ui.avatar :name="$focus['teacher']" :id="$focus['teacherId']" :photo="$focus['teacherPhoto']" />
                                         <div class="flex flex-col gap-1">
                                             <span class="text-t1-s font-medium">{{ $focus['teacher'] }}</span>
                                             <span class="text-t3 text-muted">Ваш учитель</span>

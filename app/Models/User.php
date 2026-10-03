@@ -201,6 +201,12 @@ class User extends Authenticatable
         );
     }
 
+    /** Фото для аватара в кабинете (уменьшенная копия) или null — тогда x-ui.avatar покажет инициалы. */
+    public function photoThumb(): ?string
+    {
+        return $this->avatar ? AvatarService::url(AvatarService::thumbPath($this->avatar)) : null;
+    }
+
     /** Фото в JPG — для превью ссылки в соцсетях и мессенджерах и для разметки schema.org. */
     public function avatarJpgUrl(): Attribute
     {

@@ -220,8 +220,8 @@ trait PlansLessons
             return [];
         }
 
-        $people = app(TeacherLessonService::class)->studentsQuery($teacher)->orderBy('name')->get(['users.id', 'users.name', 'users.email'])
-            ->map(fn (User $s) => ['id' => (int) $s->id, 'name' => (string) $s->name, 'email' => (string) $s->email]);
+        $people = app(TeacherLessonService::class)->studentsQuery($teacher)->orderBy('name')->get(['users.id', 'users.name', 'users.email', 'users.avatar'])
+            ->map(fn (User $s) => ['id' => (int) $s->id, 'name' => (string) $s->name, 'email' => (string) $s->email, 'photo' => $s->photoThumb()]);
         $students = $people->pluck('name', 'id');
         $lessonType = $teacher->lessonTypes()->where('type', $this->planKind)->first();
         $first = TeacherLessonService::firstOccurrence($this->planRepeat, $this->planDate, $this->planTime, $this->planDays);

@@ -89,7 +89,7 @@ class AdminLessonsService
         return Room::query()
             ->when($teacherId, fn ($q) => $q->where('user_id', $teacherId))
             ->when(trim($search) !== '', fn ($q) => self::searchRooms($q, $search))
-            ->with(['user:id,name,first_name', 'participants:id,name']);
+            ->with(['user:id,name,first_name', 'participants:id,name,avatar']);
     }
 
     /**

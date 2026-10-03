@@ -51,7 +51,7 @@
                 @foreach ($students as $p)
                     <div class="flex flex-col gap-2 border-t border-line py-4 last:pb-0 lg:grid lg:grid-cols-12 lg:items-center lg:gap-4" wire:key="sr-p-{{ $p['id'] }}">
                         <div class="flex min-w-0 items-center gap-3 lg:col-span-5">
-                            <x-ui.avatar :name="$p['name']" :id="$p['id']" :class="$p['came'] ? '' : 'opacity-60'" />
+                            <x-ui.avatar :name="$p['name']" :id="$p['id']" :photo="$p['photo']" :class="$p['came'] ? '' : 'opacity-60'" />
                             <span class="truncate text-t1-s font-medium">{{ $p['name'] }}</span>
                         </div>
                         @if ($p['came'])

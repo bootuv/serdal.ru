@@ -643,7 +643,7 @@ class User extends Component
 
     private function teacherPeople(UserModel $u, int $studentsCount): array
     {
-        $rooms = Room::where('user_id', $u->id)->with('participants:id,name')->get();
+        $rooms = Room::where('user_id', $u->id)->with('participants:id,name,avatar')->get();
         $pivot = DB::table('teacher_student')->where('teacher_id', $u->id)->pluck('created_at', 'student_id');
         $students = $u->students()->orderBy('name')->get()->map(function (UserModel $s) use ($rooms, $pivot) {
             $own = $rooms->filter(fn (Room $r) => $r->participants->contains('id', $s->id));

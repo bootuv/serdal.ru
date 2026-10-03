@@ -286,7 +286,7 @@ class TaskNew extends Component
                 'sub' => $r->next_start && $r->next_start->isFuture() ? HumanDate::at($r->next_start) : null,
             ])->all(),
             // Список с поиском: все, кому можно выдать (имя и почта); на странице — только выбранные
-            'people' => $allowed->map(fn (User $u) => ['id' => (int) $u->id, 'name' => (string) $u->name, 'email' => (string) $u->email])->values()->all(),
+            'people' => $allowed->map(fn (User $u) => ['id' => (int) $u->id, 'name' => (string) $u->name, 'email' => (string) $u->email, 'photo' => $u->photoThumb()])->values()->all(),
             'chosen' => $selected->values(),
             'whoLabel' => $count === 0
                 ? ($allowed->isEmpty() ? 'Пока нет учеников — пригласите их в разделе «Ученики».' : 'Выберите хотя бы одного ученика')
@@ -337,6 +337,6 @@ class TaskNew extends Component
                 }
             })
             ->orderBy('name')
-            ->get(['id', 'name', 'email']);
+            ->get(['id', 'name', 'email', 'avatar']);
     }
 }

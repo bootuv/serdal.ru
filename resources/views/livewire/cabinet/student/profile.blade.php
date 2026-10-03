@@ -20,7 +20,7 @@
                     @elseif ($user->avatar && ! $removePhoto)
                         <img src="{{ $user->avatar_thumb_url }}" alt="" class="size-16 shrink-0 rounded-lg object-cover">
                     @else
-                        <x-ui.avatar :user="$user" size="lg" />
+                        <x-ui.avatar :user="$user" :photo="false" size="lg" />
                     @endif
                     <div class="flex min-w-0 flex-col gap-2">
                         <div class="flex flex-wrap items-center gap-4">

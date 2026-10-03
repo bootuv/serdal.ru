@@ -140,7 +140,7 @@ class MessengerService
     public function dialogs(User $user): array
     {
         $rooms = $this->rooms($user)
-            ->with(['participants:id,name,username', 'user:id,name'])
+            ->with(['participants:id,name,username,avatar', 'user:id,name,avatar'])
             ->withCount(['messages as unread_count' => fn ($q) => $q->where('user_id', '!=', $user->id)->whereNull('read_at')])
             ->get();
 

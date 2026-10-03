@@ -86,7 +86,7 @@ trait LessonRows
     {
         $avatar = null;
         if ($o['withAvatar'] ?? false) {
-            $avatar = $lesson['student'] ? ['name' => $lesson['student']->name, 'id' => $lesson['student']->id] : ['group' => true];
+            $avatar = $lesson['student'] ? ['name' => $lesson['student']->name, 'id' => $lesson['student']->id, 'photo' => $lesson['student']->photoThumb()] : ['group' => true];
         }
 
         return [

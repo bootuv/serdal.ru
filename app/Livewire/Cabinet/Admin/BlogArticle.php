@@ -462,8 +462,8 @@ class BlogArticle extends Component
 
         $authors = $teacher ? [] : User::where('role', User::ROLE_TUTOR)
             ->where(fn ($q) => $q->where('is_blocked', false)->orWhereNull('is_blocked'))
-            ->orderBy('name')->get(['id', 'name', 'email'])
-            ->map(fn (User $u) => ['id' => $u->id, 'name' => (string) $u->name, 'email' => (string) $u->email])->all();
+            ->orderBy('name')->get(['id', 'name', 'email', 'avatar'])
+            ->map(fn (User $u) => ['id' => $u->id, 'name' => (string) $u->name, 'email' => (string) $u->email, 'photo' => $u->photoThumb()])->all();
 
         return view('livewire.cabinet.admin.blog-article', [
             'model' => $model,

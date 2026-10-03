@@ -217,7 +217,7 @@ class Review extends Component
 
     public function render()
     {
-        $s = $this->submission->loadMissing(['homework.room:id,name', 'student:id,name,first_name']);
+        $s = $this->submission->loadMissing(['homework.room:id,name', 'student:id,name,first_name,avatar']);
         $h = $s->homework;
         $student = $s->student;
         $firstName = $student?->first_name ?: ($student?->name ?? 'Ученик');

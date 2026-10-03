@@ -76,7 +76,7 @@
                     @foreach ($sections as $section)
                         <x-ui.card wire:key="t-{{ $section['id'] }}" aria-label="{{ $section['name'] }}">
                             <div class="flex min-h-9 items-center gap-3">
-                                <x-ui.avatar :name="$section['name']" :id="$section['id']" />
+                                <x-ui.avatar :name="$section['name']" :id="$section['id']" :photo="$section['photo']" />
                                 <div class="flex min-w-0 flex-1 flex-col gap-1">
                                     <h2 class="truncate text-h2 font-medium">{{ $section['name'] }}</h2>
                                     @if ($section['subjects'])<span class="truncate text-t2 text-muted">{{ $section['subjects'] }}</span>@endif

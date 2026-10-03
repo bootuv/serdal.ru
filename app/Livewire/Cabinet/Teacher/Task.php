@@ -64,7 +64,7 @@ class Task extends Component
     public function render()
     {
         $h = $this->homework->loadMissing(['room:id,name,type']);
-        $students = $h->students()->orderBy('name')->get(['users.id', 'users.name']);
+        $students = $h->students()->orderBy('name')->get(['users.id', 'users.name', 'users.avatar']);
         $submissions = $h->submissions()
             ->whereIn('student_id', $students->pluck('id'))
             ->withExists(['activities as resubmitted' => fn ($q) => $q->where('type', HomeworkActivity::TYPE_RESUBMITTED)])
@@ -136,6 +136,7 @@ class Task extends Component
         $row = [
             'id' => $u->id,
             'name' => $u->name,
+            'photo' => $u->photoThumb(),
             'sub' => null,
             'em' => null,
             'badge' => null,

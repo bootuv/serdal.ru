@@ -25,7 +25,7 @@ class AdminReviewsService
     /** Отзывы вкладки: жалобы без решения · все видимые · скрытые (об учителях) · о платформе (сначала ждущие проверки). */
     public function query(string $tab, string $search = ''): Builder
     {
-        $query = Review::query()->with(['user:id,name', 'teacher:id,name']);
+        $query = Review::query()->with(['user:id,name,avatar', 'teacher:id,name']);
 
         if ($tab === self::TAB_PLATFORM) {
             $query->platform()

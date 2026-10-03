@@ -17,11 +17,7 @@
         <a href="{{ $backUrl }}" class="inline-flex items-center gap-2 self-start text-t1-s font-medium text-muted hover:text-ink"><x-ui.icon name="arrow-left" size="s" />Пользователи</a>
         <header class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between lg:gap-6">
             <div class="flex min-w-0 items-center gap-4">
-                @if ($u->avatar)
-                    <img src="{{ $u->avatar_thumb_url }}" alt="" class="size-16 shrink-0 rounded-lg object-cover">
-                @else
-                    <x-ui.avatar :user="$u" size="lg" />
-                @endif
+                <x-ui.avatar :user="$u" size="lg" />
                 <div class="flex min-w-0 flex-col gap-2">
                     <div class="flex flex-wrap items-center gap-3">
                         <h1 class="text-h1-m font-medium lg:text-h1">{{ $u->name }}</h1>
@@ -217,7 +213,7 @@
                             @elseif ($u->avatar && ! $removePhoto)
                                 <img src="{{ $u->avatar_thumb_url }}" alt="" class="size-16 shrink-0 rounded-lg object-cover">
                             @else
-                                <x-ui.avatar :user="$u" size="lg" />
+                                <x-ui.avatar :user="$u" :photo="false" size="lg" />
                             @endif
                             <div class="flex min-w-0 flex-col items-start gap-2">
                                 <x-ui.photo-crop size="s" icon="upload">Загрузить фото</x-ui.photo-crop>

@@ -38,7 +38,7 @@
                     @endif
                     @forelse ($people as $p)
                         <x-ui.row :href="$p['url']" :chevron="(bool) $p['url']" wire:key="lp-p-{{ $p['id'] }}">
-                            <x-ui.avatar :name="$p['name']" :id="$p['id']" />
+                            <x-ui.avatar :name="$p['name']" :id="$p['id']" :photo="$p['photo']" />
                             <div class="flex min-w-0 flex-1 flex-col gap-1">
                                 <span class="truncate text-t1 font-medium">{{ $p['name'] }}</span>
                                 @if ($p['note'])<span @class(['text-t2', 'font-semibold text-ink' => $p['away'], 'text-muted' => ! $p['away']])>{{ $p['note'] }}</span>@endif

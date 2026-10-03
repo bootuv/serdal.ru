@@ -46,7 +46,7 @@ class Lesson extends Component
     private function room(): Room
     {
         $room = Room::withTrashed()
-            ->with(['user', 'participants:id,name,first_name', 'schedules' => fn ($q) => $q->where('is_active', true)->with('exceptions')])
+            ->with(['user', 'participants:id,name,first_name,avatar', 'schedules' => fn ($q) => $q->where('is_active', true)->with('exceptions')])
             ->find($this->roomId);
         abort_unless($room, 404);
 
@@ -181,6 +181,7 @@ class Lesson extends Component
             'people' => $room->participants->map(fn ($u) => [
                 'id' => $u->id,
                 'name' => $u->name,
+                'photo' => $u->photoThumb(),
                 'url' => AdminLessonsService::userUrl($u->id),
                 'note' => $state === AdminLessonsService::LIVE ? (isset($present[$u->id]) ? 'В классе' . ($present[$u->id] ? ' с ' . $present[$u->id] : '') : 'Не в классе') : null,
                 'away' => $state === AdminLessonsService::LIVE && ! isset($present[$u->id]),

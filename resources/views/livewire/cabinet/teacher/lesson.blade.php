@@ -89,7 +89,7 @@
                     <x-ui.list>
                         @foreach ($attendance as $st)
                             <x-ui.row wire:key="att-{{ $st['id'] }}">
-                                <x-ui.avatar :name="$st['name']" :id="$st['id']" :class="$st['attended'] ? '' : 'opacity-60'" />
+                                <x-ui.avatar :name="$st['name']" :id="$st['id']" :photo="$st['photo']" :class="$st['attended'] ? '' : 'opacity-60'" />
                                 <x-ui.text :title="$st['name']" :sub="$st['sub']" />
                                 @if ($st['score'])
                                     <div class="flex shrink-0 flex-col items-end gap-1 text-right">
@@ -220,7 +220,7 @@
                                     <x-ui.list>
                                         @foreach ($present as $p)
                                             <x-ui.row wire:key="now-{{ $loop->index }}">
-                                                <x-ui.avatar :name="$p['avatar']" :id="$p['id']" />
+                                                <x-ui.avatar :name="$p['avatar']" :id="$p['id']" :photo="$p['photo']" />
                                                 <x-ui.text :title="$p['name']" :sub="$p['sub']" />
                                             </x-ui.row>
                                         @endforeach

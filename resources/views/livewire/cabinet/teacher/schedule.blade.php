@@ -167,7 +167,7 @@
                                         <span @class(['text-t1 font-medium', 'text-muted' => $row['dim']])>{{ $row['time'] }}</span>
                                         <span class="text-t3 text-muted">{{ $row['duration'] }}</span>
                                     </div>
-                                    <x-ui.avatar :name="$row['avatar']['name'] ?? ''" :id="$row['avatar']['id'] ?? 0" :group="$row['avatar']['group'] ?? false" class="hidden lg:inline-flex" />
+                                    <x-ui.avatar :name="$row['avatar']['name'] ?? ''" :id="$row['avatar']['id'] ?? 0" :photo="$row['avatar']['photo'] ?? null" :group="$row['avatar']['group'] ?? false" class="hidden lg:inline-flex" />
                                     <div class="flex min-w-0 flex-1 flex-col gap-1">
                                         <a href="{{ $row['url'] }}" @class(['truncate text-t1 font-medium hover:underline', 'text-muted' => $row['dim']])>{{ $row['heading'] }}</a>
                                         @if ($row['facts'])<span class="text-t2 text-muted">{{ $row['facts'] }}</span>@endif

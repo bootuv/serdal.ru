@@ -183,4 +183,24 @@ class AuthScreensTest extends TestCase
             ->assertRedirect(route('login'));
         $this->assertGuest();
     }
+
+    public function test_logout_with_stale_token_is_not_expired_page(): void
+    {
+        // В тестах проверка CSRF отключена — проверяем сам посредник, как на проде.
+        $csrf = new class($this->app, $this->app['encrypter']) extends \Illuminate\Foundation\Http\Middleware\ValidateCsrfToken
+        {
+            protected function runningUnitTests()
+            {
+                return false;
+            }
+        };
+        $request = fn (string $uri) => tap(\Illuminate\Http\Request::create($uri, 'POST', ['_token' => 'stale']), function ($r) {
+            $r->setLaravelSession($this->app['session.store']);
+        });
+
+        $this->assertSame('ok', $csrf->handle($request('/logout'), fn () => response('ok'))->getContent());
+
+        $this->expectException(\Illuminate\Session\TokenMismatchException::class);
+        $csrf->handle($request('/cabinet/teacher'), fn () => response('ok'));
+    }
 }

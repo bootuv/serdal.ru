@@ -16,6 +16,9 @@ class AppServiceProvider extends ServiceProvider
             \Livewire\Features\SupportFileUploads\FileUploadController::class,
             \App\Http\Controllers\LivewireFileUploadController::class,
         );
+
+        // Фото по id для аватаров — кэш на один запрос или одну задачу очереди
+        $this->app->scoped(\App\Support\UserPhotos::class);
     }
 
     /**

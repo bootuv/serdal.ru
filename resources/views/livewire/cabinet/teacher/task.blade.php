@@ -26,7 +26,7 @@
                 <x-ui.list>
                     @foreach ($rows as $r)
                         <x-ui.row :href="$r['url']" class="first:border-transparent first:pt-0" wire:key="st-{{ $r['id'] }}">
-                            <x-ui.avatar :name="$r['name']" :id="$r['id']" />
+                            <x-ui.avatar :name="$r['name']" :id="$r['id']" :photo="$r['photo']" />
                             <div class="flex min-w-0 flex-1 flex-col gap-1">
                                 <span class="truncate text-t1 font-medium">{{ $r['name'] }}</span>
                                 <span class="text-t2 text-muted">{{ $r['sub'] }}@if ($r['em']) · <x-ui.em>{{ $r['em'] }}</x-ui.em>@endif</span>

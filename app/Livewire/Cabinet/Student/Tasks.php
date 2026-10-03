@@ -144,7 +144,7 @@ class Tasks extends Component
     {
         return $query->with([
             'submissions' => fn ($q) => $q->where('student_id', $studentId),
-            'teacher:id,name',
+            'teacher:id,name,avatar',
             'room:id,name',
         ]);
     }
@@ -195,6 +195,7 @@ class Tasks extends Component
             'room' => $h->room?->name,
             'teacher' => $h->teacher?->name,
             'teacherId' => $h->teacher_id,
+            'teacherPhoto' => $h->teacher?->photoThumb(),
             'state' => $state,
             'deadline' => $deadline,
             'overdue' => $h->is_overdue,

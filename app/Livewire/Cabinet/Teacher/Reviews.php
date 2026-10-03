@@ -124,7 +124,7 @@ class Reviews extends Component
     public function render()
     {
         $teacher = auth()->user();
-        $query = fn () => $this->service()->query($teacher)->with('user:id,name');
+        $query = fn () => $this->service()->query($teacher)->with('user:id,name,avatar');
 
         $fresh = $query()->whereNull('teacher_read_at')->latest()->orderByDesc('id')->get();
         $searching = filled(trim($this->search));
@@ -183,7 +183,7 @@ class Reviews extends Component
 
     private function own(int $id): Review
     {
-        $review = $this->service()->query(auth()->user())->with('user:id,name')->find($id);
+        $review = $this->service()->query(auth()->user())->with('user:id,name,avatar')->find($id);
         abort_unless($review, 404);
 
         return $review;

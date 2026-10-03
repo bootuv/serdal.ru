@@ -26,7 +26,7 @@
                                     {{-- Телефон: бейдж под подписью, кнопка под текстом на всю ширину --}}
                                     <x-ui.row align="start" class="-mx-4 flex-col rounded-lg border-t-0 bg-white px-4 shadow-card last:pb-4 sm:flex-row sm:items-center" wire:key="rv-{{ $r['id'] }}">
                                         <div class="flex w-full min-w-0 flex-1 items-center gap-4">
-                                            <x-ui.avatar :name="$r['student']" :id="$r['studentId']" />
+                                            <x-ui.avatar :name="$r['student']" :id="$r['studentId']" :photo="$r['studentPhoto']" />
                                             <div class="flex min-w-0 flex-1 flex-col gap-1">
                                                 <a href="{{ $r['url'] }}" class="line-clamp-2 break-words text-t1 font-medium sm:line-clamp-none sm:truncate">{{ $r['title'] }}</a>
                                                 <span class="text-t2 text-muted">{{ $r['sub'] }}@if ($r['wait']) · <x-ui.em :danger="$r['overdue']">{{ $r['wait'] }}</x-ui.em>@endif</span>
@@ -38,7 +38,7 @@
                                     </x-ui.row>
                                 @else
                                     <x-ui.row :href="$r['url']" :class="$loop->index === 1 ? 'border-t-0' : ''" wire:key="rv-{{ $r['id'] }}">
-                                        <x-ui.avatar :name="$r['student']" :id="$r['studentId']" />
+                                        <x-ui.avatar :name="$r['student']" :id="$r['studentId']" :photo="$r['studentPhoto']" />
                                         <div class="flex min-w-0 flex-1 flex-col gap-1">
                                             <span class="line-clamp-2 break-words text-t1 font-medium sm:line-clamp-none sm:truncate">{{ $r['title'] }}</span>
                                             <span class="text-t2 text-muted">{{ $r['sub'] }}</span>
@@ -117,7 +117,7 @@
                                 @if ($it['group'])
                                     <x-ui.avatar group />
                                 @else
-                                    <x-ui.avatar :name="$it['who']" :id="$it['avatarId']" />
+                                    <x-ui.avatar :name="$it['who']" :id="$it['avatarId']" :photo="$it['photo']" />
                                 @endif
                                 <div class="flex min-w-0 flex-1 flex-col gap-1">
                                     <span class="line-clamp-2 break-words text-t1 font-medium sm:line-clamp-none sm:truncate">{{ $it['title'] }}</span>

@@ -70,7 +70,7 @@ class Materials extends Component
     public function render()
     {
         $student = auth()->user();
-        $teachers = User::whereIn('id', $this->teacherIds())->with('subjects:id,name')->orderBy('name')->get(['id', 'name']);
+        $teachers = User::whereIn('id', $this->teacherIds())->with('subjects:id,name')->orderBy('name')->get(['id', 'name', 'avatar']);
         $teacherId = $this->teacher !== 'all' ? (int) $this->teacher : null;
         $searching = filled(trim($this->search));
 
@@ -131,6 +131,7 @@ class Materials extends Component
         return [
             'id' => $teacher->id,
             'name' => $teacher->name,
+            'photo' => $teacher->photoThumb(),
             'subjects' => $teacher->subjects->pluck('name')->join(', '),
             'rows' => $folders->take($single ? PHP_INT_MAX : self::CARD_ROWS)
                 ->concat($files->take($filesLimit)->map(fn (TeacherMaterial $m) => $this->fileRow($m)))

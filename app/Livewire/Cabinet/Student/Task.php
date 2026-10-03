@@ -137,7 +137,7 @@ class Task extends Component
 
     public function render()
     {
-        $homework = $this->homework->loadMissing(['teacher:id,name', 'room:id,name']);
+        $homework = $this->homework->loadMissing(['teacher:id,name,avatar', 'room:id,name']);
         $submission = $this->submission();
         $state = Hw::state($homework, $submission);
         $canSubmit = Hw::canSubmit($submission);

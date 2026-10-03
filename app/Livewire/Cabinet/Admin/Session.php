@@ -92,7 +92,7 @@ class Session extends Component
             '<a href="' . e(route('cabinet.admin.lesson', ['room' => $room->id])) . '" class="link">Страница занятия</a>',
         ])->filter()->implode(' · ');
 
-        $students = $att['students']->map(function (array $st) use ($raw, $activity, $live) {
+        $students = TeacherScheduleService::withPhotos($att['students'])->map(function (array $st) use ($raw, $activity, $live) {
             $a = $activity->get((string) $st['id']);
             $a = $a && $a['minutes'] > 0 ? $a : null; // без событий класса показываем прочерки
             $p = $raw->get((string) $st['id'], []);
@@ -101,6 +101,7 @@ class Session extends Component
             return [
                 'id' => $st['id'],
                 'name' => $st['name'],
+                'photo' => $st['photo'],
                 'came' => $came,
                 'inRoom' => $a ? $a['minutes'] . ' мин' : '—',
                 'mic' => $a && $a['talk'] ? $a['talk'] . ' мин' : '—',

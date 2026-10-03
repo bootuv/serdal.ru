@@ -378,12 +378,12 @@ class Founders extends Component
     /** Окно основателя: из кого выбирать (имя, почта) и подсказка про выбранный профиль. */
     private function founderUserView(): array
     {
-        $people = $this->founderUserCandidates()->orderByRaw("role = 'admin' desc")->orderBy('name')->get(['id', 'name', 'email', 'role']);
+        $people = $this->founderUserCandidates()->orderByRaw("role = 'admin' desc")->orderBy('name')->get(['id', 'name', 'email', 'role', 'avatar']);
         $selected = $people->firstWhere('id', (int) $this->founderUserId);
         $legacy = $this->founderId ? Founder::find($this->founderId) : null;
 
         return [
-            'people' => $people->map(fn (User $u) => ['id' => (int) $u->id, 'name' => (string) $u->name, 'email' => (string) $u->email])->all(),
+            'people' => $people->map(fn (User $u) => ['id' => (int) $u->id, 'name' => (string) $u->name, 'email' => (string) $u->email, 'photo' => $u->photoThumb()])->all(),
             'hint' => match (true) {
                 (bool) $selected => ($selected->role === User::ROLE_ADMIN ? 'Администратор' : 'Учитель') . '. Напоминания придут на почту профиля, страница сбора откроется после входа под ним',
                 $legacy && ! $legacy->user_id => 'Раньше был добавлен вручную как «' . $legacy->name . '» — выберите его профиль на сайте',

@@ -12,6 +12,7 @@ use App\Models\Room;
 use App\Models\User;
 use App\Services\TeacherScheduleService;
 use App\Support\HumanDate;
+use App\Support\UserPhotos;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
@@ -263,6 +264,7 @@ class Schedule extends Component
 
         $overdue = TeacherScheduleService::overdueSessionIds($teacher->id, $sessions->pluck('id'));
         $recordings = $this->readyRecordings($sessions);
+        TeacherScheduleService::loadPhotos($sessions);
 
         $rows = $sessions->map(function (MeetingSession $s) use ($overdue, $recordings) {
             $room = $s->room;
@@ -277,7 +279,7 @@ class Schedule extends Component
                 'time' => $s->started_at->format('H:i'),
                 'duration' => TeacherScheduleService::sessionMinutes($s) . ' мин',
                 'heading' => $student ? $room->name . ' · ' . $student['name'] : $room->name,
-                'avatar' => $student ? ['name' => $student['name'], 'id' => $student['id']] : ['group' => true],
+                'avatar' => $student ? ['name' => $student['name'], 'id' => $student['id'], 'photo' => app(UserPhotos::class)->of($student['id'])] : ['group' => true],
                 'dim' => $att['total'] > 0 && $att['attended'] === 0,
                 'facts' => match (true) {
                     (bool) $s->deletion_requested_at => 'Запрошено удаление',
@@ -306,7 +308,7 @@ class Schedule extends Component
                     'time' => $e->original_starts_at->format('H:i'),
                     'duration' => '—',
                     'heading' => $student ? $room->name . ' · ' . $student->name : $room->name,
-                    'avatar' => $student ? ['name' => $student->name, 'id' => $student->id] : ['group' => true],
+                    'avatar' => $student ? ['name' => $student->name, 'id' => $student->id, 'photo' => $student->photoThumb()] : ['group' => true],
                     'dim' => true,
                     'facts' => 'Отменено' . ($e->reason ? ': ' . $e->reason : ''),
                     'unpaid' => false,

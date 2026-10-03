@@ -8,7 +8,7 @@
                 @if ($row['duration'])<span class="text-t3 text-muted">{{ $row['duration'] }}</span>@endif
             </div>
             @if ($row['avatar'])
-                <x-ui.avatar :name="$row['avatar']['name'] ?? ''" :id="$row['avatar']['id'] ?? 0" :group="$row['avatar']['group'] ?? false" />
+                <x-ui.avatar :name="$row['avatar']['name'] ?? ''" :id="$row['avatar']['id'] ?? 0" :photo="$row['avatar']['photo'] ?? null" :group="$row['avatar']['group'] ?? false" />
             @endif
             <div class="flex min-w-0 flex-1 flex-col gap-1">
                 <a href="{{ $row['url'] }}" class="line-clamp-2 break-words text-t1 font-medium hover:underline sm:line-clamp-none sm:truncate">{{ $row['heading'] }}</a>
@@ -34,7 +34,7 @@
             @if ($row['duration'])<span class="text-t3 text-muted">{{ $row['duration'] }}</span>@endif
         </div>
         @if ($row['avatar'])
-            <x-ui.avatar :name="$row['avatar']['name'] ?? ''" :id="$row['avatar']['id'] ?? 0" :group="$row['avatar']['group'] ?? false" :class="$row['dim'] ? 'opacity-60' : ''" />
+            <x-ui.avatar :name="$row['avatar']['name'] ?? ''" :id="$row['avatar']['id'] ?? 0" :photo="$row['avatar']['photo'] ?? null" :group="$row['avatar']['group'] ?? false" :class="$row['dim'] ? 'opacity-60' : ''" />
         @endif
         <div class="flex min-w-0 flex-1 flex-col gap-1">
             <span @class(['line-clamp-2 break-words text-t1 font-medium sm:line-clamp-none sm:truncate', 'text-muted' => $row['dim']])>{{ $row['heading'] }}</span>

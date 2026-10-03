@@ -127,7 +127,7 @@ class Today extends Component
             ->whereHas('homework', fn ($q) => $q->where('teacher_id', $teacher->id));
 
         $items = (clone $query)
-            ->with(['homework:id,title', 'student:id,name'])
+            ->with(['homework:id,title', 'student:id,name,avatar'])
             ->orderBy('submitted_at')
             ->limit(3)
             ->get()
@@ -139,6 +139,7 @@ class Today extends Component
                     'title' => $s->homework?->title,
                     'student' => $s->student?->name,
                     'studentId' => $s->student_id,
+                    'studentPhoto' => $s->student?->photoThumb(),
                     'submitted' => 'сдано ' . (in_array(HumanDate::day($s->submitted_at), ['сегодня', 'вчера'], true)
                         ? HumanDate::day($s->submitted_at)
                         : HumanDate::date($s->submitted_at)),
@@ -160,7 +161,7 @@ class Today extends Component
     {
         $records = PaymentRecord::unpaid()
             ->where('teacher_id', $teacher->id)
-            ->with(['student:id,name', 'meetingSession:id,room_id,ended_at,pricing_snapshot'])
+            ->with(['student:id,name,avatar', 'meetingSession:id,room_id,ended_at,pricing_snapshot'])
             ->orderBy('due_date')
             ->get();
 
@@ -180,6 +181,7 @@ class Today extends Component
             return [
                 'id' => $studentId,
                 'name' => $own->first()->student?->name,
+                'photo' => $own->first()->student?->photoThumb(),
                 'facts' => collect([$perLesson ? plural_ru($perLesson, 'занятие', 'занятия', 'занятий') : null, ...$monthly, $sum ? \App\Support\Money::format($sum) : null])->filter()->implode(' · '),
                 'badge' => match (true) {
                     in_array($studentId, $blocked, true) => 'Доступ закрыт',
@@ -198,9 +200,11 @@ class Today extends Component
                 $paid = PaymentRecord::whereIn('id', $ids)->where('status', PaymentRecord::STATUS_PAID)->with('meetingSession:id,pricing_snapshot')->get();
                 if ($paid->isNotEmpty()) {
                     $sum = $paid->sum(fn (PaymentRecord $r) => (int) $r->amount());
+                    $student = User::find($studentId, ['id', 'name', 'avatar']);
                     $rows->push([
                         'id' => (int) $studentId,
-                        'name' => User::whereKey($studentId)->value('name'),
+                        'name' => $student?->name,
+                        'photo' => $student?->photoThumb(),
                         'facts' => plural_ru($paid->count(), 'начисление', 'начисления', 'начислений') . ($sum ? ' · ' . \App\Support\Money::format($sum) : ''),
                         'badge' => null,
                         'paid' => true,
@@ -227,7 +231,7 @@ class Today extends Component
         $chatKey = fn (Message $m) => $m->personal_chat_id ? 'p' . $m->personal_chat_id : 'r' . $m->room_id;
 
         $latest = $incoming()
-            ->with('user:id,name')
+            ->with('user:id,name,avatar')
             ->latest()
             ->limit(50)
             ->get()
@@ -241,6 +245,7 @@ class Today extends Component
                 'key' => $m->id,
                 'name' => $m->user?->name,
                 'userId' => $m->user_id,
+                'photo' => $m->user?->photoThumb(),
                 'time' => $m->created_at->isToday() ? $m->created_at->format('H:i') : HumanDate::day($m->created_at),
                 'text' => $m->content ? Str::limit(trim(strip_tags($m->content)), 80) : 'Файл',
                 'unread' => $unread[$chatKey($m)] ?? 0,

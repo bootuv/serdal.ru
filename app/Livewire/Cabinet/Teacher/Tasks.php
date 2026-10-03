@@ -100,7 +100,7 @@ class Tasks extends Component
 
         if ($this->tab === 'review') {
             $review = Hw::toReview($teacherId)
-                ->with(['student:id,name', 'homework:id,title,deadline,room_id', 'homework.room:id,name,type'])
+                ->with(['student:id,name,avatar', 'homework:id,title,deadline,room_id', 'homework.room:id,name,type'])
                 ->withExists(['activities as resubmitted' => fn ($q) => $q->where('type', HomeworkActivity::TYPE_RESUBMITTED)])
                 ->limit($this->shown)
                 ->get()
@@ -158,7 +158,7 @@ class Tasks extends Component
     {
         $homeworks = new \Illuminate\Database\Eloquent\Collection($homeworks->all());
         $homeworks->load([
-            'students:id,name',
+            'students:id,name,avatar',
             'submissions:id,homework_id,student_id,status,grade,submitted_at,updated_at',
             'room:id,name,type',
         ]);
@@ -202,6 +202,7 @@ class Tasks extends Component
             'title' => $h->title,
             'student' => $s->student?->name ?? 'Ученик',
             'studentId' => $s->student_id,
+            'studentPhoto' => $s->student?->photoThumb(),
             'sub' => implode(' · ', array_filter([
                 $s->student?->name,
                 $h->room?->type === 'group' ? 'группа «' . $h->room->name . '»' : null,
@@ -246,6 +247,7 @@ class Tasks extends Component
             'who' => $who,
             'group' => $group,
             'avatarId' => $group ? 0 : (int) $students->first()?->id,
+            'photo' => $group ? null : $students->first()?->photoThumb(),
             'due' => $h->deadline ? 'до ' . HumanDate::date($h->deadline) : null,
             'dueEm' => null,
             'prog' => null,

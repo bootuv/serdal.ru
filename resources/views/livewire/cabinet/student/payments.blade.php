@@ -127,7 +127,7 @@
                 <x-ui.list>
                     @foreach ($teachers as $t)
                         <x-ui.row :chevron="false" align="start" wire:key="how-{{ $t['id'] }}">
-                            <x-ui.avatar :name="$t['name']" :id="$t['id']" />
+                            <x-ui.avatar :name="$t['name']" :id="$t['id']" :photo="$t['photo']" />
                             <div class="flex min-w-0 flex-1 flex-col gap-2">
                                 <div class="flex min-w-0 flex-col gap-1">
                                     <span class="truncate text-t1-s font-medium">{{ $t['name'] }}</span>

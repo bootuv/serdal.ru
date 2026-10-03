@@ -171,7 +171,7 @@ class Payments extends Component
         $records = PaymentRecord::query()
             ->where('student_id', $studentId)
             ->whereIn('status', [PaymentRecord::STATUS_UNPAID, PaymentRecord::STATUS_PAID, PaymentRecord::STATUS_CANCELLED])
-            ->with(['teacher:id,name,first_name,telegram,whatsup,phone', 'meetingSession.room:id,name'])
+            ->with(['teacher:id,name,first_name,avatar,telegram,whatsup,phone', 'meetingSession.room:id,name'])
             ->get();
 
         $unpaid = $records->where('status', PaymentRecord::STATUS_UNPAID)->sortBy('due_date');
@@ -339,6 +339,7 @@ class Payments extends Component
             ->map(fn (User $t) => [
                 'id' => $t->id,
                 'name' => $t->name,
+                'photo' => $t->photoThumb(),
                 'terms' => $service->studentTerms($t, $student),
                 'contacts' => $t->contactLinks(),
                 'chat' => app(StudentTeachersService::class)->chatUrl($studentId, $t->id),

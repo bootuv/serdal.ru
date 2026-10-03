@@ -48,7 +48,7 @@
                 </div>
                 @if ($next['teacher'])
                     <div class="flex items-center gap-3">
-                        <x-ui.avatar :name="$next['teacher']" :id="$next['teacherId']" />
+                        <x-ui.avatar :name="$next['teacher']" :id="$next['teacherId']" :photo="$next['teacherPhoto']" />
                         <div class="flex flex-col gap-1">
                             <span class="text-t1-s font-medium">{{ $next['teacher'] }}</span>
                             <span class="text-t3 text-muted">Ваш учитель</span>
@@ -80,7 +80,7 @@
                 </div>
                 @if ($teacher)
                     <div class="flex items-center gap-3">
-                        <x-ui.avatar :name="$teacher['name']" :id="$teacher['id']" />
+                        <x-ui.avatar :name="$teacher['name']" :id="$teacher['id']" :photo="$teacher['photo']" />
                         <x-ui.text :title="$teacher['name']" :sub="$teacher['sub']" />
                     </div>
                 @endif
@@ -103,7 +103,7 @@
             @if ($reviewPrompt)
                 <x-ui.card rate class="lg:flex-row lg:items-center lg:justify-between lg:gap-6" aria-labelledby="rv-ask" wire:key="rv-ask-{{ $reviewPrompt['id'] }}">
                     <div class="flex min-w-0 items-center gap-4">
-                        <x-ui.avatar size="xl" :name="$reviewPrompt['name']" :id="$reviewPrompt['id']" />
+                        <x-ui.avatar size="xl" :user="$reviewPrompt['teacher']" />
                         <div class="flex min-w-0 flex-col gap-1">
                             <h2 id="rv-ask" class="text-h2 font-medium">Как вам занятия?</h2>
                             <span class="text-t1 font-medium">{{ $reviewPrompt['name'] }}</span>
@@ -162,7 +162,7 @@
                             {{-- Аватар и имя — ссылка на публичную страницу учителя (новая вкладка) --}}
                             <{{ $t['publicUrl'] ? 'a' : 'div' }} @if ($t['publicUrl']) href="{{ $t['publicUrl'] }}" target="_blank" rel="noopener" @endif
                                 class="group/teacher flex min-w-0 flex-1 items-center gap-4">
-                                <x-ui.avatar :name="$t['name']" :id="$t['id']" />
+                                <x-ui.avatar :user="$t['teacher']" />
                                 <div class="flex min-w-0 flex-1 flex-col gap-1">
                                     <span class="flex min-w-0 items-center gap-2">
                                         <span class="truncate text-t1 font-medium underline-offset-4 group-hover/teacher:underline">{{ $t['name'] }}</span>

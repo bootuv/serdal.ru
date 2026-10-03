@@ -125,7 +125,7 @@
                     <section class="flex flex-col gap-4 border-t border-line py-6" aria-labelledby="ba-author">
                         <h3 id="ba-author" class="text-t1 font-medium">Автор</h3>
                         <x-ui.search-select avatars name="authorId" model="authorId" :selected="$authorId" clear="Команда Serdal" search="Имя или почта учителя"
-                                            :options="collect($authors)->map(fn ($p) => ['value' => (string) $p['id'], 'title' => $p['name'], 'sub' => $p['email']])->all()" />
+                                            :options="collect($authors)->map(fn ($p) => ['value' => (string) $p['id'], 'title' => $p['name'], 'sub' => $p['email'], 'photo' => $p['photo']])->all()" />
                         <span class="text-t3 text-muted">Статья появится среди статей учителя на сайте, а учитель увидит ее у себя в кабинете</span>
                     </section>
                 @endunless

@@ -105,7 +105,7 @@
                                 {{-- Телефон: кнопка под текстом на всю ширину, текст — во всю строку --}}
                                 <x-ui.row align="start" class="flex-col sm:flex-row sm:items-center" wire:key="rv-{{ $item['key'] }}">
                                     <div class="flex w-full min-w-0 flex-1 items-center gap-4">
-                                        <x-ui.avatar :name="$item['student']" :id="$item['studentId']" />
+                                        <x-ui.avatar :name="$item['student']" :id="$item['studentId']" :photo="$item['studentPhoto']" />
                                         <div class="flex min-w-0 flex-1 flex-col gap-1">
                                             <a href="{{ $item['url'] }}" class="line-clamp-2 break-words text-t1 font-medium sm:line-clamp-none sm:truncate">{{ $item['title'] }}</a>
                                             <span class="text-t2 text-muted">{{ $item['student'] }} · {{ $item['submitted'] }}@if ($item['waits']) · <x-ui.em :danger="$item['overdue']">{{ $item['waits'] }}</x-ui.em>@endif</span>
@@ -127,7 +127,7 @@
                         <x-ui.list>
                             @foreach ($messages as $m)
                                 <x-ui.row :href="$m['url']" :chevron="false" align="start" wire:key="msg-{{ $m['key'] }}">
-                                    <x-ui.avatar :name="$m['name']" :id="$m['userId']" />
+                                    <x-ui.avatar :name="$m['name']" :id="$m['userId']" :photo="$m['photo']" />
                                     <div class="flex min-w-0 flex-1 flex-col gap-1">
                                         <div class="flex items-center justify-between gap-2">
                                             <span @class(['truncate text-t1-s', 'font-semibold' => $m['unread'], 'font-medium' => ! $m['unread']])>{{ $m['name'] }}</span>
@@ -162,7 +162,7 @@
                             @foreach ($payments as $p)
                                 <div class="flex flex-col gap-3 border-t border-line py-4 last:pb-0" wire:key="pay-{{ $p['id'] }}">
                                     <div class="flex items-start gap-3">
-                                        <x-ui.avatar :name="$p['name']" :id="$p['id']" />
+                                        <x-ui.avatar :name="$p['name']" :id="$p['id']" :photo="$p['photo']" />
                                         <div class="flex min-w-0 flex-1 flex-col gap-1">
                                             <span class="truncate text-t1 font-medium">{{ $p['name'] }}</span>
                                             <span class="text-t2 text-muted">{{ $p['facts'] }}</span>

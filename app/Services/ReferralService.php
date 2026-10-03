@@ -323,6 +323,7 @@ class ReferralService
                 return [
                     'id' => $referred->id,
                     'name' => $referred->name,
+                    'photo' => $referred->photoThumb(),
                     'date' => $referred->created_at,
                     'state' => $state,
                     'lessons' => (int) ($reward?->referrer_lessons ?? 0),
@@ -344,6 +345,7 @@ class ReferralService
             ->map(fn(\App\Models\TeacherApplication $application) => [
                 'id' => $application->id,
                 'name' => trim($application->first_name . ' ' . $application->last_name),
+                'photo' => null,
                 'date' => $application->created_at,
                 'state' => 'application',
                 'lessons' => 0,

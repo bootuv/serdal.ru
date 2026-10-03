@@ -38,11 +38,11 @@
                         <span class="truncate text-t2 text-muted lg:col-span-2 lg:text-t1-s lg:text-ink">{{ $row['teacher'] }}</span>
                         <div class="hidden min-w-0 items-center gap-2 lg:col-span-2 lg:flex">
                             @if ($row['count'] === 1)
-                                <x-ui.avatar :name="$row['participants'][0]->name" :id="$row['participants'][0]->id" />
+                                <x-ui.avatar :user="$row['participants'][0]" />
                                 <span class="truncate text-t1-s">{{ $row['participants'][0]->name }}</span>
                             @elseif ($row['count'] > 1)
                                 <span class="flex shrink-0 -space-x-2">
-                                    @foreach ($row['participants']->take(2) as $p)<x-ui.avatar :name="$p->name" :id="$p->id" class="shadow-dot-ring" />@endforeach
+                                    @foreach ($row['participants']->take(2) as $p)<x-ui.avatar :user="$p" class="shadow-dot-ring" />@endforeach
                                 </span>
                                 <span class="whitespace-nowrap text-t2 text-muted">{{ plural_ru($row['count'], 'ученик', 'ученика', 'учеников') }}</span>
                             @else

@@ -14,6 +14,10 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->web(prepend: [\App\Http\Middleware\RedirectTrailingSlash::class]);
+        // Выход без проверки токена: сессия живёт SESSION_LIFETIME, а вкладка — дольше; со старым
+        // токеном «Выйти из кабинета» вела на «Страница устарела». С чужих сайтов кука сессии
+        // не уходит (SameSite=lax), так что выйти «за пользователя» нельзя.
+        $middleware->validateCsrfTokens(except: ['logout']);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //

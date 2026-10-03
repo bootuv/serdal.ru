@@ -267,7 +267,7 @@ class TeacherMaterialsService
     {
         $materials = TeacherMaterial::query()
             ->where('teacher_id', $teacher->id)
-            ->with('rooms.participants:id,name')
+            ->with('rooms.participants:id,name,avatar')
             ->get(['id', 'visibility']);
 
         $rows = [];

@@ -15,7 +15,7 @@
     @elseif ($person)
         <x-ui.list>
             <x-ui.row>
-                <x-ui.avatar :name="$person['name']" :id="$person['id']" />
+                <x-ui.avatar :name="$person['name']" :id="$person['id']" :photo="$person['photo']" />
                 <x-ui.text :title="$person['name']" :sub="$person['since']" />
                 <x-ui.btn size="s" :href="$chatUrl">Написать</x-ui.btn>
             </x-ui.row>
@@ -46,7 +46,7 @@
         <x-ui.list>
             @foreach ($people as $p)
                 <x-ui.row :href="$p['url']" wire:key="pp-{{ $p['id'] }}">
-                    <x-ui.avatar :name="$p['name']" :id="$p['id']" />
+                    <x-ui.avatar :name="$p['name']" :id="$p['id']" :photo="$p['photo']" />
                     <x-ui.text :title="$p['name']" :sub="$p['since']" />
                     @if ($p['overdue'])<x-ui.badge tone="danger">Не оплачено</x-ui.badge>@endif
                 </x-ui.row>

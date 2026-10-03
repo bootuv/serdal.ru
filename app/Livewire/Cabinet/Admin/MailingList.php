@@ -260,14 +260,14 @@ class MailingList extends Component
     private function usersView(): array
     {
         $people = $this->userGroup === 'people'
-            ? $this->service()->people()->orderBy('name')->get(['id', 'name', 'email', 'role'])
+            ? $this->service()->people()->orderBy('name')->get(['id', 'name', 'email', 'role', 'avatar'])
             : collect();
 
         return [
             'groups' => MailingService::USER_GROUPS,
             'tariffs' => MailingService::TARIFF_FILTERS,
             'count' => $this->service()->users($this->userGroup, $this->tariff, $this->userIds)->count(),
-            'people' => $people->map(fn (User $u) => ['id' => $u->id, 'name' => (string) $u->name, 'email' => (string) $u->email])->all(),
+            'people' => $people->map(fn (User $u) => ['id' => $u->id, 'name' => (string) $u->name, 'email' => (string) $u->email, 'photo' => $u->photoThumb()])->all(),
             'chosen' => $people->whereIn('id', $this->userIds)->map(fn (User $u) => ['id' => $u->id, 'name' => (string) $u->name])->values()->all(),
         ];
     }

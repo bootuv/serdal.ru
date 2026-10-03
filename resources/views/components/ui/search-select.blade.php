@@ -1,5 +1,5 @@
 {{-- Выбор из длинного списка с поиском (вместо системного списка): поле 44 открывает список под собой — поиск сверху, строки с названием и подписью.
-     options: [['value' => …, 'title' => …, 'sub' => …], …]; avatars — в строках аватар (люди: x-ui.person-select).
+     options: [['value' => …, 'title' => …, 'sub' => …, 'photo' => …], …]; avatars — в строках аватар (люди: x-ui.person-select), photo — адрес фото.
      model — свойство Livewire со значением выбранного (selected — оно же, показывается в поле); clear — подпись строки «ничего не выбрано»
      («Не привязывать к занятию»), она же стоит в пустом поле; у выбранного значения в поле появляется крестик, который снимает выбор.
      action — метод Livewire, получает значение (выбор нескольких: список не закрывается — keep; checked — уже выбранные значения,
@@ -76,7 +76,7 @@
                         x-on:click="pick($el.dataset.value)"
                         x-on:keydown.down.prevent="move($el, 1)" x-on:keydown.up.prevent="move($el, -1)"
                         @class([$row, 'bg-mint' => $on])>
-                    @if ($avatars)<x-ui.avatar :name="$o['title']" :id="(int) $o['value']" />@endif
+                    @if ($avatars)<x-ui.avatar :name="$o['title']" :id="(int) $o['value']" :photo="$o['photo'] ?? null" />@endif
                     <span class="flex min-w-0 flex-1 flex-col">
                         <span class="truncate text-t1-s font-medium text-ink">{{ $o['title'] }}</span>
                         @if (! empty($o['sub']))<span class="truncate text-t3 text-muted">{{ $o['sub'] }}</span>@endif
