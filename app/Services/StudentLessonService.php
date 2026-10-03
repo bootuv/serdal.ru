@@ -174,7 +174,7 @@ class StudentLessonService
             ->pluck('meeting_session_id')
             ->all();
 
-        // Записи с видео, которые ученик может открыть (только занятия, где он участник)
+        // Записи с видео, которые ученик может открыть
         $recordings = $sessions->isEmpty() ? collect() : Recording::forStudent($student)
             ->whereNotNull('s3_url')
             ->where('meeting_id', $room->meeting_id)

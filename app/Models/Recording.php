@@ -42,17 +42,28 @@ class Recording extends Model
     }
 
     /**
-     * Записи, доступные ученику: занятия его учителей (как в старом кабинете ученика
-     * и в RecordingDownloadController).
+     * Записи, доступные ученику: все занятия его учителей (в каком бы занятии ни сделана запись)
+     * и занятия, куда он назначен участником (как в RecordingDownloadController).
      */
     public function scopeForStudent(Builder $query, User $student): Builder
     {
-        // Только записи занятий, к которым ученик назначен участником
-        $meetingIds = Room::whereHas('participants', fn ($q) => $q->where('users.id', $student->id))
-            ->pluck('meeting_id')
-            ->filter();
+        return $query->whereIn('meeting_id', self::studentRooms($student)->pluck('meeting_id')->filter());
+    }
 
-        return $query->whereIn('meeting_id', $meetingIds);
+    /** Занятия, записи которых видит ученик: всех его учителей и те, где он участник. */
+    public static function studentRooms(User $student): Builder
+    {
+        $teacherIds = $student->teachers()->pluck('users.id');
+
+        return Room::query()->where(fn (Builder $q) => $q
+            ->whereIn('user_id', $teacherIds)
+            ->orWhereHas('participants', fn ($p) => $p->where('users.id', $student->id)));
+    }
+
+    /** Может ли ученик открыть запись (просмотр, скачивание). */
+    public function visibleToStudent(User $student): bool
+    {
+        return self::studentRooms($student)->where('meeting_id', $this->meeting_id)->exists();
     }
 
     /** Записи занятий учителя (как в старом кабинете учителя, RecordingResource). */
