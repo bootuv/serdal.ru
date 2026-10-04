@@ -5,8 +5,9 @@
      если есть несохранённые пометки — сначала спрашиваем здесь же. Закрытие вкладки — предупреждение браузера.
      Рабочая область как в Figma: панель инструментов закреплена, фото лежит на холсте. Прокрутка и два пальца на тачпаде двигают фото
      (Shift — по горизонтали), щипок и Ctrl/⌘ + прокрутка масштабируют к курсору, пробел или средняя кнопка мыши — временная рука,
-     H — рука, P — карандаш, Shift+1 — фото целиком, Shift+0 — 100%, Ctrl/⌘+Z — отменить. На планшете два пальца двигают и масштабируют.
-     Цвета пера — токены pen-* (в скрипте те же значения: canvas не читает классы). --}}
+     H — рука, P — карандаш, [ и ] — тоньше и толще, Shift+1 — фото целиком, Shift+0 — 100%, Ctrl/⌘+Z — отменить.
+     На планшете два пальца двигают и масштабируют. Цвета пера — токены pen-* (в скрипте те же значения: canvas не читает классы).
+     Толщина пера — в экранных точках при любом масштабе, выбор запоминается в браузере. --}}
 @php
     $tool = 'flex size-9 items-center justify-center rounded-sm text-muted hover:text-ink';
 @endphp
@@ -28,6 +29,12 @@
                 <button type="button" class="{{ $tool }}" x-bind:class="color === colors.red ? 'bg-white shadow-seg' : ''" x-bind:aria-pressed="color === colors.red ? 'true' : 'false'" x-on:click="color = colors.red; pan = false" aria-label="Красный"><span class="size-4 rounded-full bg-pen-red"></span></button>
                 <button type="button" class="{{ $tool }}" x-bind:class="color === colors.blue ? 'bg-white shadow-seg' : ''" x-bind:aria-pressed="color === colors.blue ? 'true' : 'false'" x-on:click="color = colors.blue; pan = false" aria-label="Синий"><span class="size-4 rounded-full bg-pen-blue"></span></button>
                 <button type="button" class="{{ $tool }}" x-bind:class="color === colors.green ? 'bg-white shadow-seg' : ''" x-bind:aria-pressed="color === colors.green ? 'true' : 'false'" x-on:click="color = colors.green; pan = false" aria-label="Зелёный"><span class="size-4 rounded-full bg-pen-green"></span></button>
+            </div>
+            <div class="flex gap-1 rounded bg-soft p-1" role="group" aria-label="Толщина">
+                @foreach ([[2, 'size-1', 'Тонкое перо'], [4, 'size-2', 'Среднее перо'], [8, 'size-3', 'Толстое перо']] as [$w, $dot, $label])
+                    <button type="button" class="{{ $tool }}" x-bind:class="width === {{ $w }} ? 'bg-white text-ink shadow-seg' : ''" x-bind:aria-pressed="width === {{ $w }} ? 'true' : 'false'"
+                            x-on:click="setWidth({{ $w }})" aria-label="{{ $label }}"><span class="{{ $dot }} rounded-full bg-current"></span></button>
+                @endforeach
             </div>
             <div class="flex gap-1 rounded bg-soft p-1" role="group" aria-label="Действия с фото">
                 <button type="button" class="{{ $tool }}" x-on:click="undo()" aria-label="Отменить последнюю пометку"><x-ui.icon name="undo" /></button>
@@ -61,6 +68,8 @@
     Alpine.data('cabinetAnnotator', (url) => ({
         colors: { red: '#DC2626', blue: '#2A78D6', green: '#1BAF7A' },
         color: '#DC2626',
+        widths: [2, 4, 8],   // толщина пера в экранных точках
+        width: 2,
         pan: false,          // выбрана рука
         space: false,        // зажат пробел — временная рука
         canvas: null,
@@ -79,6 +88,10 @@
         pending: null,
 
         init() {
+            try {
+                const w = Number(localStorage.getItem('annotator.width'));
+                if (this.widths.includes(w)) this.width = w;
+            } catch (e) {}
             if (!url) return;
             const img = new Image();
             img.crossOrigin = 'anonymous';
@@ -272,11 +285,17 @@
             }
         },
 
-        // Линия 4 px на экране при любом масштабе
+        setWidth(w) {
+            this.width = w;
+            this.pan = false;
+            try { localStorage.setItem('annotator.width', String(w)); } catch (e) {}
+        },
+
+        // Линия выбранной толщины на экране при любом масштабе
         stroke(p) {
             const ctx = this.ctx;
             ctx.strokeStyle = this.color;
-            ctx.lineWidth = 4 / this.view.s;
+            ctx.lineWidth = this.width / this.view.s;
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
             ctx.beginPath();
@@ -321,6 +340,9 @@
             } else if (e.shiftKey && e.code === 'Digit1') {
                 e.preventDefault();
                 this.fitToStage();
+            } else if (!mod && !e.altKey && (e.code === 'BracketLeft' || e.code === 'BracketRight')) {
+                const i = this.widths.indexOf(this.width) + (e.code === 'BracketLeft' ? -1 : 1);
+                if (i >= 0 && i < this.widths.length) this.setWidth(this.widths[i]);
             } else if (!mod && !e.shiftKey && !e.altKey && e.code === 'KeyH') {
                 this.pan = true;
             } else if (!mod && !e.shiftKey && !e.altKey && (e.code === 'KeyP' || e.code === 'KeyB')) {
