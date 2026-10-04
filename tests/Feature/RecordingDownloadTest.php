@@ -98,7 +98,7 @@ class RecordingDownloadTest extends TestCase
         }
     }
 
-    public function test_teachers_student_not_assigned_to_lesson_cannot_download(): void
+    public function test_teachers_student_not_assigned_to_lesson_can_download(): void
     {
         $teacher = $this->makeUser(User::ROLE_TUTOR);
         $classmate = $this->makeUser(User::ROLE_STUDENT);
@@ -106,8 +106,8 @@ class RecordingDownloadTest extends TestCase
         $teacher->students()->attach([$classmate->id, $outsider->id]);
         $recording = $this->makeRecording($teacher, participant: $classmate);
 
-        $this->actingAs($outsider)->get(route('recordings.download', $recording))->assertForbidden();
-        $this->assertFalse(Recording::forStudent($outsider)->whereKey($recording->id)->exists());
+        $this->actingAs($outsider)->get(route('recordings.download', $recording))->assertRedirect();
+        $this->assertTrue(Recording::forStudent($outsider)->whereKey($recording->id)->exists());
         $this->assertTrue(Recording::forStudent($classmate)->whereKey($recording->id)->exists());
     }
 

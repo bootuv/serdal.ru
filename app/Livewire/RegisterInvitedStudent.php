@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Notifications\EmailVerificationCode;
 use App\Notifications\NewTeacher;
 use App\Notifications\StudentAcceptedInvite;
+use App\Support\MailDelivery;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -160,7 +161,14 @@ class RegisterInvitedStudent extends Component
             'sent_at' => now()->toIso8601String(),
         ]);
 
-        Notification::route('mail', $this->email)->notify(new EmailVerificationCode($code));
+        if (! MailDelivery::attempt(fn () => Notification::route('mail', $this->email)->notify(new EmailVerificationCode($code)))) {
+            // Код не ушёл — остаёмся на анкете, попытка не считается
+            session()->forget('registration_data');
+            \Illuminate\Support\Facades\RateLimiter::decrement($sendKey, 600);
+            $this->addError('mail_failed', MailDelivery::FAILED);
+
+            return;
+        }
 
         $this->verification_code = null;
         $this->codeResent = false;
@@ -253,13 +261,19 @@ class RegisterInvitedStudent extends Component
         }
 
         $code = $this->generateCode();
+
+        // Код не ушёл — прежний остаётся в силе
+        if (! MailDelivery::attempt(fn () => Notification::route('mail', $data['email'])->notify(new EmailVerificationCode($code)))) {
+            $this->addError('verification_code', MailDelivery::FAILED);
+
+            return;
+        }
+
         $data['verification_code'] = $code;
         $data['expires_at'] = now()->addMinutes(self::CODE_TTL_MINUTES);
         $data['attempts'] = 0;
         $data['sent_at'] = now()->toIso8601String();
         session()->put('registration_data', $data);
-
-        Notification::route('mail', $data['email'])->notify(new EmailVerificationCode($code));
 
         $this->resetErrorBag('verification_code');
         $this->codeResent = true;

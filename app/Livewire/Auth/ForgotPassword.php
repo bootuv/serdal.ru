@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Auth;
 
+use App\Support\MailDelivery;
 use Illuminate\Support\Facades\Password;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Locked;
@@ -33,7 +34,14 @@ class ForgotPassword extends Component
             'email.email' => 'Проверьте почту — в ней ошибка.',
         ]);
 
-        $status = Password::sendResetLink(['email' => $this->email]);
+        $status = null;
+        if (! MailDelivery::attempt(function () use (&$status) {
+            $status = Password::sendResetLink(['email' => $this->email]);
+        })) {
+            $this->addError('email', MailDelivery::FAILED);
+
+            return;
+        }
 
         if ($status === Password::RESET_THROTTLED) {
             $this->addError('email', 'Письмо уже отправлено — подождите минуту и попробуйте ещё раз.');

@@ -100,7 +100,7 @@
                     @if ($status === 'sending' && $model->error)
                         <p class="text-t2"><x-ui.em danger>Отправка стоит:</x-ui.em> {{ $model->error }}.
                             @if ($model->resume_at && $model->resume_at->isFuture())
-                                Остальные письма ждут в очереди, попробуем снова {{ \App\Support\HumanDate::at($model->resume_at) }} и дальше раз в час, пока лимит не обновится.
+                                Остальные письма ждут в очереди, попробуем снова {{ \App\Support\HumanDate::at($model->resume_at) }} — через сутки после того, как сработал лимит.
                             @else
                                 Повторим через минуту — или остановите отправку.
                             @endif

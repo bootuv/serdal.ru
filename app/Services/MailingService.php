@@ -46,8 +46,8 @@ class MailingService
     /** Подряд столько отказов сервера — значит, дело не в адресах (лимит, ключ, домен не подтверждён): ставим отправку на паузу. */
     private const FAILS_IN_A_ROW = 3;
 
-    /** Дневной лимит сервиса почты исчерпан — пробуем снова через столько минут (лимит Postbox считается за скользящие сутки). */
-    private const QUOTA_RETRY_MINUTES = 60;
+    /** Дневной лимит сервиса почты исчерпан — пробуем снова через столько часов после отказа (лимит Postbox считается за скользящие сутки). */
+    private const QUOTA_RETRY_HOURS = 24;
 
     private const CHUNK = 500;
 
@@ -269,9 +269,14 @@ class MailingService
         // Отмечаем атомарно: двойной клик или параллельная команда не запустят дважды
         $claimed = MailingCampaign::whereKey($campaign->id)
             ->whereIn('status', [MailingCampaign::DRAFT, MailingCampaign::SCHEDULED])
-            ->update(['status' => MailingCampaign::SENDING, 'started_at' => now(), 'error' => null]);
+            ->update(['status' => MailingCampaign::SENDING, 'started_at' => now(), 'error' => null, 'resume_at' => null]);
         if (! $claimed) {
             return 0;
+        }
+        // Рассылка стоит из-за лимита — новое письмо ждёт вместе с остальными
+        $paused = MailingCampaign::where('status', MailingCampaign::SENDING)->where('resume_at', '>', now())->orderByDesc('resume_at')->first();
+        if ($paused) {
+            $campaign->update(['error' => $paused->error, 'resume_at' => $paused->resume_at]);
         }
         $campaign->refresh();
 
@@ -373,6 +378,10 @@ class MailingService
                 break;
             }
             $sent += $this->sendBatch($campaign, $limit - $sent);
+            // Упёрлись в лимит — остальные письма рассылки тоже ждут
+            if ($campaign->resume_at?->isFuture()) {
+                break;
+            }
         }
 
         return $sent;
@@ -399,10 +408,13 @@ class MailingService
             } catch (TransportExceptionInterface $e) {
                 $error = self::errorText($e);
 
-                // Исчерпан дневной лимит: письма ждут в очереди, раз в час проверяем, обновился ли лимит
+                // Исчерпан дневной лимит: письма ждут в очереди, вся рассылка стоит сутки с момента отказа —
+                // лимит общий с системными письмами (коды, приглашения), повторные попытки съели бы и их
                 if (self::isQuotaError($e)) {
                     MailingDelivery::whereIn('id', $failedInRow)->update(['status' => MailingDelivery::QUEUED, 'error' => null]);
-                    $campaign->update(['error' => $error, 'resume_at' => now()->addMinutes(self::QUOTA_RETRY_MINUTES)]);
+                    MailingCampaign::where('status', MailingCampaign::SENDING)
+                        ->update(['error' => $error, 'resume_at' => now()->addHours(self::QUOTA_RETRY_HOURS)]);
+                    $campaign->refresh();
                     $paused = true;
                     break;
                 }

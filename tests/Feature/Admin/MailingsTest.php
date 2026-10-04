@@ -384,24 +384,36 @@ class MailingsTest extends TestCase
 
         $list = $this->list('Казань', ['a@s.ru' => [null, null], 'b@s.ru' => [null, null], 'c@s.ru' => [null, null]]);
         $campaign = $this->campaign([$list]);
+        $other = $this->campaign([$this->list('Пермь', ['p@s.ru' => [null, null]])]);
         $this->service()->start($campaign);
+        $this->service()->start($other);
 
+        $this->freezeSecond();
         $this->assertSame(1, $this->service()->sendDue());
         $campaign->refresh();
         $this->assertSame('исчерпан дневной лимит писем в Yandex Cloud Postbox', $campaign->error);
-        $this->assertTrue($campaign->resume_at->isFuture(), 'пауза не сбрасывается из-за письма, ушедшего до лимита');
+        $this->assertTrue($campaign->resume_at->eq(now()->addDay()), 'пауза — сутки с момента отказа, письмо до лимита её не сбрасывает');
+        // Второе письмо рассылки тоже стоит и к серверу не обращалось
+        $this->assertTrue($other->fresh()->resume_at->eq(now()->addDay()));
+
+        // Новое письмо, запущенное во время паузы, ждёт вместе с остальными
+        $late = $this->campaign([$this->list('Уфа', ['u@s.ru' => [null, null]])]);
+        $this->service()->start($late);
+        $this->assertTrue($late->fresh()->resume_at->eq(now()->addDay()));
         $this->assertSame(2, $campaign->deliveries()->where('status', MailingDelivery::QUEUED)->count());
         $this->assertSame(0, $campaign->deliveries()->where('status', MailingDelivery::FAILED)->count());
 
-        // Пока пауза — к серверу не обращаемся
+        // Пока пауза — к серверу не обращаемся, даже через 23 часа
+        $this->assertSame(0, $this->service()->sendDue());
+        $this->travel(23)->hours();
         $this->assertSame(0, $this->service()->sendDue());
         $this->assertCount(2, $calls);
 
         Livewire::actingAs($this->admin())->test(Mailing::class, ['campaign' => (string) $campaign->id])
             ->assertSee('Отправка стоит:')
-            ->assertSee('попробуем снова');
+            ->assertSee('через сутки после того, как сработал лимит');
 
-        // Через час лимит обновился
+        // Через сутки лимит обновился
         Mail::extend('quota', fn () => new class extends AbstractTransport {
             protected function doSend(SentMessage $message): void {}
 
@@ -411,8 +423,8 @@ class MailingsTest extends TestCase
             }
         });
         Mail::purge('newsletter');
-        $this->travel(61)->minutes();
-        $this->assertSame(2, $this->service()->sendDue());
+        $this->travel(1)->hours();
+        $this->assertSame(4, $this->service()->sendDue());
         $campaign->refresh();
         $this->assertSame(MailingCampaign::SENT, $campaign->status);
         $this->assertNull($campaign->error);

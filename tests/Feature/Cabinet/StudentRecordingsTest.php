@@ -189,6 +189,20 @@ class StudentRecordingsTest extends TestCase
             ->assertDontSee('Математика');
     }
 
+    public function test_student_sees_recordings_of_all_teacher_lessons(): void
+    {
+        $teacher = $this->user(User::ROLE_TUTOR);
+        $student = $this->user(User::ROLE_STUDENT);
+        $this->room($teacher, $student, 'Своё занятие');
+        $other = $this->recording($this->room($teacher, $this->user(User::ROLE_STUDENT), 'Разбор задачи'), now()->subDay());
+
+        Livewire::actingAs($student)
+            ->test(Recordings::class)
+            ->assertSee('Разбор задачи')
+            ->call('play', $other->id)
+            ->assertSet('open', $other->id);
+    }
+
     public function test_old_cabinet_uses_same_access_rules(): void
     {
         $teacher = $this->user(User::ROLE_TUTOR);

@@ -173,7 +173,7 @@ class Lesson extends Component
             ]);
     }
 
-    /** Записи этого занятия, как на странице «Записи»: только занятия, где ученик — участник. */
+    /** Записи этого занятия, как на странице «Записи». */
     private function recordings(User $student, Room $room): Collection
     {
         if (! $room->meeting_id) {

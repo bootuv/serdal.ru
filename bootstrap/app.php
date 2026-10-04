@@ -20,5 +20,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->validateCsrfTokens(except: ['logout']);
     })
     ->withExceptions(function (Exceptions $exceptions) {
-        //
+        // Сервис почты отказал (дневной лимит, сервер недоступен) — извинение вместо «Что-то пошло не так»
+        $exceptions->render(fn (\Symfony\Component\Mailer\Exception\TransportExceptionInterface $e, \Illuminate\Http\Request $request) => $request->expectsJson()
+            ? response()->json(['message' => \App\Support\MailDelivery::FAILED], 503)
+            : response()->view('errors.mail', [], 503));
     })->create();

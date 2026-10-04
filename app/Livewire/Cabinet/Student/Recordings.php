@@ -102,7 +102,7 @@ class Recordings extends Component
             ->when($searching, fn ($q) => $q->search($this->search));
 
         // Срок хранения — по тарифу учителя (как в recordings:cleanup)
-        $teacherIds = Room::whereHas('participants', fn ($q) => $q->where('users.id', $student->id))->distinct()->pluck('user_id');
+        $teacherIds = Recording::studentRooms($student)->distinct()->pluck('user_id');
         $retention = User::whereKey($teacherIds)->get()
             ->mapWithKeys(fn (User $t) => [$t->id => $storage->retentionDays($t)]);
 
