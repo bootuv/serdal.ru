@@ -190,8 +190,18 @@
                     // Кабинет в iframe — 1440×900, подгоняем масштаб под фактический экран.
                     // Именно zoom, а не transform: scale — внутри 3D-крышки Chrome не попадает
                     // кликами в уменьшенные через transform элементы.
+                    // Safari и все браузеры на iOS (движок WebKit) применяют zoom к iframe иначе: сужают окно
+                    // внутри, и кабинет переключается на мобильную раскладку. Там — transform: scale
+                    // (iframe остаётся 1440 пикселей, раскладка компьютерная); попадание кликов в WebKit при этом верное.
+                    var webkit = /Apple/.test(navigator.vendor);
                     var fit = function () {
-                        refs.demo.style.zoom = refs.screen.clientWidth / 1440;
+                        var k = refs.screen.clientWidth / 1440;
+                        if (webkit) {
+                            refs.demo.style.transformOrigin = '0 0';
+                            refs.demo.style.transform = 'scale(' + k + ')';
+                        } else {
+                            refs.demo.style.zoom = k;
+                        }
                     };
 
                     // Доводчик: прокрутка лишь «толкает» крышку. Начали раскрывать — дальше она сама
@@ -239,6 +249,7 @@
                     var faces = Array.prototype.slice.call(root.querySelectorAll('.lp__face, .lp__lid-edge'));
                     var front = root.querySelector('.lp__edge');
                     var backFace = root.querySelector('.lp__face--back');
+                    var frontFace = root.querySelector('.lp__face--front');
                     var lidEdge = root.querySelector('.lp__lid-edge');
                     var bump = 0;   // градусы: крышка вздрагивает, когда кот на неё запрыгивает
 
@@ -267,6 +278,11 @@
                             refs.scene.style.transform = 'translate3d(-50%, ' + (hinge - lidH) + 'px, 0) scale(' + scale + ') rotateX(' + tilt + 'deg)';
                         };
                         refs.lid.style.transform = 'rotateX(' + lid + 'deg)';
+                        // Какая сторона крышки к зрителю — по углу (наклон камеры + крышки), а не backface-visibility:
+                        // WebKit (Safari) её здесь не соблюдает, и поверх экрана видна задняя сторона с логотипом
+                        var facing = tilt + lid > -90;
+                        frontFace.style.visibility = facing ? 'visible' : 'hidden';
+                        backFace.style.visibility = facing ? 'hidden' : 'visible';
                         // Кромка крышки нужна, пока ноутбук закрыт или раскрывается; у открытого она видна ребром
                         // и торчит тонкими полосками за скруглёнными углами рамки — гасим
                         lidEdge.style.opacity = clamp((.9 - e) * 4);
