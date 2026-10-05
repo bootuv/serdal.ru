@@ -15,6 +15,9 @@ use Illuminate\Support\ViewErrorBag;
  */
 class DemoController extends Controller
 {
+    /** Сколько секунд браузер держит экран демо (время в демо — «за 12 минут до занятия», пара минут ему не мешает). */
+    private const BROWSER_CACHE = 120;
+
     public function teacher(Request $request, string $path = '')
     {
         $match = Routes::match('teacher', $path);
@@ -46,9 +49,11 @@ class DemoController extends Controller
             auth()->forgetUser();
         }
 
+        // Данные выдуманные и одинаковые для всех, поэтому браузеру можно держать экран пару минут:
+        // demo-cabinet.js скачивает экраны заранее, и переход по клику берёт готовую страницу из кэша
         return response(self::rewrite($html))
             ->header('X-Robots-Tag', 'noindex, nofollow')
-            ->header('Cache-Control', 'no-store');
+            ->header('Cache-Control', 'private, max-age=' . self::BROWSER_CACHE);
     }
 
     /** Ссылки настоящего кабинета → демо (в том числе экранированные в JSON). */

@@ -319,6 +319,53 @@
         }
     });
 
+    /* --- Предзагрузка экранов ---------------------------------------- */
+
+    // Экран рисует сервер, и каждый клик — это новая страница. Чтобы не ждать сеть, экраны скачиваются
+    // заранее: ссылка — при наведении, пункты меню — когда посетитель впервые взаимодействует с демо
+    // (не раньше: ноутбук грузится вместе с «О платформе», а многие до него не долистают).
+    // Ответ демо можно кэшировать (DemoController::BROWSER_CACHE), поэтому переход берёт его из кэша.
+    var prefetched = {};
+    function prefetch(href) {
+        var url;
+        try { url = new URL(href, location.href); } catch (e) { return; }
+        url.hash = '';
+        if (url.origin !== location.origin || url.pathname.indexOf('/demo/') !== 0) return;
+        if (url.href === location.href.split('#')[0] || prefetched[url.href]) return;
+        prefetched[url.href] = true;
+        // Тело читаем до конца: недочитанный ответ браузер может не положить в кэш
+        fetch(url.href, { credentials: 'same-origin' })
+            .then(function (r) { return r.text(); })
+            .catch(function () { delete prefetched[url.href]; });
+    }
+
+    function onHover(e) {
+        var link = e.target.closest && e.target.closest('a[href]');
+        if (link && !link.hasAttribute('data-demo-exit')) prefetch(link.getAttribute('href'));
+    }
+    document.addEventListener('pointerover', onHover, { passive: true });
+    document.addEventListener('focusin', onHover);
+
+    var menuDone = false;
+    function prefetchMenu() {
+        if (menuDone) return;
+        menuDone = true;
+        var later = window.requestIdleCallback || function (fn) { return setTimeout(fn, 300); };
+        later(function () {
+            // Экраны без параметров (пункты меню и разделы), не больше двадцати
+            var seen = {};
+            Array.prototype.forEach.call(document.querySelectorAll('a[href]'), function (a) {
+                var url = new URL(a.getAttribute('href'), location.href);
+                if (url.search || url.pathname.indexOf('/demo/') !== 0 || Object.keys(seen).length >= 20) return;
+                seen[url.pathname] = true;
+            });
+            Object.keys(seen).forEach(function (path) { prefetch(path); });
+        });
+    }
+    ['pointermove', 'touchstart', 'keydown'].forEach(function (type) {
+        document.addEventListener(type, prefetchMenu, { once: true, passive: true });
+    });
+
     // Картинка отзыва для сторис (в кабинете — cabinet.js): в демо картинка уже в адресе (data:), «поделиться» — тост
     window.serdalPrefetchReviewCard = function () { return Promise.resolve(null); };
     window.serdalShareReviewCard = function () { toast(cfg().saveText); return Promise.resolve('cancelled'); };

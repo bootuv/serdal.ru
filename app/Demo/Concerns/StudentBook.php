@@ -222,7 +222,7 @@ trait StudentBook
             ->take(12)
             ->values()
             ->map(function (array $l, int $i) use ($id) {
-                // Первое занятие Ислама — пробное, без оплаты; у Адама одно оплачено позже срока
+                // Первое занятие Рустама — пробное, без оплаты; у Адама одно оплачено позже срока
                 $waived = $id === 101 && $l['start']->lte($this->since($id)->copy()->addDays(7));
                 $late = $id === 103 && $i === 2;
                 $paid = $l['start']->copy()->addDays($late ? 5 : $this->dice($l['key'], 3));

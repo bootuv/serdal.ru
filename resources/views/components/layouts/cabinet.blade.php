@@ -316,8 +316,11 @@
     @endunless
 @endif
 <x-ui.toast />
-{{-- Звук важных уведомлений (флаг sound у broadcast-уведомления) — тот же скрипт, что в старом кабинете --}}
-@include('partials.notification-sound')
+{{-- Звук важных уведомлений (флаг sound у broadcast-уведомления) — тот же скрипт, что в старом кабинете.
+     В демо сокетов нет — звук не нужен, а без кэша он скачивался бы на каждом экране --}}
+@unless ($demo)
+    @include('partials.notification-sound')
+@endunless
 
 {{-- Сбой запроса Livewire (resources/js/cabinet.js): 419 — «Страница устарела», 500 — «Что-то пошло не так» (макеты SySession, SyError) --}}
 <div x-data="{ kind: null }" x-on:cabinet-request-failed.window="kind = $event.detail.kind" x-show="kind" x-cloak

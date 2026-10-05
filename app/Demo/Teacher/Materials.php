@@ -431,7 +431,7 @@ class Materials extends Screen
         return ['' => 'Все материалы'] + $paths->except($exclude)->all();
     }
 
-    /** Занятия для выбора доступа: «Евлоев Ислам · Алгебра · ОГЭ», «Группа «ЕГЭ по профильной математике»». */
+    /** Занятия для выбора доступа: «Мальсагов Рустам · Алгебра · ОГЭ», «Группа «ЕГЭ по профильной математике»». */
     private function roomOptions(): Collection
     {
         return collect(World::ROOMS)->map(fn (array $room, int $id) => [
