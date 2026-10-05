@@ -1,15 +1,16 @@
 {{-- Раскладка кабинетов (учитель, ученик, админ). Правила — docs/design/BRAND.md.
      active — ключ активного пункта меню.
-     bare — экран сам управляет отступами и высотой (Сообщения). --}}
-@props(['title' => null, 'active' => null, 'bare' => false])
+     bare — экран сам управляет отступами и высотой (Сообщения).
+     demo — демо-кабинет на странице «О платформе» (App\Demo): счётчики берутся из него, база не трогается. --}}
+@props(['title' => null, 'active' => null, 'bare' => false, 'demo' => null])
 @php
     $user = auth()->user();
     $isStudent = $user?->role === \App\Models\User::ROLE_STUDENT;
     // Админка — та же раскладка со своим меню (экраны cabinet.admin.* и общий экран «Почта и пароль»)
     $isAdmin = $user?->role === \App\Models\User::ROLE_ADMIN && request()->routeIs('cabinet.admin.*', 'cabinet.account');
-    $unread = $user?->unreadNotifications()->count() ?? 0;
-    $unreadMessages = $user ? app(\App\Services\MessengerService::class)->unreadCount($user) : 0;
-    $unreadNews = app(\App\Services\AnnouncementService::class)->unreadCount($user);
+    $unread = $demo ? $demo['unread'] : ($user?->unreadNotifications()->count() ?? 0);
+    $unreadMessages = $demo ? $demo['messages'] : ($user ? app(\App\Services\MessengerService::class)->unreadCount($user) : 0);
+    $unreadNews = $demo ? $demo['news'] : app(\App\Services\AnnouncementService::class)->unreadCount($user);
 
     // Новый экран, если маршрут уже есть, иначе — страница старого кабинета
     $to = fn (string $route, string $legacy) => \Illuminate\Support\Facades\Route::has($route) ? route($route) : url($legacy);
@@ -30,10 +31,10 @@
             ['key' => 'schedule', 'label' => 'Расписание', 'icon' => 'calendar', 'href' => $to('cabinet.teacher.schedule', '/tutor/schedule-calendar')],
             ['key' => 'messages', 'label' => 'Сообщения', 'icon' => 'chat', 'href' => $to('cabinet.teacher.messages', '/tutor/messenger'), 'count' => $unreadMessages],
             ['key' => 'students', 'label' => 'Ученики', 'icon' => 'users', 'href' => $to('cabinet.teacher.students', '/tutor/students')],
-            ['key' => 'tasks', 'label' => 'Задания', 'icon' => 'tasks', 'href' => $to('cabinet.teacher.tasks', '/tutor/homework'), 'count' => $user ? \App\Services\HomeworkSubmissionService::toReview($user->id)->reorder()->count() : 0],
+            ['key' => 'tasks', 'label' => 'Задания', 'icon' => 'tasks', 'href' => $to('cabinet.teacher.tasks', '/tutor/homework'), 'count' => $demo ? $demo['tasks'] : ($user ? \App\Services\HomeworkSubmissionService::toReview($user->id)->reorder()->count() : 0)],
             ['key' => 'materials', 'label' => 'Материалы', 'icon' => 'folder', 'href' => $to('cabinet.teacher.materials', '/tutor/materials')],
             ['key' => 'recordings', 'label' => 'Записи', 'icon' => 'video', 'href' => $to('cabinet.teacher.recordings', '/tutor/recordings')],
-            ['key' => 'reviews', 'label' => 'Отзывы', 'icon' => 'star', 'href' => $to('cabinet.teacher.reviews', '/tutor/reviews'), 'count' => app(\App\Services\TeacherReviewsService::class)->unreadCount($user)],
+            ['key' => 'reviews', 'label' => 'Отзывы', 'icon' => 'star', 'href' => $to('cabinet.teacher.reviews', '/tutor/reviews'), 'count' => $demo ? $demo['reviews'] : app(\App\Services\TeacherReviewsService::class)->unreadCount($user)],
             ['key' => 'blog', 'label' => 'Мои статьи', 'icon' => 'pencil', 'href' => $to('cabinet.teacher.blog', '/cabinet/teacher')],
             ['key' => 'news', 'label' => 'Новости', 'icon' => 'news', 'href' => $to('cabinet.teacher.news', '/cabinet/teacher'), 'count' => $unreadNews],
         ];
@@ -70,9 +71,9 @@
         $isStudent => $to('cabinet.student.profile', '/student/profile'),
         default => $to('cabinet.teacher.profile', '/tutor/edit-profile'),
     };
-    $supportHref = $user ? \App\Services\MessengerService::url($user, support: true) : '#';
+    $supportHref = $demo ? $demo['support'] : ($user ? \App\Services\MessengerService::url($user, support: true) : '#');
     // «Тур по кабинету» — вернуться к туру в любой момент (CabinetTourService)
-    $tourHref = ! $isAdmin && \App\Services\CabinetTourService::available($user) ? \App\Services\CabinetTourService::startUrl($user) : null;
+    $tourHref = ! $demo && ! $isAdmin && \App\Services\CabinetTourService::available($user) ? \App\Services\CabinetTourService::startUrl($user) : null;
     $helpCenterHref = route('help.section', $isStudent ? 'students' : 'tutors');
 
     // Тариф и лимиты учитель видит карточкой на «Сегодня» (x-ui.tariff), в сайдбаре — только ссылка
@@ -99,7 +100,8 @@
 
     // «Ещё» на телефоне: разделы, которых нет на нижней панели, + поддержка, партнёрка, профиль
     $moreItems = array_values(array_filter($nav, fn ($i) => empty($i['sep']) && ! in_array($i, $mobileTabs, true)));
-    if (! $isStudent && ! $isAdmin && \App\Services\ReferralService::enabled() && \Illuminate\Support\Facades\Route::has('cabinet.teacher.referrals')) {
+    $referrals = $demo ? $demo['referrals'] : \App\Services\ReferralService::enabled();
+    if (! $isStudent && ! $isAdmin && $referrals && \Illuminate\Support\Facades\Route::has('cabinet.teacher.referrals')) {
         $moreItems[] = ['key' => 'referrals', 'label' => 'Пригласить коллег', 'icon' => 'share', 'href' => route('cabinet.teacher.referrals')];
     }
     if ($isAdmin) {
@@ -124,7 +126,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ $title ? $title . ' — ' : '' }}{{ \App\Support\Seo::SITE_NAME }}</title>
-    @include('partials.favicon')
+    @if ($demo)
+        <link rel="icon" href="{{ asset('images/favicon.ico') }}?v=2" sizes="32x32">
+        <link rel="icon" type="image/svg+xml" href="{{ asset('images/favicon.svg') }}?v=2">
+        <meta name="robots" content="noindex, nofollow">
+    @else
+        @include('partials.favicon')
+    @endif
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -132,7 +140,20 @@
         {{-- Идёт тур по кабинету (resources/js/tour.js) — затемняем экран сразу, до загрузки скриптов, чтобы переход между шагами не мигал --}}
         <script>try { if (sessionStorage.getItem('cabinet-tour') || /[?&]tour=/.test(location.search)) { const h = document.documentElement; h.dataset.tour = 'loading'; setTimeout(() => { if (h.dataset.tour === 'loading') delete h.dataset.tour; }, 5000); } } catch (e) {}</script>
     @endif
-    @vite(['resources/css/cabinet.css', 'resources/js/cabinet.js'])
+    @if ($demo)
+        {{-- Демо: без Livewire и сокетов — Alpine с теми же плагинами, клики wire:* перехватывает demo-cabinet.js --}}
+        @vite(['resources/css/cabinet.css'])
+        <script src="/js/demo-cabinet.js?v={{ filemtime(public_path('js/demo-cabinet.js')) }}"></script>
+        <script>window.DEMO = @json($demo['client'] + ['models' => (object) ($demo['models'] ?? [])]);</script>
+        {{-- Плеер записей и лайтбокс: в кабинете они входят в cabinet.js --}}
+        @vite(['resources/js/demo.js'])
+        <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/focus@3.x.x/dist/cdn.min.js"></script>
+        <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js"></script>
+        <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/intersect@3.x.x/dist/cdn.min.js"></script>
+        <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    @else
+        @vite(['resources/css/cabinet.css', 'resources/js/cabinet.js'])
+    @endif
 </head>
 <body>
 <div class="flex min-h-screen">
@@ -171,13 +192,17 @@
         </nav>
 
         <div class="mt-2 flex shrink-0 flex-col gap-2">
-            @unless ($isStudent || $isAdmin)
+            @if ($demo)
+                @if ($demo['referralPromo'])
+                    @include('livewire.cabinet.referral-promo', $demo['referralPromo'])
+                @endif
+            @elseif (! $isStudent && ! $isAdmin)
                 <livewire:cabinet.referral-promo />
                 {{-- Плашку скрыли — партнёрка остаётся доступной обычной ссылкой --}}
                 @if (\App\Services\ReferralService::enabled() && ! \App\Services\ReferralService::shouldShowBanner($user) && \Illuminate\Support\Facades\Route::has('cabinet.teacher.referrals'))
                     <a href="{{ route('cabinet.teacher.referrals') }}" data-tour="referrals" class="flex h-11 items-center gap-3 rounded px-3 text-t1-s font-medium text-muted hover:bg-soft-hover hover:text-ink"><x-ui.icon name="share" />Пригласить коллег</a>
                 @endif
-            @endunless
+            @endif
             @unless ($isAdmin)
                 {{-- Помощь: поддержка, тур и база знаний одной строкой, список открывается вверх. Тур открывает его сам (событие tour-reveal). --}}
                 <div class="relative" data-tour="help" x-data="{ open: false }" x-on:click.outside="open = false" x-on:keydown.escape="open = false"
@@ -277,12 +302,19 @@
         </div>
     </div>
 </div>
-<livewire:cabinet.notifications />
-<x-ui.lightbox />
-<livewire:cabinet.push-prompt />
-@unless ($isAdmin)
-    <livewire:cabinet.tour />
-@endunless
+@if ($demo)
+    @isset($demo['notifications'])
+        @include('livewire.cabinet.notifications', $demo['notifications'])
+    @endisset
+    <x-ui.lightbox />
+@else
+    <livewire:cabinet.notifications />
+    <x-ui.lightbox />
+    <livewire:cabinet.push-prompt />
+    @unless ($isAdmin)
+        <livewire:cabinet.tour />
+    @endunless
+@endif
 <x-ui.toast />
 {{-- Звук важных уведомлений (флаг sound у broadcast-уведомления) — тот же скрипт, что в старом кабинете --}}
 @include('partials.notification-sound')

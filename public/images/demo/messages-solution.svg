@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="760" viewBox="0 0 600 760">
+  <!-- Демо-кабинет: «фото» решения в тетради (App\Demo\Teacher\Messages) -->
+  <defs>
+    <pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse">
+      <path d="M24 0H0V24" fill="none" stroke="#c9dbe6" stroke-width="1"/>
+    </pattern>
+  </defs>
+  <rect width="600" height="760" fill="#fbfaf5"/>
+  <rect width="600" height="760" fill="url(#grid)"/>
+  <line x1="528" y1="0" x2="528" y2="760" stroke="#e7a1a1" stroke-width="2"/>
+  <g fill="#23408e" font-family="'Segoe Print','Bradley Hand','Comic Sans MS',cursive" font-size="27">
+    <text x="40" y="70">№1   x² − 5x + 6 = 0</text>
+    <text x="86" y="118">D = 25 − 24 = 1</text>
+    <text x="86" y="166">x₁ = 3,   x₂ = 2</text>
+    <text x="40" y="238">№2   2x² + 3x − 2 = 0</text>
+    <text x="86" y="286">D = 9 + 16 = 25</text>
+    <text x="86" y="334">x₁ = ½,   x₂ = −2</text>
+    <text x="40" y="406">№5   x² + 4x + 5 = 0</text>
+    <text x="86" y="454">D = 16 − 20 = −4</text>
+    <text x="86" y="502">x₁ = −2 + 2 = 0 ???</text>
+    <text x="40" y="574">№6   x² − 9 = 0</text>
+    <text x="86" y="622">x² = 9</text>
+    <text x="86" y="670">x = ±3</text>
+  </g>
+  <path d="M80 480 q120 34 260 4" fill="none" stroke="#23408e" stroke-width="2" opacity=".6"/>
+</svg>

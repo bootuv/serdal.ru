@@ -157,7 +157,8 @@
             @endif
         </div>
 
-        <div class="grid grid-cols-1 items-stretch gap-6 md:grid-cols-2 xl:grid-cols-4">
+        {{-- Четыре в ряд — только на широком экране: на 1280 с сайдбаром «Оплатить и подключить» не помещалась в карточку --}}
+        <div class="grid grid-cols-1 items-stretch gap-6 md:grid-cols-2 2xl:grid-cols-4">
             @foreach ($tariffs as $tariff)
                 @php
                     $isCurrent = $subscription && $subscription->tariff_id === $tariff->id;

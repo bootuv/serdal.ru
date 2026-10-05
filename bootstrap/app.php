@@ -11,6 +11,9 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__ . '/../routes/console.php',
         channels: __DIR__ . '/../routes/channels.php',
         health: '/up',
+        // Демо-кабинет — без группы web: ни сессии, ни входа, ни базы (DemoSandbox)
+        then: fn () => \Illuminate\Support\Facades\Route::middleware(\App\Http\Middleware\DemoSandbox::class)
+            ->group(base_path('routes/demo.php')),
     )
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->web(prepend: [\App\Http\Middleware\RedirectTrailingSlash::class]);

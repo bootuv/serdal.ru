@@ -1,0 +1,344 @@
+/*
+ * Ноутбук на странице «О платформе» (partials/about-laptop).
+ * Все размеры корпуса — доли --w (ширина крышки), поэтому ноутбук целиком масштабируется
+ * под экран. Положение и углы задаёт скрипт в партиале; без скрипта ноутбук стоит открытым.
+ */
+
+.lp {
+    --w: min(1040px, calc(100vw - 40px), calc((100vh - 160px) * 1.12));
+    --t: calc(var(--w) * .008);          /* толщина корпуса */
+    position: relative;
+    box-sizing: border-box;
+    width: 100%;
+    /* Экран закреплённого ноутбука + короткий путь: дальше крышку раскрывает доводчик */
+    height: 140vh;
+    margin-top: 24px;
+}
+
+.lp__sticky {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    /* Только по горизонтали: по вертикали крышка в середине раскрытия выходит за край блока — её нельзя срезать */
+    overflow-x: clip;
+    perspective: calc(var(--w) * 3.4);
+    perspective-origin: 50% 70%;
+}
+
+.lp__scene {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: var(--w);
+    height: calc(var(--w) * .655);
+    transform: translate3d(-50%, calc(50vh - var(--w) * .36), 0);
+    transform-origin: 50% 100%;
+    transform-style: preserve-3d;
+    will-change: transform;
+    /* Плоскость самой сцены после наклона камеры оказывается перед крышкой
+       и перехватывает клики — корпус клики не принимает, только экран */
+    pointer-events: none;
+}
+
+/* --- Крышка ------------------------------------------------------------- */
+.lp__lid {
+    position: absolute;
+    inset: 0;
+    transform-origin: 50% 100%;
+    transform: rotateX(12deg);
+    transform-style: preserve-3d;
+    will-change: transform;
+}
+
+.lp__face {
+    position: absolute;
+    inset: 0;
+    box-sizing: border-box;
+    border-radius: calc(var(--w) * .028) calc(var(--w) * .028) calc(var(--w) * .008) calc(var(--w) * .008);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+}
+
+.lp__face--front {
+    background-color: #202323;
+    box-shadow: inset 0 0 0 calc(var(--w) * .002) #3a3d3d;
+}
+
+/* Поворот по X, а не по Y: так логотип читается правильно, когда ноутбук закрыт
+   и крышка лежит верхним краем к зрителю */
+.lp__face--back {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #d4e5e4;
+    transform: rotateX(180deg) translateZ(1px);
+}
+
+.lp__logo {
+    display: block;
+    width: 22%;
+    aspect-ratio: 131 / 32;
+    /* Лёгкое тиснение: светлая кромка снизу и тень сверху — логотип будто вдавлен в крышку.
+       Тень — на обёртке: фильтр самого элемента с маской маска бы и срезала */
+    filter: drop-shadow(0 1px 0 rgba(255, 255, 255, .35)) drop-shadow(0 -1px 0 rgba(32, 35, 35, .06));
+}
+
+/* Хром: форма — маска из логотипа, металл — мягкие полосы, по ним — яркий блик.
+   --sheen (0–100%) двигает блик, пока крышка поворачивается (скрипт в партиале):
+   в закрытом и открытом положении он за краем логотипа, виден только во время раскрытия */
+.lp__chrome {
+    display: block;
+    width: 100%;
+    height: 100%;
+    background-image:
+        linear-gradient(105deg, rgba(255, 255, 255, 0) 28%, rgba(255, 255, 255, .7) 40%, #fff 48%, rgba(255, 255, 255, .7) 56%, rgba(255, 255, 255, 0) 68%),
+        linear-gradient(180deg, #bcc6c5 0%, #9fa9a8 32%, #b5bfbe 48%, #949f9e 64%, #a8b2b1 82%, #9aa4a3 100%);
+    background-size: 250% 100%, 100% 100%;
+    background-position: var(--sheen, 0%) 0, 0 0;
+    background-repeat: no-repeat;
+    -webkit-mask: url('/images/Logo.svg') center / contain no-repeat;
+    mask: url('/images/Logo.svg') center / contain no-repeat;
+}
+
+.lp__camera {
+    position: absolute;
+    top: calc(var(--w) * .009);
+    left: 50%;
+    width: calc(var(--w) * .005);
+    height: calc(var(--w) * .005);
+    margin-left: calc(var(--w) * -.0025);
+    border-radius: 50%;
+    background-color: #3a3d3d;
+}
+
+.lp__screen {
+    position: absolute;
+    top: calc(var(--w) * .022);
+    right: calc(var(--w) * .022);
+    left: calc(var(--w) * .022);
+    /* 16:10 */
+    height: calc(var(--w) * .956 * .625);
+    overflow: hidden;
+    border-radius: calc(var(--w) * .006);
+    background-color: var(--white);
+    pointer-events: auto;
+}
+
+/* Верхний торец крышки: без него на середине раскрытия крышка встаёт ребром и пропадает */
+.lp__lid-edge {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: calc(var(--t) * 1.2);
+    transform-origin: 50% 0;
+    transform: rotateX(-90deg);
+    /* На всю ширину, концы скруглены по углам крышки (радиус лицевой стороны) — без обрыва у края */
+    border-radius: calc(var(--w) * .028) / var(--t);
+    background-color: #c5dad9;
+}
+
+/* --- Корпус ------------------------------------------------------------- */
+.lp__base {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    height: calc(var(--w) * .68);
+    transform-origin: 50% 0;
+    transform: translateY(var(--t)) rotateX(90deg);
+    transform-style: preserve-3d;
+}
+
+.lp__deck {
+    position: absolute;
+    inset: 0;
+    border-radius: calc(var(--w) * .01) calc(var(--w) * .01) calc(var(--w) * .03) calc(var(--w) * .03);
+    background-color: #ebf5f4;
+    box-shadow: inset 0 0 0 1px #d4e5e4;
+}
+
+.lp__keys {
+    position: absolute;
+    top: 7%;
+    right: 9%;
+    left: 9%;
+    height: 40%;
+    display: grid;
+    grid-template-columns: repeat(14, 1fr);
+    grid-template-rows: repeat(5, 1fr);
+    gap: calc(var(--w) * .006);
+    padding: calc(var(--w) * .008);
+    border-radius: calc(var(--w) * .01);
+    background-color: #e3efee;
+}
+
+.lp__keys i {
+    border-radius: calc(var(--w) * .004);
+    background-color: var(--white);
+    box-shadow: 0 1px 0 #d4e5e4;
+}
+
+/* Пробел — широкая клавиша в нижнем ряду */
+.lp__keys i:nth-child(61) {
+    grid-column: span 5;
+}
+
+.lp__keys i:nth-child(n + 67) {
+    display: none;
+}
+
+.lp__pad {
+    position: absolute;
+    top: 54%;
+    left: 31%;
+    width: 38%;
+    height: 36%;
+    border-radius: calc(var(--w) * .012);
+    background-color: #e3efee;
+    box-shadow: inset 0 0 0 1px #d4e5e4;
+}
+
+/* Передний торец корпуса — «свисает» вниз от края деки */
+.lp__edge {
+    position: absolute;
+    top: 100%;
+    left: 1.5%;
+    width: 97%;
+    height: calc(var(--t) * 1.6);
+    transform-origin: 50% 0;
+    transform: rotateX(-90deg);
+    border-radius: 0 0 calc(var(--w) * .02) calc(var(--w) * .02);
+    background-color: #d4e5e4;
+}
+
+.lp__shadow {
+    position: absolute;
+    inset: -6% -8% -12%;
+    transform: translateZ(calc(var(--t) * -2));
+    background: radial-gradient(closest-side, rgba(20, 32, 40, .16), rgba(20, 32, 40, 0));
+    pointer-events: none;
+}
+
+/* --- Кот на закрытой крышке ------------------------------------------
+   Место и размер задаёт скрипт ноутбука, анимацию — public/js/about-cat.js (GSAP).
+   Пока скрипт не загрузился, кота не видно. */
+.lp__cat {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 1;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+.lp__cat svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    overflow: visible;
+}
+
+/* Кликается только сам кот (силуэт), а не прямоугольник вокруг */
+.lp__cat .cat {
+    pointer-events: visiblePainted;
+    cursor: pointer;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .lp__cat {
+        display: none;
+    }
+}
+
+/* --- Приглашение прокрутить (под закрытым ноутбуком) ------------------ */
+.lp__intro {
+    position: absolute;
+    right: 0;
+    left: 0;
+    margin: 0;
+    color: var(--gray);
+    font-size: 20px;
+    line-height: 28px;
+    text-align: center;
+    pointer-events: none;
+    transition: opacity .35s, transform .35s;
+}
+
+.lp__intro.is-hidden {
+    opacity: 0;
+    transform: translateY(8px);
+}
+
+@media screen and (max-width: 767px) {
+    .lp__intro {
+        font-size: 18px;
+        line-height: 26px;
+    }
+}
+
+.lp__hint {
+    position: absolute;
+    top: calc(50vh + var(--w) * .45);
+    right: 0;
+    left: 0;
+    margin: 0;
+    color: var(--gray);
+    font-size: 18px;
+    line-height: 26px;
+    text-align: center;
+    opacity: 0;
+    transition: opacity .3s;
+}
+
+@media screen and (max-width: 767px) {
+    /* На телефоне кабинет в ноутбуке слишком мелкий — главное здесь ссылка на весь экран,
+       где открывается мобильная раскладка кабинета */
+    .lp__hint a {
+        display: inline-block;
+        margin-top: 8px;
+        padding: 10px 20px;
+        border-radius: 12px;
+        background-color: var(--brand-main);
+        font-weight: 500;
+        text-decoration: none;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .lp {
+        height: auto;
+    }
+
+    .lp__sticky {
+        position: relative;
+    }
+}
+
+@media screen and (max-width: 767px) {
+    .lp {
+        --w: min(calc(100vw - 32px), calc((100vh - 140px) * 1.3));
+        height: 125vh;
+    }
+
+    .lp__hint {
+        padding: 0 16px;
+        font-size: 16px;
+        line-height: 24px;
+    }
+}
+
+/* --- Демо-кабинет внутри экрана -----------------------------------------
+   iframe с /demo/teacher в «родных» 1440×900 (на 1280 часть вёрстки кабинета не помещается), уменьшается скриптом через zoom. */
+.lp__frame {
+    display: block;
+    width: 1440px;
+    height: 900px;
+    border: 0;
+    background-color: var(--white);
+}
+
+.lp__hint a {
+    color: var(--black);
+    white-space: nowrap;
+}

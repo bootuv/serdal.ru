@@ -153,16 +153,11 @@
                                         <div class="flex min-w-0 flex-1 flex-col gap-1">
                                             <a href="{{ $d['row']['href'] }}" class="truncate text-t1 font-medium hover:underline">{{ $d['row']['name'] }}</a>
                                             <span class="text-t2 text-muted">{{ $d['meta'] }}</span>
-                                            {{-- Телефон: бейдж под подписью --}}
+                                            {{-- Бейдж всегда под подписью: колонка узкая на любом экране, справа он сжимал имя и подпись --}}
                                             @if ($d['paid'] || $d['overdue'])
-                                                <span class="flex sm:hidden"><x-ui.badge :tone="$d['paid'] ? 'ok' : 'danger'">{{ $d['paid'] ? 'Оплачено' : 'Просрочено' }}</x-ui.badge></span>
+                                                <span class="flex"><x-ui.badge :tone="$d['paid'] ? 'ok' : 'danger'">{{ $d['paid'] ? 'Оплачено' : 'Просрочено' }}</x-ui.badge></span>
                                             @endif
                                         </div>
-                                        @if ($d['paid'])
-                                            <x-ui.badge tone="ok" class="hidden sm:inline-flex">Оплачено</x-ui.badge>
-                                        @elseif ($d['overdue'])
-                                            <x-ui.badge tone="danger" class="hidden sm:inline-flex">Просрочено</x-ui.badge>
-                                        @endif
                                     </div>
                                     @if ($d['claim'])
                                         <p class="text-t2 text-muted"><x-ui.em>Ученик сообщил об оплате</x-ui.em> {{ $d['claim']['when'] }}@if ($d['claim']['facts']) · {{ $d['claim']['facts'] }}@endif</p>

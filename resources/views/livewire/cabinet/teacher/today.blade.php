@@ -167,13 +167,11 @@
                                             <span class="truncate text-t1 font-medium">{{ $p['name'] }}</span>
                                             <span class="text-t2 text-muted">{{ $p['facts'] }}</span>
                                             @if ($p['claim'])<span class="text-t2"><x-ui.em>Ученик сообщил об оплате</x-ui.em></span>@endif
-                                            {{-- Телефон: бейдж под подписью --}}
+                                            {{-- Бейдж всегда под подписью: колонка узкая на любом экране, справа он сжимал имя и подпись --}}
                                             @if ($p['paid'] || $p['badge'])
-                                                <span class="flex sm:hidden"><x-ui.badge :tone="$p['paid'] ? 'ok' : 'danger'">{{ $p['paid'] ? 'Оплачено' : $p['badge'] }}</x-ui.badge></span>
+                                                <span class="flex"><x-ui.badge :tone="$p['paid'] ? 'ok' : 'danger'">{{ $p['paid'] ? 'Оплачено' : $p['badge'] }}</x-ui.badge></span>
                                             @endif
                                         </div>
-                                        @if ($p['paid'])<x-ui.badge tone="ok" class="hidden sm:inline-flex">Оплачено</x-ui.badge>
-                                        @elseif ($p['badge'])<x-ui.badge tone="danger" class="hidden sm:inline-flex">{{ $p['badge'] }}</x-ui.badge>@endif
                                     </div>
                                     <div class="flex flex-wrap gap-2">
                                         @if ($p['paid'])
