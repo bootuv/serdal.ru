@@ -322,26 +322,64 @@
     /* --- Предзагрузка экранов ---------------------------------------- */
 
     // Экран рисует сервер, и каждый клик — это новая страница. Чтобы не ждать сеть, экраны скачиваются
-    // заранее: ссылка — при наведении, пункты меню — когда посетитель впервые взаимодействует с демо
+    // заранее в Cache Storage, а переход отдаёт из него service worker (public/demo-sw.js; HTTP-кэш
+    // не годится — во фрейме ноутбука Chrome не берёт из него страницу, скачанную fetch()).
+    // Ссылка под курсором — сразу, пункты меню — когда посетитель впервые взаимодействует с демо
     // (не раньше: ноутбук грузится вместе с «О платформе», а многие до него не долистают).
-    // Ответ демо можно кэшировать (DemoController::BROWSER_CACHE), поэтому переход берёт его из кэша.
-    var prefetched = {};
-    function prefetch(href) {
+    // Не больше двух запросов разом: пачка запросов забивает сервер, и клик ждал бы в очереди.
+    var PAGES = 'demo-pages';      // имя кэша и срок свежести — те же, что в demo-sw.js
+    var FRESH_MS = 120000;
+    var canCache = !!(window.caches && navigator.serviceWorker);
+
+    if (canCache) {
+        navigator.serviceWorker.register('/demo-sw.js', { scope: '/demo/' }).catch(function () {});
+    }
+
+    function fresh(response) {
+        var date = response && Date.parse(response.headers.get('Date') || '');
+        return !!date && Date.now() - date < FRESH_MS;
+    }
+
+    var queued = {}, queue = [], active = 0;
+    function prefetch(href, urgent) {
+        if (!canCache) return;
         var url;
         try { url = new URL(href, location.href); } catch (e) { return; }
         url.hash = '';
         if (url.origin !== location.origin || url.pathname.indexOf('/demo/') !== 0) return;
-        if (url.href === location.href.split('#')[0] || prefetched[url.href]) return;
-        prefetched[url.href] = true;
-        // Тело читаем до конца: недочитанный ответ браузер может не положить в кэш
-        fetch(url.href, { credentials: 'same-origin' })
-            .then(function (r) { return r.text(); })
-            .catch(function () { delete prefetched[url.href]; });
+        if (url.href === location.href.split('#')[0]) return;
+        if (queued[url.href]) {
+            // Уже ждёт в очереди, а посетитель навёл на неё курсор — вперёд
+            var i = queue.indexOf(url.href);
+            if (urgent && i > 0) { queue.splice(i, 1); queue.unshift(url.href); }
+            return;
+        }
+        queued[url.href] = true;
+        urgent ? queue.unshift(url.href) : queue.push(url.href);
+        pump();
+    }
+
+    function pump() {
+        while (active < 2 && queue.length) {
+            active++;
+            load(queue.shift()).catch(function () {}).then(function () { active--; pump(); });
+        }
+    }
+
+    function load(href) {
+        return caches.open(PAGES).then(function (cache) {
+            return cache.match(href).then(function (hit) {
+                if (fresh(hit)) return;
+                return fetch(href, { credentials: 'same-origin' }).then(function (response) {
+                    if (response.ok) return cache.put(href, response);
+                });
+            });
+        });
     }
 
     function onHover(e) {
         var link = e.target.closest && e.target.closest('a[href]');
-        if (link && !link.hasAttribute('data-demo-exit')) prefetch(link.getAttribute('href'));
+        if (link && !link.hasAttribute('data-demo-exit')) prefetch(link.getAttribute('href'), true);
     }
     document.addEventListener('pointerover', onHover, { passive: true });
     document.addEventListener('focusin', onHover);

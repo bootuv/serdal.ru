@@ -7,6 +7,7 @@ use App\Demo\Screen;
 use App\Demo\Stub;
 use App\Demo\World;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\ViewErrorBag;
 
 /**
@@ -18,6 +19,9 @@ class DemoController extends Controller
     /** Сколько секунд браузер держит экран демо (время в демо — «за 12 минут до занятия», пара минут ему не мешает). */
     private const BROWSER_CACHE = 120;
 
+    /** Сколько секунд сервер хранит готовый экран без параметров (только на проде). */
+    private const SERVER_CACHE = 60;
+
     public function teacher(Request $request, string $path = '')
     {
         $match = Routes::match('teacher', $path);
@@ -27,6 +31,24 @@ class DemoController extends Controller
         }
         [$class, $params] = $match;
 
+        // Экран без параметров (пункт меню) одинаков для всех — на проде собираем его раз в минуту,
+        // а не на каждый запрос: demo-cabinet.js скачивает меню заранее, и пачка запросов не грузит сервер.
+        // Файловый кэш, потому что базы (и кэша приложения в ней) в демо нет. Экраны с параметрами
+        // (окна, вкладки) не кэшируем: их сочетаний много, и они засорили бы диск.
+        // В ключе — время сборки фронтенда: после деплоя старый экран со ссылками на удалённые стили не отдаётся.
+        $build = @filemtime(public_path('build/manifest.json')) . '-' . @filemtime(public_path('js/demo-cabinet.js'));
+        $html = app()->isProduction() && $request->getQueryString() === null
+            ? Cache::store('file')->remember("demo:{$build}:" . $request->path(), self::SERVER_CACHE, fn () => $this->render($request, $class, $params))
+            : $this->render($request, $class, $params);
+
+        // Данные выдуманные и одинаковые для всех, поэтому браузеру можно держать экран пару минут
+        return response($html)
+            ->header('X-Robots-Tag', 'noindex, nofollow')
+            ->header('Cache-Control', 'private, max-age=' . self::BROWSER_CACHE);
+    }
+
+    private function render(Request $request, string $class, array $params): string
+    {
         /** @var Screen $screen */
         $screen = new $class($request, $params);
 
@@ -49,11 +71,7 @@ class DemoController extends Controller
             auth()->forgetUser();
         }
 
-        // Данные выдуманные и одинаковые для всех, поэтому браузеру можно держать экран пару минут:
-        // demo-cabinet.js скачивает экраны заранее, и переход по клику берёт готовую страницу из кэша
-        return response(self::rewrite($html))
-            ->header('X-Robots-Tag', 'noindex, nofollow')
-            ->header('Cache-Control', 'private, max-age=' . self::BROWSER_CACHE);
+        return self::rewrite($html);
     }
 
     /** Ссылки настоящего кабинета → демо (в том числе экранированные в JSON). */
