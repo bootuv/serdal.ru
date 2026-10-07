@@ -102,6 +102,17 @@ class Recordings extends Component
         }
     }
 
+    /** Разрешить или запретить ученикам скачивать записи занятий. */
+    public function toggleDownloads(): void
+    {
+        $teacher = auth()->user();
+        $teacher->forceFill(['recordings_downloadable' => ! $teacher->recordings_downloadable])->save();
+
+        $this->dispatch('toast', message: $teacher->recordings_downloadable
+            ? 'Ученики могут скачивать записи'
+            : 'Ученики смотрят записи только в кабинете');
+    }
+
     /** Запись учителя с видео — её можно открыть в плеере. */
     private function playable(int $id): Recording
     {
@@ -159,6 +170,7 @@ class Recordings extends Component
                 ? 'Хранятся ' . plural_ru($retention, 'день', 'дня', 'дней') . ($tariff ? ' по тарифу «' . $tariff . '»' : '')
                 : ($items->isNotEmpty() ? plural_ru((clone $query)->count(), 'запись', 'записи', 'записей') : null),
             'current' => $current,
+            'downloads' => (bool) $teacher->recordings_downloadable,
             'soon' => $soon, // первыми — те, что удалятся раньше
             'weeks' => $this->byWeek($rest),
             'isEmpty' => $items->isEmpty(),

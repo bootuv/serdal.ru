@@ -177,7 +177,8 @@ class Recordings extends Component
             // Видео в хранилище — смотрим здесь; пока не перенесено — открываем проигрыватель сервера занятий
             'video' => $r->s3_url,
             'externalUrl' => ! $r->s3_url && $r->url ? $r->url : null,
-            'downloadUrl' => $r->s3_url ? route('recordings.download', $r) : null,
+            // Учитель мог запретить скачивание — тогда только просмотр в кабинете
+            'downloadUrl' => $r->s3_url && ($room?->user?->recordings_downloadable ?? true) ? route('recordings.download', $r) : null,
         ];
     }
 

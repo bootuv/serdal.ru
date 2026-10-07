@@ -16,7 +16,8 @@ use Illuminate\Support\Str;
  * Записи — проведённые занятия за последние 3 недели (ScheduleDemoData: те же, что в «Расписании» → «Прошедшие»,
  * номер записи = номер проведённого занятия, поэтому ссылки «Запись» оттуда открывают её здесь) и несколько
  * старых, которые скоро удалятся (хранятся 90 дней по тарифу «Профи»). Видео у всех — ролик /videos/about/lesson.mp4.
- * Состояние: ?open=<номер> — плеер (?open=last — последняя запись: для DemoCabinetTest и ссылок без номера), ?student=<id>, ?search=…, ?confirmDelete=1.
+ * Состояние: ?open=<номер> — плеер (?open=last — последняя запись: для DemoCabinetTest и ссылок без номера), ?student=<id>, ?search=…, ?confirmDelete=1,
+ * ?downloads=0 — ученикам скачивание запрещено.
  */
 class Recordings extends Screen
 {
@@ -43,6 +44,7 @@ class Recordings extends Screen
         'recordings?search=нет-такого',
         'recordings?open=last',
         'recordings?open=last&confirmDelete=1',
+        'recordings?downloads=0',
     ];
 
     public function modalParams(): array
@@ -57,6 +59,9 @@ class Recordings extends Screen
             'close' => ['set' => ['open' => null, 'confirmDelete' => null]],
             'askDelete' => ['set' => ['confirmDelete' => '1']],
             'deleteOpen' => ['set' => ['open' => null, 'confirmDelete' => null], 'toast' => 'Запись удалена'],
+            'toggleDownloads' => $this->state('downloads', '1') === '0'
+                ? ['set' => ['downloads' => null], 'toast' => 'Ученики могут скачивать записи']
+                : ['set' => ['downloads' => '0'], 'toast' => 'Ученики смотрят записи только в кабинете'],
         ];
     }
 
@@ -93,6 +98,7 @@ class Recordings extends Screen
             'limit' => 60,
             'confirmDelete' => $current && $this->state('confirmDelete', false),
             'sub' => 'Хранятся ' . plural_ru(self::RETENTION, 'день', 'дня', 'дней') . ' по тарифу «' . Today::tariff()['name'] . '»',
+            'downloads' => $this->state('downloads', '1') !== '0',
             'current' => $current ? collect($current)->except(['ids', 'search'])->all() : null,
             'soon' => $strip($soon),
             'weeks' => $this->byWeek($strip($rest)),

@@ -258,4 +258,20 @@ class StudentRecordingsTest extends TestCase
             ->set('search', 'Химия')
             ->assertSee('Ничего не нашлось');
     }
+
+    public function test_no_download_when_teacher_forbids_it(): void
+    {
+        $teacher = $this->user(User::ROLE_TUTOR);
+        $student = $this->user(User::ROLE_STUDENT);
+        $recording = $this->recording($this->room($teacher, $student, 'Математика'), now()->subDays(1));
+        $teacher->forceFill(['recordings_downloadable' => false])->save();
+
+        $this->actingAs($student)
+            ->get(route('cabinet.student.recordings', ['open' => $recording->id]))
+            ->assertOk()
+            // Смотреть можно, скачать — нет
+            ->assertSee($recording->s3_url, false)
+            ->assertDontSee(route('recordings.download', $recording), false)
+            ->assertSee('controlslist="nodownload"', false);
+    }
 }

@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\Recording;
-use App\Models\Room;
 use App\Services\RecordingStorageService;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -19,16 +18,9 @@ class RecordingDownloadController extends Controller
     {
         $user = auth()->user();
 
-        // Доступ — как на странице просмотра: админ, владелец занятия или ученик этого учителя
-        if (!$user->isAdmin()) {
-            $room = Room::where('meeting_id', $recording->meeting_id)->first();
-            $isOwner = $room && $room->user_id === $user->id;
-            $isStudent = $room && $recording->visibleToStudent($user);
-
-            if (!$isOwner && !$isStudent) {
-                abort(403);
-            }
-        }
+        // Доступ — как на странице просмотра (админ, владелец занятия, ученик этого учителя),
+        // но ученику — только если учитель не запретил скачивание
+        abort_unless($recording->downloadableBy($user), 403);
 
         if (empty($recording->s3_url)) {
             abort(404);

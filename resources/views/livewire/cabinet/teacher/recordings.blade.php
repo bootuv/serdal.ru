@@ -1,6 +1,12 @@
 {{-- Записи занятий учителя. Макет: TeacherRecordings. --}}
 <div class="flex flex-col gap-6 lg:gap-8">
-    <x-ui.page-head title="Записи" :sub="$sub" />
+    <x-ui.page-head title="Записи" :sub="$sub">
+        <x-slot:actions>
+            {{-- Скачивание учениками: выключено — у них нет кнопки «Скачать», смотрят только в кабинете --}}
+            <span class="text-t1-s text-muted">Ученики могут скачивать</span>
+            <x-ui.switch :checked="$downloads" label="Ученики могут скачивать" wire:click="toggleDownloads" />
+        </x-slot:actions>
+    </x-ui.page-head>
 
     <div class="flex flex-col gap-6">
         @if ($current)

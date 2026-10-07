@@ -68,6 +68,13 @@ class User extends Authenticatable
         'referred_by_id',
         'referral_banner_hidden_until',
         'tour_seen_at',
+        'recordings_downloadable',
+    ];
+
+    /** Значения новой модели до чтения из базы (совпадают с умолчаниями столбцов). */
+    protected $attributes = [
+        // Ученики могут скачивать записи, пока учитель не запретит
+        'recordings_downloadable' => true,
     ];
 
     /**
@@ -100,6 +107,7 @@ class User extends Authenticatable
             'last_login_at' => 'datetime',
             'tour_seen_at' => 'datetime',
             'platform_review_dismissed_at' => 'datetime',
+            'recordings_downloadable' => 'boolean',
         ];
     }
 

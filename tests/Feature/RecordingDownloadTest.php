@@ -118,4 +118,20 @@ class RecordingDownloadTest extends TestCase
 
         $this->actingAs($teacher)->get(route('recordings.download', $recording))->assertNotFound();
     }
+
+    public function test_teacher_can_forbid_students_to_download(): void
+    {
+        $teacher = $this->makeUser(User::ROLE_TUTOR);
+        $student = $this->makeUser(User::ROLE_STUDENT);
+        $teacher->students()->attach($student->id);
+        $admin = $this->makeUser(User::ROLE_ADMIN);
+        $recording = $this->makeRecording($teacher, participant: $student);
+
+        $teacher->forceFill(['recordings_downloadable' => false])->save();
+
+        $this->actingAs($student)->get(route('recordings.download', $recording))->assertForbidden();
+        // Сам учитель и админ скачивают как раньше
+        $this->actingAs($teacher)->get(route('recordings.download', $recording))->assertRedirect();
+        $this->actingAs($admin)->get(route('recordings.download', $recording))->assertRedirect();
+    }
 }

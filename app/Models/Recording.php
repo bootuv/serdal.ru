@@ -66,6 +66,28 @@ class Recording extends Model
         return self::studentRooms($student)->where('meeting_id', $this->meeting_id)->exists();
     }
 
+    /**
+     * Может ли пользователь скачать запись: админ и учитель занятия — всегда,
+     * ученик — если видит запись и учитель не запретил скачивание (users.recordings_downloadable).
+     */
+    public function downloadableBy(User $user): bool
+    {
+        if ($user->isAdmin()) {
+            return true;
+        }
+
+        $room = $this->room;
+        if (! $room) {
+            return false;
+        }
+
+        if ($room->user_id === $user->id) {
+            return true;
+        }
+
+        return $this->visibleToStudent($user) && ($room->user?->recordings_downloadable ?? true);
+    }
+
     /** Записи занятий учителя (как в старом кабинете учителя, RecordingResource). */
     public function scopeForTeacher(Builder $query, User $teacher): Builder
     {

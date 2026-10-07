@@ -231,4 +231,23 @@ class TeacherRecordingsTest extends TestCase
             ->assertSee('Ничего не нашлось')
             ->assertSee('Сбросить поиск');
     }
+
+    public function test_teacher_toggles_downloads_for_students(): void
+    {
+        $teacher = $this->user(User::ROLE_TUTOR);
+        $this->assertTrue($teacher->fresh()->recordings_downloadable);
+
+        Livewire::actingAs($teacher)->test(Recordings::class)
+            ->assertSee('Ученики могут скачивать')
+            ->assertSeeHtml('aria-checked="true"')
+            ->call('toggleDownloads')
+            ->assertDispatched('toast', message: 'Ученики смотрят записи только в кабинете')
+            ->assertSeeHtml('aria-checked="false"');
+        $this->assertFalse($teacher->fresh()->recordings_downloadable);
+
+        Livewire::actingAs($teacher->fresh())->test(Recordings::class)
+            ->call('toggleDownloads')
+            ->assertDispatched('toast', message: 'Ученики могут скачивать записи');
+        $this->assertTrue($teacher->fresh()->recordings_downloadable);
+    }
 }
