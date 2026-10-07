@@ -247,6 +247,37 @@ sshd -t && systemctl reload ssh
 Лимиты участников и длительности, запись, микрофоны при входе Serdal передаёт при создании каждого занятия
 («Настройки» → «Видеосвязь» и тариф учителя) — на сервере их настраивать не нужно.
 
+### 3.8. Сообщения ядра — на сервер сайта (netconsole)
+
+Когда зависает диск, журнал на самом сервере обрывается без единой ошибки (так было на `room2` 1 и 6 октября 2026).
+netconsole отправляет сообщения ядра по UDP на сервер сайта, и последние из них сохраняются там.
+
+На сервере сайта (`5.129.206.185`) приём уже настроен для `room2`: `/etc/rsyslog.d/30-netconsole-room2.conf`, файл
+`/var/log/netconsole/room2.log`, ротация — `/etc/logrotate.d/netconsole-room2`, в ufw открыт UDP 6666 только с адреса
+`room2`. Для нового сервера скопируйте этот блок с его адресом, своим файлом журнала и своим правилом ufw.
+
+На сервере BBB (`<IP>` — его адрес, `<MAC шлюза>` — из `ip neigh show $(ip route show default | awk '{print $3}')`):
+
+```bash
+cat > /etc/modprobe.d/serdal-netconsole.conf <<'EOF'
+# Сообщения ядра по UDP на сервер сайта (5.129.206.185:6666), чтобы при зависании остались следы.
+options netconsole netconsole=6665@<IP>/eth0,6666@5.129.206.185/<MAC шлюза>
+EOF
+echo netconsole > /etc/modules-load.d/serdal-netconsole.conf
+cat > /etc/sysctl.d/90-serdal-netconsole.conf <<'EOF'
+# Отдавать в netconsole сообщения до уровня warning: таймауты NVMe — это warning.
+kernel.printk = 5 4 1 7
+EOF
+sysctl -q -p /etc/sysctl.d/90-serdal-netconsole.conf && modprobe netconsole
+echo "<4>serdal netconsole test" > /dev/kmsg     # на сервере сайта: tail /var/log/netconsole/<сервер>.log
+```
+
+В файл постоянно попадают строки `UFW BLOCK` — по последней видно, в какую секунду ядро перестало отвечать.
+
+**Ядро — стандартное, не HWE.** На `room2` с экспериментальным ядром 7.0 (HWE) сервер четыре раза зависал в простое
+(1–6 октября 2026), с 6 октября он на стандартном 6.8 (`GRUB_DEFAULT` с id пункта меню 6.8). На новом сервере не ставьте
+`linux-generic-hwe-*`.
+
 ## 4. Проверка на сервере
 
 ```bash
