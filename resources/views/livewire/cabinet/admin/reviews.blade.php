@@ -1,7 +1,11 @@
-{{-- Жалобы на отзывы. Макет: AdminReviews. Вкладки «Жалобы / Все отзывы / Скрытые / О платформе», поиск, окно отзыва с решением,
+{{-- Отзывы. Макет: AdminReviews. Вкладки «Все отзывы / Скрытые / О платформе / Жалобы», поиск, окно отзыва с решением, «Новый отзыв»,
      «Поделиться» — окно с картинкой для сторис (RvShareDesktop), на телефоне — системное окно. --}}
 <div class="flex flex-col gap-6 lg:gap-8">
-    <x-ui.page-head title="Жалобы на отзывы" />
+    <x-ui.page-head title="Отзывы">
+        <x-slot:actions>
+            <x-ui.btn variant="dark" icon="plus" wire:click="toCreate">Новый отзыв</x-ui.btn>
+        </x-slot:actions>
+    </x-ui.page-head>
 
     <div class="flex flex-col gap-6">
         {{-- Вкладки и поиск в одной строке с общей линией снизу --}}
@@ -140,6 +144,27 @@
             <x-slot:footer>
                 <x-ui.btn wire:click="back">Отмена</x-ui.btn>
                 <x-ui.btn variant="primary" wire:click="keep" wire:loading.attr="disabled" wire:target="keep">Оставить отзыв</x-ui.btn>
+            </x-slot:footer>
+        </x-ui.modal>
+    @endif
+
+    {{-- Новый отзыв --}}
+    @if ($creating)
+        <x-ui.modal title="Новый отзыв" sub="Появится на странице учителя от имени ученика" close="close">
+            <x-ui.person-select label="Ученик" name="newStudentId" :people="$creating['students']" :selected="$newStudentId" model="newStudentId" placeholder="Выберите ученика" />
+            <x-ui.person-select label="Учитель" name="newTeacherId" :people="$creating['teachers']" :selected="$newTeacherId" model="newTeacherId" placeholder="Выберите учителя" />
+            <div class="flex flex-col gap-2">
+                <span class="text-t2 font-medium">Оценка</span>
+                <div class="flex flex-wrap items-center gap-4">
+                    <x-ui.stars :value="$newRating" model="newRating" />
+                    <span class="text-t1 font-semibold">{{ $creating['stars'][$newRating] ?? '' }}</span>
+                </div>
+                @error('newRating')<span class="text-t2 font-medium text-danger-fg">{{ $message }}</span>@enderror
+            </div>
+            <x-ui.field label="Текст отзыва" name="newText" rows="6" wire:model="newText" maxlength="{{ \App\Models\Review::MAX_TEXT }}" />
+            <x-slot:footer>
+                <x-ui.btn wire:click="close">Отмена</x-ui.btn>
+                <x-ui.btn variant="primary" wire:click="create" wire:loading.attr="disabled" wire:target="create">Добавить отзыв</x-ui.btn>
             </x-slot:footer>
         </x-ui.modal>
     @endif

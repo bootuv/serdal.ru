@@ -30,7 +30,7 @@ class TeacherReportedReview extends CabinetNotification
         return CabinetMessage::make('Жалоба на отзыв')
             ->body($body)
             ->icon('star')
-            ->action('Открыть', route('cabinet.admin.reviews'))
+            ->action('Открыть', route('cabinet.admin.reviews', ['tab' => 'reports']))
             ->toArray();
     }
 }

@@ -128,7 +128,7 @@ class AdminTodayService
                 . ($reported->count() > 2 ? ' и ещё ' . ($reported->count() - 2) : ''),
             'em' => null,
             'n' => $reported->count(),
-            'href' => $this->route('reviews'),
+            'href' => $this->route('reviews', ['tab' => AdminReviewsService::TAB_REPORTS]),
         ];
     }
 

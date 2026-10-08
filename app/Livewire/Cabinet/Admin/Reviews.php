@@ -4,6 +4,7 @@ namespace App\Livewire\Cabinet\Admin;
 
 use App\Livewire\Cabinet\Admin\Concerns\AdminScreen;
 use App\Models\Review;
+use App\Models\User;
 use App\Services\AdminReviewsService;
 use App\Support\HumanDate;
 use Livewire\Attributes\Layout;
@@ -12,13 +13,14 @@ use Livewire\Attributes\Url;
 use Livewire\Component;
 
 /**
- * Отзывы и жалобы учителей на них: «Жалобы / Все отзывы / Скрытые», окно отзыва,
+ * Отзывы и жалобы учителей на них: «Все отзывы / Скрытые / О платформе / Жалобы», окно отзыва,
  * «Оставить отзыв» (снять жалобу), «Скрыть отзыв», «Вернуть отзыв», письмо учителю о решении.
  * «О платформе» — отзывы учителей о Serdal: проверка и публикация на /reviews («Опубликовать», «Снять с сайта»).
  * «Поделиться» — картинка для сторис и подпись, как у учителя: для видимых отзывов учеников и опубликованных о платформе.
+ * «Новый отзыв» — админ добавляет отзыв ученика об учителе (как раньше в старой админке).
  * Макет: AdminReviews. Логика — AdminReviewsService.
  */
-#[Layout('components.layouts.cabinet', ['title' => 'Жалобы на отзывы', 'active' => 'reviews'])]
+#[Layout('components.layouts.cabinet', ['title' => 'Отзывы', 'active' => 'reviews'])]
 class Reviews extends Component
 {
     use AdminScreen;
@@ -26,14 +28,14 @@ class Reviews extends Component
     private const PAGE = 20;
 
     private const TABS = [
-        AdminReviewsService::TAB_REPORTS => 'Жалобы',
         AdminReviewsService::TAB_ALL => 'Все отзывы',
         AdminReviewsService::TAB_HIDDEN => 'Скрытые',
         AdminReviewsService::TAB_PLATFORM => 'О платформе',
+        AdminReviewsService::TAB_REPORTS => 'Жалобы',
     ];
 
-    #[Url(except: AdminReviewsService::TAB_REPORTS)]
-    public string $tab = AdminReviewsService::TAB_REPORTS;
+    #[Url(except: AdminReviewsService::TAB_ALL)]
+    public string $tab = AdminReviewsService::TAB_ALL;
 
     #[Url(except: '')]
     public string $q = '';
@@ -43,12 +45,21 @@ class Reviews extends Component
     #[Locked]
     public ?int $openId = null;
 
-    /** Шаг окна: view · hide · keep · share. */
+    /** Шаг окна: view · hide · keep · share · create. */
     #[Locked]
     public string $step = '';
 
     /** «Сообщить учителю о решении». */
     public bool $notify = true;
+
+    /** Окно «Новый отзыв». */
+    public ?string $newStudentId = null;
+
+    public ?string $newTeacherId = null;
+
+    public int $newRating = 5;
+
+    public string $newText = '';
 
     #[Locked]
     public ?string $toast = null;
@@ -61,14 +72,14 @@ class Reviews extends Component
     {
         $this->authorizeAdmin();
         if (! array_key_exists($this->tab, self::TABS)) {
-            $this->tab = AdminReviewsService::TAB_REPORTS;
+            $this->tab = AdminReviewsService::TAB_ALL;
         }
     }
 
     public function updatedTab(): void
     {
         if (! array_key_exists($this->tab, self::TABS)) {
-            $this->tab = AdminReviewsService::TAB_REPORTS;
+            $this->tab = AdminReviewsService::TAB_ALL;
         }
         $this->limit = self::PAGE;
     }
@@ -90,6 +101,71 @@ class Reviews extends Component
         $this->step = 'view';
         $this->notify = true;
         $this->hideToast();
+    }
+
+    /** «Новый отзыв» — окно с выбором ученика и учителя. */
+    public function toCreate(): void
+    {
+        $this->reset('newStudentId', 'newTeacherId', 'newRating', 'newText');
+        $this->resetErrorBag();
+        $this->openId = null;
+        $this->step = 'create';
+        $this->hideToast();
+    }
+
+    public function create(): void
+    {
+        abort_unless($this->step === 'create', 404);
+
+        $this->validate([
+            'newStudentId' => ['required'],
+            'newTeacherId' => ['required'],
+            'newRating' => ['required', 'integer', 'between:1,5'],
+            'newText' => ['required', 'string', 'max:' . Review::MAX_TEXT],
+        ], [
+            'newStudentId.required' => 'Выберите ученика',
+            'newTeacherId.required' => 'Выберите учителя',
+            'newText.required' => 'Напишите текст отзыва',
+            'newText.max' => 'Отзыв длиннее ' . Review::MAX_TEXT . ' символов — сократите его.',
+        ]);
+
+        $student = User::where('role', User::ROLE_STUDENT)->find((int) $this->newStudentId);
+        $teacher = User::where('role', User::ROLE_TUTOR)->find((int) $this->newTeacherId);
+        if (! $student) {
+            $this->addError('newStudentId', 'Выберите ученика');
+        }
+        if (! $teacher) {
+            $this->addError('newTeacherId', 'Выберите учителя');
+        }
+        if (! $student || ! $teacher) {
+            return;
+        }
+        if ($this->service()->exists($student->id, $teacher->id)) {
+            $this->addError('newTeacherId', 'У ученика уже есть отзыв об этом учителе — найдите его в списке');
+
+            return;
+        }
+
+        $this->service()->create($student, $teacher, $this->newRating, trim($this->newText));
+        $this->close();
+        $this->tab = AdminReviewsService::TAB_ALL;
+        $this->q = '';
+        $this->limit = self::PAGE;
+        $this->toast = 'Отзыв добавлен на страницу учителя ' . $teacher->name;
+        $this->undo = null;
+    }
+
+    /** Окно «Новый отзыв»: ученики и учителя для выбора (имя, почта, фото). */
+    private function createView(): array
+    {
+        $people = fn (string $role) => User::where('role', $role)->orderBy('name')->get(['id', 'name', 'email', 'avatar'])
+            ->map(fn (User $u) => ['id' => (int) $u->id, 'name' => (string) $u->name, 'email' => (string) $u->email, 'photo' => $u->photoThumb()])->all();
+
+        return [
+            'students' => $people(User::ROLE_STUDENT),
+            'teachers' => $people(User::ROLE_TUTOR),
+            'stars' => ['', '1 — очень плохо', '2 — плохо', '3 — нормально', '4 — хорошо', '5 — отлично'],
+        ];
     }
 
     public function close(): void
@@ -260,6 +336,7 @@ class Reviews extends Component
                 default => 'Пока пусто',
             },
             'r' => $opened ? $this->details($opened) : null,
+            'creating' => $this->step === 'create' ? $this->createView() : null,
         ]);
     }
 

@@ -64,6 +64,21 @@ class AdminReviewsService
         return app(AdminInboxService::class)->platformReviewsPending();
     }
 
+    /**
+     * «Новый отзыв» от имени ученика об учителе — сразу виден на странице учителя.
+     * Писем и уведомлений нет: отзыв добавляет команда. Один отзыв на пару ученик — учитель.
+     */
+    public function create(User $student, User $teacher, int $rating, string $text): Review
+    {
+        return Review::create(['user_id' => $student->id, 'teacher_id' => $teacher->id, 'rating' => $rating, 'text' => $text]);
+    }
+
+    /** У ученика уже есть отзыв об этом учителе (в том числе скрытый). */
+    public function exists(int $studentId, int $teacherId): bool
+    {
+        return Review::where('user_id', $studentId)->where('teacher_id', $teacherId)->exists();
+    }
+
     /** «Опубликовать» отзыв о платформе: появится на /reviews. */
     public function approve(Review $review): void
     {

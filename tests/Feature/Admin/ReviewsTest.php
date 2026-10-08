@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Notification;
 use Livewire\Livewire;
 use Tests\TestCase;
 
-/** Админка → Жалобы на отзывы (/cabinet/admin/reviews): вкладки, окно отзыва, решения, письмо учителю. */
+/** Админка → Отзывы (/cabinet/admin/reviews): вкладки, окно отзыва, решения, письмо учителю, новый отзыв. */
 class ReviewsTest extends TestCase
 {
     use RefreshDatabase;
@@ -70,9 +70,15 @@ class ReviewsTest extends TestCase
         $this->actingAs($this->maria)->get('/cabinet/admin/reviews')->assertRedirect(EnsureCabinetRole::homeFor($this->maria));
         $this->actingAs($this->ivan)->get('/cabinet/admin/reviews')->assertRedirect(route('cabinet.student.home'));
 
+        // Первая вкладка — «Все отзывы», «Жалобы» — последняя
         $this->actingAs($this->admin)->get('/cabinet/admin/reviews')
             ->assertOk()
-            ->assertSee('Жалобы на отзывы')
+            ->assertSeeInOrder(['Отзывы', 'Новый отзыв', 'Все отзывы', 'Скрытые', 'О платформе', 'Жалобы'])
+            ->assertSee('Перестала бояться говорить.')
+            ->assertDontSee('Готовлю дешевле');
+
+        $this->actingAs($this->admin)->get('/cabinet/admin/reviews?tab=reports')
+            ->assertOk()
             ->assertSee('Петров Иван → Соколова Мария')
             ->assertSee('Оскорбления или грубость')
             ->assertDontSee('Перестала бояться говорить.');
@@ -96,7 +102,7 @@ class ReviewsTest extends TestCase
             ->assertSee('жалоба: реклама или посторонние ссылки');
 
         Review::query()->update(['is_reported' => false]);
-        Livewire::actingAs($this->admin)->test(Reviews::class)->assertSee('Жалоб нет — новые появятся здесь');
+        Livewire::actingAs($this->admin)->test(Reviews::class)->set('tab', 'reports')->assertSee('Жалоб нет — новые появятся здесь');
     }
 
     public function test_keep_review_notifies_teacher(): void
@@ -259,5 +265,42 @@ class ReviewsTest extends TestCase
         Notification::assertSentTo($this->maria, ReviewReportDecided::class, function ($n, $channels, $notifiable) {
             return $notifiable->email === $this->maria->email && $notifiable->routeNotificationFor('mail') === $this->maria->email;
         });
+    }
+
+    public function test_admin_creates_review(): void
+    {
+        $olga = $this->user(User::ROLE_STUDENT, ['first_name' => 'Ольга', 'last_name' => 'Белова']);
+
+        Livewire::actingAs($this->admin)->test(Reviews::class)
+            ->set('tab', 'hidden')
+            ->call('toCreate')
+            ->assertSee('Новый отзыв')
+            ->call('create')
+            ->assertHasErrors(['newStudentId', 'newTeacherId', 'newText'])
+            // Учитель вместо ученика не подходит
+            ->set('newStudentId', (string) $this->maria->id)
+            ->set('newTeacherId', (string) $this->maria->id)
+            ->set('newText', 'Отличный учитель')
+            ->call('create')
+            ->assertHasErrors(['newStudentId'])
+            // У Ивана уже есть отзыв о Марии
+            ->set('newStudentId', (string) $this->ivan->id)
+            ->call('create')
+            ->assertHasErrors(['newTeacherId'])
+            ->assertSee('У ученика уже есть отзыв об этом учителе')
+            ->set('newStudentId', (string) $olga->id)
+            ->set('newRating', 4)
+            ->call('create')
+            ->assertHasNoErrors()
+            ->assertSet('step', '')
+            ->assertSet('tab', 'all')
+            ->assertSee('Отзыв добавлен на страницу учителя Соколова Мария')
+            ->assertSee('Отличный учитель');
+
+        $review = Review::where('user_id', $olga->id)->where('teacher_id', $this->maria->id)->first();
+        $this->assertNotNull($review);
+        $this->assertSame(4, (int) $review->rating);
+        $this->assertFalse((bool) $review->is_rejected);
+        Notification::assertNothingSent();
     }
 }
