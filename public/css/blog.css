@@ -953,7 +953,7 @@
 .blog-share {
   width: min(720px, calc(100vw - 32px));
   max-height: calc(100vh - 32px);
-  padding: 0;
+  padding: 32px;
   border: none;
   border-radius: 24px;
   background: var(--white);
@@ -967,7 +967,40 @@
 .blog-share-body {
   display: flex;
   gap: 32px;
-  padding: 32px;
+}
+
+/* «Пост» — горизонтальная картинка во всю ширину окна, под ней кнопки */
+.blog-share[data-format="post"] .blog-share-body {
+  flex-flow: column;
+  gap: 24px;
+}
+
+.blog-share-switch {
+  display: inline-flex;
+  gap: 4px;
+  margin-bottom: 24px;
+  padding: 4px;
+  border-radius: 12px;
+  background-color: var(--bg1);
+}
+
+.blog-share-switch button {
+  height: 36px;
+  padding: 0 16px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: var(--gray);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.blog-share-switch button[aria-selected="true"] {
+  background-color: var(--white);
+  color: var(--black);
+  box-shadow: 0 1px 2px rgba(32, 35, 35, .12);
 }
 
 .blog-share-preview {
@@ -978,6 +1011,11 @@
   overflow: hidden;
   border-radius: 16px;
   background-color: var(--bg1);
+}
+
+.blog-share[data-format="post"] .blog-share-preview {
+  width: 100%;
+  aspect-ratio: 1200 / 630;
 }
 
 .blog-share-preview img {
@@ -1026,11 +1064,21 @@
   min-width: 0;
 }
 
+/* Под горизонтальной картинкой — картинка и ссылка в две колонки, чтобы окно не вытягивалось */
+.blog-share[data-format="post"] .blog-share-side {
+  flex-flow: row wrap;
+}
+
+.blog-share[data-format="post"] .blog-share-block {
+  flex: 1 1 240px;
+}
+
 .blog-share-head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
+  margin-bottom: 16px;
 }
 
 .blog-share-title {
@@ -1110,20 +1158,18 @@
 }
 
 @media screen and (max-width: 767px) {
-  .blog-share-body {
-    flex-flow: column;
-    gap: 24px;
+  .blog-share {
     padding: 24px;
   }
 
-  .blog-share-preview {
-    order: 1;
-    width: min(220px, 60vw);
-    align-self: center;
+  .blog-share-body {
+    flex-flow: column;
+    gap: 24px;
   }
 
-  .blog-share-head {
-    order: 0;
+  .blog-share-preview {
+    width: min(220px, 60vw);
+    align-self: center;
   }
 }
 

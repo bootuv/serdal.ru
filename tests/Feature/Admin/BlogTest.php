@@ -433,7 +433,8 @@ class BlogTest extends TestCase
         $this->assertSame([1080, 1920], array_slice(getimagesizefromstring($story->getContent()), 0, 2));
         $this->assertCount(2, \Illuminate\Support\Facades\Storage::disk('local')->files('blog-og'));
         $this->get(route('blog.show', $post->slug))->assertSee('Поделиться статьей')
-            ->assertSee(e(app(\App\Services\BlogShareImage::class)->url($post->fresh(['tags', 'author']), 'story')), false);
+            ->assertSee(e(app(\App\Services\BlogShareImage::class)->url($post->fresh(['tags', 'author']), 'story')), false)
+            ->assertSee('Сторис')->assertSee('Пост');
         $draft = $this->article(['title' => 'Черновик', 'published_at' => null]);
         $this->get(route('blog.og', $draft->slug))->assertNotFound();
 

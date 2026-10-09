@@ -28,7 +28,7 @@ class BlogShareImage
     public const HEIGHT = 630;
 
     /** Поменял оформление — подними версию: картинки всех статей соберутся заново. */
-    private const DESIGN = 9;
+    private const DESIGN = 10;
 
     private const DISK = 'local';
     private const DIR = 'blog-og';

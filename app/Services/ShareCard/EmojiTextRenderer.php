@@ -93,7 +93,7 @@ class EmojiTextRenderer
     {
         $widest = 0;
 
-        foreach ($this->words($text) as $word) {
+        foreach ($this->words($text) as [$word]) {
             $widest = max($widest, $this->word($word, $style)[1]);
         }
 
@@ -163,20 +163,23 @@ class EmojiTextRenderer
         $current = [];
         $lineWidth = 0;
 
-        foreach ($this->words($text) as $word) {
+        foreach ($this->words($text) as [$word, $glued]) {
             [$segments, $width] = $this->word($word, $style);
 
             if ($segments === []) {
                 continue;
             }
 
-            if ($current !== [] && $wrapWidth !== null && $lineWidth + $space + $width > $wrapWidth) {
+            // Часть слова после дефиса продолжает его без пробела, но может уйти на новую строку
+            $gap = $glued ? 0 : $space;
+
+            if ($current !== [] && $wrapWidth !== null && $lineWidth + $gap + $width > $wrapWidth) {
                 $lines[] = $current;
                 $current = [];
                 $lineWidth = 0;
             }
 
-            $offset = $current === [] ? 0 : $lineWidth + $space;
+            $offset = $current === [] ? 0 : $lineWidth + $gap;
 
             foreach ($segments as [$type, $value, $position]) {
                 $current[] = [$type, $value, $offset + $position];
@@ -229,11 +232,22 @@ class EmojiTextRenderer
     }
 
     /**
-     * @return list<string>
+     * Слова для переноса: [часть, приклеена ли к предыдущей]. Слово через дефис («онлайн-репетиторство») делится
+     * после дефиса, как в браузере: иначе длинное составное слово заставляло уменьшать весь заголовок.
+     *
+     * @return list<array{0: string, 1: bool}>
      */
     private function words(string $text): array
     {
-        return preg_split('/\s+/u', $text, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        $words = [];
+
+        foreach (preg_split('/\s+/u', $text, -1, PREG_SPLIT_NO_EMPTY) ?: [] as $word) {
+            foreach (preg_split('/(?<=\p{L}-)(?=\p{L})/u', $word) as $i => $part) {
+                $words[] = [$part, $i > 0];
+            }
+        }
+
+        return $words;
     }
 
     private function textWidth(string $text, TextStyle $style): int
