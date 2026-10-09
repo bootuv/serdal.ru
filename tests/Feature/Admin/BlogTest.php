@@ -449,4 +449,28 @@ class BlogTest extends TestCase
         $this->get(route('blog.index'))->assertOk()->assertSee('blog-byline-photo', false)->assertSee($teacher->name)
             ->assertSeeInOrder(['blog-byline-subjects', 'Физика'], false);
     }
+
+    public function test_slug_follows_title_until_published(): void
+    {
+        $service = app(BlogService::class);
+
+        // Черновик сохраняется сам с первой буквы — адрес идет за заголовком
+        $post = $service->save(null, ['title' => 'П', 'body' => '', 'published_at' => null]);
+        $this->assertSame('p', $post->slug);
+        $post = $service->save($post, ['title' => 'Память и экзамены', 'slug' => 'p', 'body' => '', 'published_at' => null]);
+        $this->assertSame('pamyat-i-ekzameny', $post->slug);
+
+        // Свой адрес не перезаписывается заголовком
+        $post = $service->save($post, ['title' => 'Память и экзамены', 'slug' => 'svoy-adres', 'body' => '', 'published_at' => null]);
+        $post = $service->save($post, ['title' => 'Память и экзамены: план', 'slug' => 'svoy-adres', 'body' => '', 'published_at' => null]);
+        $this->assertSame('svoy-adres', $post->slug);
+
+        // Опубликованная: заголовок адрес не меняет; очистили поле — адрес из заголовка, старый ведет на новый
+        $post = $service->save($post, ['title' => 'Память и экзамены', 'slug' => 'svoy-adres', 'body' => '', 'published_at' => now()->subMinute()]);
+        $post = $service->save($post, ['title' => 'Как запомнить материал', 'slug' => 'svoy-adres', 'body' => '', 'published_at' => $post->published_at]);
+        $this->assertSame('svoy-adres', $post->slug);
+        $post = $service->save($post, ['title' => 'Как запомнить материал', 'slug' => '', 'body' => '', 'published_at' => $post->published_at]);
+        $this->assertSame('kak-zapomnit-material', $post->slug);
+        $this->get('/blog/svoy-adres')->assertRedirect(route('blog.show', 'kak-zapomnit-material'));
+    }
 }

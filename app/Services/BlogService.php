@@ -41,7 +41,7 @@ class BlogService
     /**
      * Сохранить статью. $data: title, slug, excerpt, cover_url, body, published_at (null — черновик), tags (названия),
      * author_id (только у админа: учитель или null — «Команда Serdal»).
-     * Адрес — из заголовка, если не задан; у сохраненной статьи без ручного адреса он не меняется.
+     * Адрес — см. resolveSlug.
      */
     public function save(?BlogPost $post, array $data, ?User $by = null): BlogPost
     {
@@ -49,8 +49,7 @@ class BlogService
         $post ??= new BlogPost(['created_by' => $by?->id]);
 
         $title = trim((string) $data['title']);
-        $slug = BlogPost::toSlug(trim((string) ($data['slug'] ?? '')));
-        $slug = $slug !== '' ? BlogPost::slugFrom($slug, $post->id) : ($post->slug ?: BlogPost::slugFrom($title, $post->id));
+        $slug = $this->resolveSlug($post, $title, $data);
 
         $fields = [
             'title' => $title,
@@ -93,6 +92,28 @@ class BlogService
         $this->notifyStudents($post);
 
         return $post;
+    }
+
+    /**
+     * Адрес статьи. Свой адрес (slug отличается от нынешнего) — он. Поле адреса очистили — из заголовка.
+     * Иначе, пока статья не опубликована, адрес из заголовка идет за заголовком: черновик сохраняется сам с первых букв,
+     * и без этого у статьи навсегда остался бы адрес вроде «p». Опубликованную без явной смены не трогаем.
+     */
+    private function resolveSlug(BlogPost $post, string $title, array $data): string
+    {
+        $given = array_key_exists('slug', $data) ? BlogPost::toSlug(trim((string) $data['slug'])) : null;
+        $current = (string) $post->slug;
+
+        if ($given === '' || $current === '') {
+            return BlogPost::slugFrom($title, $post->id);
+        }
+        if ($given !== null && $given !== $current) {
+            return BlogPost::slugFrom($given, $post->id);
+        }
+        $fromOldTitle = rtrim(BlogPost::toSlug((string) $post->getOriginal('title')), '-') ?: 'statya';
+        $isAuto = (bool) preg_match('/^' . preg_quote($fromOldTitle, '/') . '(-\d+)?$/', $current);
+
+        return $isAuto && ! $post->isPublished() ? BlogPost::slugFrom($title, $post->id) : $current;
     }
 
     /** Статья на сайте — сразу сообщить Яндексу и Bing (IndexNow), не дожидаясь утренней отправки. Запланированные уйдут с ней. */

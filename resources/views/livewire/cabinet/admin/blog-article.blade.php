@@ -155,7 +155,7 @@
                                 :hint="'Показывается в поиске Яндекса и Google и в списке статей. ' . $descriptionLength . ' из 160 знаков'" />
                     @unless ($teacher)
                         <x-ui.field label="Адрес статьи" name="slug" wire:model.live.debounce.500ms="slug" :placeholder="$slugPreview"
-                                    :hint="'serdal.ru/blog/' . $slugPreview . ($status === 'published' ? ' — после смены старые ссылки перестанут работать' : '')" />
+                                    :hint="'serdal.ru/blog/' . $slugPreview . ($status === 'published' ? ' — старые ссылки будут вести на новый адрес' : '')" />
                     @endunless
                 </section>
 
