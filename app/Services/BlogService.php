@@ -431,9 +431,9 @@ class BlogService
     {
         $tagIds = $post->tags()->pluck('blog_tags.id');
         $same = $tagIds->isNotEmpty()
-            ? BlogPost::published()->with('author')->whereKeyNot($post->id)->whereHas('tags', fn ($q) => $q->whereIn('blog_tags.id', $tagIds))->latest('published_at')->limit($limit)->get()
+            ? BlogPost::published()->with('author.subjects')->whereKeyNot($post->id)->whereHas('tags', fn ($q) => $q->whereIn('blog_tags.id', $tagIds))->latest('published_at')->limit($limit)->get()
             : collect();
-        $rest = BlogPost::published()->with('author')->whereKeyNot($post->id)->whereNotIn('id', $same->pluck('id'))->latest('published_at')->limit($limit - $same->count())->get();
+        $rest = BlogPost::published()->with('author.subjects')->whereKeyNot($post->id)->whereNotIn('id', $same->pluck('id'))->latest('published_at')->limit($limit - $same->count())->get();
 
         return $same->concat($rest);
     }
@@ -441,7 +441,7 @@ class BlogService
     /** Самые популярные статьи (вес из лайков, комментариев и возраста) — для главной страницы сайта. */
     public function popular(int $limit = 4): Collection
     {
-        return BlogPost::published()->with('author')->orderByDesc('hot_score')->latest('published_at')->limit($limit)->get();
+        return BlogPost::published()->with('author.subjects')->orderByDesc('hot_score')->latest('published_at')->limit($limit)->get();
     }
 
     /** Статья в Markdown: заголовок, автор, дата, адрес, описание, текст и теги — для ИИ-агентов и llms-full.txt. */

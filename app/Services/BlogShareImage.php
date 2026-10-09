@@ -12,36 +12,55 @@ use Intervention\Image\Interfaces\ImageInterface;
 use Intervention\Image\Laravel\Facades\Image;
 
 /**
- * Картинка статьи для соцсетей и мессенджеров (og:image, 1200×630): логотип, темы, заголовок, фото и имя автора.
- * С обложкой — обложка на фоне под темным градиентом, без нее — темный фон с двумя значками Serdal (звезда из фавикона): крупный бирюзовый сверху, маленький желтый снизу.
+ * Картинки статьи для соцсетей: OG — превью ссылки (og:image, 1200×630) и STORY — вертикальная для сторис (1080×1920,
+ * «Поделиться» на странице статьи). На обеих логотип, темы, заголовок, фото и имя автора.
+ * С обложкой — обложка на фоне под темным градиентом, без нее — темный фон с двумя значками Serdal (звезда из фавикона):
+ * крупный бирюзовый сверху, маленький желтый снизу. Цвета — только фирменные (BRAND.md и переменные сайта).
  * Собирается при первом запросе и лежит на локальном диске, пока не поменяются заголовок, автор, темы или обложка
  * (версия — в адресе, иначе соцсети показывали бы старую картинку).
  */
 class BlogShareImage
 {
+    public const OG = 'og';
+    public const STORY = 'story';
+
     public const WIDTH = 1200;
     public const HEIGHT = 630;
 
     /** Поменял оформление — подними версию: картинки всех статей соберутся заново. */
-    private const DESIGN = 5;
+    private const DESIGN = 9;
 
     private const DISK = 'local';
     private const DIR = 'blog-og';
 
-    private const PAD = 64;
-    private const DARK = [32, 35, 35];        // #202323 — как фон og-default.png
-    private const YELLOW = 'ffe500';
-
-    // Значки без обложки: [центр x, центр y, размер, цвет] — крупный бирюзовый выглядывает из верхнего угла, маленький
-    // желтый снизу; до заголовка и подписи автора не доходят. Цвета — только фирменные (BRAND.md и переменные сайта: бирюзовый — --brand-secondary)
-    private const STARS = [[1130, 80, 700, [146, 247, 237]], [1010, 550, 300, [255, 229, 0]]];
+    private const DARK = [32, 35, 35];          // ink #202323
+    private const YELLOW = 'ffe500';            // brand
+    private const TURQUOISE = [146, 247, 237];  // --brand-secondary сайта #92F7ED
     private const FAINT = 'b5b8b8';             // faint — подпись под именем
+    private const TITLE_LINE_HEIGHT = 1.34;
 
-    private const AVATAR = 72;
-    private const TITLE_MAX = 64;
-    private const TITLE_MIN = 40;
-    private const TITLE_LINES = 4;
-    private const TITLE_LINE_HEIGHT = 1.18;
+    /**
+     * Размеры форматов. title — самый крупный и самый мелкий кегль заголовка; top — докуда может подняться текст
+     * (темы над заголовком) без обложки — до значков, и с обложкой — до логотипа. stars — значки без обложки: [центр x, центр y, размер, цвет], до текста не доходят;
+     * plainWidth — ширина заголовка рядом со значками; dim — затемнение обложки: [высота полосы под логотипом,
+     * откуда и докуда градиент густеет под текст]. bottom — отступ снизу (в сторис внизу поле ответа — выше).
+     */
+    private const FORMATS = [
+        self::OG => [
+            'width' => 1200, 'height' => 630, 'pad' => 64, 'bottom' => 64, 'logo' => [40, 52],
+            'avatar' => 72, 'name' => 30, 'site' => 22, 'tag' => 24, 'gap' => 36,
+            'title' => [88, 40], 'top' => [140, 140], 'plainWidth' => 760,
+            'stars' => [[1130, 80, 700, self::TURQUOISE], [1010, 550, 300, [255, 229, 0]]],
+            'dim' => [220, 100, 400],
+        ],
+        self::STORY => [
+            'width' => 1080, 'height' => 1920, 'pad' => 96, 'bottom' => 240, 'logo' => [64, 160],
+            'avatar' => 120, 'name' => 46, 'site' => 34, 'tag' => 38, 'gap' => 64,
+            'title' => [108, 56], 'top' => [740, 300], 'plainWidth' => 888,
+            'stars' => [[860, 280, 760, self::TURQUOISE], [60, 560, 260, [255, 229, 0]]],
+            'dim' => [420, 500, 1250],
+        ],
+    ];
 
     public function __construct(private EmojiTextRenderer $renderer) {}
 
@@ -54,25 +73,30 @@ class BlogShareImage
         ])), 0, 12);
     }
 
-    public function url(BlogPost $post): string
+    public function url(BlogPost $post, string $format = self::OG): string
     {
-        return \App\Support\Seo::url(route('blog.og', ['slug' => $post->slug, 'v' => $this->version($post)], false));
+        $route = $format === self::STORY ? 'blog.story' : 'blog.og';
+
+        return \App\Support\Seo::url(route($route, ['slug' => $post->slug, 'v' => $this->version($post)], false));
     }
 
-    /** JPEG картинки: из готового файла или собранный сейчас. Старые версии этой статьи удаляются. */
-    public function jpeg(BlogPost $post): string
+    /** JPEG картинки: из готового файла или собранный сейчас. Старые версии этой статьи в этом формате удаляются. */
+    public function jpeg(BlogPost $post, string $format = self::OG): string
     {
         $disk = Storage::disk(self::DISK);
-        $path = self::DIR . '/' . $post->id . '-' . $this->version($post) . '.jpg';
+        $prefix = $post->id . '-' . ($format === self::STORY ? 'story-' : '');
+        $path = self::DIR . '/' . $prefix . $this->version($post) . '.jpg';
 
         if ($disk->exists($path)) {
             return $disk->get($path);
         }
 
-        $jpeg = $this->render($post);
+        $jpeg = $this->render($post, $format);
 
         foreach ($disk->files(self::DIR) as $old) {
-            if (str_starts_with(basename($old), $post->id . '-')) {
+            $name = basename($old);
+            $sameFormat = $format === self::STORY ? str_starts_with($name, $prefix) : ! str_contains($name, '-story-');
+            if (str_starts_with($name, $post->id . '-') && $sameFormat) {
                 $disk->delete($old);
             }
         }
@@ -81,68 +105,76 @@ class BlogShareImage
         return $jpeg;
     }
 
-    public function render(BlogPost $post): string
+    public function render(BlogPost $post, string $format = self::OG): string
     {
+        $f = self::FORMATS[$format];
         $cover = $this->coverBytes($post);
-        $card = $cover !== null ? $this->coverBackground($cover) : $this->plainBackground();
+        $card = $cover !== null ? $this->coverBackground($cover, $f) : $this->plainBackground($f);
 
-        $left = self::PAD;
-        // На темном фоне справа значок — заголовок до него не доходит
-        $width = $cover !== null ? self::WIDTH - 2 * self::PAD : 760;
+        $left = $f['pad'];
+        // На темном фоне справа значки — заголовок до них не доходит
+        $width = $cover !== null ? $f['width'] - 2 * $f['pad'] : $f['plainWidth'];
 
-        $this->placeLogo($card);
+        $this->placeLogo($card, $f);
 
         // Снизу вверх: подпись автора, над ней заголовок, над заголовком темы
-        $avatarTop = self::HEIGHT - self::PAD - self::AVATAR;
-        $card->place($this->avatar($post), 'top-left', $left, $avatarTop);
+        $avatar = $f['avatar'];
+        $avatarTop = $f['height'] - $f['bottom'] - $avatar;
+        $card->place($this->avatar($post, $avatar), 'top-left', $left, $avatarTop);
 
-        $name = $this->fitLine($post->authorName(), new TextStyle(resource_path('fonts/Inter-SemiBold.ttf'), 30, 'ffffff', 1.2), $width - self::AVATAR - 24);
-        $site = new TextStyle(resource_path('fonts/Inter-Regular.ttf'), 22, 'ffffff', 1.2);
-        $nameStyle = new TextStyle(resource_path('fonts/Inter-SemiBold.ttf'), 30, 'ffffff', 1.2);
-        $textLeft = $left + self::AVATAR + 20;
-        $this->renderer->draw($card, $name, $textLeft, $avatarTop + 6, $nameStyle);
-        $this->renderer->draw($card, 'Блог Serdal · serdal.ru', $textLeft, $avatarTop + 44, new TextStyle($site->fontPath, $site->size, self::FAINT, 1.2));
+        $nameStyle = new TextStyle(resource_path('fonts/Inter-SemiBold.ttf'), $f['name'], 'ffffff', 1.2);
+        $siteStyle = new TextStyle(resource_path('fonts/Inter-Regular.ttf'), $f['site'], self::FAINT, 1.2);
+        $textLeft = $left + $avatar + (int) round($avatar * 0.28);
+        $name = $this->fitLine($post->authorName(), $nameStyle, $f['width'] - $f['pad'] - $textLeft);
+        $textTop = $avatarTop + (int) round(($avatar - $f['name'] * 1.2 - $f['site'] * 1.2 - $avatar * 0.08) / 2);
+        $this->renderer->draw($card, $name, $textLeft, $textTop, $nameStyle);
+        $this->renderer->draw($card, 'Блог Serdal · serdal.ru', $textLeft, $textTop + (int) round($f['name'] * 1.2 + $avatar * 0.08), $siteStyle);
 
-        [$title, $titleStyle] = $this->fitTitle($post->title, $width);
-        $titleBottom = $avatarTop - 36;
+        // Темы над заголовком; заголовок — самым крупным кеглем, который помещается в место до верхней границы
+        $tagStyle = new TextStyle(resource_path('fonts/Inter-SemiBold.ttf'), $f['tag'], self::YELLOW, 1.2, $width);
+        $tags = $this->tagsLine($post, $tagStyle, $width);
+        $tagsBlock = $tags !== '' ? $this->renderer->inkHeight($tags, $tagStyle) + $f['tag'] : 0;
+        $titleBottom = $avatarTop - $f['gap'];
+        $topLimit = $f['top'][$cover !== null ? 1 : 0];
+
+        [$title, $titleStyle] = $this->fitTitle($post->title, $width, ...[...$f['title'], $titleBottom - $topLimit - $tagsBlock]);
         $titleTop = $titleBottom - $this->renderer->inkHeight($title, $titleStyle);
         $this->renderer->draw($card, $title, $left, $titleTop, $titleStyle);
 
-        $tags = $this->tagsLine($post, $width);
         if ($tags !== '') {
-            $tagStyle = new TextStyle(resource_path('fonts/Inter-SemiBold.ttf'), 24, self::YELLOW, 1.2);
-            $this->renderer->draw($card, $tags, $left, $titleTop - 24 - $this->renderer->inkHeight($tags, $tagStyle), $tagStyle);
+            $this->renderer->draw($card, $tags, $left, $titleTop - $tagsBlock, $tagStyle);
         }
 
         return $card->toJpeg(quality: 88)->toString();
     }
 
     /** Обложка на всю картинку: чуть притемнена целиком, сверху — под логотип, снизу — сильно, под текст. */
-    private function coverBackground(string $bytes): ImageInterface
+    private function coverBackground(string $bytes, array $f): ImageInterface
     {
-        $card = Image::read($bytes)->cover(self::WIDTH, self::HEIGHT);
+        [$band, $from, $to] = $f['dim'];
+        $card = Image::read($bytes)->cover($f['width'], $f['height']);
         $gd = $card->core()->native();
         imagealphablending($gd, true);
 
-        for ($y = 0; $y < self::HEIGHT; $y++) {
-            $top = 0.55 * max(0, 1 - $y / 220);                         // под логотипом
-            $t = min(1, max(0, ($y - 100) / 300));                       // с 100 до 400 px — плавно в почти черный
+        for ($y = 0; $y < $f['height']; $y++) {
+            $top = 0.55 * max(0, 1 - $y / $band);                         // под логотипом
+            $t = min(1, max(0, ($y - $from) / ($to - $from)));              // плавно в почти сплошной под текстом
             $bottom = 0.72 * $t * $t * (3 - 2 * $t);
             $alpha = min(0.94, 0.22 + $top + $bottom);
-            imageline($gd, 0, $y, self::WIDTH - 1, $y, imagecolorallocatealpha($gd, ...[...self::DARK, 127 - (int) round($alpha * 127)]));
+            imageline($gd, 0, $y, $f['width'] - 1, $y, imagecolorallocatealpha($gd, ...[...self::DARK, 127 - (int) round($alpha * 127)]));
         }
 
         return $card;
     }
 
     /** Без обложки — темный фон и справа два значка Serdal — бирюзовый и желтый (звезда из фавикона), выглядывают из-за краев. */
-    private function plainBackground(): ImageInterface
+    private function plainBackground(array $f): ImageInterface
     {
         $scale = 2; // рисуем в двойном размере, чтобы края были гладкими
-        $big = imagecreatetruecolor(self::WIDTH * $scale, self::HEIGHT * $scale);
+        $big = imagecreatetruecolor($f['width'] * $scale, $f['height'] * $scale);
         imagefill($big, 0, 0, imagecolorallocate($big, ...self::DARK));
 
-        foreach (self::STARS as [$cx, $cy, $size, $color]) {
+        foreach ($f['stars'] as [$cx, $cy, $size, $color]) {
             $points = [];
             foreach (self::starOutline() as [$x, $y]) {
                 $points[] = (int) round(($cx + ($x / 32 - 0.5) * $size) * $scale);
@@ -151,8 +183,8 @@ class BlogShareImage
             imagefilledpolygon($big, $points, imagecolorallocate($big, ...$color));
         }
 
-        $gd = imagecreatetruecolor(self::WIDTH, self::HEIGHT);
-        imagecopyresampled($gd, $big, 0, 0, 0, 0, self::WIDTH, self::HEIGHT, self::WIDTH * $scale, self::HEIGHT * $scale);
+        $gd = imagecreatetruecolor($f['width'], $f['height']);
+        imagecopyresampled($gd, $big, 0, 0, 0, 0, $f['width'], $f['height'], $f['width'] * $scale, $f['height'] * $scale);
 
         ob_start();
         imagepng($gd);
@@ -202,15 +234,15 @@ class BlogShareImage
     }
 
     /** Логотип в левом верхнем углу — белый (исходный черный инвертируем). */
-    private function placeLogo(ImageInterface $card): void
+    private function placeLogo(ImageInterface $card, array $f): void
     {
         $logo = Image::read(public_path('images/logo.png'));
         imagefilter($logo->core()->native(), IMG_FILTER_NEGATE);
         imagefilter($logo->core()->native(), IMG_FILTER_BRIGHTNESS, 255);
-        $card->place($logo->scale(height: 40), 'top-left', self::PAD, 52);
+        $card->place($logo->scale(height: $f['logo'][0]), 'top-left', $f['pad'], $f['logo'][1]);
     }
 
-    private function avatar(BlogPost $post): ImageInterface
+    private function avatar(BlogPost $post, int $size): ImageInterface
     {
         $author = $post->author;
         $bytes = null;
@@ -226,58 +258,59 @@ class BlogShareImage
             $bytes = file_get_contents(public_path('images/webclip.png'));
         }
         if ($bytes === null) {
-            return $this->initials($author->name);
+            return $this->initials($author->name, $size);
         }
 
         try {
-            return CircleImage::make($bytes, self::AVATAR);
+            return CircleImage::make($bytes, $size);
         } catch (\Throwable) {
-            return $this->initials($author?->name ?? 'Serdal');
+            return $this->initials($author?->name ?? 'Serdal', $size);
         }
     }
 
     /** Нет фото — инициалы на желтом круге, как на сайте. */
-    private function initials(string $name): ImageInterface
+    private function initials(string $name, int $size): ImageInterface
     {
         $parts = preg_split('/\s+/u', trim($name));
         $text = mb_strtoupper(mb_substr($parts[0] ?? '', 0, 1) . mb_substr($parts[1] ?? '', 0, 1));
 
-        $square = Image::create(self::AVATAR * 2, self::AVATAR * 2)->fill(self::YELLOW);
-        $square->text($text, self::AVATAR, self::AVATAR, function ($font) {
+        $square = Image::create($size * 2, $size * 2)->fill(self::YELLOW);
+        $square->text($text, $size, $size, function ($font) use ($size) {
             $font->filename(resource_path('fonts/Inter-SemiBold.ttf'));
-            $font->size(56);
+            $font->size((int) round($size * 0.78));
             $font->color('202323');
             $font->align('center');
             $font->valign('middle');
         });
 
-        return CircleImage::make($square->toPng()->toString(), self::AVATAR);
+        return CircleImage::make($square->toPng()->toString(), $size);
     }
 
     /**
-     * Самый крупный кегль, при котором заголовок занимает не больше TITLE_LINES строк и длинное слово не вылезает за край.
-     * Не влезает и самым мелким — укорачиваем с многоточием.
+     * Самый крупный кегль, при котором заголовок помещается в $height по высоте и длинное слово не вылезает за край.
+     * Не влезает и самым мелким — укорачиваем по словам с многоточием.
      *
      * @return array{string, TextStyle}
      */
-    private function fitTitle(string $title, int $width): array
+    private function fitTitle(string $title, int $width, int $max, int $min, int $height): array
     {
         $title = trim(preg_replace('/\s+/u', ' ', $title));
-        $style = new TextStyle(resource_path('fonts/Inter-SemiBold.ttf'), self::TITLE_MAX, 'ffffff', self::TITLE_LINE_HEIGHT, $width);
+        $style = new TextStyle(resource_path('fonts/Inter-SemiBold.ttf'), $max, 'ffffff', self::TITLE_LINE_HEIGHT, $width);
+        $fits = fn (string $text, TextStyle $style) => $this->renderer->inkHeight($text, $style) <= $height;
 
-        for ($size = self::TITLE_MAX; $size >= self::TITLE_MIN; $size -= 2) {
+        for ($size = $max; $size >= $min; $size -= 2) {
             $candidate = $style->withSize($size);
-            if ($this->renderer->widestWord($title, $candidate) <= $width && $this->renderer->lineCount($title, $candidate) <= self::TITLE_LINES) {
+            if ($this->renderer->widestWord($title, $candidate) <= $width && $fits($title, $candidate)) {
                 return [$title, $candidate];
             }
         }
 
-        $style = $style->withSize(self::TITLE_MIN);
+        $style = $style->withSize($min);
         if ($this->renderer->widestWord($title, $style) > $width) {
-            $style = $style->withSize(max(24, (int) floor(self::TITLE_MIN * $width / $this->renderer->widestWord($title, $style))));
+            $style = $style->withSize(max(24, (int) floor($min * $width / $this->renderer->widestWord($title, $style))));
         }
         $words = preg_split('/\s+/u', $title);
-        while (count($words) > 1 && $this->renderer->lineCount(implode(' ', $words) . '…', $style) > self::TITLE_LINES) {
+        while (count($words) > 1 && ! $fits(implode(' ', $words) . '…', $style)) {
             array_pop($words);
         }
 
@@ -285,9 +318,8 @@ class BlogShareImage
     }
 
     /** Темы статьи через точку — сколько поместится в одну строку. */
-    private function tagsLine(BlogPost $post, int $width): string
+    private function tagsLine(BlogPost $post, TextStyle $style, int $width): string
     {
-        $style = new TextStyle(resource_path('fonts/Inter-SemiBold.ttf'), 24, self::YELLOW, 1.2, $width);
         $line = '';
 
         foreach ($post->tags->pluck('name') as $name) {

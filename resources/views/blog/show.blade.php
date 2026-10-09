@@ -87,7 +87,10 @@
             @endif
 
             @if($post->isPublished())
-                <div class="blog-reactions"><livewire:blog.like-button :post-id="$post->id" /></div>
+                <div class="blog-reactions">
+                    <livewire:blog.like-button :post-id="$post->id" />
+                    @include('blog.partials.share')
+                </div>
             @endif
 
             @if($post->author)

@@ -100,7 +100,7 @@ class PageController extends Controller
         // Статьи учителя в блоге: последние три и ссылка на все (блог → автор)
         $blogQuery = $user->blogPosts()->published();
         $blogTotal = (clone $blogQuery)->count();
-        $blogPosts = $blogTotal ? $blogQuery->with('author')->latest('published_at')->take(4)->get() : collect();
+        $blogPosts = $blogTotal ? $blogQuery->with('author.subjects')->latest('published_at')->take(4)->get() : collect();
 
         return view('tutor', compact('user', 'lessonTypeIndividual', 'lessonTypeGroup', 'reviews', 'reviewsHasMore', 'reviewsTotal', 'ratingAvg', 'blogPosts', 'blogTotal'));
     }

@@ -58,7 +58,7 @@ class BlogController extends Controller
             default => $defaultSort,
         };
         $posts = BlogPost::published()
-            ->with('author')
+            ->with('author.subjects')
             ->when($tag, fn ($q) => $q->whereHas('tags', fn ($t) => $t->whereKey($tag->id)))
             ->when($author, fn ($q) => $q->where('author_id', $author->id))
             ->when($sort === 'feed', fn ($q) => $q->whereIn('author_id', $followed))
@@ -135,13 +135,25 @@ class BlogController extends Controller
     /** Картинка статьи для соцсетей (og:image) — BlogShareImage. Версия в ?v= — соцсети кэшируют по адресу. */
     public function shareImage(string $slug, BlogShareImage $image)
     {
+        return $this->shareJpeg($slug, $image, BlogShareImage::OG);
+    }
+
+    /** Вертикальная картинка статьи для сторис — «Поделиться» на странице статьи. */
+    public function storyImage(string $slug, BlogShareImage $image)
+    {
+        return $this->shareJpeg($slug, $image, BlogShareImage::STORY, 'serdal-' . $slug . '.jpg');
+    }
+
+    private function shareJpeg(string $slug, BlogShareImage $image, string $format, ?string $filename = null)
+    {
         $isAdmin = auth()->user()?->role === User::ROLE_ADMIN;
         $post = ($isAdmin ? BlogPost::query() : BlogPost::published())->with(['tags', 'author'])->where('slug', $slug)->firstOrFail();
 
-        return response($image->jpeg($post), 200, [
+        return response($image->jpeg($post, $format), 200, array_filter([
             'Content-Type' => 'image/jpeg',
             'Cache-Control' => 'public, max-age=604800',
-        ]);
+            'Content-Disposition' => $filename ? 'inline; filename="' . $filename . '"' : null,
+        ]));
     }
 
     /** RSS: последние статьи с полным текстом — для Яндекса, агрегаторов и ИИ-агентов. */

@@ -137,7 +137,8 @@ class User extends Authenticatable
             get: function () {
                 $names = [];
 
-                foreach ($this->subjects as $index => $subject) {
+                // Один предмет бывает привязан дважды — в подписи без повторов
+                foreach ($this->subjects->unique('name')->values() as $index => $subject) {
                     if ($index > 0) {
                         $names[] = Str::lower($subject->name);
                     } else {
