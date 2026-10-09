@@ -31,6 +31,7 @@ Route::get('/blog/tag/{slug}', [\App\Http\Controllers\BlogController::class, 'ta
 Route::get('/blog/author/{username}', [\App\Http\Controllers\BlogController::class, 'author'])->name('blog.author');
 // Для поисковиков, агрегаторов и ИИ-агентов: лента RSS с полным текстом и статья в Markdown
 Route::get('/blog/rss.xml', [\App\Http\Controllers\BlogController::class, 'rss'])->name('blog.rss');
+Route::get('/blog/{slug}/og.jpg', [\App\Http\Controllers\BlogController::class, 'shareImage'])->name('blog.og');
 Route::get('/blog/{slug}.md', [\App\Http\Controllers\BlogController::class, 'markdown'])->name('blog.markdown');
 Route::get('/blog/{slug}', [\App\Http\Controllers\BlogController::class, 'show'])->name('blog.show');
 

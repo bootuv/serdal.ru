@@ -229,6 +229,13 @@
   line-height: 28px;
 }
 
+/* Предметы автора под именем */
+.blog-author-card-subjects {
+  color: var(--gray);
+  font-size: 15px;
+  line-height: 20px;
+}
+
 .blog-author-card-links {
   display: flex;
   flex-wrap: wrap;
@@ -272,6 +279,36 @@
   color: var(--gray);
   font-size: 15px;
   line-height: 20px;
+}
+
+/* Подпись карточки: фото автора, справа имя и под ним дата */
+.blog-byline {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.blog-byline-photo {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.blog-byline-text {
+  display: flex;
+  flex-flow: column;
+  min-width: 0;
+}
+
+.blog-byline-name {
+  overflow: hidden;
+  color: var(--black);
+  font-weight: 500;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 /* Карточка с обложкой: квадратная картинка, увеличивается при наведении */
@@ -362,6 +399,17 @@
 .blog-card--fill .blog-meta,
 .blog-card--mint .blog-meta {
   color: var(--black);
+  opacity: .7;
+}
+
+/* Фото и имя автора на цветной карточке не приглушаем — только дату */
+.blog-card--fill .blog-byline,
+.blog-card--mint .blog-byline {
+  opacity: 1;
+}
+
+.blog-card--fill .blog-byline-text > span:not(.blog-byline-name),
+.blog-card--mint .blog-byline-text > span:not(.blog-byline-name) {
   opacity: .7;
 }
 

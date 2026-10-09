@@ -8,13 +8,14 @@
 @section('description', $post->description())
 @section('og_type', 'article')
 @section('livewire', '1')
-@if($post->cover_url)
-    @section('og_image', $post->cover_url)
-@endif
+{{-- Картинка для соцсетей: обложка, заголовок, темы и автор (BlogShareImage) --}}
+@section('og_image', app(\App\Services\BlogShareImage::class)->url($post))
 @if(! $post->isPublished())
     @section('robots', 'noindex, nofollow')
 @endif
 @section('meta')
+    <meta property="og:image:width" content="{{ \App\Services\BlogShareImage::WIDTH }}">
+    <meta property="og:image:height" content="{{ \App\Services\BlogShareImage::HEIGHT }}">
     @if($post->published_at)<meta property="article:published_time" content="{{ $post->published_at->toAtomString() }}">@endif
     <meta property="article:modified_time" content="{{ $post->updated_at->toAtomString() }}">
     <meta property="article:author" content="{{ $post->authorName() }}">
@@ -34,7 +35,7 @@
         '@type' => 'BlogPosting',
         'headline' => $post->title,
         'description' => $post->description(200),
-        'image' => $post->cover_url,
+        'image' => $post->cover_url ?: app(\App\Services\BlogShareImage::class)->url($post),
         'keywords' => $post->tags->pluck('name')->implode(', ') ?: null,
         'wordCount' => $post->wordCount() ?: null,
         'timeRequired' => 'PT' . $post->readingMinutes() . 'M',
@@ -95,6 +96,7 @@
                     <div class="blog-author-card-text">
                         <div class="blog-meta">Автор статьи</div>
                         <div class="blog-author-card-name">{{ $post->author->name }}</div>
+                        @if($post->author->subjects->isNotEmpty())<div class="blog-author-card-subjects">{{ $post->author->subjectsList }}</div>@endif
                         @if($post->isPublished())<livewire:blog.follow-button :author-id="$post->author->id" :return-url="$post->url" />@endif
                         <div class="blog-author-card-links">
                             @if($authorFeed)<a href="{{ $authorFeed }}">Все статьи автора</a>@endif

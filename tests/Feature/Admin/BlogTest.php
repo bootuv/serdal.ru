@@ -9,6 +9,7 @@ use App\Models\BlogPost;
 use App\Models\User;
 use App\Services\BlogService;
 use App\Services\SitemapService;
+use App\Support\Seo;
 use Database\Seeders\TariffSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -114,7 +115,7 @@ class BlogTest extends TestCase
         $this->get('/blog/' . $post->slug)->assertOk()
             ->assertSee('<title>Как подготовиться к ОГЭ по математике — блог Serdal</title>', false)
             ->assertSee('<meta name="description" content="Пошаговый план подготовки">', false)
-            ->assertSee('<meta property="og:image" content="https://cdn.test/blog/cover.webp">', false)
+            ->assertSee('<meta property="og:image" content="' . Seo::url('/blog/' . $post->slug . '/og.jpg'), false) // картинка для соцсетей с обложкой на фоне
             ->assertSee('"@type":"BlogPosting"', false)
             ->assertSee('<aside class="callout">Совет</aside>', false)
             ->assertSee('Читайте также')
@@ -407,5 +408,36 @@ class BlogTest extends TestCase
             ->call('askDelete')->call('delete')
             ->assertRedirect(route('cabinet.admin.blog'));
         $this->assertNull(BlogPost::find($post->id));
+    }
+
+    public function test_share_image_and_author_on_cards(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake('local');
+        $teacher = $this->user(User::ROLE_TUTOR);
+        $teacher->subjects()->attach(\App\Models\Subject::create(['name' => 'Физика'])->id);
+        $post = $this->article(['author_id' => $teacher->id, 'tags' => ['ОГЭ']]);
+        $this->article(['title' => 'Другая статья', 'author_id' => $teacher->id]);
+
+        // На странице статьи — своя картинка для соцсетей, в блоке автора — его предметы
+        $image = app(\App\Services\BlogShareImage::class)->url($post->fresh(['tags', 'author']));
+        $this->get(route('blog.show', $post->slug))->assertOk()
+            ->assertSee('<meta property="og:image" content="' . e($image) . '">', false)
+            ->assertSee('blog-author-card-subjects', false)->assertSee('Физика');
+
+        // Картинка собирается и сохраняется; черновик — только админу
+        $response = $this->get(route('blog.og', $post->slug))->assertOk()->assertHeader('Content-Type', 'image/jpeg');
+        $this->assertSame([1200, 630], array_slice(getimagesizefromstring($response->getContent()), 0, 2));
+        $this->assertCount(1, \Illuminate\Support\Facades\Storage::disk('local')->files('blog-og'));
+        $draft = $this->article(['title' => 'Черновик', 'published_at' => null]);
+        $this->get(route('blog.og', $draft->slug))->assertNotFound();
+
+        // Поменяли заголовок — новая версия, старый файл удален
+        app(BlogService::class)->save($post, ['title' => 'Новый заголовок', 'body' => $post->body, 'published_at' => $post->published_at]);
+        $this->assertNotSame($image, app(\App\Services\BlogShareImage::class)->url($post->fresh(['tags', 'author'])));
+        $this->get(route('blog.og', $post->fresh()->slug))->assertOk();
+        $this->assertCount(1, \Illuminate\Support\Facades\Storage::disk('local')->files('blog-og'));
+
+        // В карточках ленты рядом с именем — фото автора (или инициалы)
+        $this->get(route('blog.index'))->assertOk()->assertSee('blog-byline-photo', false)->assertSee($teacher->name);
     }
 }

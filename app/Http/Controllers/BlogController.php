@@ -6,6 +6,7 @@ use App\Models\BlogPost;
 use App\Models\BlogTag;
 use App\Models\User;
 use App\Services\BlogService;
+use App\Services\BlogShareImage;
 use App\Services\BlogStatsService;
 use App\Services\TutorCatalogService;
 use App\Support\Seo;
@@ -83,7 +84,7 @@ class BlogController extends Controller
     public function show(string $slug, BlogService $blog)
     {
         $isAdmin = auth()->user()?->role === User::ROLE_ADMIN;
-        $post = ($isAdmin ? BlogPost::query() : BlogPost::published())->with(['tags', 'author'])->where('slug', $slug)->first();
+        $post = ($isAdmin ? BlogPost::query() : BlogPost::published())->with(['tags', 'author.subjects'])->where('slug', $slug)->first();
         if (! $post) {
             // Адрес сменили после публикации — постоянная переадресация на новый
             $moved = $blog->findByOldSlug($slug);
@@ -128,6 +129,18 @@ class BlogController extends Controller
             'Content-Type' => 'text/markdown; charset=utf-8',
             'X-Robots-Tag' => 'noindex',
             'Link' => '<' . Seo::url(route('blog.show', $post->slug, false)) . '>; rel="canonical"',
+        ]);
+    }
+
+    /** Картинка статьи для соцсетей (og:image) — BlogShareImage. Версия в ?v= — соцсети кэшируют по адресу. */
+    public function shareImage(string $slug, BlogShareImage $image)
+    {
+        $isAdmin = auth()->user()?->role === User::ROLE_ADMIN;
+        $post = ($isAdmin ? BlogPost::query() : BlogPost::published())->with(['tags', 'author'])->where('slug', $slug)->firstOrFail();
+
+        return response($image->jpeg($post), 200, [
+            'Content-Type' => 'image/jpeg',
+            'Cache-Control' => 'public, max-age=604800',
         ]);
     }
 
